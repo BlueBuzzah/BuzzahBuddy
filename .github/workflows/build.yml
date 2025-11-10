@@ -17,7 +17,9 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "9.0.x"
-      - name: Install Dependencies
+      - name: Restore Workloads
+        run: dotnet workload restore
+      - name: Restore Dependencies
         run: dotnet restore
       - name: Build Android
         run: dotnet build -f net9.0-android -c debug --no-restore
