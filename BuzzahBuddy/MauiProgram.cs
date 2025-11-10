@@ -9,6 +9,12 @@ namespace BuzzahBuddy;
 
 public static class MauiProgram
 {
+	/// <summary>
+	/// Set to true to use mock Bluetooth service for testing without hardware.
+	/// Set to false to use real Bluetooth hardware.
+	/// </summary>
+	private const bool UseMockBluetooth = false;
+
 	public static MauiApp CreateMauiApp()
 	{
 		var builder = MauiApp.CreateBuilder();
@@ -25,7 +31,18 @@ public static class MauiProgram
 #endif
 
 		// Register Services
-		builder.Services.AddSingleton<IBluetoothService, BluetoothService>();
+		// Toggle between mock and real Bluetooth service
+		if (UseMockBluetooth)
+		{
+			builder.Services.AddSingleton<IBluetoothService, MockBluetoothService>();
+			System.Diagnostics.Debug.WriteLine("🔧 Using MOCK Bluetooth Service (no hardware required)");
+		}
+		else
+		{
+			builder.Services.AddSingleton<IBluetoothService, BluetoothService>();
+			System.Diagnostics.Debug.WriteLine("📡 Using REAL Bluetooth Service (hardware required)");
+		}
+
 		builder.Services.AddSingleton<IGloveControlService, GloveControlService>();
 		builder.Services.AddSingleton<IDataStorageService, PreferencesStorageService>();
 
@@ -34,12 +51,14 @@ public static class MauiProgram
 		builder.Services.AddTransient<DeviceListViewModel>();
 		builder.Services.AddTransient<GloveControlViewModel>();
 		builder.Services.AddTransient<SettingsViewModel>();
+		builder.Services.AddTransient<CalibrationViewModel>();
 
 		// Register Views
 		builder.Services.AddTransient<MainPage>();
 		builder.Services.AddTransient<DeviceListPage>();
 		builder.Services.AddTransient<GloveControlPage>();
 		builder.Services.AddTransient<SettingsPage>();
+		builder.Services.AddTransient<CalibrationPage>();
 
 		return builder.Build();
 	}

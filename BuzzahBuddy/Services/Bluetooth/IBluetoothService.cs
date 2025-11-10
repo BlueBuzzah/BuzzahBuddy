@@ -57,31 +57,38 @@ public interface IBluetoothService
     Task DisconnectAsync();
 
     /// <summary>
-    /// Writes data to a specified Bluetooth characteristic.
+    /// Event raised when a command response is received from the glove.
     /// </summary>
-    /// <param name="serviceId">The UUID of the service containing the characteristic.</param>
-    /// <param name="characteristicId">The UUID of the characteristic to write to.</param>
-    /// <param name="data">The data to write.</param>
-    /// <returns>True if write successful, false otherwise.</returns>
-    Task<bool> WriteCharacteristicAsync(Guid serviceId, Guid characteristicId, byte[] data);
+    event EventHandler<CommandResponse>? ResponseReceived;
 
     /// <summary>
-    /// Reads data from a specified Bluetooth characteristic.
+    /// Sends a text command to the glove via the TX characteristic and waits for response.
+    /// Commands are automatically terminated with \n.
+    /// Responses are filtered to ignore internal VL↔VR sync messages.
     /// </summary>
-    /// <param name="serviceId">The UUID of the service containing the characteristic.</param>
-    /// <param name="characteristicId">The UUID of the characteristic to read from.</param>
-    /// <returns>The data read from the characteristic, or empty array if read failed.</returns>
-    Task<byte[]> ReadCharacteristicAsync(Guid serviceId, Guid characteristicId);
+    /// <param name="command">The command to send (without \n terminator)</param>
+    /// <param name="timeoutMs">Timeout in milliseconds (default: 5000)</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Parsed command response</returns>
+    Task<CommandResponse> SendCommandAsync(
+        string command,
+        int timeoutMs = 5000,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Subscribes to notifications from the RX characteristic.
+    /// This must be called after connecting to receive responses.
+    /// </summary>
+    Task SubscribeToNotificationsAsync();
+
+    /// <summary>
+    /// Unsubscribes from RX characteristic notifications.
+    /// </summary>
+    Task UnsubscribeFromNotificationsAsync();
 
     /// <summary>
     /// Checks if Bluetooth is enabled on the device.
     /// </summary>
     /// <returns>True if Bluetooth is enabled, false otherwise.</returns>
     Task<bool> IsBluetoothEnabledAsync();
-
-    /// <summary>
-    /// Gets the current battery level of the connected device.
-    /// </summary>
-    /// <returns>Battery level percentage (0-100), or null if unavailable.</returns>
-    Task<int?> GetBatteryLevelAsync();
 }

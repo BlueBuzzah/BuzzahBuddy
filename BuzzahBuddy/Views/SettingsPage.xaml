@@ -35,6 +35,15 @@
                                FontAttributes="Bold"
                                SemanticProperties.Description="Currently connected device" />
 
+                        <Button Text="Calibrate Motors"
+                                Command="{Binding NavigateToCalibrationCommand}"
+                                IsEnabled="{Binding IsConnected}"
+                                HeightRequest="48"
+                                CornerRadius="8"
+                                BackgroundColor="{StaticResource Primary}"
+                                SemanticProperties.Hint="Navigate to motor calibration page"
+                                AutomationId="CalibrateMotorsButton" />
+
                         <Button Text="Disconnect"
                                 Command="{Binding DisconnectDeviceCommand}"
                                 IsEnabled="{Binding IsConnected}"
@@ -141,7 +150,7 @@
                         <Label FontSize="14"
                                LineBreakMode="WordWrap"
                                Margin="0,10,0,0"
-                               Text="Companion app for the BlueBuzzah vibrotactile glove, designed to help manage Parkinson's symptoms through therapeutic vibration." />
+                               Text="Companion app for BlueBuzzah vibrotactile devices, designed to help manage Parkinson's symptoms through therapeutic vibration." />
                     </VerticalStackLayout>
                 </Border>
             </VerticalStackLayout>

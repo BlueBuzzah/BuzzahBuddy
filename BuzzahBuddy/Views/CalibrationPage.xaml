@@ -1,0 +1,324 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:BuzzahBuddy.ViewModels"
+             x:Class="BuzzahBuddy.Views.CalibrationPage"
+             x:DataType="vm:CalibrationViewModel"
+             Title="{Binding Title}">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="25">
+
+            <!-- Header -->
+            <Label Text="Motor Calibration"
+                   Style="{StaticResource Headline}"
+                   SemanticProperties.HeadingLevel="Level1"
+                   HorizontalOptions="Center" />
+
+            <!-- Calibration Mode Controls -->
+            <Border Padding="15"
+                    BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}"
+                    StrokeThickness="0">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="12" />
+                </Border.StrokeShape>
+
+                <VerticalStackLayout Spacing="15">
+                    <Label Text="Calibration Mode"
+                           FontSize="18"
+                           FontAttributes="Bold"
+                           SemanticProperties.HeadingLevel="Level2" />
+
+                    <Label Text="Test individual finger motors to verify proper operation and adjust intensity."
+                           FontSize="14"
+                           LineBreakMode="WordWrap"
+                           TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray400}}" />
+
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                        <Button Grid.Column="0"
+                                Text="Enter Calibration"
+                                Command="{Binding EnterCalibrationModeCommand}"
+                                IsEnabled="{Binding IsInCalibrationMode, Converter={StaticResource InvertedBoolConverter}}"
+                                HeightRequest="56"
+                                FontSize="16"
+                                CornerRadius="12"
+                                BackgroundColor="{StaticResource Primary}"
+                                SemanticProperties.Hint="Enter calibration mode to test finger motors"
+                                AutomationId="EnterCalibrationButton" />
+
+                        <Button Grid.Column="1"
+                                Text="Exit Calibration"
+                                Command="{Binding ExitCalibrationModeCommand}"
+                                IsEnabled="{Binding IsInCalibrationMode}"
+                                HeightRequest="56"
+                                FontSize="16"
+                                CornerRadius="12"
+                                BackgroundColor="{StaticResource Secondary}"
+                                SemanticProperties.Hint="Exit calibration mode"
+                                AutomationId="ExitCalibrationButton" />
+                    </Grid>
+
+                    <Label Text="{Binding IsInCalibrationMode, StringFormat='Status: {0}'}"
+                           FontSize="14"
+                           FontAttributes="Bold"
+                           HorizontalOptions="Center"
+                           TextColor="{StaticResource Primary}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Settings -->
+            <Border Padding="15"
+                    BackgroundColor="{AppThemeBinding Light={StaticResource SecondaryLight}, Dark={StaticResource Gray900}}"
+                    StrokeThickness="0"
+                    IsVisible="{Binding IsInCalibrationMode}">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="12" />
+                </Border.StrokeShape>
+
+                <VerticalStackLayout Spacing="15">
+                    <Label Text="Test Settings"
+                           FontSize="18"
+                           FontAttributes="Bold"
+                           SemanticProperties.HeadingLevel="Level2" />
+
+                    <!-- Intensity Slider -->
+                    <VerticalStackLayout Spacing="5">
+                        <HorizontalStackLayout Spacing="10">
+                            <Label Text="Intensity:"
+                                   FontSize="16"
+                                   VerticalOptions="Center" />
+                            <Label Text="{Binding Intensity, StringFormat='{0}%'}"
+                                   FontSize="16"
+                                   FontAttributes="Bold"
+                                   VerticalOptions="Center" />
+                        </HorizontalStackLayout>
+                        <Slider Value="{Binding Intensity}"
+                                Minimum="0"
+                                Maximum="100"
+                                MinimumTrackColor="{StaticResource Primary}"
+                                SemanticProperties.Description="Motor intensity from 0 to 100 percent"
+                                AutomationId="IntensitySlider" />
+                    </VerticalStackLayout>
+
+                    <!-- Duration Slider -->
+                    <VerticalStackLayout Spacing="5">
+                        <HorizontalStackLayout Spacing="10">
+                            <Label Text="Duration:"
+                                   FontSize="16"
+                                   VerticalOptions="Center" />
+                            <Label Text="{Binding Duration, StringFormat='{0}ms'}"
+                                   FontSize="16"
+                                   FontAttributes="Bold"
+                                   VerticalOptions="Center" />
+                        </HorizontalStackLayout>
+                        <Slider Value="{Binding Duration}"
+                                Minimum="50"
+                                Maximum="2000"
+                                MinimumTrackColor="{StaticResource Primary}"
+                                SemanticProperties.Description="Motor duration from 50 to 2000 milliseconds"
+                                AutomationId="DurationSlider" />
+                    </VerticalStackLayout>
+
+                    <!-- Selected Finger Display -->
+                    <Border Padding="10"
+                            BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
+                            StrokeThickness="0"
+                            IsVisible="{Binding IsBuzzing}">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="8" />
+                        </Border.StrokeShape>
+                        <Label Text="{Binding SelectedFingerName, StringFormat='Testing: {0}'}"
+                               FontSize="16"
+                               FontAttributes="Bold"
+                               TextColor="White"
+                               HorizontalOptions="Center" />
+                    </Border>
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Finger Buttons - Left Hand -->
+            <Border Padding="15"
+                    BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}"
+                    StrokeThickness="0"
+                    IsVisible="{Binding IsInCalibrationMode}">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="12" />
+                </Border.StrokeShape>
+
+                <VerticalStackLayout Spacing="15">
+                    <Label Text="Left"
+                           FontSize="18"
+                           FontAttributes="Bold"
+                           HorizontalOptions="Center"
+                           SemanticProperties.HeadingLevel="Level2" />
+
+                    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="10">
+                        <!-- Left Thumb (Index 0) -->
+                        <Button Grid.Row="0" Grid.Column="0"
+                                Text="Thumb"
+                                Command="{Binding BuzzFingerCommand}"
+                                HeightRequest="64"
+                                FontSize="18"
+                                FontAttributes="Bold"
+                                CornerRadius="12"
+                                BackgroundColor="{StaticResource Primary}"
+                                SemanticProperties.Hint="Test left thumb motor"
+                                AutomationId="LeftThumbButton">
+                            <Button.CommandParameter>
+                                <x:Int32>0</x:Int32>
+                            </Button.CommandParameter>
+                        </Button>
+
+                        <!-- Left Index (Index 1) -->
+                        <Button Grid.Row="0" Grid.Column="1"
+                                Text="Index"
+                                Command="{Binding BuzzFingerCommand}"
+                                HeightRequest="64"
+                                FontSize="18"
+                                FontAttributes="Bold"
+                                CornerRadius="12"
+                                BackgroundColor="{StaticResource Primary}"
+                                SemanticProperties.Hint="Test left index finger motor"
+                                AutomationId="LeftIndexButton">
+                            <Button.CommandParameter>
+                                <x:Int32>1</x:Int32>
+                            </Button.CommandParameter>
+                        </Button>
+
+                        <!-- Left Middle (Index 2) -->
+                        <Button Grid.Row="1" Grid.Column="0"
+                                Text="Middle"
+                                Command="{Binding BuzzFingerCommand}"
+                                HeightRequest="64"
+                                FontSize="18"
+                                FontAttributes="Bold"
+                                CornerRadius="12"
+                                BackgroundColor="{StaticResource Primary}"
+                                SemanticProperties.Hint="Test left middle finger motor"
+                                AutomationId="LeftMiddleButton">
+                            <Button.CommandParameter>
+                                <x:Int32>2</x:Int32>
+                            </Button.CommandParameter>
+                        </Button>
+
+                        <!-- Left Ring (Index 3) -->
+                        <Button Grid.Row="1" Grid.Column="1"
+                                Text="Ring"
+                                Command="{Binding BuzzFingerCommand}"
+                                HeightRequest="64"
+                                FontSize="18"
+                                FontAttributes="Bold"
+                                CornerRadius="12"
+                                BackgroundColor="{StaticResource Primary}"
+                                SemanticProperties.Hint="Test left ring finger motor"
+                                AutomationId="LeftRingButton">
+                            <Button.CommandParameter>
+                                <x:Int32>3</x:Int32>
+                            </Button.CommandParameter>
+                        </Button>
+                    </Grid>
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Finger Buttons - Right Hand -->
+            <Border Padding="15"
+                    BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}"
+                    StrokeThickness="0"
+                    IsVisible="{Binding IsInCalibrationMode}">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="12" />
+                </Border.StrokeShape>
+
+                <VerticalStackLayout Spacing="15">
+                    <Label Text="Right"
+                           FontSize="18"
+                           FontAttributes="Bold"
+                           HorizontalOptions="Center"
+                           SemanticProperties.HeadingLevel="Level2" />
+
+                    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="10">
+                        <!-- Right Thumb (Index 4) -->
+                        <Button Grid.Row="0" Grid.Column="0"
+                                Text="Thumb"
+                                Command="{Binding BuzzFingerCommand}"
+                                HeightRequest="64"
+                                FontSize="18"
+                                FontAttributes="Bold"
+                                CornerRadius="12"
+                                BackgroundColor="{StaticResource Secondary}"
+                                SemanticProperties.Hint="Test right thumb motor"
+                                AutomationId="RightThumbButton">
+                            <Button.CommandParameter>
+                                <x:Int32>4</x:Int32>
+                            </Button.CommandParameter>
+                        </Button>
+
+                        <!-- Right Index (Index 5) -->
+                        <Button Grid.Row="0" Grid.Column="1"
+                                Text="Index"
+                                Command="{Binding BuzzFingerCommand}"
+                                HeightRequest="64"
+                                FontSize="18"
+                                FontAttributes="Bold"
+                                CornerRadius="12"
+                                BackgroundColor="{StaticResource Secondary}"
+                                SemanticProperties.Hint="Test right index finger motor"
+                                AutomationId="RightIndexButton">
+                            <Button.CommandParameter>
+                                <x:Int32>5</x:Int32>
+                            </Button.CommandParameter>
+                        </Button>
+
+                        <!-- Right Middle (Index 6) -->
+                        <Button Grid.Row="1" Grid.Column="0"
+                                Text="Middle"
+                                Command="{Binding BuzzFingerCommand}"
+                                HeightRequest="64"
+                                FontSize="18"
+                                FontAttributes="Bold"
+                                CornerRadius="12"
+                                BackgroundColor="{StaticResource Secondary}"
+                                SemanticProperties.Hint="Test right middle finger motor"
+                                AutomationId="RightMiddleButton">
+                            <Button.CommandParameter>
+                                <x:Int32>6</x:Int32>
+                            </Button.CommandParameter>
+                        </Button>
+
+                        <!-- Right Ring (Index 7) -->
+                        <Button Grid.Row="1" Grid.Column="1"
+                                Text="Ring"
+                                Command="{Binding BuzzFingerCommand}"
+                                HeightRequest="64"
+                                FontSize="18"
+                                FontAttributes="Bold"
+                                CornerRadius="12"
+                                BackgroundColor="{StaticResource Secondary}"
+                                SemanticProperties.Hint="Test right ring finger motor"
+                                AutomationId="RightRingButton">
+                            <Button.CommandParameter>
+                                <x:Int32>7</x:Int32>
+                            </Button.CommandParameter>
+                        </Button>
+                    </Grid>
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Info Card -->
+            <Border Padding="15"
+                    BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}"
+                    StrokeThickness="0">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="12" />
+                </Border.StrokeShape>
+
+                <Label FontSize="14"
+                       LineBreakMode="WordWrap"
+                       Text="Use calibration mode to test each finger motor. Adjust intensity and duration, then tap a finger button to activate that motor. This helps verify all motors are working correctly."
+                       SemanticProperties.Description="Calibration instructions" />
+            </Border>
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

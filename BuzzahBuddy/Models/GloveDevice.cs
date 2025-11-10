@@ -21,9 +21,45 @@ public class GloveDevice
     public string MacAddress { get; set; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets the battery level percentage (0-100).
+    /// Gets or sets the left glove battery voltage.
+    /// Range: 3.0V (empty) to 4.2V (full).
     /// </summary>
-    public int BatteryLevel { get; set; }
+    public double BatteryLeftVoltage { get; set; }
+
+    /// <summary>
+    /// Gets or sets the right glove battery voltage.
+    /// Range: 3.0V (empty) to 4.2V (full).
+    /// </summary>
+    public double BatteryRightVoltage { get; set; }
+
+    /// <summary>
+    /// Gets the estimated battery percentage for the left glove (0-100).
+    /// Calculated from voltage: 3.0V = 0%, 4.2V = 100%.
+    /// </summary>
+    public int BatteryLeftPercentage => VoltageToPercentage(BatteryLeftVoltage);
+
+    /// <summary>
+    /// Gets the estimated battery percentage for the right glove (0-100).
+    /// Calculated from voltage: 3.0V = 0%, 4.2V = 100%.
+    /// </summary>
+    public int BatteryRightPercentage => VoltageToPercentage(BatteryRightVoltage);
+
+    /// <summary>
+    /// Gets the minimum battery percentage of both gloves.
+    /// </summary>
+    public int BatteryLevel => Math.Min(BatteryLeftPercentage, BatteryRightPercentage);
+
+    /// <summary>
+    /// Gets the battery status color for the left glove based on voltage.
+    /// Green: &gt;3.6V, Yellow: 3.3-3.6V, Red: &lt;3.3V
+    /// </summary>
+    public string BatteryLeftColor => GetBatteryColor(BatteryLeftVoltage);
+
+    /// <summary>
+    /// Gets the battery status color for the right glove based on voltage.
+    /// Green: &gt;3.6V, Yellow: 3.3-3.6V, Red: &lt;3.3V
+    /// </summary>
+    public string BatteryRightColor => GetBatteryColor(BatteryRightVoltage);
 
     /// <summary>
     /// Gets or sets the current connection state of the device.
@@ -44,4 +80,32 @@ public class GloveDevice
     /// Gets or sets the last time the device was successfully connected.
     /// </summary>
     public DateTime? LastConnected { get; set; }
+
+    /// <summary>
+    /// Converts battery voltage to percentage estimate.
+    /// </summary>
+    /// <param name="voltage">Battery voltage (3.0-4.2V)</param>
+    /// <returns>Percentage (0-100)</returns>
+    private static int VoltageToPercentage(double voltage)
+    {
+        const double minVoltage = 3.0;
+        const double maxVoltage = 4.2;
+
+        if (voltage <= minVoltage) return 0;
+        if (voltage >= maxVoltage) return 100;
+
+        return (int)((voltage - minVoltage) / (maxVoltage - minVoltage) * 100);
+    }
+
+    /// <summary>
+    /// Gets the battery status color based on voltage thresholds.
+    /// </summary>
+    /// <param name="voltage">Battery voltage</param>
+    /// <returns>Color name: "Green", "Yellow", or "Red"</returns>
+    private static string GetBatteryColor(double voltage)
+    {
+        if (voltage > 3.6) return "Green";
+        if (voltage >= 3.3) return "Yellow";
+        return "Red";
+    }
 }

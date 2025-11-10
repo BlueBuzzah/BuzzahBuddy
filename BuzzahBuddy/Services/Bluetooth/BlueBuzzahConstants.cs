@@ -2,45 +2,67 @@ namespace BuzzahBuddy.Services.Bluetooth;
 
 /// <summary>
 /// Constants for BlueBuzzah glove Bluetooth Low Energy communication.
-/// These UUIDs should be updated once the actual hardware specifications are available.
+/// Uses Nordic UART Service (NUS) for text-based command protocol.
 /// </summary>
 public static class BlueBuzzahConstants
 {
     /// <summary>
-    /// The device name prefix for BlueBuzzah gloves.
-    /// Used to filter devices during scanning.
+    /// The device name for the PRIMARY (left) BlueBuzzah glove.
+    /// App connects only to VL; VL relays commands to VR (secondary) as needed.
     /// </summary>
-    public const string DeviceNamePrefix = "BlueBuzzah";
+    public const string DeviceName = "VL";
 
     /// <summary>
-    /// Primary service UUID for BlueBuzzah glove communication.
-    /// TODO: Update with actual UUID from hardware specifications.
+    /// Nordic UART Service (NUS) UUID.
+    /// Standard service for UART-style BLE communication.
     /// </summary>
-    public static readonly Guid PrimaryServiceUuid = Guid.Parse("00001800-0000-1000-8000-00805f9b34fb");
+    public static readonly Guid NordicUartServiceUuid = Guid.Parse("6E400001-B5A3-F393-E0A9-E50E24DCCA9E");
 
     /// <summary>
-    /// Characteristic UUID for vibration control.
-    /// TODO: Update with actual UUID from hardware specifications.
+    /// TX Characteristic UUID (Write - App → Glove).
+    /// Used to send text commands to the glove.
     /// </summary>
-    public static readonly Guid VibrationControlCharacteristicUuid = Guid.Parse("00002a00-0000-1000-8000-00805f9b34fb");
+    public static readonly Guid TxCharacteristicUuid = Guid.Parse("6E400002-B5A3-F393-E0A9-E50E24DCCA9E");
 
     /// <summary>
-    /// Characteristic UUID for reading battery level.
-    /// TODO: Update with actual UUID from hardware specifications.
+    /// RX Characteristic UUID (Notify - Glove → App).
+    /// Used to receive KEY:VALUE responses from the glove.
     /// </summary>
-    public static readonly Guid BatteryLevelCharacteristicUuid = Guid.Parse("00002a19-0000-1000-8000-00805f9b34fb");
+    public static readonly Guid RxCharacteristicUuid = Guid.Parse("6E400003-B5A3-F393-E0A9-E50E24DCCA9E");
 
     /// <summary>
-    /// Characteristic UUID for device status and firmware information.
-    /// TODO: Update with actual UUID from hardware specifications.
+    /// End-of-transmission character that marks the end of a response.
+    /// Only messages ending with this character are app-directed responses.
+    /// Internal VL↔VR sync messages don't include this character and should be filtered.
     /// </summary>
-    public static readonly Guid DeviceStatusCharacteristicUuid = Guid.Parse("00002a26-0000-1000-8000-00805f9b34fb");
+    public const char EndOfTransmission = '\x04';
 
     /// <summary>
-    /// Characteristic UUID for pattern configuration.
-    /// TODO: Update with actual UUID from hardware specifications.
+    /// Command terminator - all commands must end with newline.
     /// </summary>
-    public static readonly Guid PatternConfigCharacteristicUuid = Guid.Parse("00002a29-0000-1000-8000-00805f9b34fb");
+    public const char CommandTerminator = '\n';
+
+    /// <summary>
+    /// Recommended delay between commands in milliseconds.
+    /// Per spec: wait 100ms for reliable processing.
+    /// </summary>
+    public const int CommandDelayMs = 100;
+
+    /// <summary>
+    /// Battery voltage threshold for good status (green).
+    /// </summary>
+    public const double BatteryGoodThreshold = 3.6;
+
+    /// <summary>
+    /// Battery voltage threshold for medium status (yellow).
+    /// </summary>
+    public const double BatteryMediumThreshold = 3.3;
+
+    /// <summary>
+    /// Battery voltage threshold for low battery warning (red).
+    /// Below this voltage, user should be warned to charge.
+    /// </summary>
+    public const double BatteryLowThreshold = 3.3;
 
     /// <summary>
     /// Default scan timeout in seconds.
@@ -51,4 +73,21 @@ public static class BlueBuzzahConstants
     /// Connection timeout in seconds.
     /// </summary>
     public const int ConnectionTimeoutSeconds = 15;
+
+    /// <summary>
+    /// Timeout for PING command in milliseconds.
+    /// </summary>
+    public const int PingTimeoutMs = 2000;
+
+    /// <summary>
+    /// Session status polling interval in seconds.
+    /// App should poll every 5-10 seconds during active sessions.
+    /// </summary>
+    public const int SessionStatusPollIntervalSeconds = 5;
+
+    /// <summary>
+    /// Connection health check interval in seconds.
+    /// App should send PING every 30 seconds to detect disconnects.
+    /// </summary>
+    public const int ConnectionHealthCheckIntervalSeconds = 30;
 }

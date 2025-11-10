@@ -9,7 +9,7 @@ namespace BuzzahBuddy.Services.Storage;
 public class PreferencesStorageService : IDataStorageService
 {
     private const string SessionsKey = "therapy_sessions";
-    private const string PatternsKey = "vibration_patterns";
+    private const string LastProfileKey = "last_profile_id";
     private const string LastDeviceKey = "last_device";
 
     private readonly JsonSerializerOptions _jsonOptions = new()
@@ -92,59 +92,17 @@ public class PreferencesStorageService : IDataStorageService
         }
     }
 
-    public async Task SavePatternAsync(VibrationPattern pattern)
+    public async Task SaveLastProfileAsync(int profileId)
     {
-        var patterns = (await GetPatternsAsync()).ToList();
-
-        // Update existing or add new
-        var existing = patterns.FirstOrDefault(p => p.Id == pattern.Id);
-        if (existing != null)
-        {
-            patterns.Remove(existing);
-        }
-
-        patterns.Add(pattern);
-
-        var json = JsonSerializer.Serialize(patterns, _jsonOptions);
-        Preferences.Default.Set(PatternsKey, json);
-
+        Preferences.Default.Set(LastProfileKey, profileId);
         await Task.CompletedTask;
     }
 
-    public async Task<IEnumerable<VibrationPattern>> GetPatternsAsync()
+    public async Task<int> GetLastProfileAsync()
     {
-        var json = Preferences.Default.Get(PatternsKey, string.Empty);
-
-        if (string.IsNullOrEmpty(json))
-        {
-            return Enumerable.Empty<VibrationPattern>();
-        }
-
-        try
-        {
-            var patterns = JsonSerializer.Deserialize<List<VibrationPattern>>(json, _jsonOptions)
-                ?? new List<VibrationPattern>();
-
-            return await Task.FromResult(patterns);
-        }
-        catch (JsonException ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"Deserialize patterns error: {ex.Message}");
-            return Enumerable.Empty<VibrationPattern>();
-        }
-    }
-
-    public async Task DeletePatternAsync(string patternId)
-    {
-        var patterns = (await GetPatternsAsync()).ToList();
-        var toRemove = patterns.FirstOrDefault(p => p.Id == patternId);
-
-        if (toRemove != null)
-        {
-            patterns.Remove(toRemove);
-            var json = JsonSerializer.Serialize(patterns, _jsonOptions);
-            Preferences.Default.Set(PatternsKey, json);
-        }
+        // Default to profile 2 (Noisy VCR) if not set
+        var profileId = Preferences.Default.Get(LastProfileKey, 2);
+        return await Task.FromResult(profileId);
     }
 
     public async Task SaveLastDeviceAsync(GloveDevice device)
@@ -178,7 +136,7 @@ public class PreferencesStorageService : IDataStorageService
     public async Task ClearAllDataAsync()
     {
         Preferences.Default.Remove(SessionsKey);
-        Preferences.Default.Remove(PatternsKey);
+        Preferences.Default.Remove(LastProfileKey);
         Preferences.Default.Remove(LastDeviceKey);
         await Task.CompletedTask;
     }

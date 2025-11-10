@@ -75,10 +75,16 @@ public partial class MainPageViewModel : BaseViewModel
 
             if (IsConnected)
             {
-                var battery = await _gloveControlService.GetBatteryLevelAsync();
-                if (battery.HasValue)
+                try
                 {
-                    BatteryLevel = battery.Value;
+                    var (leftVoltage, rightVoltage) = await _gloveControlService.GetBatteryAsync();
+                    // Calculate percentage from minimum voltage (worst case)
+                    var minVoltage = Math.Min(leftVoltage, rightVoltage);
+                    BatteryLevel = VoltageToPercentage(minVoltage);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Battery fetch error: {ex.Message}");
                 }
             }
         }
@@ -97,10 +103,16 @@ public partial class MainPageViewModel : BaseViewModel
         {
             ConnectedDeviceName = _bluetoothService.ConnectedDevice.Name;
 
-            var battery = await _gloveControlService.GetBatteryLevelAsync();
-            if (battery.HasValue)
+            try
             {
-                BatteryLevel = battery.Value;
+                var (leftVoltage, rightVoltage) = await _gloveControlService.GetBatteryAsync();
+                var minVoltage = Math.Min(leftVoltage, rightVoltage);
+                BatteryLevel = VoltageToPercentage(minVoltage);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Battery fetch error: {ex.Message}");
+                BatteryLevel = 0;
             }
         }
         else
@@ -117,5 +129,21 @@ public partial class MainPageViewModel : BaseViewModel
         {
             await UpdateConnectionInfo();
         });
+    }
+
+    /// <summary>
+    /// Converts battery voltage to percentage estimate.
+    /// </summary>
+    /// <param name="voltage">Battery voltage (3.0-4.2V)</param>
+    /// <returns>Percentage (0-100)</returns>
+    private static int VoltageToPercentage(double voltage)
+    {
+        const double minVoltage = 3.0;
+        const double maxVoltage = 4.2;
+
+        if (voltage <= minVoltage) return 0;
+        if (voltage >= maxVoltage) return 100;
+
+        return (int)((voltage - minVoltage) / (maxVoltage - minVoltage) * 100);
     }
 }

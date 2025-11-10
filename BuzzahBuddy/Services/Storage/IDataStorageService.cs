@@ -34,22 +34,16 @@ public interface IDataStorageService
     Task DeleteSessionAsync(string sessionId);
 
     /// <summary>
-    /// Saves a custom vibration pattern to storage.
+    /// Saves the last used therapy profile ID.
     /// </summary>
-    /// <param name="pattern">The pattern to save.</param>
-    Task SavePatternAsync(VibrationPattern pattern);
+    /// <param name="profileId">The profile ID (1-3 for presets, 0 for custom).</param>
+    Task SaveLastProfileAsync(int profileId);
 
     /// <summary>
-    /// Retrieves all saved vibration patterns.
+    /// Gets the last used therapy profile ID.
     /// </summary>
-    /// <returns>A collection of saved vibration patterns.</returns>
-    Task<IEnumerable<VibrationPattern>> GetPatternsAsync();
-
-    /// <summary>
-    /// Deletes a vibration pattern from storage.
-    /// </summary>
-    /// <param name="patternId">The ID of the pattern to delete.</param>
-    Task DeletePatternAsync(string patternId);
+    /// <returns>The last used profile ID, or 2 (Noisy VCR) as default.</returns>
+    Task<int> GetLastProfileAsync();
 
     /// <summary>
     /// Saves the last connected device information.

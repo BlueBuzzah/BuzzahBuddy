@@ -4,220 +4,271 @@ using BuzzahBuddy.Services.Bluetooth;
 namespace BuzzahBuddy.Services.Glove;
 
 /// <summary>
-/// Service for controlling BlueBuzzah glove vibration patterns and settings.
+/// Service for controlling BlueBuzzah glove therapy sessions and settings.
+/// Implements all 18 commands from the BlueBuzzah smartphone app specification.
 /// </summary>
 public class GloveControlService : IGloveControlService
 {
     private readonly IBluetoothService _bluetoothService;
-
-    public bool IsVibrating { get; private set; }
-    public VibrationPattern? CurrentPattern { get; private set; }
-
-    public event EventHandler<bool>? VibrationStateChanged;
 
     public GloveControlService(IBluetoothService bluetoothService)
     {
         _bluetoothService = bluetoothService;
     }
 
-    public async Task<bool> StartVibrationAsync(VibrationPattern pattern)
-    {
-        if (_bluetoothService.CurrentConnectionState != ConnectionState.Connected)
-        {
-            return false;
-        }
+    // ========== Device Information Commands ==========
 
+    public async Task<GloveDeviceInfo> GetDeviceInfoAsync()
+    {
+        var response = await _bluetoothService.SendCommandAsync("INFO");
+        response.ThrowIfError();
+        return GloveDeviceInfo.FromCommandResponse(response);
+    }
+
+    public async Task<(double leftVoltage, double rightVoltage)> GetBatteryAsync()
+    {
+        // BATTERY command may take up to 1 second (VL queries VR)
+        var response = await _bluetoothService.SendCommandAsync("BATTERY", timeoutMs: 3000);
+        response.ThrowIfError();
+
+        var leftVoltage = response.GetDouble("BAT_LEFT") ?? 0.0;
+        var rightVoltage = response.GetDouble("BAT_RIGHT") ?? 0.0;
+
+        return (leftVoltage, rightVoltage);
+    }
+
+    public async Task<bool> PingAsync(int timeoutMs = 2000)
+    {
         try
         {
-            // Build command bytes based on pattern
-            // TODO: Update this based on actual BlueBuzzah hardware protocol
-            var command = BuildVibrationCommand(pattern, isStart: true);
-
-            var success = await _bluetoothService.WriteCharacteristicAsync(
-                BlueBuzzahConstants.PrimaryServiceUuid,
-                BlueBuzzahConstants.VibrationControlCharacteristicUuid,
-                command);
-
-            if (success)
-            {
-                IsVibrating = true;
-                CurrentPattern = pattern;
-                pattern.IsActive = true;
-                VibrationStateChanged?.Invoke(this, true);
-            }
-
-            return success;
+            var response = await _bluetoothService.SendCommandAsync("PING", timeoutMs: timeoutMs);
+            return response.GetString("PONG") != null || response.ContainsKey("PONG");
         }
-        catch (Exception ex)
+        catch (TimeoutException)
         {
-            System.Diagnostics.Debug.WriteLine($"Start vibration error: {ex.Message}");
             return false;
         }
     }
 
-    public async Task<bool> StopVibrationAsync()
+    // ========== Profile Management Commands ==========
+
+    public async Task<List<TherapyProfile>> ListProfilesAsync()
     {
-        if (_bluetoothService.CurrentConnectionState != ConnectionState.Connected)
+        var response = await _bluetoothService.SendCommandAsync("PROFILE_LIST");
+        response.ThrowIfError();
+
+        // Parse PROFILE:ID:NAME lines
+        var profiles = new List<TherapyProfile>();
+        foreach (var key in response.Keys)
         {
-            return false;
-        }
-
-        try
-        {
-            // Send stop command
-            // TODO: Update this based on actual BlueBuzzah hardware protocol
-            var command = new byte[] { 0x00 }; // 0x00 = stop
-
-            var success = await _bluetoothService.WriteCharacteristicAsync(
-                BlueBuzzahConstants.PrimaryServiceUuid,
-                BlueBuzzahConstants.VibrationControlCharacteristicUuid,
-                command);
-
-            if (success)
+            if (key == "PROFILE")
             {
-                IsVibrating = false;
-                if (CurrentPattern != null)
+                var value = response.GetString(key);
+                if (value != null)
                 {
-                    CurrentPattern.IsActive = false;
+                    // Format: "ID:NAME" e.g., "1:Regular VCR"
+                    var parts = value.Split(':', 2);
+                    if (parts.Length == 2 && int.TryParse(parts[0], out var id))
+                    {
+                        var name = parts[1];
+                        // Match with preset profiles
+                        var preset = TherapyProfile.GetPresetProfiles()
+                            .FirstOrDefault(p => p.ProfileId == id);
+                        if (preset != null)
+                        {
+                            profiles.Add(preset);
+                        }
+                    }
                 }
-                CurrentPattern = null;
-                VibrationStateChanged?.Invoke(this, false);
             }
+        }
 
-            return success;
-        }
-        catch (Exception ex)
+        // If response parsing fails, return preset profiles as fallback
+        if (profiles.Count == 0)
         {
-            System.Diagnostics.Debug.WriteLine($"Stop vibration error: {ex.Message}");
-            return false;
+            return TherapyProfile.GetPresetProfiles();
         }
+
+        return profiles;
     }
 
-    public async Task<bool> SetIntensityAsync(int intensity)
+    public async Task LoadProfileAsync(int profileId)
     {
-        if (CurrentPattern == null || !IsVibrating)
+        if (profileId < 1 || profileId > 3)
         {
-            return false;
+            throw new ArgumentException("Profile ID must be 1-3", nameof(profileId));
         }
 
-        // Clamp intensity to valid range
-        intensity = Math.Clamp(intensity, 0, 100);
-
-        CurrentPattern.Intensity = intensity;
-
-        // Restart vibration with new intensity
-        return await StartVibrationAsync(CurrentPattern);
+        var response = await _bluetoothService.SendCommandAsync($"PROFILE_LOAD:{profileId}");
+        response.ThrowIfError();
     }
 
-    public Task<IEnumerable<VibrationPattern>> GetDefaultPatternsAsync()
+    public async Task<TherapyProfile> GetCurrentProfileAsync()
     {
-        var patterns = new List<VibrationPattern>
+        var response = await _bluetoothService.SendCommandAsync("PROFILE_GET");
+        response.ThrowIfError();
+
+        return new TherapyProfile
         {
-            new VibrationPattern
+            ActuatorType = response.GetString("ACTUATOR_TYPE") ?? "LRA",
+            ActuatorFrequency = response.GetInt("ACTUATOR_FREQUENCY") ?? 250,
+            ActuatorVoltage = response.GetDouble("ACTUATOR_VOLTAGE") ?? 2.5,
+            TimeOn = response.GetDouble("TIME_ON") ?? 0.1,
+            TimeOff = response.GetDouble("TIME_OFF") ?? 0.067,
+            TimeSession = response.GetInt("TIME_SESSION") ?? 120,
+            AmplitudeMin = response.GetInt("AMPLITUDE_MIN") ?? 100,
+            AmplitudeMax = response.GetInt("AMPLITUDE_MAX") ?? 100,
+            Jitter = response.GetDouble("JITTER") ?? 0,
+            Mirror = response.GetBool("MIRROR") ?? false,
+            PatternType = response.GetString("PATTERN_TYPE") ?? "RNDP"
+        };
+    }
+
+    public async Task SetCustomProfileAsync(Dictionary<string, string> parameters)
+    {
+        if (parameters == null || parameters.Count == 0)
+        {
+            throw new ArgumentException("Parameters dictionary cannot be null or empty", nameof(parameters));
+        }
+
+        // Build command: PROFILE_CUSTOM:KEY:VAL:KEY:VAL...
+        var commandParts = new List<string> { "PROFILE_CUSTOM" };
+        foreach (var kvp in parameters)
+        {
+            commandParts.Add(kvp.Key);
+            commandParts.Add(kvp.Value);
+        }
+
+        var command = string.Join(":", commandParts);
+        var response = await _bluetoothService.SendCommandAsync(command);
+        response.ThrowIfError();
+    }
+
+    // ========== Session Control Commands ==========
+
+    public async Task StartSessionAsync()
+    {
+        // SESSION_START may take up to 500ms (establishes VL↔VR sync)
+        var response = await _bluetoothService.SendCommandAsync("SESSION_START", timeoutMs: 7000);
+        response.ThrowIfError();
+    }
+
+    public async Task PauseSessionAsync()
+    {
+        var response = await _bluetoothService.SendCommandAsync("SESSION_PAUSE");
+        response.ThrowIfError();
+    }
+
+    public async Task ResumeSessionAsync()
+    {
+        var response = await _bluetoothService.SendCommandAsync("SESSION_RESUME");
+        response.ThrowIfError();
+    }
+
+    public async Task StopSessionAsync()
+    {
+        var response = await _bluetoothService.SendCommandAsync("SESSION_STOP");
+        response.ThrowIfError();
+    }
+
+    public async Task<SessionStatus> GetSessionStatusAsync()
+    {
+        var response = await _bluetoothService.SendCommandAsync("SESSION_STATUS");
+        response.ThrowIfError();
+        return SessionStatus.FromCommandResponse(response);
+    }
+
+    // ========== Parameter Adjustment Commands ==========
+
+    public async Task SetParameterAsync(string parameterName, string value)
+    {
+        if (string.IsNullOrWhiteSpace(parameterName))
+        {
+            throw new ArgumentException("Parameter name cannot be null or empty", nameof(parameterName));
+        }
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new ArgumentException("Value cannot be null or empty", nameof(value));
+        }
+
+        var response = await _bluetoothService.SendCommandAsync($"PARAM_SET:{parameterName}:{value}");
+        response.ThrowIfError();
+    }
+
+    // ========== Calibration Commands ==========
+
+    public async Task EnterCalibrationAsync()
+    {
+        var response = await _bluetoothService.SendCommandAsync("CALIBRATE_START");
+        response.ThrowIfError();
+    }
+
+    public async Task BuzzFingerAsync(int fingerIndex, int intensity, int durationMs)
+    {
+        if (fingerIndex < 0 || fingerIndex > 7)
+        {
+            throw new ArgumentException("Finger index must be 0-7", nameof(fingerIndex));
+        }
+
+        if (intensity < 0 || intensity > 100)
+        {
+            throw new ArgumentException("Intensity must be 0-100", nameof(intensity));
+        }
+
+        if (durationMs < 50 || durationMs > 2000)
+        {
+            throw new ArgumentException("Duration must be 50-2000ms", nameof(durationMs));
+        }
+
+        var response = await _bluetoothService.SendCommandAsync(
+            $"CALIBRATE_BUZZ:{fingerIndex}:{intensity}:{durationMs}");
+        response.ThrowIfError();
+    }
+
+    public async Task ExitCalibrationAsync()
+    {
+        var response = await _bluetoothService.SendCommandAsync("CALIBRATE_STOP");
+        response.ThrowIfError();
+    }
+
+    // ========== System Commands ==========
+
+    public async Task<List<string>> GetAvailableCommandsAsync()
+    {
+        var response = await _bluetoothService.SendCommandAsync("HELP");
+        response.ThrowIfError();
+
+        var commands = new List<string>();
+        foreach (var key in response.Keys)
+        {
+            if (key == "COMMAND")
             {
-                Name = "Gentle",
-                Description = "Low intensity, continuous vibration",
-                Intensity = 30,
-                DurationMs = 1000,
-                FrequencyHz = 80,
-                IsContinuous = true
-            },
-            new VibrationPattern
-            {
-                Name = "Moderate",
-                Description = "Medium intensity, continuous vibration",
-                Intensity = 50,
-                DurationMs = 1000,
-                FrequencyHz = 100,
-                IsContinuous = true
-            },
-            new VibrationPattern
-            {
-                Name = "Strong",
-                Description = "High intensity, continuous vibration",
-                Intensity = 75,
-                DurationMs = 1000,
-                FrequencyHz = 120,
-                IsContinuous = true
-            },
-            new VibrationPattern
-            {
-                Name = "Pulsed",
-                Description = "Medium intensity, pulsed vibration",
-                Intensity = 50,
-                DurationMs = 500,
-                FrequencyHz = 100,
-                IsContinuous = false,
-                IntervalMs = 500
-            },
-            new VibrationPattern
-            {
-                Name = "Rapid Pulse",
-                Description = "Medium intensity, rapid pulsed vibration",
-                Intensity = 60,
-                DurationMs = 200,
-                FrequencyHz = 120,
-                IsContinuous = false,
-                IntervalMs = 200
+                var cmdName = response.GetString(key);
+                if (cmdName != null)
+                {
+                    commands.Add(cmdName);
+                }
             }
-        };
-
-        return Task.FromResult<IEnumerable<VibrationPattern>>(patterns);
-    }
-
-    public Task<int?> GetBatteryLevelAsync()
-    {
-        return _bluetoothService.GetBatteryLevelAsync();
-    }
-
-    public async Task<bool> TestConnectionAsync()
-    {
-        // Send a brief test pulse
-        var testPattern = new VibrationPattern
-        {
-            Name = "Test",
-            Intensity = 50,
-            DurationMs = 200,
-            FrequencyHz = 100,
-            IsContinuous = false
-        };
-
-        var started = await StartVibrationAsync(testPattern);
-        if (started)
-        {
-            // Wait for the pulse duration
-            await Task.Delay(testPattern.DurationMs);
-            await StopVibrationAsync();
         }
 
-        return started;
+        return commands;
     }
 
-    /// <summary>
-    /// Builds a byte array command for controlling vibration.
-    /// TODO: Update this based on actual BlueBuzzah hardware protocol specification.
-    /// </summary>
-    private byte[] BuildVibrationCommand(VibrationPattern pattern, bool isStart)
+    public async Task RestartDeviceAsync()
     {
-        if (!isStart)
+        // RESTART command causes immediate disconnection
+        try
         {
-            return new byte[] { 0x00 }; // Stop command
+            await _bluetoothService.SendCommandAsync("RESTART", timeoutMs: 2000);
         }
-
-        // Placeholder command structure
-        // Byte 0: Command (0x01 = start)
-        // Byte 1: Intensity (0-100)
-        // Byte 2-3: Duration (milliseconds, little-endian)
-        // Byte 4: Frequency
-        // Byte 5: Mode (0x00 = continuous, 0x01 = pulsed)
-        var command = new byte[6];
-        command[0] = 0x01; // Start command
-        command[1] = (byte)Math.Clamp(pattern.Intensity, 0, 100);
-        command[2] = (byte)(pattern.DurationMs & 0xFF);
-        command[3] = (byte)((pattern.DurationMs >> 8) & 0xFF);
-        command[4] = (byte)Math.Clamp(pattern.FrequencyHz, 0, 255);
-        command[5] = pattern.IsContinuous ? (byte)0x00 : (byte)0x01;
-
-        return command;
+        catch (TimeoutException)
+        {
+            // Expected - device reboots before sending response
+        }
+        catch (InvalidOperationException)
+        {
+            // Expected - connection drops during reboot
+        }
     }
 }

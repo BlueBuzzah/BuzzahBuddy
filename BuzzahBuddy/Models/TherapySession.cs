@@ -30,14 +30,30 @@ public class TherapySession
         : DateTime.Now - StartTime;
 
     /// <summary>
-    /// Gets or sets the vibration pattern used during this session.
+    /// Gets or sets the therapy profile used during this session.
     /// </summary>
-    public VibrationPattern? PatternUsed { get; set; }
+    public TherapyProfile? ProfileUsed { get; set; }
 
     /// <summary>
-    /// Gets or sets the ID of the pattern used (for serialization).
+    /// Gets or sets the ID of the profile used (1-3 for presets, 0 for custom).
     /// </summary>
-    public string? PatternId { get; set; }
+    public int ProfileId { get; set; }
+
+    /// <summary>
+    /// Gets or sets the elapsed time in seconds (excluding paused duration).
+    /// This is the actual therapy time, not wall-clock time.
+    /// </summary>
+    public int ElapsedTimeSeconds { get; set; }
+
+    /// <summary>
+    /// Gets or sets the current progress percentage (0-100).
+    /// </summary>
+    public int Progress { get; set; }
+
+    /// <summary>
+    /// Gets or sets the current session status (IDLE, RUNNING, PAUSED).
+    /// </summary>
+    public SessionState Status { get; set; } = SessionState.IDLE;
 
     /// <summary>
     /// Gets or sets optional notes about the session (e.g., effectiveness, comfort level).

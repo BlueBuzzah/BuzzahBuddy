@@ -101,6 +101,12 @@ public partial class SettingsViewModel : BaseViewModel
 		await Shell.Current.GoToAsync("//devices");
 	}
 
+	[RelayCommand]
+	private async Task NavigateToCalibrationAsync()
+	{
+		await Shell.Current.GoToAsync("calibration");
+	}
+
 	partial void OnEnableNotificationsChanged(bool value)
 	{
 		Preferences.Default.Set("EnableNotifications", value);

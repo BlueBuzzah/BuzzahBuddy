@@ -29,6 +29,18 @@ public partial class DeviceListViewModel : BaseViewModel
     [ObservableProperty]
     private GloveDevice? _selectedDevice;
 
+    [ObservableProperty]
+    private bool _isConnecting;
+
+    [ObservableProperty]
+    private string? _connectingDeviceId;
+
+    [ObservableProperty]
+    private bool _isAlreadyConnected;
+
+    [ObservableProperty]
+    private string? _connectedDeviceName;
+
     public DeviceListViewModel(
         IBluetoothService bluetoothService,
         IDataStorageService storageService)
@@ -41,8 +53,12 @@ public partial class DeviceListViewModel : BaseViewModel
         // Subscribe to device discovery
         _bluetoothService.DeviceDiscovered += OnDeviceDiscovered;
 
-        // Check Bluetooth status
+        // Subscribe to connection state changes
+        _bluetoothService.ConnectionStateChanged += OnConnectionStateChanged;
+
+        // Check Bluetooth status and initial connection state
         CheckBluetoothStatus();
+        UpdateConnectionState();
     }
 
     [RelayCommand]
@@ -115,11 +131,58 @@ public partial class DeviceListViewModel : BaseViewModel
     }
 
     [RelayCommand]
-    private async Task ConnectAsync(GloveDevice device)
+    private async Task DisconnectAsync()
     {
-        if (device == null || IsBusy)
+        if (!IsAlreadyConnected)
             return;
 
+        var confirm = await Shell.Current.DisplayAlert(
+            "Disconnect Device",
+            $"Are you sure you want to disconnect from {ConnectedDeviceName}?",
+            "Disconnect",
+            "Cancel");
+
+        if (!confirm)
+            return;
+
+        try
+        {
+            await _bluetoothService.DisconnectAsync();
+
+            await Shell.Current.DisplayAlert(
+                "Disconnected",
+                "Device has been disconnected.",
+                "OK");
+        }
+        catch (Exception ex)
+        {
+            await Shell.Current.DisplayAlert(
+                "Disconnect Error",
+                $"An error occurred: {ex.Message}",
+                "OK");
+        }
+    }
+
+    [RelayCommand]
+    private async Task NavigateToControlAsync()
+    {
+        await Shell.Current.GoToAsync("//control");
+    }
+
+    [RelayCommand]
+    private async Task ConnectAsync(GloveDevice device)
+    {
+        if (device == null || IsBusy || IsConnecting)
+            return;
+
+        // Stop scanning if active
+        if (IsScanning)
+        {
+            await StopScanAsync();
+        }
+
+        IsConnecting = true;
+        ConnectingDeviceId = device.Id;
         IsBusy = true;
 
         try
@@ -130,16 +193,19 @@ public partial class DeviceListViewModel : BaseViewModel
             {
                 await _storageService.SaveLastDeviceAsync(device);
 
-                await Shell.Current.DisplayAlert(
+                // Show brief non-blocking feedback
+                // Note: Using DisplayAlert for now, but should be replaced with Toast in production
+                _ = Shell.Current.DisplayAlert(
                     "Connected",
                     $"Successfully connected to {device.Name}",
                     "OK");
 
-                // Navigate to control page
+                // Navigate immediately to control page
                 await Shell.Current.GoToAsync("//control");
             }
             else
             {
+                // Only show alert for failures
                 await Shell.Current.DisplayAlert(
                     "Connection Failed",
                     $"Could not connect to {device.Name}. Please try again.",
@@ -155,6 +221,8 @@ public partial class DeviceListViewModel : BaseViewModel
         }
         finally
         {
+            IsConnecting = false;
+            ConnectingDeviceId = null;
             IsBusy = false;
         }
     }
@@ -174,5 +242,30 @@ public partial class DeviceListViewModel : BaseViewModel
                 AvailableDevices.Add(device);
             }
         });
+    }
+
+    private void OnConnectionStateChanged(object? sender, ConnectionState state)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            UpdateConnectionState();
+        });
+    }
+
+    private void UpdateConnectionState()
+    {
+        IsAlreadyConnected = _bluetoothService.CurrentConnectionState == ConnectionState.Connected;
+        ConnectedDeviceName = _bluetoothService.ConnectedDevice?.Name;
+
+        if (_bluetoothService.CurrentConnectionState == ConnectionState.Connecting)
+        {
+            IsConnecting = true;
+            ConnectingDeviceId = _bluetoothService.ConnectedDevice?.Id;
+        }
+        else if (_bluetoothService.CurrentConnectionState != ConnectionState.Connecting)
+        {
+            IsConnecting = false;
+            ConnectingDeviceId = null;
+        }
     }
 }

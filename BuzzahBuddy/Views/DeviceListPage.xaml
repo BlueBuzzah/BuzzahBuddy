@@ -5,35 +5,104 @@
              xmlns:models="clr-namespace:BuzzahBuddy.Models"
              x:Class="BuzzahBuddy.Views.DeviceListPage"
              x:DataType="vm:DeviceListViewModel"
+             x:Name="page"
              Title="{Binding Title}">
 
-    <Grid RowDefinitions="Auto,*,Auto" Padding="20">
+    <Grid RowDefinitions="*,Auto" Padding="20">
 
-        <!-- Header Info -->
-        <VerticalStackLayout Grid.Row="0" Spacing="10" Margin="0,0,0,20">
-            <Label Text="Available Devices"
-                   Style="{StaticResource Headline}"
-                   SemanticProperties.HeadingLevel="Level1" />
+        <!-- Connected Device View - Show when connected -->
+        <VerticalStackLayout Grid.Row="0"
+                            Spacing="30"
+                            VerticalOptions="Center"
+                            IsVisible="{Binding IsAlreadyConnected}">
 
-            <Label Text="Scan for nearby BlueBuzzah gloves"
-                   FontSize="16"
-                   TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray400}}"
-                   IsVisible="{Binding BluetoothEnabled}"
-                   LineBreakMode="WordWrap"
-                   SemanticProperties.Description="Instructions for scanning" />
+            <!-- Success Icon -->
+            <Label Text="✓"
+                   FontSize="80"
+                   FontAttributes="Bold"
+                   TextColor="{StaticResource Success}"
+                   HorizontalTextAlignment="Center"
+                   SemanticProperties.Description="Successfully connected" />
 
-            <Label Text="Bluetooth is disabled. Please enable Bluetooth to scan for devices."
-                   FontSize="16"
-                   TextColor="{StaticResource Danger}"
-                   IsVisible="{Binding BluetoothEnabled, Converter={StaticResource InvertedBoolConverter}}"
-                   LineBreakMode="WordWrap"
-                   SemanticProperties.Description="Bluetooth disabled warning" />
+            <!-- Connected Status -->
+            <VerticalStackLayout Spacing="10">
+                <Label Text="Connected"
+                       Style="{StaticResource Headline}"
+                       HorizontalTextAlignment="Center"
+                       SemanticProperties.HeadingLevel="Level1" />
+
+                <Label Text="{Binding ConnectedDeviceName}"
+                       FontSize="24"
+                       FontAttributes="Bold"
+                       HorizontalTextAlignment="Center"
+                       TextColor="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource Gray100}}" />
+            </VerticalStackLayout>
+
+            <!-- Device Info Card -->
+            <Border Padding="20"
+                    BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}"
+                    StrokeThickness="0">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="12" />
+                </Border.StrokeShape>
+                <VerticalStackLayout Spacing="15">
+                    <Label Text="Your device is ready to use"
+                           FontSize="16"
+                           HorizontalTextAlignment="Center"
+                           TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray400}}" />
+
+                    <Button Text="Go to Control"
+                            Command="{Binding NavigateToControlCommand}"
+                            HeightRequest="56"
+                            FontSize="18"
+                            CornerRadius="12"
+                            BackgroundColor="{StaticResource Primary}"
+                            SemanticProperties.Hint="Navigate to device control page" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Disconnect Button -->
+            <Button Text="Disconnect Device"
+                    Command="{Binding DisconnectCommand}"
+                    HeightRequest="56"
+                    FontSize="18"
+                    CornerRadius="12"
+                    BackgroundColor="{AppThemeBinding Light={StaticResource PastelDanger}, Dark={StaticResource PastelDangerDark}}"
+                    TextColor="{StaticResource Danger}"
+                    SemanticProperties.Hint="Disconnect from current device"
+                    SemanticProperties.Description="Tap to disconnect from the connected device" />
         </VerticalStackLayout>
 
-        <!-- Device List -->
-        <CollectionView Grid.Row="1"
-                        ItemsSource="{Binding AvailableDevices}"
-                        SelectionMode="None">
+        <!-- Device Scanning View - Show when NOT connected -->
+        <Grid Grid.Row="0"
+              RowDefinitions="Auto,*,Auto"
+              IsVisible="{Binding IsAlreadyConnected, Converter={StaticResource InvertedBoolConverter}}">
+
+            <!-- Header Info -->
+            <VerticalStackLayout Grid.Row="0" Spacing="10" Margin="0,0,0,20">
+                <Label Text="Available Devices"
+                       Style="{StaticResource Headline}"
+                       SemanticProperties.HeadingLevel="Level1" />
+
+                <Label Text="Scan for nearby BlueBuzzah gloves"
+                       FontSize="16"
+                       TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray400}}"
+                       IsVisible="{Binding BluetoothEnabled}"
+                       LineBreakMode="WordWrap"
+                       SemanticProperties.Description="Instructions for scanning" />
+
+                <Label Text="Bluetooth is disabled. Please enable Bluetooth to scan for devices."
+                       FontSize="16"
+                       TextColor="{StaticResource Danger}"
+                       IsVisible="{Binding BluetoothEnabled, Converter={StaticResource InvertedBoolConverter}}"
+                       LineBreakMode="WordWrap"
+                       SemanticProperties.Description="Bluetooth disabled warning" />
+            </VerticalStackLayout>
+
+            <!-- Device List -->
+            <CollectionView Grid.Row="1"
+                            ItemsSource="{Binding AvailableDevices}"
+                            SelectionMode="None">
             <CollectionView.EmptyView>
                 <ContentView>
                     <Label Text="No devices found. Tap 'Scan' to search for BlueBuzzah gloves."
@@ -74,24 +143,25 @@
                                    FontSize="12"
                                    TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray400}}" />
 
+                            <!-- Connect Button - Always Visible -->
                             <Button Grid.Row="0" Grid.RowSpan="3" Grid.Column="1"
                                     Text="Connect"
-                                    Command="{Binding Source={RelativeSource AncestorType={x:Type vm:DeviceListViewModel}}, Path=ConnectCommand}"
-                                    CommandParameter="{Binding .}"
+                                    Clicked="OnConnectClicked"
                                     HeightRequest="48"
                                     WidthRequest="100"
                                     CornerRadius="8"
                                     VerticalOptions="Center"
+                                    IsEnabled="{Binding BindingContext.IsConnecting, Source={x:Reference page}, Converter={StaticResource InvertedBoolConverter}}"
                                     SemanticProperties.Hint="Connect to this device"
                                     AutomationId="ConnectDeviceButton" />
                         </Grid>
                     </Border>
                 </DataTemplate>
             </CollectionView.ItemTemplate>
-        </CollectionView>
+            </CollectionView>
 
-        <!-- Scan Button -->
-        <VerticalStackLayout Grid.Row="2" Spacing="10">
+            <!-- Scan Buttons -->
+            <VerticalStackLayout Grid.Row="2" Spacing="10">
             <ActivityIndicator IsRunning="{Binding IsScanning}"
                                IsVisible="{Binding IsScanning}"
                                HeightRequest="40"
@@ -116,7 +186,28 @@
                     BackgroundColor="{AppThemeBinding Light={StaticResource PastelDanger}, Dark={StaticResource PastelDangerDark}}"
                     SemanticProperties.Hint="Stop the current scan"
                     AutomationId="StopScanButton" />
-        </VerticalStackLayout>
+            </VerticalStackLayout>
+        </Grid>
+
+        <!-- Connection Progress Overlay -->
+        <Border Grid.Row="0" Grid.RowSpan="2"
+                BackgroundColor="#80000000"
+                IsVisible="{Binding IsConnecting}"
+                InputTransparent="False">
+            <VerticalStackLayout Spacing="15"
+                                HorizontalOptions="Center"
+                                VerticalOptions="Center">
+                <ActivityIndicator IsRunning="{Binding IsConnecting}"
+                                 Color="White"
+                                 HeightRequest="50"
+                                 WidthRequest="50" />
+                <Label Text="Connecting to device..."
+                       TextColor="White"
+                       FontSize="18"
+                       FontAttributes="Bold"
+                       HorizontalTextAlignment="Center" />
+            </VerticalStackLayout>
+        </Border>
 
     </Grid>
 

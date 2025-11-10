@@ -11,7 +11,7 @@
         <VerticalStackLayout Padding="20" Spacing="25">
 
             <!-- Header -->
-            <Label Text="Glove Control"
+            <Label Text="Device Control"
                    Style="{StaticResource Headline}"
                    SemanticProperties.HeadingLevel="Level1"
                    HorizontalOptions="Center" />
@@ -24,99 +24,194 @@
                     <RoundRectangle CornerRadius="12" />
                 </Border.StrokeShape>
 
-                <HorizontalStackLayout Spacing="10" HorizontalOptions="Center">
-                    <Label Text="Battery:"
-                           FontSize="16"
-                           VerticalOptions="Center" />
-                    <Label Text="{Binding BatteryLevel, StringFormat='{0}%'}"
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Battery Status"
                            FontSize="16"
                            FontAttributes="Bold"
-                           VerticalOptions="Center"
-                           SemanticProperties.Description="Device battery level" />
-                    <Button Text="🔄"
+                           HorizontalOptions="Center" />
+
+                    <HorizontalStackLayout Spacing="20" HorizontalOptions="Center">
+                        <!-- Left Device Battery -->
+                        <VerticalStackLayout Spacing="5">
+                            <Label Text="Left Device"
+                                   FontSize="12"
+                                   HorizontalOptions="Center"
+                                   TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray400}}" />
+                            <Label Text="{Binding BatteryLeftVoltage, StringFormat='{0:F2}V'}"
+                                   FontSize="18"
+                                   FontAttributes="Bold"
+                                   HorizontalOptions="Center"
+                                   TextColor="{Binding BatteryLeftColor}"
+                                   SemanticProperties.Description="Left device battery voltage" />
+                        </VerticalStackLayout>
+
+                        <!-- Right Device Battery -->
+                        <VerticalStackLayout Spacing="5">
+                            <Label Text="Right Device"
+                                   FontSize="12"
+                                   HorizontalOptions="Center"
+                                   TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray400}}" />
+                            <Label Text="{Binding BatteryRightVoltage, StringFormat='{0:F2}V'}"
+                                   FontSize="18"
+                                   FontAttributes="Bold"
+                                   HorizontalOptions="Center"
+                                   TextColor="{Binding BatteryRightColor}"
+                                   SemanticProperties.Description="Right device battery voltage" />
+                        </VerticalStackLayout>
+                    </HorizontalStackLayout>
+
+                    <Button Text="🔄 Refresh Battery"
                             Command="{Binding RefreshBatteryCommand}"
-                            HeightRequest="36"
-                            WidthRequest="36"
-                            CornerRadius="18"
-                            Padding="0"
-                            SemanticProperties.Hint="Refresh battery level"
+                            HeightRequest="40"
+                            FontSize="14"
+                            CornerRadius="8"
+                            HorizontalOptions="Center"
+                            Padding="20,0"
+                            SemanticProperties.Hint="Refresh battery levels"
                             AutomationId="RefreshBatteryButton" />
-                </HorizontalStackLayout>
+                </VerticalStackLayout>
             </Border>
 
-            <!-- Pattern Selection -->
+            <!-- Profile Selection -->
             <VerticalStackLayout Spacing="10">
-                <Label Text="Vibration Pattern"
+                <Label Text="Therapy Profile"
                        FontSize="18"
                        FontAttributes="Bold"
                        SemanticProperties.HeadingLevel="Level2" />
 
-                <Picker ItemsSource="{Binding AvailablePatterns}"
-                        SelectedItem="{Binding SelectedPattern}"
+                <Picker ItemsSource="{Binding AvailableProfiles}"
+                        SelectedItem="{Binding SelectedProfile}"
                         ItemDisplayBinding="{Binding Name}"
                         FontSize="16"
                         HeightRequest="48"
-                        SemanticProperties.Description="Select vibration pattern"
-                        AutomationId="PatternPicker" />
+                        SemanticProperties.Description="Select therapy profile"
+                        AutomationId="ProfilePicker" />
 
-                <Label Text="{Binding SelectedPattern.Description}"
+                <Label Text="{Binding SelectedProfile.Description}"
                        FontSize="14"
                        TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray400}}"
-                       IsVisible="{Binding SelectedPattern.Description, Converter={StaticResource StringNotNullOrEmptyConverter}}"
                        LineBreakMode="WordWrap" />
             </VerticalStackLayout>
 
-            <!-- Pattern Details -->
+            <!-- Profile Details -->
             <Border Padding="15"
                     BackgroundColor="{AppThemeBinding Light={StaticResource SecondaryLight}, Dark={StaticResource Gray900}}"
-                    IsVisible="{Binding SelectedPattern, Converter={StaticResource IsNotNullConverter}}"
                     StrokeThickness="0">
                 <Border.StrokeShape>
                     <RoundRectangle CornerRadius="12" />
                 </Border.StrokeShape>
 
-                <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="15" RowSpacing="10">
+                <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnSpacing="15" RowSpacing="10">
                     <Label Grid.Row="0" Grid.Column="0"
-                           Text="Intensity:"
+                           Text="Time On:"
                            FontSize="14" />
                     <Label Grid.Row="0" Grid.Column="1"
-                           Text="{Binding SelectedPattern.Intensity, StringFormat='{0}%'}"
+                           Text="{Binding SelectedProfile.TimeOn, StringFormat='{0:F3}s'}"
                            FontSize="14"
                            FontAttributes="Bold"
                            HorizontalOptions="End" />
 
                     <Label Grid.Row="1" Grid.Column="0"
-                           Text="Frequency:"
+                           Text="Time Off:"
                            FontSize="14" />
                     <Label Grid.Row="1" Grid.Column="1"
-                           Text="{Binding SelectedPattern.FrequencyHz, StringFormat='{0} Hz'}"
+                           Text="{Binding SelectedProfile.TimeOff, StringFormat='{0:F3}s'}"
                            FontSize="14"
                            FontAttributes="Bold"
                            HorizontalOptions="End" />
 
                     <Label Grid.Row="2" Grid.Column="0"
-                           Text="Mode:"
+                           Text="Frequency:"
                            FontSize="14" />
                     <Label Grid.Row="2" Grid.Column="1"
-                           Text="{Binding SelectedPattern.IsContinuous, Converter={StaticResource ContinuousModeConverter}}"
+                           Text="{Binding SelectedProfile.ActuatorFrequency, StringFormat='{0} Hz'}"
+                           FontSize="14"
+                           FontAttributes="Bold"
+                           HorizontalOptions="End" />
+
+                    <Label Grid.Row="3" Grid.Column="0"
+                           Text="Amplitude:"
+                           FontSize="14" />
+                    <Label Grid.Row="3" Grid.Column="1"
+                           Text="{Binding SelectedProfile.AmplitudeMin, StringFormat='{0}%-'}"
+                           FontSize="14"
+                           FontAttributes="Bold"
+                           HorizontalOptions="End" />
+
+                    <Label Grid.Row="4" Grid.Column="0"
+                           Text="Session Duration:"
+                           FontSize="14" />
+                    <Label Grid.Row="4" Grid.Column="1"
+                           Text="{Binding SelectedProfile.TimeSession, StringFormat='{0} min'}"
                            FontSize="14"
                            FontAttributes="Bold"
                            HorizontalOptions="End" />
                 </Grid>
             </Border>
 
-            <!-- Main Control Button -->
-            <Button Text="{Binding VibrationButtonText}"
-                    Command="{Binding ToggleVibrationCommand}"
-                    HeightRequest="72"
-                    FontSize="20"
-                    FontAttributes="Bold"
-                    CornerRadius="16"
-                    IsEnabled="{Binding IsNotBusy}"
-                    BackgroundColor="{Binding IsVibrating, Converter={StaticResource VibrationButtonColorConverter}}"
-                    SemanticProperties.Hint="Toggle vibration on or off"
-                    SemanticProperties.Description="Main vibration control button"
-                    AutomationId="ToggleVibrationButton" />
+            <!-- Session Status Display -->
+            <Border Padding="15"
+                    BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}"
+                    StrokeThickness="0"
+                    IsVisible="{Binding IsSessionActive}">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="12" />
+                </Border.StrokeShape>
+
+                <VerticalStackLayout Spacing="10">
+                    <HorizontalStackLayout Spacing="10" HorizontalOptions="Center">
+                        <Label Text="Status:"
+                               FontSize="14"
+                               VerticalOptions="Center" />
+                        <Label Text="{Binding SessionStatus.Status}"
+                               FontSize="14"
+                               FontAttributes="Bold"
+                               VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+
+                    <ProgressBar Progress="{Binding SessionStatus.Progress}"
+                                 HeightRequest="8"
+                                 ProgressColor="{StaticResource Primary}" />
+
+                    <HorizontalStackLayout Spacing="20" HorizontalOptions="Center">
+                        <Label Text="{Binding SessionStatus.ElapsedTimeFormatted, StringFormat='Elapsed: {0}'}"
+                               FontSize="14" />
+                        <Label Text="{Binding SessionStatus.RemainingTimeFormatted, StringFormat='Remaining: {0}'}"
+                               FontSize="14" />
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Session Control Buttons -->
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                <!-- Start/Stop Button -->
+                <Button Grid.Column="0"
+                        Text="{Binding SessionButtonText}"
+                        Command="{Binding ToggleSessionCommand}"
+                        HeightRequest="72"
+                        FontSize="20"
+                        FontAttributes="Bold"
+                        CornerRadius="16"
+                        IsEnabled="{Binding IsNotBusy}"
+                        BackgroundColor="{StaticResource Primary}"
+                        SemanticProperties.Hint="Start or stop therapy session"
+                        SemanticProperties.Description="Main session control button"
+                        AutomationId="ToggleSessionButton" />
+
+                <!-- Pause/Resume Button -->
+                <Button Grid.Column="1"
+                        Text="{Binding PauseButtonText}"
+                        Command="{Binding PauseResumeSessionCommand}"
+                        HeightRequest="72"
+                        FontSize="20"
+                        FontAttributes="Bold"
+                        CornerRadius="16"
+                        IsEnabled="{Binding IsSessionActive}"
+                        BackgroundColor="{StaticResource Secondary}"
+                        SemanticProperties.Hint="Pause or resume therapy session"
+                        SemanticProperties.Description="Pause/Resume control button"
+                        AutomationId="PauseResumeButton" />
+            </Grid>
 
             <!-- Test Button -->
             <Button Text="Test Connection"
@@ -126,7 +221,7 @@
                     CornerRadius="12"
                     IsEnabled="{Binding IsNotBusy}"
                     BackgroundColor="{AppThemeBinding Light={StaticResource Tertiary}, Dark={StaticResource PrimaryDark}}"
-                    SemanticProperties.Hint="Send a brief test pulse to the glove"
+                    SemanticProperties.Hint="Send a brief test pulse to the device"
                     SemanticProperties.Description="Test connection with brief vibration pulse"
                     AutomationId="TestConnectionButton" />
 
@@ -141,7 +236,7 @@
 
                 <Label FontSize="14"
                        LineBreakMode="WordWrap"
-                       Text="Select a vibration pattern and press 'Start Vibration' to begin therapy. Your session will be automatically tracked."
+                       Text="Select a therapy profile and press 'Start Session' to begin. You can pause/resume during the session. Your session will be automatically tracked."
                        SemanticProperties.Description="Usage instructions" />
             </Border>
 
