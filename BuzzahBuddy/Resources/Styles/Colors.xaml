@@ -8,6 +8,7 @@
 
     <!-- Primary Blue Theme Colors -->
     <Color x:Key="Primary">#2ab2ed</Color>
+    <Color x:Key="PrimaryLight">#d4f1fc</Color>
     <Color x:Key="PrimaryDark">#90d9f7</Color>
     <Color x:Key="PrimaryHover">#1a9dd6</Color>
     <Color x:Key="PrimaryDarkText">#001826</Color>

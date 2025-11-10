@@ -63,6 +63,12 @@ public class BluetoothService : IBluetoothService
             _adapter.ScanTimeout = (int)timeout.TotalMilliseconds;
             await _adapter.StartScanningForDevicesAsync(cancellationToken: cancellationToken);
         }
+        catch (OperationCanceledException)
+        {
+            // Scan was cancelled by user - this is expected, rethrow to let caller handle
+            System.Diagnostics.Debug.WriteLine("Scan cancelled by user");
+            throw;
+        }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Scan error: {ex.Message}");

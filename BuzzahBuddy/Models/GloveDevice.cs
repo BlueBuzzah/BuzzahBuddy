@@ -77,6 +77,23 @@ public class GloveDevice
     public int SignalStrength { get; set; }
 
     /// <summary>
+    /// Gets a user-friendly signal strength display.
+    /// Converts RSSI to Strong/Medium/Weak labels.
+    /// </summary>
+    public string SignalStrengthDisplay
+    {
+        get
+        {
+            // RSSI values typically range from -30 (excellent) to -90 (poor)
+            if (SignalStrength >= -50)
+                return "Signal: Strong";
+            if (SignalStrength >= -70)
+                return "Signal: Medium";
+            return "Signal: Weak";
+        }
+    }
+
+    /// <summary>
     /// Gets or sets the last time the device was successfully connected.
     /// </summary>
     public DateTime? LastConnected { get; set; }

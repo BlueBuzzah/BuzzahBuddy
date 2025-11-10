@@ -17,6 +17,13 @@
             <converters:StringNotNullOrEmptyConverter x:Key="StringNotNullOrEmptyConverter" />
             <converters:ContinuousModeConverter x:Key="ContinuousModeConverter" />
             <converters:VibrationButtonColorConverter x:Key="VibrationButtonColorConverter" />
+            <converters:EqualConverter x:Key="EqualConverter" />
+            <converters:GreaterThanConverter x:Key="GreaterThanConverter" />
+            <converters:LessThanConverter x:Key="LessThanConverter" />
+            <converters:IntToColorConverter x:Key="IntToColorConverter" />
+            <converters:AllTrueConverter x:Key="AllTrueConverter" />
+            <converters:IsZeroConverter x:Key="IsZeroConverter" />
+            <converters:MultiValueEqualConverter x:Key="MultiValueEqualConverter" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

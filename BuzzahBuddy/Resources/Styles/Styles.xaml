@@ -49,21 +49,38 @@
         </Setter>
     </Style>
 
-    <!-- Large Button Style for Primary Actions (Accessibility-Friendly) -->
-    <Style x:Key="LargeButton" TargetType="Button">
-        <Setter Property="HeightRequest" Value="56" />
-        <Setter Property="FontSize" Value="18" />
-        <Setter Property="Padding" Value="20,16" />
-    </Style>
+    <!-- Visual Hierarchy: Standardized Button Styles (DESIGN_GUIDE.md Wave 2) -->
 
-    <!-- Extra Large Button Style for Main Actions (Tremor-Friendly) -->
-    <Style x:Key="ExtraLargeButton" TargetType="Button">
+    <!-- Primary Button: Main actions (Start Session, Scan, etc.) -->
+    <Style x:Key="PrimaryButton" TargetType="Button">
         <Setter Property="HeightRequest" Value="72" />
         <Setter Property="FontSize" Value="20" />
         <Setter Property="FontAttributes" Value="Bold" />
         <Setter Property="Padding" Value="24,20" />
         <Setter Property="CornerRadius" Value="16" />
+        <Setter Property="BackgroundColor" Value="{StaticResource Primary}" />
     </Style>
+
+    <!-- Secondary Button: Common actions (Connect, Disconnect, etc.) -->
+    <Style x:Key="SecondaryButton" TargetType="Button">
+        <Setter Property="HeightRequest" Value="56" />
+        <Setter Property="FontSize" Value="18" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="Padding" Value="20,16" />
+        <Setter Property="CornerRadius" Value="12" />
+    </Style>
+
+    <!-- Tertiary Button: Less common actions (Test, Refresh, etc.) -->
+    <Style x:Key="TertiaryButton" TargetType="Button">
+        <Setter Property="HeightRequest" Value="48" />
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="Padding" Value="16,12" />
+        <Setter Property="CornerRadius" Value="8" />
+    </Style>
+
+    <!-- Legacy Aliases (Backward Compatibility) -->
+    <Style x:Key="LargeButton" TargetType="Button" BasedOn="{StaticResource SecondaryButton}" />
+    <Style x:Key="ExtraLargeButton" TargetType="Button" BasedOn="{StaticResource PrimaryButton}" />
 
     <Style TargetType="CheckBox">
         <Setter Property="Color" Value="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource White}}" />
@@ -189,18 +206,54 @@
         </Setter>
     </Style>
 
+    <!-- Visual Hierarchy: Standardized Heading Styles (DESIGN_GUIDE.md Wave 2) -->
     <Style TargetType="Label" x:Key="Headline">
         <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource MidnightBlue}, Dark={StaticResource White}}" />
-        <Setter Property="FontSize" Value="32" />
+        <Setter Property="FontSize" Value="28" />
+        <Setter Property="FontAttributes" Value="Bold" />
         <Setter Property="HorizontalOptions" Value="Center" />
         <Setter Property="HorizontalTextAlignment" Value="Center" />
     </Style>
 
+    <Style TargetType="Label" x:Key="Heading1">
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource MidnightBlue}, Dark={StaticResource White}}" />
+        <Setter Property="FontSize" Value="28" />
+        <Setter Property="FontAttributes" Value="Bold" />
+    </Style>
+
+    <Style TargetType="Label" x:Key="Heading2">
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource White}}" />
+        <Setter Property="FontSize" Value="22" />
+        <Setter Property="FontAttributes" Value="Bold" />
+    </Style>
+
+    <Style TargetType="Label" x:Key="Heading3">
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource White}}" />
+        <Setter Property="FontSize" Value="18" />
+        <Setter Property="FontAttributes" Value="Bold" />
+    </Style>
+
     <Style TargetType="Label" x:Key="SubHeadline">
         <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource MidnightBlue}, Dark={StaticResource White}}" />
-        <Setter Property="FontSize" Value="24" />
+        <Setter Property="FontSize" Value="22" />
+        <Setter Property="FontAttributes" Value="Bold" />
         <Setter Property="HorizontalOptions" Value="Center" />
         <Setter Property="HorizontalTextAlignment" Value="Center" />
+    </Style>
+
+    <Style TargetType="Label" x:Key="BodyText">
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="LineHeight" Value="1.5" />
+    </Style>
+
+    <Style TargetType="Label" x:Key="SecondaryText">
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray400}}" />
+    </Style>
+
+    <Style TargetType="Label" x:Key="CaptionText">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray400}}" />
     </Style>
 
     <Style TargetType="ListView">

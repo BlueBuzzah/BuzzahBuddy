@@ -23,7 +23,7 @@ public partial class GloveControlViewModel : BaseViewModel
     private System.Timers.Timer? _healthCheckTimer;
 
     [ObservableProperty]
-    private ObservableCollection<TherapyProfile> _availableProfiles = new();
+    private ObservableCollection<ProfileItemViewModel> _availableProfiles = new();
 
     [ObservableProperty]
     private TherapyProfile? _selectedProfile;
@@ -47,10 +47,28 @@ public partial class GloveControlViewModel : BaseViewModel
     private double _batteryRightVoltage;
 
     [ObservableProperty]
+    private int _batteryLeftPercentage;
+
+    [ObservableProperty]
+    private int _batteryRightPercentage;
+
+    [ObservableProperty]
     private string _batteryLeftColor = "Green";
 
     [ObservableProperty]
     private string _batteryRightColor = "Green";
+
+    [ObservableProperty]
+    private bool _showBatteryRefresh = true;
+
+    [ObservableProperty]
+    private bool _isLoadingProfile;
+
+    [ObservableProperty]
+    private bool _isRefreshingBattery;
+
+    [ObservableProperty]
+    private bool _isTestingConnection;
 
     [ObservableProperty]
     private bool _isConnected;
@@ -59,7 +77,7 @@ public partial class GloveControlViewModel : BaseViewModel
     private string _sessionButtonText = "Start Session";
 
     [ObservableProperty]
-    private string _pauseButtonText = "Pause";
+    private string _sessionButtonDescription = "Starts a new therapy session";
 
     [ObservableProperty]
     private bool _isConnectionHealthy = true;
@@ -98,7 +116,7 @@ public partial class GloveControlViewModel : BaseViewModel
             return;
         }
 
-        if (SelectedProfile == null)
+        if (!IsSessionActive && SelectedProfile == null)
         {
             await Shell.Current.DisplayAlert(
                 "No Profile Selected",
@@ -111,24 +129,7 @@ public partial class GloveControlViewModel : BaseViewModel
 
         try
         {
-            if (IsSessionActive)
-            {
-                // Stop session
-                await _gloveControlService.StopSessionAsync();
-
-                if (_currentSession != null)
-                {
-                    _currentSession.EndTime = DateTime.Now;
-                    _currentSession.IsCompleted = true;
-                    _currentSession.Status = SessionState.IDLE;
-                    await _storageService.SaveSessionAsync(_currentSession);
-                    _currentSession = null;
-                }
-
-                StopStatusPolling();
-                await UpdateSessionStatusAsync();
-            }
-            else
+            if (!IsSessionActive)
             {
                 // Start session
                 await _gloveControlService.StartSessionAsync();
@@ -138,12 +139,24 @@ public partial class GloveControlViewModel : BaseViewModel
                 {
                     StartTime = DateTime.Now,
                     ProfileUsed = SelectedProfile,
-                    ProfileId = SelectedProfile.ProfileId,
+                    ProfileId = SelectedProfile!.ProfileId,
                     DeviceId = _bluetoothService.ConnectedDevice?.Id,
                     Status = SessionState.RUNNING
                 };
 
                 StartStatusPolling();
+                await UpdateSessionStatusAsync();
+            }
+            else if (IsSessionRunning)
+            {
+                // Pause session
+                await _gloveControlService.PauseSessionAsync();
+                await UpdateSessionStatusAsync();
+            }
+            else if (IsSessionPaused)
+            {
+                // Resume session
+                await _gloveControlService.ResumeSessionAsync();
                 await UpdateSessionStatusAsync();
             }
         }
@@ -165,24 +178,48 @@ public partial class GloveControlViewModel : BaseViewModel
     }
 
     [RelayCommand]
-    private async Task PauseResumeSessionAsync()
+    private async Task StopSessionAsync()
     {
-        if (!IsConnected || !IsSessionActive)
+        if (!IsSessionActive)
             return;
+
+        // Check if session is less than 2 minutes and show confirmation
+        var elapsed = SessionStatus.ElapsedTimeSeconds;
+        if (elapsed < 120) // Less than 2 minutes
+        {
+            var minutes = (int)(elapsed / 60);
+            var seconds = (int)(elapsed % 60);
+            var timeString = minutes > 0
+                ? $"{minutes} minute{(minutes > 1 ? "s" : "")} and {seconds} second{(seconds != 1 ? "s" : "")}"
+                : $"{seconds} second{(seconds != 1 ? "s" : "")}";
+
+            var confirm = await Shell.Current.DisplayAlert(
+                "Stop Session?",
+                $"You've only been in this session for {timeString}. Your progress will be saved. Do you want to stop?",
+                "Keep Going",
+                "Stop Session");
+
+            if (confirm) // "Keep Going" was selected
+                return;
+        }
 
         IsBusy = true;
 
         try
         {
-            if (IsSessionPaused)
+            // Stop session
+            await _gloveControlService.StopSessionAsync();
+
+            if (_currentSession != null)
             {
-                await _gloveControlService.ResumeSessionAsync();
-            }
-            else
-            {
-                await _gloveControlService.PauseSessionAsync();
+                _currentSession.EndTime = DateTime.Now;
+                _currentSession.IsCompleted = true;
+                _currentSession.Status = SessionState.IDLE;
+                await _storageService.SaveSessionAsync(_currentSession);
+                _currentSession = null;
             }
 
+            StopStatusPolling();
             await UpdateSessionStatusAsync();
         }
         catch (BlueBuzzahCommandException ex)
@@ -202,6 +239,24 @@ public partial class GloveControlViewModel : BaseViewModel
         }
     }
 
+
+    [RelayCommand]
+    private void SelectProfile(ProfileItemViewModel profileItem)
+    {
+        if (profileItem?.Profile == null)
+            return;
+
+        // Deselect all profiles
+        foreach (var item in AvailableProfiles)
+        {
+            item.IsSelected = false;
+        }
+
+        // Select the tapped profile
+        profileItem.IsSelected = true;
+        SelectedProfile = profileItem.Profile;
+    }
+
     [RelayCommand]
     private async Task TestConnectionAsync()
     {
@@ -215,6 +270,7 @@ public partial class GloveControlViewModel : BaseViewModel
         }
 
         IsBusy = true;
+        IsTestingConnection = true;
 
         try
         {
@@ -237,6 +293,7 @@ public partial class GloveControlViewModel : BaseViewModel
         }
         finally
         {
+            IsTestingConnection = false;
             IsBusy = false;
         }
     }
@@ -248,6 +305,7 @@ public partial class GloveControlViewModel : BaseViewModel
             return;
 
         IsBusy = true;
+        IsRefreshingBattery = true;
 
         try
         {
@@ -255,9 +313,17 @@ public partial class GloveControlViewModel : BaseViewModel
             BatteryLeftVoltage = leftVoltage;
             BatteryRightVoltage = rightVoltage;
 
+            // Calculate percentages (3.0V = 0%, 4.2V = 100%)
+            BatteryLeftPercentage = VoltageToPercentage(leftVoltage);
+            BatteryRightPercentage = VoltageToPercentage(rightVoltage);
+
             // Update colors based on voltage thresholds
             BatteryLeftColor = GetBatteryColor(leftVoltage);
             BatteryRightColor = GetBatteryColor(rightVoltage);
+
+            // Progressive disclosure: Hide refresh button when battery is good
+            var minPercentage = Math.Min(BatteryLeftPercentage, BatteryRightPercentage);
+            ShowBatteryRefresh = minPercentage <= 50;
 
             // Check for low battery warnings
             await CheckBatteryWarningAsync();
@@ -268,8 +334,20 @@ public partial class GloveControlViewModel : BaseViewModel
         }
         finally
         {
+            IsRefreshingBattery = false;
             IsBusy = false;
         }
+    }
+
+    private static int VoltageToPercentage(double voltage)
+    {
+        const double minVoltage = 3.0;
+        const double maxVoltage = 4.2;
+
+        if (voltage <= minVoltage) return 0;
+        if (voltage >= maxVoltage) return 100;
+
+        return (int)((voltage - minVoltage) / (maxVoltage - minVoltage) * 100);
     }
 
     partial void OnSelectedProfileChanged(TherapyProfile? value)
@@ -298,12 +376,17 @@ public partial class GloveControlViewModel : BaseViewModel
         {
             try
             {
+                IsLoadingProfile = true;
                 await _gloveControlService.LoadProfileAsync(value.ProfileId);
                 await _storageService.SaveLastProfileAsync(value.ProfileId);
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Profile load error: {ex.Message}");
+            }
+            finally
+            {
+                IsLoadingProfile = false;
             }
         });
     }
@@ -317,14 +400,20 @@ public partial class GloveControlViewModel : BaseViewModel
             AvailableProfiles.Clear();
             foreach (var profile in profiles)
             {
-                AvailableProfiles.Add(profile);
+                AvailableProfiles.Add(new ProfileItemViewModel(profile));
             }
 
             // Load last used profile or default to Noisy VCR (profile 2)
             var lastProfileId = await _storageService.GetLastProfileAsync();
-            SelectedProfile = AvailableProfiles.FirstOrDefault(p => p.ProfileId == lastProfileId)
-                           ?? AvailableProfiles.FirstOrDefault(p => p.ProfileId == 2)
-                           ?? AvailableProfiles.FirstOrDefault();
+            var selectedItem = AvailableProfiles.FirstOrDefault(p => p.ProfileId == lastProfileId)
+                            ?? AvailableProfiles.FirstOrDefault(p => p.ProfileId == 2)
+                            ?? AvailableProfiles.FirstOrDefault();
+
+            if (selectedItem != null)
+            {
+                selectedItem.IsSelected = true;
+                SelectedProfile = selectedItem.Profile;
+            }
         }
         catch (Exception ex)
         {
@@ -335,10 +424,16 @@ public partial class GloveControlViewModel : BaseViewModel
             AvailableProfiles.Clear();
             foreach (var profile in presetProfiles)
             {
-                AvailableProfiles.Add(profile);
+                AvailableProfiles.Add(new ProfileItemViewModel(profile));
             }
 
-            SelectedProfile = AvailableProfiles.FirstOrDefault(p => p.ProfileId == 2);
+            var defaultItem = AvailableProfiles.FirstOrDefault(p => p.ProfileId == 2)
+                           ?? AvailableProfiles.FirstOrDefault();
+            if (defaultItem != null)
+            {
+                defaultItem.IsSelected = true;
+                SelectedProfile = defaultItem.Profile;
+            }
         }
     }
 
@@ -384,8 +479,22 @@ public partial class GloveControlViewModel : BaseViewModel
         IsSessionRunning = SessionStatus.IsRunning;
         IsSessionPaused = SessionStatus.IsPaused;
 
-        SessionButtonText = IsSessionActive ? "Stop Session" : "Start Session";
-        PauseButtonText = IsSessionPaused ? "Resume" : "Pause";
+        // Update button text and description based on current state
+        if (!IsSessionActive)
+        {
+            SessionButtonText = "Start Session";
+            SessionButtonDescription = "Starts a new therapy session";
+        }
+        else if (IsSessionRunning)
+        {
+            SessionButtonText = "Pause Session";
+            SessionButtonDescription = "Pauses the active therapy session";
+        }
+        else if (IsSessionPaused)
+        {
+            SessionButtonText = "Resume Session";
+            SessionButtonDescription = "Resumes the paused therapy session";
+        }
     }
 
     private void StartStatusPolling()

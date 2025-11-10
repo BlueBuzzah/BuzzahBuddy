@@ -37,6 +37,21 @@ public partial class CalibrationViewModel : BaseViewModel
     [ObservableProperty]
     private bool _isBuzzing;
 
+    // Wizard step tracking (1 = Intensity, 2 = Duration, 3 = Test Fingers)
+    [ObservableProperty]
+    private int _currentStep = 1;
+
+    [ObservableProperty]
+    private string _stepTitle = "Step 1 of 3: Select Intensity";
+
+    [ObservableProperty]
+    private string _stepDescription = "Choose the vibration intensity level for testing.";
+
+    // Track which fingers have been tested
+    private readonly HashSet<int> _testedFingers = new();
+
+    public bool IsFingerTested(int fingerIndex) => _testedFingers.Contains(fingerIndex);
+
     public CalibrationViewModel(
         IGloveControlService gloveControlService,
         IBluetoothService bluetoothService)
@@ -133,6 +148,57 @@ public partial class CalibrationViewModel : BaseViewModel
     }
 
     [RelayCommand]
+    private void SetIntensity(int value)
+    {
+        Intensity = value;
+    }
+
+    [RelayCommand]
+    private void SetDuration(int value)
+    {
+        Duration = value;
+    }
+
+    [RelayCommand]
+    private void NextStep()
+    {
+        if (CurrentStep < 3)
+        {
+            CurrentStep++;
+            UpdateStepInfo();
+        }
+    }
+
+    [RelayCommand]
+    private void PreviousStep()
+    {
+        if (CurrentStep > 1)
+        {
+            CurrentStep--;
+            UpdateStepInfo();
+        }
+    }
+
+    [RelayCommand]
+    private async Task SkipCalibrationAsync()
+    {
+        // Use safe default values
+        Intensity = 50;
+        Duration = 200;
+
+        var result = await Shell.Current.DisplayAlert(
+            "Skip Calibration?",
+            "This will use safe default settings (50% intensity, 200ms duration) without testing individual motors.\n\nYou can always return to calibration later if needed.",
+            "Use Defaults",
+            "Cancel");
+
+        if (result)
+        {
+            await ExitCalibrationModeAsync();
+        }
+    }
+
+    [RelayCommand]
     private async Task BuzzFingerAsync(int fingerIndex)
     {
         if (!IsInCalibrationMode)
@@ -163,6 +229,9 @@ public partial class CalibrationViewModel : BaseViewModel
         try
         {
             await _gloveControlService.BuzzFingerAsync(fingerIndex, Intensity, Duration);
+
+            // Mark finger as tested
+            _testedFingers.Add(fingerIndex);
 
             // Brief delay to show visual feedback
             await Task.Delay(Duration + 100);
@@ -222,6 +291,43 @@ public partial class CalibrationViewModel : BaseViewModel
         {
             UpdateConnectionState();
         });
+    }
+
+    private void UpdateStepInfo()
+    {
+        switch (CurrentStep)
+        {
+            case 1:
+                StepTitle = "Step 1 of 3: Select Intensity";
+                StepDescription = "Choose the vibration intensity level for testing.";
+                break;
+            case 2:
+                StepTitle = "Step 2 of 3: Select Duration";
+                StepDescription = "Choose how long each test pulse will last.";
+                break;
+            case 3:
+                StepTitle = "Step 3 of 3: Test Fingers";
+                StepDescription = "Tap each finger button to test the motor. Tested fingers will show a checkmark.";
+                break;
+        }
+    }
+
+    partial void OnIsInCalibrationModeChanged(bool value)
+    {
+        if (value)
+        {
+            // Reset wizard to step 1
+            CurrentStep = 1;
+            UpdateStepInfo();
+            _testedFingers.Clear();
+        }
+        else
+        {
+            // Reset state when exiting calibration
+            CurrentStep = 1;
+            UpdateStepInfo();
+            _testedFingers.Clear();
+        }
     }
 
     private static string GetFingerName(int fingerIndex)

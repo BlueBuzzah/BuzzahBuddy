@@ -41,6 +41,15 @@ public partial class DeviceListViewModel : BaseViewModel
     [ObservableProperty]
     private string? _connectedDeviceName;
 
+    [ObservableProperty]
+    private string _scanButtonText = "Scan for Devices";
+
+    [ObservableProperty]
+    private string _scanButtonDescription = "Start scanning for BlueBuzzah gloves";
+
+    [ObservableProperty]
+    private bool _hasCompletedScan;
+
     public DeviceListViewModel(
         IBluetoothService bluetoothService,
         IDataStorageService storageService)
@@ -61,15 +70,27 @@ public partial class DeviceListViewModel : BaseViewModel
         UpdateConnectionState();
     }
 
-    [RelayCommand]
-    private async Task ScanAsync()
+    [RelayCommand(AllowConcurrentExecutions = true)]
+    private async Task ToggleScanAsync()
     {
         if (IsScanning)
-            return;
+        {
+            // Stop scanning
+            await StopScanningAsync();
+        }
+        else
+        {
+            // Start scanning
+            await StartScanningAsync();
+        }
+    }
 
+    private async Task StartScanningAsync()
+    {
         AvailableDevices.Clear();
         IsScanning = true;
         IsBusy = true;
+        UpdateScanButtonState();
 
         try
         {
@@ -99,13 +120,12 @@ public partial class DeviceListViewModel : BaseViewModel
                 }
             }
 
-            if (AvailableDevices.Count == 0)
-            {
-                await Shell.Current.DisplayAlert(
-                    "No Devices Found",
-                    "No BlueBuzzah gloves were found. Make sure your glove is powered on and in range.",
-                    "OK");
-            }
+            // Don't show alert - UI will show empty state instead
+        }
+        catch (OperationCanceledException)
+        {
+            // User stopped the scan - this is expected, no error message needed
+            System.Diagnostics.Debug.WriteLine("Scan cancelled by user");
         }
         catch (Exception ex)
         {
@@ -116,18 +136,40 @@ public partial class DeviceListViewModel : BaseViewModel
         }
         finally
         {
+            // Clean up state
             IsScanning = false;
             IsBusy = false;
+            HasCompletedScan = true;
+            _scanCancellationTokenSource?.Dispose();
+            _scanCancellationTokenSource = null;
+            UpdateScanButtonState();
         }
     }
 
-    [RelayCommand]
-    private async Task StopScanAsync()
+    private async Task StopScanningAsync()
     {
+        // Cancel the ongoing scan operation
         _scanCancellationTokenSource?.Cancel();
+
+        // Also call StopScan to ensure adapter stops immediately
         await _bluetoothService.StopScanAsync();
-        IsScanning = false;
-        IsBusy = false;
+
+        // Note: State cleanup happens in StartScanningAsync's finally block
+        // to avoid race conditions. We don't set state here.
+    }
+
+    private void UpdateScanButtonState()
+    {
+        if (IsScanning)
+        {
+            ScanButtonText = "Stop Scanning";
+            ScanButtonDescription = "Stop the current device scan";
+        }
+        else
+        {
+            ScanButtonText = "Scan for Devices";
+            ScanButtonDescription = "Start scanning for BlueBuzzah gloves";
+        }
     }
 
     [RelayCommand]
@@ -178,7 +220,7 @@ public partial class DeviceListViewModel : BaseViewModel
         // Stop scanning if active
         if (IsScanning)
         {
-            await StopScanAsync();
+            await StopScanningAsync();
         }
 
         IsConnecting = true;
