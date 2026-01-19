@@ -5,7 +5,8 @@ namespace BuzzahBuddy.Services.Bluetooth;
 
 /// <summary>
 /// Mock Bluetooth service for testing without hardware.
-/// Implements all 18 BlueBuzzah commands with realistic responses.
+/// Implements all 20 BlueBuzzah commands with realistic responses.
+/// Per BLE protocol v2.0.0.
 /// </summary>
 public class MockBluetoothService : IBluetoothService
 {
@@ -17,6 +18,8 @@ public class MockBluetoothService : IBluetoothService
     private TimeSpan _mockElapsedTime = TimeSpan.Zero;
     private int _mockCurrentProfile = 2; // Default: Noisy VCR
     private bool _isInCalibrationMode;
+    private bool _therapyLedOff;
+    private bool _debugMode;
 
     public ConnectionState CurrentConnectionState { get; private set; } = ConnectionState.Disconnected;
     public GloveDevice? ConnectedDevice => _connectedDevice;
@@ -29,16 +32,17 @@ public class MockBluetoothService : IBluetoothService
         TimeSpan timeout,
         CancellationToken cancellationToken = default)
     {
-        // Simulate discovery of VL device
+        // Simulate discovery of BlueBuzzah device
+        // Per BLE protocol v2.0.0: Device is named "BlueBuzzah"
         var mockDevice = new GloveDevice
         {
-            Id = "MOCK-VL-001",
-            Name = "VL",
+            Id = "MOCK-PRIMARY-001",
+            Name = BlueBuzzahConstants.DeviceName, // "BlueBuzzah"
             SignalStrength = -45,
             ConnectionState = ConnectionState.Disconnected,
-            BatteryLeftVoltage = 3.72,
-            BatteryRightVoltage = 3.68,
-            FirmwareVersion = "1.0.0"
+            BatteryPrimaryVoltage = 3.72,
+            BatterySecondaryVoltage = 3.68,
+            FirmwareVersion = "2.0.0"
         };
 
         // Raise discovery event after short delay
@@ -104,12 +108,13 @@ public class MockBluetoothService : IBluetoothService
         // Simulate command processing delay
         await Task.Delay(50, cancellationToken);
 
+        // Per BLE protocol v2.0.0: Handle all 20 commands
         var responseText = command.ToUpperInvariant() switch
         {
             "INFO" => GetMockInfoResponse(),
             "BATTERY" => await GetMockBatteryResponse(cancellationToken),
-            "PING" => "PONG\n\x04",
-            "PROFILE_LIST" => "PROFILE:1:Regular VCR\nPROFILE:2:Noisy VCR\nPROFILE:3:Hybrid VCR\n\x04",
+            "PING" => "PONG:\n\x04",
+            "PROFILE_LIST" => GetMockProfileListResponse(),
             var cmd when cmd.StartsWith("PROFILE_LOAD:") => HandleProfileLoad(cmd),
             "PROFILE_GET" => GetMockProfileSettings(),
             var cmd when cmd.StartsWith("PROFILE_CUSTOM:") => "STATUS:CUSTOM_LOADED\n\x04",
@@ -118,13 +123,18 @@ public class MockBluetoothService : IBluetoothService
             "SESSION_RESUME" => HandleSessionResume(),
             "SESSION_STOP" => HandleSessionStop(),
             "SESSION_STATUS" => GetMockSessionStatus(),
-            var cmd when cmd.StartsWith("PARAM_SET:") => "STATUS:UPDATED\n\x04",
+            var cmd when cmd.StartsWith("PARAM_SET:") => HandleParamSet(cmd),
             "CALIBRATE_START" => HandleCalibrationStart(),
             var cmd when cmd.StartsWith("CALIBRATE_BUZZ:") => HandleCalibrationBuzz(cmd),
             "CALIBRATE_STOP" => HandleCalibrationStop(),
             "HELP" => GetMockHelpResponse(),
             "RESTART" => "STATUS:REBOOTING\n\x04",
-            _ => $"ERROR:Unknown command\n\x04"
+            // New commands per BLE protocol v2.0.0
+            "THERAPY_LED_OFF" => $"THERAPY_LED_OFF:{(_therapyLedOff ? "true" : "false")}\n\x04",
+            var cmd when cmd.StartsWith("THERAPY_LED_OFF:") => HandleTherapyLedOff(cmd),
+            "DEBUG" => $"DEBUG:{(_debugMode ? "true" : "false")}\n\x04",
+            var cmd when cmd.StartsWith("DEBUG:") => HandleDebug(cmd),
+            _ => $"ERROR:Unknown command: {command}\n\x04"
         };
 
         var response = CommandResponse.Parse(responseText);
@@ -151,22 +161,36 @@ public class MockBluetoothService : IBluetoothService
 
     private string GetMockInfoResponse()
     {
+        // Per BLE protocol v2.0.0: Use BATP/BATS for battery keys
         return "ROLE:PRIMARY\n" +
-               "NAME:VL\n" +
-               "FW:1.0.0\n" +
-               "BAT_LEFT:3.72\n" +
-               "BAT_RIGHT:3.68\n" +
+               "NAME:BlueBuzzah\n" +
+               "FW:2.0.0\n" +
+               "BATP:3.72\n" +
+               "BATS:3.68\n" +
                $"STATUS:{_mockSessionState}\n" +
                "\x04";
     }
 
     private async Task<string> GetMockBatteryResponse(CancellationToken cancellationToken)
     {
-        // Simulate VL querying VR (takes ~1 second)
+        // Simulate PRIMARY querying SECONDARY (takes ~1 second)
         await Task.Delay(800, cancellationToken);
 
-        return "BAT_LEFT:3.72\n" +
-               "BAT_RIGHT:3.68\n" +
+        // Per BLE protocol v2.0.0: Use BATP/BATS for battery keys
+        return "BATP:3.72\n" +
+               "BATS:3.68\n" +
+               "\x04";
+    }
+
+    private string GetMockProfileListResponse()
+    {
+        // Per BLE protocol v2.0.0: 6 profiles available
+        return "PROFILE:1:regular_vcr\n" +
+               "PROFILE:2:noisy_vcr\n" +
+               "PROFILE:3:hybrid_vcr\n" +
+               "PROFILE:4:custom_vcr\n" +
+               "PROFILE:5:gentle\n" +
+               "PROFILE:6:quick_test\n" +
                "\x04";
     }
 
@@ -175,17 +199,22 @@ public class MockBluetoothService : IBluetoothService
         var parts = command.Split(':');
         if (parts.Length >= 2 && int.TryParse(parts[1], out var profileId))
         {
-            if (profileId >= 1 && profileId <= 3)
+            // Per BLE protocol v2.0.0: 6 profiles available (1-6)
+            if (profileId >= 1 && profileId <= 6)
             {
                 _mockCurrentProfile = profileId;
                 var profileName = profileId switch
                 {
-                    1 => "Regular VCR",
-                    2 => "Noisy VCR",
-                    3 => "Hybrid VCR",
-                    _ => "Unknown"
+                    1 => "regular_vcr",
+                    2 => "noisy_vcr",
+                    3 => "hybrid_vcr",
+                    4 => "custom_vcr",
+                    5 => "gentle",
+                    6 => "quick_test",
+                    _ => "unknown"
                 };
-                return $"STATUS:LOADED\nPROFILE:{profileName}\n\x04";
+                // Per BLE protocol v2.0.0: Device reboots after PROFILE_LOAD
+                return $"STATUS:REBOOTING\nPROFILE:{profileName}\n\x04";
             }
         }
         return "ERROR:Invalid profile ID\n\x04";
@@ -193,19 +222,30 @@ public class MockBluetoothService : IBluetoothService
 
     private string GetMockProfileSettings()
     {
-        // Return Noisy VCR profile by default
-        return "ACTUATOR_TYPE:LRA\n" +
-               "ACTUATOR_FREQUENCY:250\n" +
-               "ACTUATOR_VOLTAGE:2.50\n" +
-               "TIME_ON:0.100\n" +
-               "TIME_OFF:0.067\n" +
-               "TIME_SESSION:120\n" +
-               "AMPLITUDE_MIN:100\n" +
-               "AMPLITUDE_MAX:100\n" +
+        // Per BLE protocol v2.0.0: Use shorthand keys
+        // ON/OFF are in milliseconds
+        return "TYPE:LRA\n" +
+               "FREQ:250\n" +
+               "ON:100.0\n" +
+               "OFF:67.0\n" +
+               "SESSION:120\n" +
+               "AMPMIN:100\n" +
+               "AMPMAX:100\n" +
+               "PATTERN:rndp\n" +
+               "MIRROR:1\n" +
                "JITTER:23.5\n" +
-               "MIRROR:True\n" +
-               "PATTERN_TYPE:RNDP\n" +
                "\x04";
+    }
+
+    private string HandleParamSet(string command)
+    {
+        // Per BLE protocol v2.0.0: PARAM_SET:NAME:VALUE
+        var parts = command.Split(':');
+        if (parts.Length >= 3)
+        {
+            return $"PARAM:{parts[1]}\nVALUE:{parts[2]}\n\x04";
+        }
+        return "ERROR:Invalid parameter format\n\x04";
     }
 
     private async Task<string> HandleSessionStart(CancellationToken cancellationToken)
@@ -269,11 +309,12 @@ public class MockBluetoothService : IBluetoothService
 
     private string GetMockSessionStatus()
     {
+        // Per BLE protocol v2.0.0: Use ELAPSED/TOTAL (not ELAPSED_TIME/TOTAL_TIME)
         if (_mockSessionState == SessionState.IDLE)
         {
             return "SESSION_STATUS:IDLE\n" +
-                   "ELAPSED_TIME:0\n" +
-                   "TOTAL_TIME:7200\n" +
+                   "ELAPSED:0\n" +
+                   "TOTAL:0\n" +
                    "PROGRESS:0\n" +
                    "\x04";
         }
@@ -293,8 +334,8 @@ public class MockBluetoothService : IBluetoothService
         var progress = Math.Min(100, (int)((double)elapsedSeconds / totalSeconds * 100));
 
         return $"SESSION_STATUS:{_mockSessionState}\n" +
-               $"ELAPSED_TIME:{elapsedSeconds}\n" +
-               $"TOTAL_TIME:{totalSeconds}\n" +
+               $"ELAPSED:{elapsedSeconds}\n" +
+               $"TOTAL:{totalSeconds}\n" +
                $"PROGRESS:{progress}\n" +
                "\x04";
     }
@@ -332,6 +373,7 @@ public class MockBluetoothService : IBluetoothService
 
     private string GetMockHelpResponse()
     {
+        // Per BLE protocol v2.0.0: 20 commands
         return "COMMAND:INFO\n" +
                "COMMAND:BATTERY\n" +
                "COMMAND:PING\n" +
@@ -348,8 +390,36 @@ public class MockBluetoothService : IBluetoothService
                "COMMAND:CALIBRATE_START\n" +
                "COMMAND:CALIBRATE_BUZZ\n" +
                "COMMAND:CALIBRATE_STOP\n" +
-               "COMMAND:RESTART\n" +
                "COMMAND:HELP\n" +
+               "COMMAND:RESTART\n" +
+               "COMMAND:THERAPY_LED_OFF\n" +
+               "COMMAND:DEBUG\n" +
                "\x04";
+    }
+
+    private string HandleTherapyLedOff(string command)
+    {
+        // Per BLE protocol v2.0.0: THERAPY_LED_OFF:true/false
+        var parts = command.Split(':');
+        if (parts.Length >= 2)
+        {
+            var value = parts[1].ToLowerInvariant();
+            _therapyLedOff = value == "true" || value == "1";
+            return $"THERAPY_LED_OFF:{(_therapyLedOff ? "true" : "false")}\n\x04";
+        }
+        return "ERROR:Invalid value. Use: true/false or 1/0\n\x04";
+    }
+
+    private string HandleDebug(string command)
+    {
+        // Per BLE protocol v2.0.0: DEBUG:true/false
+        var parts = command.Split(':');
+        if (parts.Length >= 2)
+        {
+            var value = parts[1].ToLowerInvariant();
+            _debugMode = value == "true" || value == "1";
+            return $"DEBUG:{(_debugMode ? "true" : "false")}\n\x04";
+        }
+        return "ERROR:Invalid value. Use: true/false or 1/0\n\x04";
     }
 }

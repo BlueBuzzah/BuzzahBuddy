@@ -21,45 +21,45 @@ public class GloveDevice
     public string MacAddress { get; set; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets the left glove battery voltage.
+    /// Gets or sets the Primary device battery voltage.
     /// Range: 3.0V (empty) to 4.2V (full).
     /// </summary>
-    public double BatteryLeftVoltage { get; set; }
+    public double BatteryPrimaryVoltage { get; set; }
 
     /// <summary>
-    /// Gets or sets the right glove battery voltage.
+    /// Gets or sets the Secondary device battery voltage.
     /// Range: 3.0V (empty) to 4.2V (full).
     /// </summary>
-    public double BatteryRightVoltage { get; set; }
+    public double BatterySecondaryVoltage { get; set; }
 
     /// <summary>
-    /// Gets the estimated battery percentage for the left glove (0-100).
+    /// Gets the estimated battery percentage for the Primary device (0-100).
     /// Calculated from voltage: 3.0V = 0%, 4.2V = 100%.
     /// </summary>
-    public int BatteryLeftPercentage => VoltageToPercentage(BatteryLeftVoltage);
+    public int BatteryPrimaryPercentage => VoltageToPercentage(BatteryPrimaryVoltage);
 
     /// <summary>
-    /// Gets the estimated battery percentage for the right glove (0-100).
+    /// Gets the estimated battery percentage for the Secondary device (0-100).
     /// Calculated from voltage: 3.0V = 0%, 4.2V = 100%.
     /// </summary>
-    public int BatteryRightPercentage => VoltageToPercentage(BatteryRightVoltage);
+    public int BatterySecondaryPercentage => VoltageToPercentage(BatterySecondaryVoltage);
 
     /// <summary>
-    /// Gets the minimum battery percentage of both gloves.
+    /// Gets the minimum battery percentage of both devices.
     /// </summary>
-    public int BatteryLevel => Math.Min(BatteryLeftPercentage, BatteryRightPercentage);
+    public int BatteryLevel => Math.Min(BatteryPrimaryPercentage, BatterySecondaryPercentage);
 
     /// <summary>
-    /// Gets the battery status color for the left glove based on voltage.
+    /// Gets the battery status color for the Primary device based on voltage.
     /// Green: &gt;3.6V, Yellow: 3.3-3.6V, Red: &lt;3.3V
     /// </summary>
-    public string BatteryLeftColor => GetBatteryColor(BatteryLeftVoltage);
+    public string BatteryPrimaryColor => GetBatteryColor(BatteryPrimaryVoltage);
 
     /// <summary>
-    /// Gets the battery status color for the right glove based on voltage.
+    /// Gets the battery status color for the Secondary device based on voltage.
     /// Green: &gt;3.6V, Yellow: 3.3-3.6V, Red: &lt;3.3V
     /// </summary>
-    public string BatteryRightColor => GetBatteryColor(BatteryRightVoltage);
+    public string BatterySecondaryColor => GetBatteryColor(BatterySecondaryVoltage);
 
     /// <summary>
     /// Gets or sets the current connection state of the device.

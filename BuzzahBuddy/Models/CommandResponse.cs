@@ -7,6 +7,7 @@ namespace BuzzahBuddy.Models;
 public class CommandResponse
 {
     private readonly Dictionary<string, string> _data = new();
+    private readonly Dictionary<string, List<string>> _multiData = new();
 
     /// <summary>
     /// Gets whether the response indicates an error.
@@ -24,7 +25,7 @@ public class CommandResponse
     public bool HasData => _data.Count > 0;
 
     /// <summary>
-    /// Gets the raw data dictionary.
+    /// Gets the raw data dictionary (returns last value for each key).
     /// </summary>
     public IReadOnlyDictionary<string, string> Data => _data;
 
@@ -58,7 +59,17 @@ public class CommandResponse
             {
                 var key = trimmed.Substring(0, colonIndex).Trim();
                 var value = trimmed.Substring(colonIndex + 1).Trim();
+
+                // Store last value for backwards compatibility
                 response._data[key] = value;
+
+                // Also store all values for multi-value support
+                if (!response._multiData.TryGetValue(key, out var list))
+                {
+                    list = new List<string>();
+                    response._multiData[key] = list;
+                }
+                list.Add(value);
             }
         }
 
@@ -66,11 +77,20 @@ public class CommandResponse
     }
 
     /// <summary>
-    /// Gets a string value for the specified key.
+    /// Gets a string value for the specified key (returns last value if multiple).
     /// </summary>
     public string? GetString(string key)
     {
         return _data.TryGetValue(key, out var value) ? value : null;
+    }
+
+    /// <summary>
+    /// Gets all string values for the specified key.
+    /// Use this for responses with multiple lines using the same key (e.g., PROFILE_LIST).
+    /// </summary>
+    public IReadOnlyList<string> GetAllStrings(string key)
+    {
+        return _multiData.TryGetValue(key, out var list) ? list : Array.Empty<string>();
     }
 
     /// <summary>

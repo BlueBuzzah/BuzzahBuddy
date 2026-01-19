@@ -7,10 +7,11 @@ namespace BuzzahBuddy.Services.Bluetooth;
 public static class BlueBuzzahConstants
 {
     /// <summary>
-    /// The device name for the PRIMARY (left) BlueBuzzah glove.
-    /// App connects only to VL; VL relays commands to VR (secondary) as needed.
+    /// The device name for the PRIMARY BlueBuzzah glove.
+    /// App connects only to Primary; Primary relays commands to Secondary as needed.
+    /// Per BLE protocol v2.0.0: Device is named "BlueBuzzah".
     /// </summary>
-    public const string DeviceName = "VL";
+    public const string DeviceName = "BlueBuzzah";
 
     /// <summary>
     /// Nordic UART Service (NUS) UUID.
@@ -33,14 +34,15 @@ public static class BlueBuzzahConstants
     /// <summary>
     /// End-of-transmission character that marks the end of a response.
     /// Only messages ending with this character are app-directed responses.
-    /// Internal VL↔VR sync messages don't include this character and should be filtered.
+    /// Internal Primary↔Secondary sync messages don't include this character and should be filtered.
     /// </summary>
     public const char EndOfTransmission = '\x04';
 
     /// <summary>
-    /// Command terminator - all commands must end with newline.
+    /// Command terminator - all BLE commands must end with EOT character.
+    /// Per BLE protocol v2.0.0: BLE commands use \x04, serial commands use \n.
     /// </summary>
-    public const char CommandTerminator = '\n';
+    public const char CommandTerminator = '\x04';
 
     /// <summary>
     /// Recommended delay between commands in milliseconds.

@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:BuzzahBuddy.ViewModels"
              xmlns:models="clr-namespace:BuzzahBuddy.Models"
+             xmlns:controls="clr-namespace:BuzzahBuddy.Views.Controls"
              x:Class="BuzzahBuddy.Views.DeviceListPage"
              x:DataType="vm:DeviceListViewModel"
              x:Name="page"
@@ -17,25 +18,16 @@
                             Padding="20"
                             IsVisible="{Binding IsAlreadyConnected}">
 
-            <!-- Connection Status (Single, Clear Indicator) -->
+            <!-- Connection Status Banner -->
             <VerticalStackLayout Spacing="15">
                 <Label Text="Connected Device"
                        Style="{StaticResource Headline}"
                        HorizontalTextAlignment="Center"
                        SemanticProperties.HeadingLevel="Level1" />
 
-                <HorizontalStackLayout Spacing="10" HorizontalOptions="Center">
-                    <Label Text="●"
-                           FontSize="20"
-                           TextColor="{StaticResource Success}"
-                           VerticalOptions="Center" />
-                    <Label Text="{Binding ConnectedDeviceName}"
-                           FontSize="24"
-                           FontAttributes="Bold"
-                           VerticalOptions="Center"
-                           TextColor="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource Gray100}}"
-                           SemanticProperties.Description="Connected device name" />
-                </HorizontalStackLayout>
+                <controls:ConnectionStatusBanner
+                    ConnectionState="{Binding ConnectionState}"
+                    DeviceName="{Binding ConnectedDeviceName}" />
             </VerticalStackLayout>
 
             <!-- Action Buttons -->
@@ -48,15 +40,22 @@
                         BackgroundColor="{StaticResource Primary}"
                         SemanticProperties.Hint="Navigate to device control page"
                         SemanticProperties.Description="Opens the glove control interface"
-                        AutomationId="GoToControlButton" />
+                        AutomationId="GoToControlButton">
+                    <Button.Shadow>
+                        <Shadow Brush="{StaticResource GlowBrush}"
+                                Offset="0,0"
+                                Radius="20"
+                                Opacity="0.3" />
+                    </Button.Shadow>
+                </Button>
 
                 <Button Text="Disconnect Device"
                         Command="{Binding DisconnectCommand}"
                         HeightRequest="56"
                         FontSize="18"
                         CornerRadius="12"
-                        BackgroundColor="{AppThemeBinding Light={StaticResource PastelDanger}, Dark={StaticResource PastelDangerDark}}"
-                        TextColor="{StaticResource Danger}"
+                        BackgroundColor="{StaticResource PastelDangerDark}"
+                        TextColor="{StaticResource DangerDark}"
                         SemanticProperties.Hint="Disconnect from current device"
                         SemanticProperties.Description="Tap to disconnect from the connected device"
                         AutomationId="DisconnectButton" />
@@ -136,7 +135,7 @@
                            Style="{StaticResource BodyText}"
                            HorizontalTextAlignment="Center"
                            LineBreakMode="WordWrap"
-                           TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray400}}" />
+                           TextColor="{StaticResource TextMuted}" />
                 </VerticalStackLayout>
 
                 <!-- Empty State: No Devices Found (After scan completes with no results) -->
@@ -170,7 +169,7 @@
 
                     <!-- Troubleshooting Tips -->
                     <Border Padding="12"
-                            BackgroundColor="{AppThemeBinding Light={StaticResource SecondaryLight}, Dark={StaticResource Gray900}}"
+                            BackgroundColor="{StaticResource CardBackground}"
                             StrokeThickness="0"
                             Margin="0,8,0,0">
                         <Border.StrokeShape>
@@ -197,7 +196,7 @@
                 <DataTemplate x:DataType="models:GloveDevice">
                     <Border Padding="15"
                             Margin="0,0,0,10"
-                            BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}"
+                            BackgroundColor="{StaticResource CardBackground}"
                             StrokeThickness="0">
                         <Border.StrokeShape>
                             <RoundRectangle CornerRadius="12" />
@@ -213,7 +212,7 @@
                             <Label Grid.Row="1" Grid.Column="0"
                                    Text="{Binding SignalStrengthDisplay}"
                                    FontSize="14"
-                                   TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray400}}"
+                                   TextColor="{StaticResource TextMuted}"
                                    SemanticProperties.Description="Signal strength indicator" />
 
                             <!-- Connect Button -->
@@ -234,7 +233,7 @@
             </CollectionView>
             </Grid>
 
-            <!-- BOTTOM ZONE (Easy Reach): Primary Action -->
+            <!-- BOTTOM ZONE (Easy Reach): Primary Action with Glow -->
             <Button Grid.Row="3"
                     Text="{Binding ScanButtonText}"
                     Command="{Binding ToggleScanCommand}"
@@ -242,9 +241,17 @@
                     FontSize="18"
                     CornerRadius="12"
                     Margin="0,12,0,0"
+                    BackgroundColor="{StaticResource Primary}"
                     SemanticProperties.Hint="Double tap to activate"
                     SemanticProperties.Description="{Binding ScanButtonDescription}"
-                    AutomationId="ScanToggleButton" />
+                    AutomationId="ScanToggleButton">
+                <Button.Shadow>
+                    <Shadow Brush="{StaticResource GlowColor}"
+                            Offset="0,0"
+                            Radius="20"
+                            Opacity="0.3" />
+                </Button.Shadow>
+            </Button>
         </Grid>
 
         <!-- Connection Progress Overlay -->

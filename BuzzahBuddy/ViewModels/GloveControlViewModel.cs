@@ -29,6 +29,31 @@ public partial class GloveControlViewModel : BaseViewModel
     private TherapyProfile? _selectedProfile;
 
     [ObservableProperty]
+    private bool _isShowingAdvancedProfiles;
+
+    /// <summary>
+    /// Primary profiles shown by default (Noisy, Regular, Quick Test).
+    /// </summary>
+    public IEnumerable<ProfileItemViewModel> PrimaryProfiles =>
+        AvailableProfiles.Where(p => p.IsPrimaryProfile).OrderBy(p => p.IsRecommended ? 0 : 1);
+
+    /// <summary>
+    /// Advanced profiles shown when "Show More" is expanded (Hybrid, Custom, Gentle).
+    /// </summary>
+    public IEnumerable<ProfileItemViewModel> AdvancedProfiles =>
+        AvailableProfiles.Where(p => p.IsAdvancedProfile);
+
+    /// <summary>
+    /// Text for the Show More/Less toggle button.
+    /// </summary>
+    public string ShowMoreButtonText => IsShowingAdvancedProfiles ? "Show Less" : "Show More Profiles";
+
+    partial void OnIsShowingAdvancedProfilesChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShowMoreButtonText));
+    }
+
+    [ObservableProperty]
     private SessionStatus _sessionStatus = SessionStatus.CreateIdle();
 
     [ObservableProperty]
@@ -41,22 +66,34 @@ public partial class GloveControlViewModel : BaseViewModel
     private bool _isSessionPaused;
 
     [ObservableProperty]
-    private double _batteryLeftVoltage;
+    private double _batteryPrimaryVoltage;
 
     [ObservableProperty]
-    private double _batteryRightVoltage;
+    private double _batterySecondaryVoltage;
 
     [ObservableProperty]
-    private int _batteryLeftPercentage;
+    private int _batteryPrimaryPercentage;
 
     [ObservableProperty]
-    private int _batteryRightPercentage;
+    private int _batterySecondaryPercentage;
 
     [ObservableProperty]
-    private string _batteryLeftColor = "Green";
+    private Color _batteryPrimaryColor = Colors.Green;
 
     [ObservableProperty]
-    private string _batteryRightColor = "Green";
+    private Color _batterySecondaryColor = Colors.Green;
+
+    /// <summary>
+    /// Accessibility description for the primary battery status.
+    /// </summary>
+    public string BatteryPrimaryDescription =>
+        $"Primary battery: {BatteryPrimaryPercentage} percent, {GetBatteryStatusText(BatteryPrimaryVoltage)}";
+
+    /// <summary>
+    /// Accessibility description for the secondary battery status.
+    /// </summary>
+    public string BatterySecondaryDescription =>
+        $"Secondary battery: {BatterySecondaryPercentage} percent, {GetBatteryStatusText(BatterySecondaryVoltage)}";
 
     [ObservableProperty]
     private bool _showBatteryRefresh = true;
@@ -84,6 +121,12 @@ public partial class GloveControlViewModel : BaseViewModel
 
     [ObservableProperty]
     private DateTime? _lastSuccessfulPing;
+
+    [ObservableProperty]
+    private ConnectionState _connectionState = ConnectionState.Disconnected;
+
+    [ObservableProperty]
+    private string? _connectedDeviceName;
 
     public GloveControlViewModel(
         IGloveControlService gloveControlService,
@@ -241,6 +284,12 @@ public partial class GloveControlViewModel : BaseViewModel
 
 
     [RelayCommand]
+    private void ToggleAdvancedProfiles()
+    {
+        IsShowingAdvancedProfiles = !IsShowingAdvancedProfiles;
+    }
+
+    [RelayCommand]
     private void SelectProfile(ProfileItemViewModel profileItem)
     {
         if (profileItem?.Profile == null)
@@ -254,7 +303,12 @@ public partial class GloveControlViewModel : BaseViewModel
 
         // Select the tapped profile
         profileItem.IsSelected = true;
-        SelectedProfile = profileItem.Profile;
+
+        // Ensure PropertyChanged fires on UI thread for nested bindings
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            SelectedProfile = profileItem.Profile;
+        });
     }
 
     [RelayCommand]
@@ -309,20 +363,31 @@ public partial class GloveControlViewModel : BaseViewModel
 
         try
         {
-            var (leftVoltage, rightVoltage) = await _gloveControlService.GetBatteryAsync();
-            BatteryLeftVoltage = leftVoltage;
-            BatteryRightVoltage = rightVoltage;
+            var (primaryVoltage, secondaryVoltage) = await _gloveControlService.GetBatteryAsync();
+
+            // Debug: Log raw voltage values from device
+            System.Diagnostics.Debug.WriteLine($"[BATTERY] Raw voltages - Primary: {primaryVoltage}V, Secondary: {secondaryVoltage}V");
+
+            BatteryPrimaryVoltage = primaryVoltage;
+            BatterySecondaryVoltage = secondaryVoltage;
 
             // Calculate percentages (3.0V = 0%, 4.2V = 100%)
-            BatteryLeftPercentage = VoltageToPercentage(leftVoltage);
-            BatteryRightPercentage = VoltageToPercentage(rightVoltage);
+            BatteryPrimaryPercentage = VoltageToPercentage(primaryVoltage);
+            BatterySecondaryPercentage = VoltageToPercentage(secondaryVoltage);
+
+            // Debug: Log calculated percentages
+            System.Diagnostics.Debug.WriteLine($"[BATTERY] Percentages - Primary: {BatteryPrimaryPercentage}%, Secondary: {BatterySecondaryPercentage}%");
 
             // Update colors based on voltage thresholds
-            BatteryLeftColor = GetBatteryColor(leftVoltage);
-            BatteryRightColor = GetBatteryColor(rightVoltage);
+            BatteryPrimaryColor = GetBatteryColor(primaryVoltage);
+            BatterySecondaryColor = GetBatteryColor(secondaryVoltage);
+
+            // Notify accessibility description properties
+            OnPropertyChanged(nameof(BatteryPrimaryDescription));
+            OnPropertyChanged(nameof(BatterySecondaryDescription));
 
             // Progressive disclosure: Hide refresh button when battery is good
-            var minPercentage = Math.Min(BatteryLeftPercentage, BatteryRightPercentage);
+            var minPercentage = Math.Min(BatteryPrimaryPercentage, BatterySecondaryPercentage);
             ShowBatteryRefresh = minPercentage <= 50;
 
             // Check for low battery warnings
@@ -364,46 +429,39 @@ public partial class GloveControlViewModel : BaseViewModel
                     "Session Active",
                     "Stop the current session to change profiles.",
                     "OK");
-
-                // Revert to previous selection
-                // (Note: This is a simplification; in a real app you'd track the previous selection)
             });
             return;
         }
 
-        // Load the selected profile
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                IsLoadingProfile = true;
-                await _gloveControlService.LoadProfileAsync(value.ProfileId);
-                await _storageService.SaveLastProfileAsync(value.ProfileId);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Profile load error: {ex.Message}");
-            }
-            finally
-            {
-                IsLoadingProfile = false;
-            }
-        });
+        // Profile selection only updates local state - device is updated when session starts
+        System.Diagnostics.Debug.WriteLine($"[PROFILE] Selected profile {value.ProfileId}: {value.Name}");
+
+        // Save selection preference for next app launch
+        _ = _storageService.SaveLastProfileAsync(value.ProfileId);
     }
 
     private async Task LoadProfilesAsync()
     {
+        System.Diagnostics.Debug.WriteLine("[PROFILES] LoadProfilesAsync starting...");
+
         try
         {
-            var profiles = await _gloveControlService.ListProfilesAsync();
+            // Load all 6 preset profiles (device connection not required for profile list)
+            var profiles = TherapyProfile.GetPresetProfiles();
+            System.Diagnostics.Debug.WriteLine($"[PROFILES] Loaded {profiles.Count} preset profiles");
 
             AvailableProfiles.Clear();
             foreach (var profile in profiles)
             {
                 AvailableProfiles.Add(new ProfileItemViewModel(profile));
+                System.Diagnostics.Debug.WriteLine($"[PROFILES]   - ID={profile.ProfileId}, Name={profile.Name}");
             }
 
-            // Load last used profile or default to Noisy VCR (profile 2)
+            // Notify filtered profile properties
+            OnPropertyChanged(nameof(PrimaryProfiles));
+            OnPropertyChanged(nameof(AdvancedProfiles));
+
+            // Load last used profile or default to Noisy (profile 2)
             var lastProfileId = await _storageService.GetLastProfileAsync();
             var selectedItem = AvailableProfiles.FirstOrDefault(p => p.ProfileId == lastProfileId)
                             ?? AvailableProfiles.FirstOrDefault(p => p.ProfileId == 2)
@@ -413,19 +471,31 @@ public partial class GloveControlViewModel : BaseViewModel
             {
                 selectedItem.IsSelected = true;
                 SelectedProfile = selectedItem.Profile;
+                System.Diagnostics.Debug.WriteLine($"[PROFILES] Selected profile: {selectedItem.Name}");
+
+                // If selected profile is advanced, show advanced section
+                if (selectedItem.IsAdvancedProfile)
+                {
+                    IsShowingAdvancedProfiles = true;
+                }
             }
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Load profiles error: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[PROFILES] Load profiles error: {ex.Message}");
 
-            // Fallback to preset profiles
+            // Fallback to all preset profiles
             var presetProfiles = TherapyProfile.GetPresetProfiles();
+            System.Diagnostics.Debug.WriteLine($"[PROFILES] Using fallback with {presetProfiles.Count} preset profiles");
+
             AvailableProfiles.Clear();
             foreach (var profile in presetProfiles)
             {
                 AvailableProfiles.Add(new ProfileItemViewModel(profile));
             }
+
+            OnPropertyChanged(nameof(PrimaryProfiles));
+            OnPropertyChanged(nameof(AdvancedProfiles));
 
             var defaultItem = AvailableProfiles.FirstOrDefault(p => p.ProfileId == 2)
                            ?? AvailableProfiles.FirstOrDefault();
@@ -433,6 +503,7 @@ public partial class GloveControlViewModel : BaseViewModel
             {
                 defaultItem.IsSelected = true;
                 SelectedProfile = defaultItem.Profile;
+                System.Diagnostics.Debug.WriteLine($"[PROFILES] Fallback selected: {defaultItem.Name}");
             }
         }
     }
@@ -557,7 +628,9 @@ public partial class GloveControlViewModel : BaseViewModel
 
     private void UpdateConnectionState()
     {
-        IsConnected = _bluetoothService.CurrentConnectionState == ConnectionState.Connected;
+        ConnectionState = _bluetoothService.CurrentConnectionState;
+        IsConnected = ConnectionState == ConnectionState.Connected;
+        ConnectedDeviceName = _bluetoothService.ConnectedDevice?.Name;
 
         if (IsConnected)
         {
@@ -575,7 +648,9 @@ public partial class GloveControlViewModel : BaseViewModel
     {
         MainThread.BeginInvokeOnMainThread(() =>
         {
+            ConnectionState = state;
             IsConnected = state == ConnectionState.Connected;
+            ConnectedDeviceName = _bluetoothService.ConnectedDevice?.Name;
 
             if (IsConnected)
             {
@@ -603,11 +678,18 @@ public partial class GloveControlViewModel : BaseViewModel
         });
     }
 
-    private static string GetBatteryColor(double voltage)
+    private static Color GetBatteryColor(double voltage)
     {
-        if (voltage > BlueBuzzahConstants.BatteryGoodThreshold) return "Green";
-        if (voltage >= BlueBuzzahConstants.BatteryMediumThreshold) return "Yellow";
-        return "Red";
+        if (voltage > BlueBuzzahConstants.BatteryGoodThreshold) return Colors.Green;
+        if (voltage >= BlueBuzzahConstants.BatteryMediumThreshold) return Colors.Orange;
+        return Colors.Red;
+    }
+
+    private static string GetBatteryStatusText(double voltage)
+    {
+        if (voltage > BlueBuzzahConstants.BatteryGoodThreshold) return "good";
+        if (voltage >= BlueBuzzahConstants.BatteryMediumThreshold) return "low";
+        return "critical";
     }
 
     private async Task HandleSessionCompletionAsync()
@@ -676,26 +758,41 @@ public partial class GloveControlViewModel : BaseViewModel
 
     private async Task CheckBatteryWarningAsync()
     {
-        if (BatteryLeftVoltage > 0 && BatteryLeftVoltage < BlueBuzzahConstants.BatteryLowThreshold)
+        if (BatteryPrimaryVoltage > 0 && BatteryPrimaryVoltage < BlueBuzzahConstants.BatteryLowThreshold)
         {
             await MainThread.InvokeOnMainThreadAsync(async () =>
             {
                 await Shell.Current.DisplayAlert(
                     "Low Battery Warning",
-                    $"Left glove battery is low ({BatteryLeftVoltage:F2}V). Consider charging before starting a session.",
+                    $"Primary device battery is low ({BatteryPrimaryVoltage:F2}V). Consider charging before starting a session.",
                     "OK");
             });
         }
 
-        if (BatteryRightVoltage > 0 && BatteryRightVoltage < BlueBuzzahConstants.BatteryLowThreshold)
+        if (BatterySecondaryVoltage > 0 && BatterySecondaryVoltage < BlueBuzzahConstants.BatteryLowThreshold)
         {
             await MainThread.InvokeOnMainThreadAsync(async () =>
             {
                 await Shell.Current.DisplayAlert(
                     "Low Battery Warning",
-                    $"Right glove battery is low ({BatteryRightVoltage:F2}V). Consider charging before starting a session.",
+                    $"Second glove battery is low ({BatterySecondaryVoltage:F2}V). Consider charging before starting a session.",
                     "OK");
             });
         }
+    }
+
+    /// <summary>
+    /// Unsubscribes from Bluetooth service events and stops timers to prevent memory leaks.
+    /// </summary>
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _bluetoothService.ConnectionStateChanged -= OnConnectionStateChanged;
+            StopStatusPolling();
+            StopConnectionHealthCheck();
+            System.Diagnostics.Debug.WriteLine("[GLOVECONTROL] ViewModel disposed, unsubscribed from events");
+        }
+        base.Dispose(disposing);
     }
 }

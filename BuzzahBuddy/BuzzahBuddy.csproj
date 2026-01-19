@@ -22,8 +22,10 @@
 		<ApplicationVersion>2</ApplicationVersion>
 
 		<!-- Platform versions -->
-		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
-		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">21.0</SupportedOSPlatformVersion>
+		<SupportedOSPlatformVersion
+			Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
+		<SupportedOSPlatformVersion
+			Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">21.0</SupportedOSPlatformVersion>
 
 		<!-- Disable Xcode version check due to version numbering mismatch -->
 		<ValidateXcodeVersion>false</ValidateXcodeVersion>
@@ -38,7 +40,8 @@
 	</PropertyGroup>
 
 	<!-- Android Debug Configuration -->
-	<PropertyGroup Condition="'$(TargetFramework)' == 'net9.0-android' and '$(Configuration)' == 'Debug'">
+	<PropertyGroup
+		Condition="'$(TargetFramework)' == 'net9.0-android' and '$(Configuration)' == 'Debug'">
 		<AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
 		<AndroidUseAapt2>true</AndroidUseAapt2>
 	</PropertyGroup>
@@ -52,7 +55,7 @@
 
 		<!-- Images -->
 		<MauiImage Include="Resources\Images\*" />
-		
+
 		<!-- Custom Fonts -->
 		<MauiFont Include="Resources\Fonts\*" />
 

@@ -113,11 +113,12 @@ public class SessionStatus
             status.Status = state;
         }
 
+        // Per BLE protocol v2.0.0: Keys are ELAPSED and TOTAL (not ELAPSED_TIME/TOTAL_TIME)
         // Parse elapsed time
-        status.ElapsedTimeSeconds = response.GetInt("ELAPSED_TIME") ?? 0;
+        status.ElapsedTimeSeconds = response.GetInt("ELAPSED") ?? 0;
 
         // Parse total time
-        status.TotalTimeSeconds = response.GetInt("TOTAL_TIME") ?? 0;
+        status.TotalTimeSeconds = response.GetInt("TOTAL") ?? 0;
 
         // Parse progress
         status.Progress = response.GetInt("PROGRESS") ?? 0;

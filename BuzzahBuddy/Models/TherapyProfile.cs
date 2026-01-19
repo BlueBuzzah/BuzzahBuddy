@@ -7,8 +7,10 @@ namespace BuzzahBuddy.Models;
 public class TherapyProfile
 {
     /// <summary>
-    /// Profile ID (1-3 for preset profiles, 0 for custom).
-    /// 1 = Regular VCR, 2 = Noisy VCR (default), 3 = Hybrid VCR
+    /// Profile ID (1-6 for preset profiles, 0 for custom).
+    /// Per BLE protocol v2.0.0:
+    /// 1 = regular_vcr, 2 = noisy_vcr (default), 3 = hybrid_vcr,
+    /// 4 = custom_vcr, 5 = gentle, 6 = quick_test
     /// </summary>
     public int ProfileId { get; set; }
 
@@ -43,7 +45,8 @@ public class TherapyProfile
     public double TimeOff { get; set; }
 
     /// <summary>
-    /// Total session duration in minutes (range: 1-180).
+    /// Total session duration in minutes (range: 1-240).
+    /// Per BLE protocol v2.0.0: SESSION parameter range is 1-240 minutes.
     /// </summary>
     public int TimeSession { get; set; }
 
@@ -64,14 +67,21 @@ public class TherapyProfile
     public double Jitter { get; set; }
 
     /// <summary>
-    /// Whether patterns are mirrored between left and right hands.
+    /// Whether patterns are mirrored between Primary and Secondary devices.
     /// </summary>
     public bool Mirror { get; set; }
 
     /// <summary>
-    /// Pattern type identifier (e.g., "RNDP" for random pattern).
+    /// Pattern type identifier (e.g., "RNDP" for random pattern, "SEQ" for sequential, "MIRRORED").
+    /// Per BLE protocol v2.0.0: Valid values are RNDP, SEQ, MIRRORED.
     /// </summary>
     public string PatternType { get; set; } = "RNDP";
+
+    /// <summary>
+    /// Number of active fingers for therapy (range: 1-4).
+    /// Per BLE protocol v2.0.0: FINGERS parameter controls how many fingers are active.
+    /// </summary>
+    public int Fingers { get; set; } = 4;
 
     /// <summary>
     /// Description of the profile for display purposes.
@@ -91,11 +101,11 @@ public class TherapyProfile
     {
         return new List<TherapyProfile>
         {
-            // Profile 1: Regular VCR
+            // Profile 1: Regular
             new TherapyProfile
             {
                 ProfileId = 1,
-                Name = "Regular VCR",
+                Name = "Regular",
                 Description = "Standard vibrotactile continuous reset pattern with consistent timing",
                 ActuatorType = "LRA",
                 ActuatorFrequency = 250,
@@ -107,15 +117,16 @@ public class TherapyProfile
                 AmplitudeMax = 100,
                 Jitter = 0,
                 Mirror = false,
-                PatternType = "RNDP"
+                PatternType = "RNDP",
+                Fingers = 4
             },
 
-            // Profile 2: Noisy VCR (Default)
+            // Profile 2: Noisy (Default)
             new TherapyProfile
             {
                 ProfileId = 2,
-                Name = "Noisy VCR",
-                Description = "VCR pattern with jitter and mirrored patterns - recommended default",
+                Name = "Noisy",
+                Description = "Pattern with jitter and mirrored patterns - recommended default",
                 ActuatorType = "LRA",
                 ActuatorFrequency = 250,
                 ActuatorVoltage = 2.5,
@@ -126,14 +137,15 @@ public class TherapyProfile
                 AmplitudeMax = 100,
                 Jitter = 23.5,
                 Mirror = true,
-                PatternType = "RNDP"
+                PatternType = "RNDP",
+                Fingers = 4
             },
 
-            // Profile 3: Hybrid VCR
+            // Profile 3: Hybrid
             new TherapyProfile
             {
                 ProfileId = 3,
-                Name = "Hybrid VCR",
+                Name = "Hybrid",
                 Description = "Mixed frequency stimulation pattern",
                 ActuatorType = "LRA",
                 ActuatorFrequency = 250,
@@ -145,7 +157,68 @@ public class TherapyProfile
                 AmplitudeMax = 100,
                 Jitter = 10.0,
                 Mirror = false,
-                PatternType = "RNDP"
+                PatternType = "RNDP",
+                Fingers = 4
+            },
+
+            // Profile 4: Custom (per BLE protocol v2.0.0)
+            new TherapyProfile
+            {
+                ProfileId = 4,
+                Name = "Custom",
+                Description = "Variable amplitude and frequency for personalized therapy",
+                ActuatorType = "LRA",
+                ActuatorFrequency = 250,
+                ActuatorVoltage = 2.5,
+                TimeOn = 0.100,
+                TimeOff = 0.067,
+                TimeSession = 120,
+                AmplitudeMin = 50,
+                AmplitudeMax = 100,
+                Jitter = 0,
+                Mirror = false,
+                PatternType = "RNDP",
+                Fingers = 4
+            },
+
+            // Profile 5: Gentle (per BLE protocol v2.0.0)
+            new TherapyProfile
+            {
+                ProfileId = 5,
+                Name = "Gentle",
+                Description = "Lower amplitude therapy with sequential pattern for sensitive users",
+                ActuatorType = "LRA",
+                ActuatorFrequency = 250,
+                ActuatorVoltage = 2.0,
+                TimeOn = 0.100,
+                TimeOff = 0.067,
+                TimeSession = 120,
+                AmplitudeMin = 30,
+                AmplitudeMax = 60,
+                Jitter = 0,
+                Mirror = false,
+                PatternType = "SEQ",
+                Fingers = 4
+            },
+
+            // Profile 6: Quick Test (per BLE protocol v2.0.0)
+            new TherapyProfile
+            {
+                ProfileId = 6,
+                Name = "Quick Test",
+                Description = "5-minute test session for quick device verification",
+                ActuatorType = "LRA",
+                ActuatorFrequency = 250,
+                ActuatorVoltage = 2.5,
+                TimeOn = 0.100,
+                TimeOff = 0.067,
+                TimeSession = 5,
+                AmplitudeMin = 100,
+                AmplitudeMax = 100,
+                Jitter = 0,
+                Mirror = false,
+                PatternType = "RNDP",
+                Fingers = 4
             }
         };
     }
@@ -171,7 +244,8 @@ public class TherapyProfile
             AmplitudeMax = AmplitudeMax,
             Jitter = Jitter,
             Mirror = Mirror,
-            PatternType = PatternType
+            PatternType = PatternType,
+            Fingers = Fingers
         };
     }
 }

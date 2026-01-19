@@ -1,3 +1,4 @@
+using BuzzahBuddy.Models;
 using BuzzahBuddy.Services.Bluetooth;
 using BuzzahBuddy.Services.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -19,6 +20,9 @@ public partial class SettingsViewModel : BaseViewModel
 
 	[ObservableProperty]
 	private string _connectedDeviceName = "None";
+
+	[ObservableProperty]
+	private ConnectionState _connectionState = ConnectionState.Disconnected;
 
 	[ObservableProperty]
 	private bool _enableNotifications = true;
@@ -128,7 +132,8 @@ public partial class SettingsViewModel : BaseViewModel
 
 	private void UpdateConnectionInfo()
 	{
-		IsConnected = _bluetoothService.CurrentConnectionState == Models.ConnectionState.Connected;
+		ConnectionState = _bluetoothService.CurrentConnectionState;
+		IsConnected = ConnectionState == ConnectionState.Connected;
 
 		if (IsConnected && _bluetoothService.ConnectedDevice != null)
 		{
@@ -140,11 +145,24 @@ public partial class SettingsViewModel : BaseViewModel
 		}
 	}
 
-	private void OnConnectionStateChanged(object? sender, Models.ConnectionState state)
+	private void OnConnectionStateChanged(object? sender, ConnectionState state)
 	{
 		MainThread.BeginInvokeOnMainThread(() =>
 		{
 			UpdateConnectionInfo();
 		});
+	}
+
+	/// <summary>
+	/// Unsubscribes from Bluetooth service events to prevent memory leaks.
+	/// </summary>
+	protected override void Dispose(bool disposing)
+	{
+		if (disposing)
+		{
+			_bluetoothService.ConnectionStateChanged -= OnConnectionStateChanged;
+			System.Diagnostics.Debug.WriteLine("[SETTINGS] ViewModel disposed, unsubscribed from ConnectionStateChanged");
+		}
+		base.Dispose(disposing);
 	}
 }

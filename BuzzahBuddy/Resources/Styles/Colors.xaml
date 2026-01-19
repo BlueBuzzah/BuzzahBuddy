@@ -1,47 +1,66 @@
 ﻿<?xml version="1.0" encoding="UTF-8" ?>
 <?xaml-comp compile="true" ?>
-<ResourceDictionary 
+<ResourceDictionary
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
 
     <!-- Note: For Android please see also Platforms\Android\Resources\values\colors.xml -->
+    <!-- Dark Mode Only - BlueBuzzah.com Design System -->
 
-    <!-- Primary Blue Theme Colors -->
-    <Color x:Key="Primary">#2ab2ed</Color>
-    <Color x:Key="PrimaryLight">#d4f1fc</Color>
-    <Color x:Key="PrimaryDark">#90d9f7</Color>
-    <Color x:Key="PrimaryHover">#1a9dd6</Color>
-    <Color x:Key="PrimaryDarkText">#001826</Color>
-    <Color x:Key="Secondary">#001826</Color>
-    <Color x:Key="SecondaryLight">#e6f7ff</Color>
-    <Color x:Key="SecondaryDarkText">#90d9f7</Color>
-    <Color x:Key="Tertiary">#0077be</Color>
+    <!-- Primary Blue Theme Colors (BlueBuzzah.com Palette) -->
+    <Color x:Key="Primary">#35B6F2</Color>
+    <Color x:Key="PrimaryLight">#5fc8f7</Color>
+    <Color x:Key="PrimaryDark">#35B6F2</Color>
+    <Color x:Key="PrimaryHover">#2da8e0</Color>
+    <Color x:Key="PrimaryDarkText">#0a0a0a</Color>
+    <Color x:Key="Secondary">#05212D</Color>
+    <Color x:Key="SecondaryLight">#0d3a4d</Color>
+    <Color x:Key="SecondaryDarkText">#fafafa</Color>
+    <Color x:Key="Tertiary">#35B6F2</Color>
 
     <!-- Base Colors -->
-    <Color x:Key="White">White</Color>
-    <Color x:Key="Black">Black</Color>
-    <Color x:Key="MidnightBlue">#001826</Color>
-    <Color x:Key="OffBlack">#000d13</Color>
+    <Color x:Key="White">#fafafa</Color>
+    <Color x:Key="Black">#0a0a0a</Color>
+    <Color x:Key="MidnightBlue">#05212D</Color>
+    <Color x:Key="OffBlack">#0a0a0a</Color>
 
-    <!-- Blue-Tinted Neutral Grays -->
+    <!-- Semantic Dark Mode Colors -->
+    <Color x:Key="PageBackground">#0a0a0a</Color>
+    <Color x:Key="CardBackground">#05212D</Color>
+    <Color x:Key="CardBackgroundLight">#0d3a4d</Color>
+    <Color x:Key="CardBorder">#0d3a4d</Color>
+    <Color x:Key="TextPrimary">#fafafa</Color>
+    <Color x:Key="TextMuted">#a3a3a3</Color>
+    <Color x:Key="GlowColor">#35B6F2</Color>
+
+    <!-- Blue-Tinted Neutral Grays (Dark Mode Optimized) -->
     <Color x:Key="Gray100">#e8f4f8</Color>
-    <Color x:Key="Gray200">#d1e9f0</Color>
-    <Color x:Key="Gray300">#b3dae5</Color>
-    <Color x:Key="Gray400">#7eb8cc</Color>
+    <Color x:Key="Gray200">#1f3a47</Color>
+    <Color x:Key="Gray300">#1a3340</Color>
+    <Color x:Key="Gray400">#a3a3a3</Color>
     <Color x:Key="Gray500">#5a94a8</Color>
-    <Color x:Key="Gray600">#2e5c6e</Color>
-    <Color x:Key="Gray900">#001826</Color>
-    <Color x:Key="Gray950">#000d13</Color>
+    <Color x:Key="Gray600">#0d3a4d</Color>
+    <Color x:Key="Gray700">#0a2d3a</Color>
+    <Color x:Key="Gray900">#05212D</Color>
+    <Color x:Key="Gray950">#0a0a0a</Color>
 
     <!-- Blue-Tinted Status Colors (WCAG AA Compliant) -->
     <Color x:Key="Success">#14b8a6</Color>
     <Color x:Key="SuccessDark">#5eead4</Color>
+    <Color x:Key="SuccessLight">#d1faf5</Color>
+    <Color x:Key="SuccessLightDark">#134e4a</Color>
     <Color x:Key="Warning">#f59e0b</Color>
     <Color x:Key="WarningDark">#fbbf24</Color>
+    <Color x:Key="WarningLight">#fef3cd</Color>
+    <Color x:Key="WarningLightDark">#451a03</Color>
     <Color x:Key="Danger">#e11d48</Color>
     <Color x:Key="DangerDark">#fb7185</Color>
+    <Color x:Key="DangerLight">#fce8ec</Color>
+    <Color x:Key="DangerLightDark">#4c0519</Color>
     <Color x:Key="Info">#2ab2ed</Color>
     <Color x:Key="InfoDark">#7dd3fc</Color>
+    <Color x:Key="InfoLight">#e0f4fc</Color>
+    <Color x:Key="InfoLightDark">#0c4a6e</Color>
 
     <!-- Softer Pastel Variants for Friendly UI (WCAG AA Large Text) -->
     <Color x:Key="PastelWarning">#d4985a</Color>
@@ -51,11 +70,25 @@
     <Color x:Key="PastelInfo">#6bb3d4</Color>
     <Color x:Key="PastelInfoDark">#96cde5</Color>
 
+    <!-- Saturated Button Colors (WCAG AA with dark text) -->
+    <Color x:Key="DangerButton">#dc2626</Color>
+    <Color x:Key="DangerButtonText">#0a0a0a</Color>
+    <Color x:Key="WarningButton">#d97706</Color>
+    <Color x:Key="WarningButtonText">#0a0a0a</Color>
+
     <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource Primary}"/>
     <SolidColorBrush x:Key="SecondaryBrush" Color="{StaticResource Secondary}"/>
     <SolidColorBrush x:Key="TertiaryBrush" Color="{StaticResource Tertiary}"/>
     <SolidColorBrush x:Key="WhiteBrush" Color="{StaticResource White}"/>
     <SolidColorBrush x:Key="BlackBrush" Color="{StaticResource Black}"/>
+
+    <!-- Semantic Dark Mode Brushes -->
+    <SolidColorBrush x:Key="PageBackgroundBrush" Color="{StaticResource PageBackground}"/>
+    <SolidColorBrush x:Key="CardBackgroundBrush" Color="{StaticResource CardBackground}"/>
+    <SolidColorBrush x:Key="CardBorderBrush" Color="{StaticResource CardBorder}"/>
+    <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimary}"/>
+    <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextMuted}"/>
+    <SolidColorBrush x:Key="GlowBrush" Color="{StaticResource GlowColor}"/>
 
     <SolidColorBrush x:Key="Gray100Brush" Color="{StaticResource Gray100}"/>
     <SolidColorBrush x:Key="Gray200Brush" Color="{StaticResource Gray200}"/>

@@ -44,36 +44,52 @@ public class BluetoothService : IBluetoothService
         _adapter.DeviceConnected += OnDeviceConnected;
         _adapter.DeviceDisconnected += OnDeviceDisconnected;
         _adapter.DeviceConnectionLost += OnDeviceConnectionLost;
+
+        // Diagnostic logging for debugging BLE issues
+        System.Diagnostics.Debug.WriteLine($"[BLE] Bluetooth state: {_bluetoothLE.State}");
+        System.Diagnostics.Debug.WriteLine($"[BLE] IsOn: {_bluetoothLE.IsOn}, IsAvailable: {_bluetoothLE.IsAvailable}");
+        System.Diagnostics.Debug.WriteLine("[BLE] Event handlers registered");
     }
 
     public async Task<IEnumerable<GloveDevice>> ScanForDevicesAsync(
         TimeSpan timeout,
         CancellationToken cancellationToken = default)
     {
+        System.Diagnostics.Debug.WriteLine("[BLE SCAN] === Starting scan sequence ===");
         _discoveredDevices.Clear();
         _discoveredBleDevices.Clear();
+        System.Diagnostics.Debug.WriteLine("[BLE SCAN] Cleared device caches");
 
+        System.Diagnostics.Debug.WriteLine($"[BLE SCAN] Checking Bluetooth... State={_bluetoothLE.State}, IsOn={_bluetoothLE.IsOn}");
         if (!await IsBluetoothEnabledAsync())
         {
+            System.Diagnostics.Debug.WriteLine("[BLE SCAN] Bluetooth DISABLED - aborting scan");
             return Enumerable.Empty<GloveDevice>();
         }
 
         try
         {
+            System.Diagnostics.Debug.WriteLine($"[BLE SCAN] Starting scan, timeout={timeout.TotalSeconds}s");
             _adapter.ScanTimeout = (int)timeout.TotalMilliseconds;
+            System.Diagnostics.Debug.WriteLine($"[BLE SCAN] Adapter.ScanTimeout set to: {_adapter.ScanTimeout}ms");
+            System.Diagnostics.Debug.WriteLine($"[BLE SCAN] Adapter.IsScanning before: {_adapter.IsScanning}");
+            System.Diagnostics.Debug.WriteLine("[BLE SCAN] Calling StartScanningForDevicesAsync...");
             await _adapter.StartScanningForDevicesAsync(cancellationToken: cancellationToken);
+            System.Diagnostics.Debug.WriteLine($"[BLE SCAN] Scan complete. Found {_discoveredDevices.Count} matching device(s)");
         }
         catch (OperationCanceledException)
         {
             // Scan was cancelled by user - this is expected, rethrow to let caller handle
-            System.Diagnostics.Debug.WriteLine("Scan cancelled by user");
+            System.Diagnostics.Debug.WriteLine("[BLE SCAN] Scan cancelled by user");
             throw;
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Scan error: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[BLE SCAN] Scan error: {ex.GetType().Name}: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[BLE SCAN] Stack trace: {ex.StackTrace}");
         }
 
+        System.Diagnostics.Debug.WriteLine($"[BLE SCAN] Returning {_discoveredDevices.Count} device(s) to caller");
         return _discoveredDevices.Values;
     }
 
@@ -336,13 +352,24 @@ public class BluetoothService : IBluetoothService
 
     private void OnDeviceDiscovered(object? sender, DeviceEventArgs e)
     {
+        // Log RAW discovery - BEFORE any filtering (critical for debugging)
+        System.Diagnostics.Debug.WriteLine($"[BLE RAW] Device: Name='{e.Device.Name ?? "(null)"}' ID={e.Device.Id} RSSI={e.Device.Rssi}");
+
         // Filter for VL (PRIMARY) device only
         // App connects only to VL; VL relays commands to VR as needed
-        if (string.IsNullOrEmpty(e.Device.Name) ||
-            !e.Device.Name.Equals(BlueBuzzahConstants.DeviceName, StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrEmpty(e.Device.Name))
         {
+            System.Diagnostics.Debug.WriteLine($"[BLE FILTER] REJECTED - Name is null/empty (ID: {e.Device.Id})");
             return;
         }
+
+        if (!e.Device.Name.Equals(BlueBuzzahConstants.DeviceName, StringComparison.OrdinalIgnoreCase))
+        {
+            System.Diagnostics.Debug.WriteLine($"[BLE FILTER] REJECTED - Name '{e.Device.Name}' != '{BlueBuzzahConstants.DeviceName}'");
+            return;
+        }
+
+        System.Diagnostics.Debug.WriteLine($"[BLE FILTER] ACCEPTED - {e.Device.Name}");
 
         var deviceId = e.Device.Id.ToString();
         var gloveDevice = new GloveDevice
@@ -358,8 +385,12 @@ public class BluetoothService : IBluetoothService
 
         if (_discoveredDevices.TryAdd(deviceId, gloveDevice))
         {
-            System.Diagnostics.Debug.WriteLine($"📱 Discovered device: {gloveDevice.Name} ({deviceId})");
+            System.Diagnostics.Debug.WriteLine($"[BLE] Added to discovered devices: {gloveDevice.Name} ({deviceId})");
             DeviceDiscovered?.Invoke(this, gloveDevice);
+        }
+        else
+        {
+            System.Diagnostics.Debug.WriteLine($"[BLE] Device already in cache: {gloveDevice.Name} ({deviceId})");
         }
     }
 

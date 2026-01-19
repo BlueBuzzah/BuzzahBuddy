@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:controls="clr-namespace:BuzzahBuddy.Views.Controls"
+             x:Class="BuzzahBuddy.Views.Controls.ConnectionStatusBanner"
+             x:Name="banner"
+             x:DataType="controls:ConnectionStatusBanner">
+
+    <Border Padding="12,10"
+            BackgroundColor="{Binding BannerBackgroundColor, Source={x:Reference banner}}"
+            StrokeThickness="0"
+            Margin="0,0,0,16">
+        <Border.StrokeShape>
+            <RoundRectangle CornerRadius="12" />
+        </Border.StrokeShape>
+
+        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+
+            <!-- Status Icon or Activity Indicator -->
+            <Grid Grid.Column="0"
+                  WidthRequest="28"
+                  HeightRequest="28"
+                  VerticalOptions="Center">
+
+                <!-- Activity Indicator for Connecting state -->
+                <ActivityIndicator IsRunning="{Binding IsConnecting, Source={x:Reference banner}}"
+                                   IsVisible="{Binding IsConnecting, Source={x:Reference banner}}"
+                                   Color="{StaticResource Primary}"
+                                   WidthRequest="24"
+                                   HeightRequest="24"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center"
+                                   SemanticProperties.Description="Connection in progress" />
+
+                <!-- Status Icon for other states -->
+                <Label Text="{Binding StatusIcon, Source={x:Reference banner}}"
+                       IsVisible="{Binding IsConnecting, Source={x:Reference banner}, Converter={StaticResource InvertedBoolConverter}}"
+                       FontSize="24"
+                       HorizontalOptions="Center"
+                       VerticalOptions="Center"
+                       SemanticProperties.Description="{Binding StatusIconDescription, Source={x:Reference banner}}" />
+            </Grid>
+
+            <!-- Status Text -->
+            <VerticalStackLayout Grid.Column="1"
+                                 VerticalOptions="Center"
+                                 Spacing="2">
+                <Label Text="{Binding StatusText, Source={x:Reference banner}}"
+                       FontSize="15"
+                       FontAttributes="Bold"
+                       TextColor="{Binding StatusTextColor, Source={x:Reference banner}}"
+                       SemanticProperties.HeadingLevel="Level3"
+                       LineBreakMode="TailTruncation" />
+
+                <!-- Detail text (battery, etc.) - only when connected -->
+                <Label Text="{Binding DetailText, Source={x:Reference banner}}"
+                       FontSize="13"
+                       TextColor="{Binding DetailTextColor, Source={x:Reference banner}}"
+                       IsVisible="{Binding HasDetailText, Source={x:Reference banner}}"
+                       LineBreakMode="TailTruncation" />
+            </VerticalStackLayout>
+
+            <!-- Action Link (subtle) -->
+            <Label Grid.Column="2"
+                   Text="{Binding ActionText, Source={x:Reference banner}}"
+                   TextColor="{StaticResource Primary}"
+                   FontSize="14"
+                   TextDecorations="Underline"
+                   VerticalOptions="Center"
+                   IsVisible="{Binding HasAction, Source={x:Reference banner}}"
+                   SemanticProperties.Description="{Binding ActionDescription, Source={x:Reference banner}}"
+                   SemanticProperties.Hint="Double tap to activate">
+                <Label.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnActionTapped" />
+                </Label.GestureRecognizers>
+            </Label>
+        </Grid>
+    </Border>
+
+</ContentView>

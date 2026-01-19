@@ -24,6 +24,7 @@
             <converters:AllTrueConverter x:Key="AllTrueConverter" />
             <converters:IsZeroConverter x:Key="IsZeroConverter" />
             <converters:MultiValueEqualConverter x:Key="MultiValueEqualConverter" />
+            <converters:EnumToBoolConverter x:Key="EnumToBoolConverter" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

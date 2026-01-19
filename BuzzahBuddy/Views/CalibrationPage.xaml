@@ -17,7 +17,7 @@
 
             <!-- Calibration Mode Controls -->
             <Border Padding="15"
-                    BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}"
+                    BackgroundColor="{StaticResource CardBackground}"
                     StrokeThickness="0">
                 <Border.StrokeShape>
                     <RoundRectangle CornerRadius="12" />
@@ -62,7 +62,7 @@
 
             <!-- Guided Wizard (Only visible when in calibration mode) -->
             <Border Padding="20"
-                    BackgroundColor="{AppThemeBinding Light={StaticResource SecondaryLight}, Dark={StaticResource Gray900}}"
+                    BackgroundColor="{StaticResource CardBackground}"
                     StrokeThickness="0"
                     IsVisible="{Binding IsInCalibrationMode}">
                 <Border.StrokeShape>
@@ -209,7 +209,7 @@
                     <VerticalStackLayout Spacing="15" IsVisible="{Binding CurrentStep, Converter={StaticResource EqualConverter}, ConverterParameter=3}">
                         <!-- Selected Finger Display -->
                         <Border Padding="10"
-                                BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
+                                BackgroundColor="{StaticResource Primary}"
                                 StrokeThickness="0"
                                 IsVisible="{Binding IsBuzzing}">
                             <Border.StrokeShape>
@@ -399,14 +399,14 @@
                     Command="{Binding SkipCalibrationCommand}"
                     IsVisible="{Binding IsInCalibrationMode}"
                     Style="{StaticResource TertiaryButton}"
-                    BackgroundColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray700}}"
+                    BackgroundColor="{StaticResource Gray700}"
                     SemanticProperties.Description="Skip calibration and use safe default settings"
                     SemanticProperties.Hint="Bypasses testing and uses 50% intensity, 200ms duration"
                     AutomationId="SkipCalibrationButton" />
 
             <!-- Info Card -->
             <Border Padding="15"
-                    BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}"
+                    BackgroundColor="{StaticResource CardBackground}"
                     StrokeThickness="0">
                 <Border.StrokeShape>
                     <RoundRectangle CornerRadius="12" />

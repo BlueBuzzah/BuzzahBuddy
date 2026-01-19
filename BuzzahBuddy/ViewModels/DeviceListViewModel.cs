@@ -42,6 +42,9 @@ public partial class DeviceListViewModel : BaseViewModel
     private string? _connectedDeviceName;
 
     [ObservableProperty]
+    private ConnectionState _connectionState = ConnectionState.Disconnected;
+
+    [ObservableProperty]
     private string _scanButtonText = "Scan for Devices";
 
     [ObservableProperty]
@@ -87,6 +90,7 @@ public partial class DeviceListViewModel : BaseViewModel
 
     private async Task StartScanningAsync()
     {
+        System.Diagnostics.Debug.WriteLine("[VM] StartScanningAsync called");
         AvailableDevices.Clear();
         IsScanning = true;
         IsBusy = true;
@@ -94,10 +98,13 @@ public partial class DeviceListViewModel : BaseViewModel
 
         try
         {
+            System.Diagnostics.Debug.WriteLine("[VM] Checking Bluetooth enabled status...");
             BluetoothEnabled = await _bluetoothService.IsBluetoothEnabledAsync();
+            System.Diagnostics.Debug.WriteLine($"[VM] Bluetooth enabled: {BluetoothEnabled}");
 
             if (!BluetoothEnabled)
             {
+                System.Diagnostics.Debug.WriteLine("[VM] Bluetooth disabled - showing alert");
                 await Shell.Current.DisplayAlert(
                     "Bluetooth Disabled",
                     "Please enable Bluetooth to scan for devices.",
@@ -107,15 +114,20 @@ public partial class DeviceListViewModel : BaseViewModel
 
             _scanCancellationTokenSource = new CancellationTokenSource();
 
+            System.Diagnostics.Debug.WriteLine("[VM] Calling ScanForDevicesAsync with 10s timeout...");
             var devices = await _bluetoothService.ScanForDevicesAsync(
                 TimeSpan.FromSeconds(10),
                 _scanCancellationTokenSource.Token);
 
+            var deviceList = devices.ToList();
+            System.Diagnostics.Debug.WriteLine($"[VM] Scan returned {deviceList.Count} device(s)");
+
             // Devices are added via event handler, but this ensures we have the final list
-            foreach (var device in devices)
+            foreach (var device in deviceList)
             {
                 if (!AvailableDevices.Any(d => d.Id == device.Id))
                 {
+                    System.Diagnostics.Debug.WriteLine($"[VM] Adding device from return list: {device.Name}");
                     AvailableDevices.Add(device);
                 }
             }
@@ -125,10 +137,11 @@ public partial class DeviceListViewModel : BaseViewModel
         catch (OperationCanceledException)
         {
             // User stopped the scan - this is expected, no error message needed
-            System.Diagnostics.Debug.WriteLine("Scan cancelled by user");
+            System.Diagnostics.Debug.WriteLine("[VM] Scan cancelled by user");
         }
         catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"[VM] Scan error: {ex.GetType().Name}: {ex.Message}");
             await Shell.Current.DisplayAlert(
                 "Scan Error",
                 $"An error occurred while scanning: {ex.Message}",
@@ -143,6 +156,7 @@ public partial class DeviceListViewModel : BaseViewModel
             _scanCancellationTokenSource?.Dispose();
             _scanCancellationTokenSource = null;
             UpdateScanButtonState();
+            System.Diagnostics.Debug.WriteLine($"[VM] Scan complete. UI has {AvailableDevices.Count} device(s)");
         }
     }
 
@@ -214,7 +228,7 @@ public partial class DeviceListViewModel : BaseViewModel
     [RelayCommand]
     private async Task ConnectAsync(GloveDevice device)
     {
-        if (device == null || IsBusy || IsConnecting)
+        if (device == null || IsConnecting)
             return;
 
         // Stop scanning if active
@@ -276,12 +290,18 @@ public partial class DeviceListViewModel : BaseViewModel
 
     private void OnDeviceDiscovered(object? sender, GloveDevice device)
     {
+        System.Diagnostics.Debug.WriteLine($"[VM EVENT] DeviceDiscovered event received: {device.Name} ({device.Id})");
         // Add to UI thread
         MainThread.BeginInvokeOnMainThread(() =>
         {
             if (!AvailableDevices.Any(d => d.Id == device.Id))
             {
+                System.Diagnostics.Debug.WriteLine($"[VM EVENT] Adding to AvailableDevices: {device.Name}");
                 AvailableDevices.Add(device);
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine($"[VM EVENT] Device already in list: {device.Name}");
             }
         });
     }
@@ -296,18 +316,36 @@ public partial class DeviceListViewModel : BaseViewModel
 
     private void UpdateConnectionState()
     {
-        IsAlreadyConnected = _bluetoothService.CurrentConnectionState == ConnectionState.Connected;
+        ConnectionState = _bluetoothService.CurrentConnectionState;
+        IsAlreadyConnected = ConnectionState == ConnectionState.Connected;
         ConnectedDeviceName = _bluetoothService.ConnectedDevice?.Name;
 
-        if (_bluetoothService.CurrentConnectionState == ConnectionState.Connecting)
+        if (ConnectionState == ConnectionState.Connecting)
         {
             IsConnecting = true;
             ConnectingDeviceId = _bluetoothService.ConnectedDevice?.Id;
         }
-        else if (_bluetoothService.CurrentConnectionState != ConnectionState.Connecting)
+        else if (ConnectionState != ConnectionState.Connecting)
         {
             IsConnecting = false;
             ConnectingDeviceId = null;
         }
+    }
+
+    /// <summary>
+    /// Unsubscribes from Bluetooth service events to prevent memory leaks.
+    /// </summary>
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _bluetoothService.DeviceDiscovered -= OnDeviceDiscovered;
+            _bluetoothService.ConnectionStateChanged -= OnConnectionStateChanged;
+            _scanCancellationTokenSource?.Cancel();
+            _scanCancellationTokenSource?.Dispose();
+            _scanCancellationTokenSource = null;
+            System.Diagnostics.Debug.WriteLine("[DEVICELIST] ViewModel disposed, unsubscribed from events");
+        }
+        base.Dispose(disposing);
     }
 }

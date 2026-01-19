@@ -7,13 +7,13 @@ namespace BuzzahBuddy.Models;
 public class GloveDeviceInfo
 {
     /// <summary>
-    /// Device role (PRIMARY for VL, SECONDARY for VR).
-    /// App connects only to PRIMARY (VL).
+    /// Device role (PRIMARY or SECONDARY).
+    /// App connects only to PRIMARY device.
     /// </summary>
     public string Role { get; set; } = string.Empty;
 
     /// <summary>
-    /// Device name (e.g., "VL" for left glove, "VR" for right glove).
+    /// Device name (e.g., "BlueBuzzah-Primary" or "BlueBuzzah-Secondary").
     /// </summary>
     public string Name { get; set; } = string.Empty;
 
@@ -23,14 +23,14 @@ public class GloveDeviceInfo
     public string FirmwareVersion { get; set; } = string.Empty;
 
     /// <summary>
-    /// Left glove battery voltage.
+    /// Primary device battery voltage.
     /// </summary>
-    public double BatteryLeftVoltage { get; set; }
+    public double BatteryPrimaryVoltage { get; set; }
 
     /// <summary>
-    /// Right glove battery voltage.
+    /// Secondary device battery voltage.
     /// </summary>
-    public double BatteryRightVoltage { get; set; }
+    public double BatterySecondaryVoltage { get; set; }
 
     /// <summary>
     /// Current session status (IDLE, RUNNING, PAUSED).
@@ -49,8 +49,9 @@ public class GloveDeviceInfo
             Role = response.GetString("ROLE") ?? "UNKNOWN",
             Name = response.GetString("NAME") ?? "UNKNOWN",
             FirmwareVersion = response.GetString("FW") ?? "0.0.0",
-            BatteryLeftVoltage = response.GetDouble("BAT_LEFT") ?? 0.0,
-            BatteryRightVoltage = response.GetDouble("BAT_RIGHT") ?? 0.0,
+            // Per BLE protocol v2.0.0: Battery keys are BATP and BATS
+            BatteryPrimaryVoltage = response.GetDouble("BATP") ?? 0.0,
+            BatterySecondaryVoltage = response.GetDouble("BATS") ?? 0.0,
             Status = response.GetString("STATUS") ?? "IDLE"
         };
     }

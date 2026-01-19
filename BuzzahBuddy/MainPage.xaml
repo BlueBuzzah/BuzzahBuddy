@@ -2,6 +2,7 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:BuzzahBuddy.ViewModels"
+             xmlns:models="clr-namespace:BuzzahBuddy.Models"
              x:Class="BuzzahBuddy.MainPage"
              x:DataType="vm:MainPageViewModel"
              Title="{Binding Title}">
@@ -10,70 +11,326 @@
                  Command="{Binding RefreshCommand}"
                  RefreshColor="{StaticResource Primary}">
         <ScrollView>
-            <VerticalStackLayout Padding="20" Spacing="25">
+            <VerticalStackLayout Padding="20" Spacing="20">
 
                 <!-- App Logo/Header -->
-                <Image Source="{AppThemeBinding Light=title, Dark=titledark}"
+                <Image Source="titledark"
                        HeightRequest="60"
                        HorizontalOptions="Center"
-                       Margin="0,20,0,10"
+                       Margin="0,20,0,0"
                        SemanticProperties.Description="BuzzahBuddy Logo"
                        Aspect="AspectFit" />
 
-                <Label Text="BlueBuzzah Device Companion"
+                <!-- Status Message -->
+                <Label Text="{Binding StatusMessage}"
                        Style="{StaticResource SubHeadline}"
                        SemanticProperties.HeadingLevel="Level2"
                        HorizontalOptions="Center"
-                       Margin="0,0,0,30" />
+                       HorizontalTextAlignment="Center"
+                       Margin="0,0,0,10" />
 
-                <!-- Connection Status Card -->
-                <Frame Padding="20"
-                       CornerRadius="12"
-                       HasShadow="True"
-                       BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}">
-                    <VerticalStackLayout Spacing="15">
-                        <Label Text="Connection Status"
-                               FontSize="18"
+                <!-- Welcome Guide (Disconnected State Only) -->
+                <VerticalStackLayout Spacing="20"
+                                     IsVisible="{Binding IsConnected, Converter={StaticResource InvertedBoolConverter}}">
+
+                    <!-- Getting Started Card -->
+                    <Border Padding="24"
+                            BackgroundColor="{StaticResource CardBackground}"
+                            StrokeThickness="1"
+                            Stroke="{StaticResource CardBorder}">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="16" />
+                        </Border.StrokeShape>
+                        <Border.Shadow>
+                            <Shadow Brush="{StaticResource GlowBrush}"
+                                    Offset="0,0"
+                                    Radius="15"
+                                    Opacity="0.15" />
+                        </Border.Shadow>
+
+                        <VerticalStackLayout Spacing="20">
+                            <Label Text="Getting Started"
+                                   FontSize="20"
+                                   FontAttributes="Bold"
+                                   HorizontalOptions="Center"
+                                   SemanticProperties.HeadingLevel="Level3" />
+
+                            <!-- Step 1 -->
+                            <HorizontalStackLayout Spacing="16">
+                                <Border WidthRequest="40"
+                                        HeightRequest="40"
+                                        BackgroundColor="{StaticResource Primary}"
+                                        StrokeThickness="0">
+                                    <Border.StrokeShape>
+                                        <RoundRectangle CornerRadius="20" />
+                                    </Border.StrokeShape>
+                                    <Label Text="1"
+                                           FontSize="18"
+                                           FontAttributes="Bold"
+                                           TextColor="{StaticResource Black}"
+                                           HorizontalOptions="Center"
+                                           VerticalOptions="Center" />
+                                </Border>
+                                <VerticalStackLayout VerticalOptions="Center" Spacing="2">
+                                    <Label Text="Power on your gloves"
+                                           FontSize="16"
+                                           FontAttributes="Bold" />
+                                    <Label Text="Press the button on each glove"
+                                           FontSize="14"
+                                           TextColor="{StaticResource TextMuted}" />
+                                </VerticalStackLayout>
+                            </HorizontalStackLayout>
+
+                            <!-- Step 2 -->
+                            <HorizontalStackLayout Spacing="16">
+                                <Border WidthRequest="40"
+                                        HeightRequest="40"
+                                        BackgroundColor="{StaticResource Primary}"
+                                        StrokeThickness="0">
+                                    <Border.StrokeShape>
+                                        <RoundRectangle CornerRadius="20" />
+                                    </Border.StrokeShape>
+                                    <Label Text="2"
+                                           FontSize="18"
+                                           FontAttributes="Bold"
+                                           TextColor="{StaticResource Black}"
+                                           HorizontalOptions="Center"
+                                           VerticalOptions="Center" />
+                                </Border>
+                                <VerticalStackLayout VerticalOptions="Center" Spacing="2">
+                                    <Label Text="Connect via Bluetooth"
+                                           FontSize="16"
+                                           FontAttributes="Bold" />
+                                    <Label Text="Tap below to find your gloves"
+                                           FontSize="14"
+                                           TextColor="{StaticResource TextMuted}" />
+                                </VerticalStackLayout>
+                            </HorizontalStackLayout>
+
+                            <!-- Step 3 -->
+                            <HorizontalStackLayout Spacing="16">
+                                <Border WidthRequest="40"
+                                        HeightRequest="40"
+                                        BackgroundColor="{StaticResource Primary}"
+                                        StrokeThickness="0">
+                                    <Border.StrokeShape>
+                                        <RoundRectangle CornerRadius="20" />
+                                    </Border.StrokeShape>
+                                    <Label Text="3"
+                                           FontSize="18"
+                                           FontAttributes="Bold"
+                                           TextColor="{StaticResource Black}"
+                                           HorizontalOptions="Center"
+                                           VerticalOptions="Center" />
+                                </Border>
+                                <VerticalStackLayout VerticalOptions="Center" Spacing="2">
+                                    <Label Text="Start your therapy session"
+                                           FontSize="16"
+                                           FontAttributes="Bold" />
+                                    <Label Text="Choose a profile and begin"
+                                           FontSize="14"
+                                           TextColor="{StaticResource TextMuted}" />
+                                </VerticalStackLayout>
+                            </HorizontalStackLayout>
+                        </VerticalStackLayout>
+                    </Border>
+                </VerticalStackLayout>
+
+                <!-- Connecting State: Activity Indicator -->
+                <ActivityIndicator IsRunning="{Binding IsConnecting}"
+                                   IsVisible="{Binding IsConnecting}"
+                                   HeightRequest="48"
+                                   WidthRequest="48"
+                                   HorizontalOptions="Center"
+                                   Color="{StaticResource Primary}"
+                                   SemanticProperties.Description="Connecting to device" />
+
+                <!-- Session Progress Card (visible during active/paused session) -->
+                <Border Padding="20"
+                        BackgroundColor="{StaticResource CardBackground}"
+                        StrokeThickness="1"
+                        Stroke="{StaticResource CardBorder}"
+                        IsVisible="{Binding ShowSessionProgress}">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="16" />
+                    </Border.StrokeShape>
+                    <Border.Shadow>
+                        <Shadow Brush="{StaticResource GlowBrush}"
+                                Offset="0,0"
+                                Radius="15"
+                                Opacity="0.2" />
+                    </Border.Shadow>
+
+                    <VerticalStackLayout Spacing="16">
+                        <!-- Profile Name -->
+                        <Label Text="{Binding SelectedProfileName, StringFormat='Profile: {0}'}"
+                               FontSize="16"
                                FontAttributes="Bold"
+                               HorizontalOptions="Center"
                                SemanticProperties.HeadingLevel="Level3" />
 
-                        <Label Text="{Binding ConnectedDeviceName}"
-                               FontSize="16"
-                               VerticalOptions="Center"
-                               SemanticProperties.Description="Connected device status" />
+                        <!-- Progress Bar -->
+                        <ProgressBar Progress="{Binding SessionProgressDecimal}"
+                                     HeightRequest="12"
+                                     ProgressColor="{StaticResource Primary}" />
 
-                        <Label Text="{Binding BatteryLevel, StringFormat='Battery: {0}%'}"
-                               FontSize="14"
-                               IsVisible="{Binding IsConnected}"
-                               SemanticProperties.Description="Device battery level" />
+                        <!-- Progress Percentage and Remaining Time -->
+                        <HorizontalStackLayout HorizontalOptions="Center" Spacing="20">
+                            <Label Text="{Binding SessionStatus.Progress, StringFormat='{0}%'}"
+                                   FontSize="24"
+                                   FontAttributes="Bold"
+                                   TextColor="{StaticResource Primary}" />
+                            <Label Text="{Binding RemainingTimeText}"
+                                   FontSize="16"
+                                   VerticalOptions="Center"
+                                   TextColor="{StaticResource TextMuted}" />
+                        </HorizontalStackLayout>
+
+                        <!-- Battery Status (compact) -->
+                        <HorizontalStackLayout HorizontalOptions="Center"
+                                               Spacing="16"
+                                               SemanticProperties.Description="{Binding BatteryStatusDescription}">
+                            <HorizontalStackLayout Spacing="6">
+                                <BoxView WidthRequest="12"
+                                         HeightRequest="12"
+                                         CornerRadius="6"
+                                         Color="{Binding BatteryPrimaryColor}"
+                                         VerticalOptions="Center" />
+                                <Label Text="{Binding BatteryPrimaryPercentage, StringFormat='Primary: {0}%'}"
+                                       FontSize="14"
+                                       VerticalOptions="Center" />
+                            </HorizontalStackLayout>
+                            <HorizontalStackLayout Spacing="6">
+                                <BoxView WidthRequest="12"
+                                         HeightRequest="12"
+                                         CornerRadius="6"
+                                         Color="{Binding BatterySecondaryColor}"
+                                         VerticalOptions="Center" />
+                                <Label Text="{Binding BatterySecondaryPercentage, StringFormat='Secondary: {0}%'}"
+                                       FontSize="14"
+                                       VerticalOptions="Center" />
+                            </HorizontalStackLayout>
+                        </HorizontalStackLayout>
                     </VerticalStackLayout>
-                </Frame>
+                </Border>
 
-                <!-- Quick Actions -->
-                <Label Text="Quick Actions"
-                       FontSize="18"
-                       FontAttributes="Bold"
-                       Margin="0,10,0,5"
-                       SemanticProperties.HeadingLevel="Level3" />
+                <!-- Idle State: Battery and Profile Info -->
+                <Border Padding="20"
+                        BackgroundColor="{StaticResource CardBackground}"
+                        StrokeThickness="1"
+                        Stroke="{StaticResource CardBorder}"
+                        IsVisible="{Binding ShowBatteryStatus}">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="16" />
+                    </Border.StrokeShape>
+                    <Border.Shadow>
+                        <Shadow Brush="{StaticResource GlowBrush}"
+                                Offset="0,0"
+                                Radius="15"
+                                Opacity="0.2" />
+                    </Border.Shadow>
+                    <Border.Triggers>
+                        <DataTrigger TargetType="Border"
+                                     Binding="{Binding ShowSessionProgress}"
+                                     Value="True">
+                            <Setter Property="IsVisible" Value="False" />
+                        </DataTrigger>
+                    </Border.Triggers>
 
-                <Button Text="Find Device"
-                        Command="{Binding NavigateToDeviceListCommand}"
+                    <VerticalStackLayout Spacing="16">
+                        <!-- Selected Profile (when idle) -->
+                        <VerticalStackLayout Spacing="4"
+                                             IsVisible="{Binding ShowSelectedProfile}"
+                                             HorizontalOptions="Center">
+                            <Label Text="Selected Profile"
+                                   FontSize="14"
+                                   TextColor="{StaticResource TextMuted}"
+                                   HorizontalOptions="Center" />
+                            <Label Text="{Binding SelectedProfileName}"
+                                   FontSize="18"
+                                   FontAttributes="Bold"
+                                   HorizontalOptions="Center"
+                                   SemanticProperties.HeadingLevel="Level3" />
+                        </VerticalStackLayout>
+
+                        <!-- Battery Status -->
+                        <HorizontalStackLayout HorizontalOptions="Center"
+                                               Spacing="20"
+                                               SemanticProperties.Description="{Binding BatteryStatusDescription}">
+                            <VerticalStackLayout Spacing="4" HorizontalOptions="Center">
+                                <Label Text="Primary"
+                                       FontSize="12"
+                                       TextColor="{StaticResource TextMuted}"
+                                       HorizontalOptions="Center" />
+                                <HorizontalStackLayout Spacing="8" HorizontalOptions="Center">
+                                    <BoxView WidthRequest="16"
+                                             HeightRequest="16"
+                                             CornerRadius="8"
+                                             Color="{Binding BatteryPrimaryColor}"
+                                             VerticalOptions="Center" />
+                                    <Label Text="{Binding BatteryPrimaryPercentage, StringFormat='{0}%'}"
+                                           FontSize="20"
+                                           FontAttributes="Bold"
+                                           VerticalOptions="Center" />
+                                </HorizontalStackLayout>
+                            </VerticalStackLayout>
+
+                            <BoxView WidthRequest="1"
+                                     HeightRequest="40"
+                                     Color="{StaticResource CardBorder}" />
+
+                            <VerticalStackLayout Spacing="4" HorizontalOptions="Center">
+                                <Label Text="Secondary"
+                                       FontSize="12"
+                                       TextColor="{StaticResource TextMuted}"
+                                       HorizontalOptions="Center" />
+                                <HorizontalStackLayout Spacing="8" HorizontalOptions="Center">
+                                    <BoxView WidthRequest="16"
+                                             HeightRequest="16"
+                                             CornerRadius="8"
+                                             Color="{Binding BatterySecondaryColor}"
+                                             VerticalOptions="Center" />
+                                    <Label Text="{Binding BatterySecondaryPercentage, StringFormat='{0}%'}"
+                                           FontSize="20"
+                                           FontAttributes="Bold"
+                                           VerticalOptions="Center" />
+                                </HorizontalStackLayout>
+                            </VerticalStackLayout>
+                        </HorizontalStackLayout>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Primary CTA Button with Glow -->
+                <Button Text="{Binding PrimaryCTAText}"
+                        Command="{Binding ExecutePrimaryCTACommand}"
+                        HeightRequest="72"
+                        FontSize="20"
+                        FontAttributes="Bold"
+                        CornerRadius="16"
+                        IsEnabled="{Binding IsPrimaryCTAEnabled}"
+                        BackgroundColor="{StaticResource Primary}"
+                        SemanticProperties.Hint="Double tap to activate"
+                        SemanticProperties.Description="{Binding PrimaryCTADescription}"
+                        AutomationId="PrimaryCTAButton">
+                    <Button.Shadow>
+                        <Shadow Brush="{StaticResource GlowBrush}"
+                                Offset="0,0"
+                                Radius="20"
+                                Opacity="0.3" />
+                    </Button.Shadow>
+                </Button>
+
+                <!-- Secondary CTA (Stop Session / Change Profile) -->
+                <Button Text="{Binding SecondaryCTAText}"
+                        Command="{Binding ExecuteSecondaryCTACommand}"
                         HeightRequest="56"
                         FontSize="18"
                         CornerRadius="12"
-                        SemanticProperties.Hint="Navigate to device scanning page"
-                        SemanticProperties.Description="Scan for and connect to BlueBuzzah devices"
-                        AutomationId="FindDeviceButton" />
-
-                <Button Text="Control Device"
-                        Command="{Binding NavigateToControlCommand}"
-                        HeightRequest="56"
-                        FontSize="18"
-                        CornerRadius="12"
-                        IsEnabled="{Binding IsConnected}"
-                        SemanticProperties.Hint="Navigate to device control page"
-                        SemanticProperties.Description="Control vibration patterns and intensity"
-                        AutomationId="ControlGloveButton" />
+                        IsVisible="{Binding HasSecondaryCTA}"
+                        BackgroundColor="{Binding SecondaryCTABackgroundColor}"
+                        TextColor="{Binding SecondaryCTATextColor}"
+                        SemanticProperties.Hint="Double tap to activate"
+                        AutomationId="SecondaryCTAButton" />
 
             </VerticalStackLayout>
         </ScrollView>

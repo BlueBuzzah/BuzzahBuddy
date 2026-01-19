@@ -8,6 +8,25 @@ namespace BuzzahBuddy.Services.Glove;
 /// </summary>
 public interface IGloveControlService
 {
+    // ========== Session State Observation ==========
+
+    /// <summary>
+    /// Event fired when session state changes (IDLE, RUNNING, PAUSED).
+    /// Use this to observe session state from other parts of the app (e.g., MainPage dashboard).
+    /// </summary>
+    event EventHandler<SessionStatus>? SessionStateChanged;
+
+    /// <summary>
+    /// Gets the current session status without querying the device.
+    /// Returns the last known status, or an IDLE status if no session has been started.
+    /// </summary>
+    SessionStatus CurrentSessionStatus { get; }
+
+    /// <summary>
+    /// Gets the currently loaded therapy profile, if any.
+    /// </summary>
+    TherapyProfile? CurrentProfile { get; }
+
     // ========== Device Information Commands ==========
 
     /// <summary>
@@ -17,11 +36,11 @@ public interface IGloveControlService
     Task<GloveDeviceInfo> GetDeviceInfoAsync();
 
     /// <summary>
-    /// Gets battery voltage levels for both gloves.
+    /// Gets battery voltage levels for both devices.
     /// Command: BATTERY
-    /// Note: May take up to 1 second as VL queries VR via BLE.
+    /// Note: May take up to 1 second as Primary queries Secondary via BLE.
     /// </summary>
-    Task<(double leftVoltage, double rightVoltage)> GetBatteryAsync();
+    Task<(double primaryVoltage, double secondaryVoltage)> GetBatteryAsync();
 
     /// <summary>
     /// Pings the device to test connection health.
@@ -66,9 +85,9 @@ public interface IGloveControlService
     /// <summary>
     /// Starts a therapy session with the currently loaded profile.
     /// Command: SESSION_START
-    /// Note: May take up to 500ms to establish VL↔VR synchronization.
+    /// Note: May take up to 500ms to establish Primary↔Secondary synchronization.
     /// </summary>
-    /// <exception cref="BlueBuzzahCommandException">If VR not connected or battery too low</exception>
+    /// <exception cref="BlueBuzzahCommandException">If Secondary not connected or battery too low</exception>
     Task StartSessionAsync();
 
     /// <summary>
@@ -123,7 +142,7 @@ public interface IGloveControlService
     /// Tests an individual finger motor with specified intensity and duration.
     /// Command: CALIBRATE_BUZZ:INDEX:INTENSITY:DURATION
     /// </summary>
-    /// <param name="fingerIndex">Finger index 0-7 (0-3=left, 4-7=right)</param>
+    /// <param name="fingerIndex">Finger index 0-7 (0-3=Primary device, 4-7=Secondary device)</param>
     /// <param name="intensity">Vibration intensity 0-100%</param>
     /// <param name="durationMs">Duration in milliseconds (50-2000)</param>
     /// <exception cref="BlueBuzzahCommandException">If not in calibration mode</exception>
@@ -149,4 +168,43 @@ public interface IGloveControlService
     /// Warning: BLE connection will drop immediately.
     /// </summary>
     Task RestartDeviceAsync();
+
+    /// <summary>
+    /// Gets the current therapy LED off setting.
+    /// Command: THERAPY_LED_OFF (query)
+    /// When enabled, LED is turned off during active therapy to avoid visual distraction.
+    /// Per BLE protocol v2.0.0.
+    /// </summary>
+    /// <returns>True if therapy LED is disabled during sessions</returns>
+    Task<bool> GetTherapyLedOffAsync();
+
+    /// <summary>
+    /// Sets the therapy LED off setting.
+    /// Command: THERAPY_LED_OFF:true/false
+    /// When enabled, LED is turned off during active therapy to avoid visual distraction.
+    /// Setting is persisted to flash and synced to SECONDARY device.
+    /// Per BLE protocol v2.0.0.
+    /// </summary>
+    /// <param name="enabled">True to disable LED during therapy</param>
+    Task SetTherapyLedOffAsync(bool enabled);
+
+    /// <summary>
+    /// Gets the current debug mode setting.
+    /// Command: DEBUG (query)
+    /// When enabled, PRIMARY and SECONDARY perform periodic synchronized LED flashes.
+    /// Per BLE protocol v2.0.0.
+    /// </summary>
+    /// <returns>True if debug mode is enabled</returns>
+    Task<bool> GetDebugModeAsync();
+
+    /// <summary>
+    /// Sets the debug mode setting.
+    /// Command: DEBUG:true/false
+    /// When enabled, PRIMARY and SECONDARY perform periodic synchronized LED flashes
+    /// to verify clock sync accuracy (DEBUG_FLASH messages).
+    /// Setting is persisted to flash and synced to SECONDARY device.
+    /// Per BLE protocol v2.0.0.
+    /// </summary>
+    /// <param name="enabled">True to enable debug mode</param>
+    Task SetDebugModeAsync(bool enabled);
 }

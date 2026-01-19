@@ -7,25 +7,168 @@ using CommunityToolkit.Mvvm.Input;
 namespace BuzzahBuddy.ViewModels;
 
 /// <summary>
-/// ViewModel for the main/home page of the application.
-/// Displays connection status and provides quick actions.
+/// ViewModel for the main/home page smart dashboard.
+/// Displays state-aware content with context-sensitive CTAs.
 /// </summary>
 public partial class MainPageViewModel : BaseViewModel
 {
     private readonly IBluetoothService _bluetoothService;
     private readonly IGloveControlService _gloveControlService;
 
+    #region Observable Properties
+
+    [ObservableProperty]
+    private DashboardState _dashboardState = DashboardState.Disconnected;
+
+    [ObservableProperty]
+    private ConnectionState _connectionState = ConnectionState.Disconnected;
+
     [ObservableProperty]
     private bool _isConnected;
 
     [ObservableProperty]
-    private string _connectedDeviceName = "Not Connected";
+    private string _connectedDeviceName = string.Empty;
+
+    // Battery status (simplified - percentage only)
+    [ObservableProperty]
+    private int _batteryPrimaryPercentage;
 
     [ObservableProperty]
-    private int _batteryLevel;
+    private int _batterySecondaryPercentage;
+
+    // Session status
+    [ObservableProperty]
+    private SessionStatus _sessionStatus = SessionStatus.CreateIdle();
 
     [ObservableProperty]
-    private ConnectionState _connectionState = ConnectionState.Disconnected;
+    private string? _selectedProfileName;
+
+    #endregion
+
+    #region Computed Display Properties
+
+    /// <summary>
+    /// Text for the primary call-to-action button.
+    /// </summary>
+    public string PrimaryCTAText => DashboardState switch
+    {
+        DashboardState.Disconnected => "Connect Device",
+        DashboardState.Connecting => "Connecting...",
+        DashboardState.Idle => "Start Therapy",
+        DashboardState.SessionActive => "Pause Session",
+        DashboardState.SessionPaused => "Resume Session",
+        DashboardState.Error => "Reconnect",
+        _ => "Connect Device"
+    };
+
+    /// <summary>
+    /// Accessibility description for the primary CTA.
+    /// </summary>
+    public string PrimaryCTADescription => DashboardState switch
+    {
+        DashboardState.Disconnected => "Navigate to device list to connect your BlueBuzzah gloves",
+        DashboardState.Connecting => "Currently connecting to device",
+        DashboardState.Idle => "Start a therapy session with the selected profile",
+        DashboardState.SessionActive => "Pause the current therapy session",
+        DashboardState.SessionPaused => "Resume the paused therapy session",
+        DashboardState.Error => "Navigate to device list to reconnect",
+        _ => "Connect your BlueBuzzah gloves"
+    };
+
+    /// <summary>
+    /// Whether the primary CTA button is enabled.
+    /// </summary>
+    public bool IsPrimaryCTAEnabled => DashboardState != DashboardState.Connecting;
+
+    /// <summary>
+    /// Whether we're currently connecting to a device.
+    /// </summary>
+    public bool IsConnecting => DashboardState == DashboardState.Connecting;
+
+    /// <summary>
+    /// Text for the secondary action link (optional).
+    /// </summary>
+    public string SecondaryCTAText => DashboardState switch
+    {
+        DashboardState.Idle => "Change Profile",
+        DashboardState.SessionActive or DashboardState.SessionPaused => "Stop Session",
+        _ => string.Empty
+    };
+
+    /// <summary>
+    /// Whether to show the secondary CTA.
+    /// </summary>
+    public bool HasSecondaryCTA => !string.IsNullOrEmpty(SecondaryCTAText);
+
+    /// <summary>
+    /// Background color for secondary CTA (danger for Stop, neutral for Change Profile).
+    /// Dark-mode-only colors matching BlueBuzzah.com design.
+    /// </summary>
+    public Color SecondaryCTABackgroundColor => DashboardState == DashboardState.Idle
+        ? Color.FromArgb("#0d3a4d")   // CardBackgroundLight - teal accent
+        : Color.FromArgb("#7f1d1d");  // Dark red for Stop action
+
+    /// <summary>
+    /// Text color for secondary CTA.
+    /// </summary>
+    public Color SecondaryCTATextColor => Color.FromArgb("#fafafa"); // TextPrimary
+
+    /// <summary>
+    /// Whether to show session progress (during active/paused session).
+    /// </summary>
+    public bool ShowSessionProgress => DashboardState is DashboardState.SessionActive or DashboardState.SessionPaused;
+
+    /// <summary>
+    /// Whether to show battery status (when connected).
+    /// </summary>
+    public bool ShowBatteryStatus => DashboardState is DashboardState.Idle or DashboardState.SessionActive or DashboardState.SessionPaused;
+
+    /// <summary>
+    /// Whether to show the selected profile (when idle).
+    /// </summary>
+    public bool ShowSelectedProfile => DashboardState == DashboardState.Idle && !string.IsNullOrEmpty(SelectedProfileName);
+
+    /// <summary>
+    /// Status message based on current dashboard state.
+    /// </summary>
+    public string StatusMessage => DashboardState switch
+    {
+        DashboardState.Disconnected => "Welcome! Connect your BlueBuzzah gloves to get started.",
+        DashboardState.Connecting => "Connecting to your gloves...",
+        DashboardState.Idle => $"Ready for therapy",
+        DashboardState.SessionActive => "Session in progress",
+        DashboardState.SessionPaused => "Session paused",
+        DashboardState.Error => "Connection lost",
+        _ => string.Empty
+    };
+
+    /// <summary>
+    /// Session progress as a decimal (0.0 - 1.0) for ProgressBar.
+    /// </summary>
+    public double SessionProgressDecimal => SessionStatus.Progress / 100.0;
+
+    /// <summary>
+    /// Formatted remaining time for display.
+    /// </summary>
+    public string RemainingTimeText => $"{SessionStatus.RemainingTimeFormatted} remaining";
+
+    /// <summary>
+    /// Color for primary battery indicator.
+    /// </summary>
+    public Color BatteryPrimaryColor => GetBatteryColor(BatteryPrimaryPercentage);
+
+    /// <summary>
+    /// Color for secondary battery indicator.
+    /// </summary>
+    public Color BatterySecondaryColor => GetBatteryColor(BatterySecondaryPercentage);
+
+    /// <summary>
+    /// Accessibility description for battery status.
+    /// </summary>
+    public string BatteryStatusDescription =>
+        $"Primary battery {BatteryPrimaryPercentage} percent, Secondary battery {BatterySecondaryPercentage} percent";
+
+    #endregion
 
     public MainPageViewModel(
         IBluetoothService bluetoothService,
@@ -38,30 +181,56 @@ public partial class MainPageViewModel : BaseViewModel
 
         // Subscribe to connection state changes
         _bluetoothService.ConnectionStateChanged += OnConnectionStateChanged;
+        _gloveControlService.SessionStateChanged += OnSessionStateChanged;
 
-        // Initialize connection state (fire-and-forget is acceptable in constructor for UI initialization)
-        _ = UpdateConnectionInfo();
+        System.Diagnostics.Debug.WriteLine("[MAINPAGE] ViewModel created, subscribed to events");
+
+        // Initialize state
+        _ = UpdateDashboardStateAsync();
     }
 
-    [RelayCommand]
-    private async Task NavigateToDeviceListAsync()
-    {
-        await Shell.Current.GoToAsync("//devices");
-    }
+    #region Commands
 
     [RelayCommand]
-    private async Task NavigateToControlAsync()
+    private async Task ExecutePrimaryCTAAsync()
     {
-        if (!IsConnected)
+        switch (DashboardState)
         {
-            await Shell.Current.DisplayAlert(
-                "Not Connected",
-                "Please connect to a BlueBuzzah glove first.",
-                "OK");
-            return;
-        }
+            case DashboardState.Disconnected:
+            case DashboardState.Error:
+                await Shell.Current.GoToAsync("//devices");
+                break;
 
-        await Shell.Current.GoToAsync("//control");
+            case DashboardState.Idle:
+                // Navigate to control page to start session
+                await Shell.Current.GoToAsync("//control");
+                break;
+
+            case DashboardState.SessionActive:
+                await PauseSessionAsync();
+                break;
+
+            case DashboardState.SessionPaused:
+                await ResumeSessionAsync();
+                break;
+        }
+    }
+
+    [RelayCommand]
+    private async Task ExecuteSecondaryCTAAsync()
+    {
+        switch (DashboardState)
+        {
+            case DashboardState.Idle:
+                // Navigate to control page to change profile
+                await Shell.Current.GoToAsync("//control");
+                break;
+
+            case DashboardState.SessionActive:
+            case DashboardState.SessionPaused:
+                await StopSessionAsync();
+                break;
+        }
     }
 
     [RelayCommand]
@@ -71,21 +240,11 @@ public partial class MainPageViewModel : BaseViewModel
 
         try
         {
-            await UpdateConnectionInfo();
+            await UpdateDashboardStateAsync();
 
             if (IsConnected)
             {
-                try
-                {
-                    var (leftVoltage, rightVoltage) = await _gloveControlService.GetBatteryAsync();
-                    // Calculate percentage from minimum voltage (worst case)
-                    var minVoltage = Math.Min(leftVoltage, rightVoltage);
-                    BatteryLevel = VoltageToPercentage(minVoltage);
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Battery fetch error: {ex.Message}");
-                }
+                await RefreshBatteryAsync();
             }
         }
         finally
@@ -94,7 +253,87 @@ public partial class MainPageViewModel : BaseViewModel
         }
     }
 
-    private async Task UpdateConnectionInfo()
+    #endregion
+
+    #region Session Control
+
+    private async Task PauseSessionAsync()
+    {
+        try
+        {
+            IsBusy = true;
+            await _gloveControlService.PauseSessionAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MAINPAGE] Pause error: {ex.Message}");
+            await Shell.Current.DisplayAlert("Error", "Failed to pause session.", "OK");
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private async Task ResumeSessionAsync()
+    {
+        try
+        {
+            IsBusy = true;
+            await _gloveControlService.ResumeSessionAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MAINPAGE] Resume error: {ex.Message}");
+            await Shell.Current.DisplayAlert("Error", "Failed to resume session.", "OK");
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private async Task StopSessionAsync()
+    {
+        var confirm = await Shell.Current.DisplayAlert(
+            "Stop Session",
+            "Are you sure you want to stop the therapy session?",
+            "Yes, Stop",
+            "Cancel");
+
+        if (!confirm) return;
+
+        try
+        {
+            IsBusy = true;
+            await _gloveControlService.StopSessionAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MAINPAGE] Stop error: {ex.Message}");
+            await Shell.Current.DisplayAlert("Error", "Failed to stop session.", "OK");
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    #endregion
+
+    #region State Management
+
+    /// <summary>
+    /// Refreshes the dashboard state from services.
+    /// Called when the page appears.
+    /// </summary>
+    public void RefreshConnectionState()
+    {
+        System.Diagnostics.Debug.WriteLine("[MAINPAGE] RefreshConnectionState called (OnAppearing)");
+        _ = UpdateDashboardStateAsync();
+    }
+
+    private async Task UpdateDashboardStateAsync()
     {
         ConnectionState = _bluetoothService.CurrentConnectionState;
         IsConnected = ConnectionState == ConnectionState.Connected;
@@ -103,39 +342,129 @@ public partial class MainPageViewModel : BaseViewModel
         {
             ConnectedDeviceName = _bluetoothService.ConnectedDevice.Name;
 
-            try
+            // Get current profile name
+            var profile = _gloveControlService.CurrentProfile;
+            SelectedProfileName = profile?.Name ?? "Noisy (Recommended)";
+
+            // Get current session status
+            SessionStatus = _gloveControlService.CurrentSessionStatus;
+
+            // Determine dashboard state based on session
+            DashboardState = SessionStatus.Status switch
             {
-                var (leftVoltage, rightVoltage) = await _gloveControlService.GetBatteryAsync();
-                var minVoltage = Math.Min(leftVoltage, rightVoltage);
-                BatteryLevel = VoltageToPercentage(minVoltage);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Battery fetch error: {ex.Message}");
-                BatteryLevel = 0;
-            }
+                SessionState.RUNNING => DashboardState.SessionActive,
+                SessionState.PAUSED => DashboardState.SessionPaused,
+                _ => DashboardState.Idle
+            };
+
+            // Refresh battery in background
+            _ = RefreshBatteryAsync();
         }
         else
         {
-            ConnectedDeviceName = "Not Connected";
-            BatteryLevel = 0;
+            ConnectedDeviceName = string.Empty;
+            SelectedProfileName = null;
+            SessionStatus = SessionStatus.CreateIdle();
+            BatteryPrimaryPercentage = 0;
+            BatterySecondaryPercentage = 0;
+
+            DashboardState = ConnectionState switch
+            {
+                ConnectionState.Connecting => DashboardState.Connecting,
+                ConnectionState.Error => DashboardState.Error,
+                _ => DashboardState.Disconnected
+            };
+        }
+
+        // Notify all computed properties
+        NotifyComputedPropertiesChanged();
+
+        await Task.CompletedTask;
+    }
+
+    private async Task RefreshBatteryAsync()
+    {
+        try
+        {
+            var (primaryVoltage, secondaryVoltage) = await _gloveControlService.GetBatteryAsync();
+            BatteryPrimaryPercentage = VoltageToPercentage(primaryVoltage);
+            BatterySecondaryPercentage = VoltageToPercentage(secondaryVoltage);
+
+            OnPropertyChanged(nameof(BatteryPrimaryColor));
+            OnPropertyChanged(nameof(BatterySecondaryColor));
+            OnPropertyChanged(nameof(BatteryStatusDescription));
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MAINPAGE] Battery fetch error: {ex.Message}");
         }
     }
 
-    private async void OnConnectionStateChanged(object? sender, ConnectionState state)
+    private void NotifyComputedPropertiesChanged()
     {
-        // Update on UI thread
-        await MainThread.InvokeOnMainThreadAsync(async () =>
+        OnPropertyChanged(nameof(PrimaryCTAText));
+        OnPropertyChanged(nameof(PrimaryCTADescription));
+        OnPropertyChanged(nameof(IsPrimaryCTAEnabled));
+        OnPropertyChanged(nameof(IsConnecting));
+        OnPropertyChanged(nameof(SecondaryCTAText));
+        OnPropertyChanged(nameof(HasSecondaryCTA));
+        OnPropertyChanged(nameof(SecondaryCTABackgroundColor));
+        OnPropertyChanged(nameof(SecondaryCTATextColor));
+        OnPropertyChanged(nameof(ShowSessionProgress));
+        OnPropertyChanged(nameof(ShowBatteryStatus));
+        OnPropertyChanged(nameof(ShowSelectedProfile));
+        OnPropertyChanged(nameof(StatusMessage));
+        OnPropertyChanged(nameof(SessionProgressDecimal));
+        OnPropertyChanged(nameof(RemainingTimeText));
+        OnPropertyChanged(nameof(BatteryPrimaryColor));
+        OnPropertyChanged(nameof(BatterySecondaryColor));
+        OnPropertyChanged(nameof(BatteryStatusDescription));
+    }
+
+    #endregion
+
+    #region Event Handlers
+
+    private void OnConnectionStateChanged(object? sender, ConnectionState state)
+    {
+        System.Diagnostics.Debug.WriteLine($"[MAINPAGE] ConnectionStateChanged: {state}");
+
+        MainThread.BeginInvokeOnMainThread(async () =>
         {
-            await UpdateConnectionInfo();
+            await UpdateDashboardStateAsync();
         });
     }
+
+    private void OnSessionStateChanged(object? sender, SessionStatus status)
+    {
+        System.Diagnostics.Debug.WriteLine($"[MAINPAGE] SessionStateChanged: {status.Status}");
+
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            SessionStatus = status;
+
+            // Update dashboard state based on session
+            if (IsConnected)
+            {
+                DashboardState = status.Status switch
+                {
+                    SessionState.RUNNING => DashboardState.SessionActive,
+                    SessionState.PAUSED => DashboardState.SessionPaused,
+                    _ => DashboardState.Idle
+                };
+            }
+
+            NotifyComputedPropertiesChanged();
+        });
+    }
+
+    #endregion
+
+    #region Helpers
 
     /// <summary>
     /// Converts battery voltage to percentage estimate.
     /// </summary>
-    /// <param name="voltage">Battery voltage (3.0-4.2V)</param>
-    /// <returns>Percentage (0-100)</returns>
     private static int VoltageToPercentage(double voltage)
     {
         const double minVoltage = 3.0;
@@ -146,4 +475,37 @@ public partial class MainPageViewModel : BaseViewModel
 
         return (int)((voltage - minVoltage) / (maxVoltage - minVoltage) * 100);
     }
+
+    /// <summary>
+    /// Gets the appropriate color for battery level.
+    /// </summary>
+    private static Color GetBatteryColor(int percentage)
+    {
+        return percentage switch
+        {
+            >= 60 => Colors.Green,
+            >= 20 => Colors.Orange,
+            _ => Colors.Red
+        };
+    }
+
+    #endregion
+
+    #region Cleanup
+
+    /// <summary>
+    /// Unsubscribes from service events to prevent memory leaks.
+    /// </summary>
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _bluetoothService.ConnectionStateChanged -= OnConnectionStateChanged;
+            _gloveControlService.SessionStateChanged -= OnSessionStateChanged;
+            System.Diagnostics.Debug.WriteLine("[MAINPAGE] ViewModel disposed, unsubscribed from events");
+        }
+        base.Dispose(disposing);
+    }
+
+    #endregion
 }

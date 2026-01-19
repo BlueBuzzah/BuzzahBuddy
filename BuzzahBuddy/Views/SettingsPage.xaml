@@ -2,6 +2,7 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:BuzzahBuddy.ViewModels"
+             xmlns:controls="clr-namespace:BuzzahBuddy.Views.Controls"
              x:Class="BuzzahBuddy.Views.SettingsPage"
              x:DataType="vm:SettingsViewModel"
              Title="{Binding Title}">
@@ -15,29 +16,29 @@
                    SemanticProperties.HeadingLevel="Level1"
                    HorizontalOptions="Center" />
 
-            <!-- Device Section -->
+            <!-- Connection Status Banner -->
+            <controls:ConnectionStatusBanner
+                ConnectionState="{Binding ConnectionState}"
+                DeviceName="{Binding ConnectedDeviceName}" />
+
+            <!-- Device Actions Section -->
             <VerticalStackLayout Spacing="15">
-                <Label Text="Connected Device"
+                <Label Text="Device Actions"
                        FontSize="18"
                        FontAttributes="Bold"
                        SemanticProperties.HeadingLevel="Level2" />
 
                 <Border Padding="15"
-                        BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}"
+                        BackgroundColor="{StaticResource CardBackground}"
                         StrokeThickness="0">
                     <Border.StrokeShape>
                         <RoundRectangle CornerRadius="12" />
                     </Border.StrokeShape>
 
                     <VerticalStackLayout Spacing="10">
-                        <Label Text="{Binding ConnectedDeviceName}"
-                               FontSize="16"
-                               FontAttributes="Bold"
-                               SemanticProperties.Description="Currently connected device" />
-
                         <Button Text="Calibrate Motors"
                                 Command="{Binding NavigateToCalibrationCommand}"
-                                IsEnabled="{Binding IsConnected}"
+                                IsVisible="{Binding IsConnected}"
                                 HeightRequest="48"
                                 CornerRadius="8"
                                 BackgroundColor="{StaticResource Primary}"
@@ -46,10 +47,11 @@
 
                         <Button Text="Disconnect"
                                 Command="{Binding DisconnectDeviceCommand}"
-                                IsEnabled="{Binding IsConnected}"
+                                IsVisible="{Binding IsConnected}"
                                 HeightRequest="48"
                                 CornerRadius="8"
-                                BackgroundColor="{AppThemeBinding Light={StaticResource PastelDanger}, Dark={StaticResource PastelDangerDark}}"
+                                BackgroundColor="{StaticResource DangerButton}"
+                                TextColor="{StaticResource DangerButtonText}"
                                 SemanticProperties.Hint="Disconnect from current device"
                                 AutomationId="DisconnectButton" />
 
@@ -71,7 +73,7 @@
                        SemanticProperties.HeadingLevel="Level2" />
 
                 <Border Padding="15"
-                        BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}"
+                        BackgroundColor="{StaticResource CardBackground}"
                         StrokeThickness="0">
                     <Border.StrokeShape>
                         <RoundRectangle CornerRadius="12" />
@@ -120,7 +122,8 @@
                         HeightRequest="56"
                         FontSize="16"
                         CornerRadius="12"
-                        BackgroundColor="{AppThemeBinding Light={StaticResource PastelWarning}, Dark={StaticResource PastelWarningDark}}"
+                        BackgroundColor="{StaticResource WarningButton}"
+                        TextColor="{StaticResource WarningButtonText}"
                         SemanticProperties.Hint="Delete all therapy sessions and custom patterns"
                         SemanticProperties.Description="Clear all stored data"
                         AutomationId="ClearDataButton" />
@@ -134,7 +137,7 @@
                        SemanticProperties.HeadingLevel="Level2" />
 
                 <Border Padding="15"
-                        BackgroundColor="{AppThemeBinding Light={StaticResource SecondaryLight}, Dark={StaticResource Gray900}}"
+                        BackgroundColor="{StaticResource CardBackground}"
                         StrokeThickness="0">
                     <Border.StrokeShape>
                         <RoundRectangle CornerRadius="12" />
@@ -146,7 +149,7 @@
                                FontAttributes="Bold" />
                         <Label Text="{Binding AppVersion, StringFormat='Version {0}'}"
                                FontSize="14"
-                               TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray400}}" />
+                               TextColor="{StaticResource TextMuted}" />
                         <Label FontSize="14"
                                LineBreakMode="WordWrap"
                                Margin="0,10,0,0"

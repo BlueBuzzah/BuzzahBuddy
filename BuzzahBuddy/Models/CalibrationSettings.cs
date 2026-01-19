@@ -7,8 +7,8 @@ public class CalibrationSettings
 {
     /// <summary>
     /// Finger index (0-7).
-    /// 0-3: Left glove (VL) - Thumb, Index, Middle, Ring
-    /// 4-7: Right glove (VR) - Thumb, Index, Middle, Ring
+    /// 0-3: Primary device - Thumb, Index, Middle, Ring
+    /// 4-7: Secondary device - Thumb, Index, Middle, Ring
     /// </summary>
     public int FingerIndex { get; set; }
 
@@ -23,14 +23,14 @@ public class CalibrationSettings
     public int DurationMs { get; set; } = 500;
 
     /// <summary>
-    /// Gets whether this is a left hand finger (0-3).
+    /// Gets whether this is a Primary device finger (0-3).
     /// </summary>
-    public bool IsLeftHand => FingerIndex >= 0 && FingerIndex <= 3;
+    public bool IsPrimaryDevice => FingerIndex >= 0 && FingerIndex <= 3;
 
     /// <summary>
-    /// Gets whether this is a right hand finger (4-7).
+    /// Gets whether this is a Secondary device finger (4-7).
     /// </summary>
-    public bool IsRightHand => FingerIndex >= 4 && FingerIndex <= 7;
+    public bool IsSecondaryDevice => FingerIndex >= 4 && FingerIndex <= 7;
 
     /// <summary>
     /// Gets the display name for the finger.
@@ -41,14 +41,14 @@ public class CalibrationSettings
         {
             return FingerIndex switch
             {
-                0 => "Left Thumb",
-                1 => "Left Index",
-                2 => "Left Middle",
-                3 => "Left Ring",
-                4 => "Right Thumb",
-                5 => "Right Index",
-                6 => "Right Middle",
-                7 => "Right Ring",
+                0 => "Primary Thumb",
+                1 => "Primary Index",
+                2 => "Primary Middle",
+                3 => "Primary Ring",
+                4 => "Secondary Thumb",
+                5 => "Secondary Index",
+                6 => "Secondary Middle",
+                7 => "Secondary Ring",
                 _ => $"Finger {FingerIndex}"
             };
         }
@@ -63,14 +63,14 @@ public class CalibrationSettings
         {
             return FingerIndex switch
             {
-                0 => "L-Thumb",
-                1 => "L-Index",
-                2 => "L-Middle",
-                3 => "L-Ring",
-                4 => "R-Thumb",
-                5 => "R-Index",
-                6 => "R-Middle",
-                7 => "R-Ring",
+                0 => "P-Thumb",
+                1 => "P-Index",
+                2 => "P-Middle",
+                3 => "P-Ring",
+                4 => "S-Thumb",
+                5 => "S-Index",
+                6 => "S-Middle",
+                7 => "S-Ring",
                 _ => $"F{FingerIndex}"
             };
         }

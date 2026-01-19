@@ -22,14 +22,14 @@ public static class ErrorMessageHelper
 
         var lowerError = errorMessage.ToLowerInvariant();
 
-        // VR Connection Errors
+        // Secondary Device Connection Errors
         if (lowerError.Contains("vr not connected") || lowerError.Contains("right glove") || lowerError.Contains("secondary"))
         {
-            return ("Right Glove Not Connected",
-                "The right glove (VR) is not detected. Please ensure:\n\n" +
-                "• Right glove is powered on\n" +
-                "• Right glove is charged\n" +
-                "• Left and right gloves are paired\n\n" +
+            return ("Second Glove Not Connected",
+                "The second glove (Secondary device) is not detected. Please ensure:\n\n" +
+                "• Second glove is powered on\n" +
+                "• Second glove is charged\n" +
+                "• Both gloves are paired\n\n" +
                 "Try restarting both gloves.");
         }
 
@@ -68,9 +68,16 @@ public static class ErrorMessageHelper
         // Profile Errors
         if (lowerError.Contains("invalid profile") || lowerError.Contains("profile not found"))
         {
+            // Per BLE protocol v2.0.0: 6 profiles available
             return ("Invalid Profile",
                 "The selected profile is not available.\n\n" +
-                "Valid profiles are:\n• 1 - Regular VCR\n• 2 - Noisy VCR\n• 3 - Hybrid VCR");
+                "Valid profiles are:\n" +
+                "• 1 - Regular VCR\n" +
+                "• 2 - Noisy VCR\n" +
+                "• 3 - Hybrid VCR\n" +
+                "• 4 - Custom VCR\n" +
+                "• 5 - Gentle\n" +
+                "• 6 - Quick Test");
         }
 
         // Calibration Errors
@@ -85,8 +92,8 @@ public static class ErrorMessageHelper
         {
             return ("Invalid Finger Selection",
                 "Finger index must be 0-7:\n\n" +
-                "Left glove: 0 (Thumb), 1 (Index), 2 (Middle), 3 (Ring)\n" +
-                "Right glove: 4 (Thumb), 5 (Index), 6 (Middle), 7 (Ring)");
+                "Primary device: 0 (Thumb), 1 (Index), 2 (Middle), 3 (Ring)\n" +
+                "Secondary device: 4 (Thumb), 5 (Index), 6 (Middle), 7 (Ring)");
         }
 
         // Connection/Communication Errors
