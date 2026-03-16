@@ -12,6 +12,7 @@ public class GloveControlService : IGloveControlService
     private readonly IBluetoothService _bluetoothService;
     private SessionStatus _currentSessionStatus = SessionStatus.CreateIdle();
     private TherapyProfile? _currentProfile;
+    private bool _expectingReboot;
 
     /// <inheritdoc />
     public event EventHandler<SessionStatus>? SessionStateChanged;
@@ -21,6 +22,32 @@ public class GloveControlService : IGloveControlService
 
     /// <inheritdoc />
     public TherapyProfile? CurrentProfile => _currentProfile;
+
+    /// <inheritdoc />
+    public bool ExpectingReboot => _expectingReboot;
+
+    /// <inheritdoc />
+    public void ClearExpectingReboot()
+    {
+        _expectingReboot = false;
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> SyncStateAsync()
+    {
+        try
+        {
+            await PingAsync();
+            await GetBatteryAsync();
+            await GetSessionStatusAsync();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[GLOVE_SERVICE] SyncStateAsync failed: {ex.Message}");
+            return false;
+        }
+    }
 
     public GloveControlService(IBluetoothService bluetoothService)
     {
@@ -153,6 +180,15 @@ public class GloveControlService : IGloveControlService
         // Note: Per BLE protocol v2.0.0, PROFILE_LOAD triggers a device reboot.
         // The device will disconnect after sending the response.
         var response = await _bluetoothService.SendCommandAsync($"PROFILE_LOAD:{profileId}");
+
+        // Check if the device is rebooting before throwing on error
+        if (response.GetString("STATUS") == "REBOOTING")
+        {
+            _expectingReboot = true;
+            System.Diagnostics.Debug.WriteLine("[GLOVE_SERVICE] Device is rebooting after profile load");
+            return;
+        }
+
         response.ThrowIfError();
 
         // Track the loaded profile
@@ -358,6 +394,7 @@ public class GloveControlService : IGloveControlService
     public async Task RestartDeviceAsync()
     {
         // RESTART command causes immediate disconnection
+        _expectingReboot = true;
         try
         {
             await _bluetoothService.SendCommandAsync("RESTART", timeoutMs: 2000);

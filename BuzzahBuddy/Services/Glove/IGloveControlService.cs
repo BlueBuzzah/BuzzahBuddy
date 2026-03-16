@@ -27,6 +27,24 @@ public interface IGloveControlService
     /// </summary>
     TherapyProfile? CurrentProfile { get; }
 
+    // ========== Reboot Handling ==========
+
+    /// <summary>
+    /// Indicates whether the device is expected to be rebooting (e.g., after profile load or restart).
+    /// </summary>
+    bool ExpectingReboot { get; }
+
+    /// <summary>
+    /// Clears the expecting reboot flag after reconnection is established.
+    /// </summary>
+    void ClearExpectingReboot();
+
+    /// <summary>
+    /// Synchronizes app state with device by running PING, BATTERY, and SESSION_STATUS commands.
+    /// </summary>
+    /// <returns>True if all sync commands succeeded, false on any failure.</returns>
+    Task<bool> SyncStateAsync();
+
     // ========== Device Information Commands ==========
 
     /// <summary>
