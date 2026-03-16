@@ -108,6 +108,9 @@ public partial class GloveControlViewModel : BaseViewModel
     private bool _isRefreshingBattery;
 
     [ObservableProperty]
+    private string? _batteryStatusMessage;
+
+    [ObservableProperty]
     private bool _isTestingConnection;
 
     [ObservableProperty]
@@ -422,10 +425,13 @@ public partial class GloveControlViewModel : BaseViewModel
 
             // Check for low battery warnings
             await CheckBatteryWarningAsync();
+
+            BatteryStatusMessage = null;
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Battery refresh error: {ex.Message}");
+            BatteryStatusMessage = "Battery status unavailable";
         }
         finally
         {

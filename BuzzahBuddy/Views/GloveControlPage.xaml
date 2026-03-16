@@ -146,6 +146,13 @@
                                 SemanticProperties.Description="Updates the current battery status"
                                 AutomationId="RefreshBatteryButton" />
                     </VerticalStackLayout>
+
+                    <Label Text="{Binding BatteryStatusMessage}"
+                           IsVisible="{Binding BatteryStatusMessage, Converter={StaticResource IsNotNullConverter}}"
+                           TextColor="{StaticResource Warning}"
+                           FontSize="12"
+                           HorizontalTextAlignment="Center"
+                           SemanticProperties.Description="Battery status warning" />
                 </VerticalStackLayout>
             </Border>
 
