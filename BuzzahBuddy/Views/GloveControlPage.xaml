@@ -5,6 +5,7 @@
              xmlns:models="clr-namespace:BuzzahBuddy.Models"
              xmlns:viewmodels="clr-namespace:BuzzahBuddy.ViewModels"
              x:Class="BuzzahBuddy.Views.GloveControlPage"
+             x:DataType="vm:GloveControlViewModel"
              x:Name="page"
              Title="{Binding Title}">
 
@@ -69,6 +70,13 @@
                 </VerticalStackLayout>
             </Border>
 
+            <Label Text="{Binding SessionWarningMessage}"
+                   IsVisible="{Binding SessionWarningMessage, Converter={StaticResource IsNotNullConverter}}"
+                   TextColor="{StaticResource Warning}"
+                   FontSize="12"
+                   HorizontalTextAlignment="Center"
+                   SemanticProperties.Description="Session status warning" />
+
             <!-- Battery Status (Streamlined) -->
             <Border Padding="15"
                     BackgroundColor="{StaticResource CardBackground}"
@@ -85,20 +93,20 @@
                            SemanticProperties.HeadingLevel="Level2" />
 
                     <HorizontalStackLayout Spacing="15" HorizontalOptions="Center">
-                        <!-- Left Glove -->
+                        <!-- Primary Glove -->
                         <HorizontalStackLayout Spacing="8">
                             <Label Text="●"
                                    FontSize="16"
-                                   TextColor="{Binding BatteryLeftColor}"
+                                   TextColor="{Binding BatteryPrimaryColor}"
                                    VerticalOptions="Center" />
                             <Label VerticalOptions="Center">
                                 <Label.FormattedText>
                                     <FormattedString>
-                                        <Span Text="Left: " FontSize="14" />
-                                        <Span Text="{Binding BatteryLeftPercentage, StringFormat='{0}%'}"
+                                        <Span Text="Primary: " FontSize="14" />
+                                        <Span Text="{Binding BatteryPrimaryPercentage, StringFormat='{0}%'}"
                                               FontSize="16"
                                               FontAttributes="Bold" />
-                                        <Span Text="{Binding BatteryLeftVoltage, StringFormat=' ({0:F2}V)'}"
+                                        <Span Text="{Binding BatteryPrimaryVoltage, StringFormat=' ({0:F2}V)'}"
                                               FontSize="12"
                                               TextColor="{StaticResource TextMuted}" />
                                     </FormattedString>
@@ -106,20 +114,20 @@
                             </Label>
                         </HorizontalStackLayout>
 
-                        <!-- Right Glove -->
+                        <!-- Secondary Glove -->
                         <HorizontalStackLayout Spacing="8">
                             <Label Text="●"
                                    FontSize="16"
-                                   TextColor="{Binding BatteryRightColor}"
+                                   TextColor="{Binding BatterySecondaryColor}"
                                    VerticalOptions="Center" />
                             <Label VerticalOptions="Center">
                                 <Label.FormattedText>
                                     <FormattedString>
-                                        <Span Text="Right: " FontSize="14" />
-                                        <Span Text="{Binding BatteryRightPercentage, StringFormat='{0}%'}"
+                                        <Span Text="Secondary: " FontSize="14" />
+                                        <Span Text="{Binding BatterySecondaryPercentage, StringFormat='{0}%'}"
                                               FontSize="16"
                                               FontAttributes="Bold" />
-                                        <Span Text="{Binding BatteryRightVoltage, StringFormat=' ({0:F2}V)'}"
+                                        <Span Text="{Binding BatterySecondaryVoltage, StringFormat=' ({0:F2}V)'}"
                                               FontSize="12"
                                               TextColor="{StaticResource TextMuted}" />
                                     </FormattedString>
@@ -171,11 +179,17 @@
                                        SemanticProperties.Description="Loading profile" />
                 </HorizontalStackLayout>
 
+                <Label Text="{Binding ProfileLoadingMessage}"
+                       IsVisible="{Binding ProfileLoadingMessage, Converter={StaticResource IsNotNullConverter}}"
+                       TextColor="{StaticResource Warning}"
+                       FontSize="12"
+                       SemanticProperties.Description="Profile loading fallback notification" />
+
                 <!-- Profile Cards - NO CollectionView selection styling -->
                 <VerticalStackLayout BindableLayout.ItemsSource="{Binding AvailableProfiles}"
                                      Spacing="16">
                     <BindableLayout.ItemTemplate>
-                        <DataTemplate>
+                        <DataTemplate x:DataType="vm:ProfileItemViewModel">
                             <Border Padding="20"
                                     BackgroundColor="{StaticResource CardBackground}"
                                     StrokeThickness="2"

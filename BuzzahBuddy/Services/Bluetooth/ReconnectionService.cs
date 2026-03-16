@@ -181,6 +181,7 @@ public class ReconnectionService : IReconnectionService
 
             // Exhausted all attempts
             System.Diagnostics.Debug.WriteLine($"[RECONNECT] Failed after {MaxReconnectAttempts} attempts");
+            _gloveControlService.ClearExpectingReboot();
             _isReconnecting = false;
             _currentAttempt = 0;
             RaiseStateChanged(ReconnectionState.Failed, MaxReconnectAttempts, MaxReconnectAttempts,

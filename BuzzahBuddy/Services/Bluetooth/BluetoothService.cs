@@ -382,7 +382,7 @@ public class BluetoothService : IBluetoothService
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[BLE RECONNECT] Failed: {ex.GetType().Name}: {ex.Message}");
-            UpdateConnectionState(ConnectionState.Disconnected);
+            await DisconnectForReconnectAsync();
             return false;
         }
     }
