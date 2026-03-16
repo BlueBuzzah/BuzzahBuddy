@@ -189,6 +189,15 @@
                     </Border>
                 </VerticalStackLayout>
 
+                <!-- Scan Status Message -->
+                <Label Text="{Binding ScanStatusMessage}"
+                       IsVisible="{Binding ScanStatusMessage, Converter={StaticResource IsNotNullConverter}}"
+                       TextColor="{StaticResource TextMuted}"
+                       FontSize="14"
+                       HorizontalTextAlignment="Center"
+                       Margin="20"
+                       SemanticProperties.Description="Scan result status" />
+
                 <!-- Device List -->
                 <CollectionView ItemsSource="{Binding AvailableDevices}"
                                 SelectionMode="None">

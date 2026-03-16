@@ -54,6 +54,9 @@ public partial class DeviceListViewModel : BaseViewModel
     [ObservableProperty]
     private bool _hasCompletedScan;
 
+    [ObservableProperty]
+    private string? _scanStatusMessage;
+
     public DeviceListViewModel(
         IBluetoothService bluetoothService,
         IDataStorageService storageService,
@@ -120,25 +123,38 @@ public partial class DeviceListViewModel : BaseViewModel
 
             _scanCancellationTokenSource = new CancellationTokenSource();
 
-            System.Diagnostics.Debug.WriteLine("[VM] Calling ScanForDevicesAsync with 10s timeout...");
-            var devices = await _bluetoothService.ScanForDevicesAsync(
-                TimeSpan.FromSeconds(10),
-                _scanCancellationTokenSource.Token);
+            System.Diagnostics.Debug.WriteLine("[VM] Calling ScanForDevicesWithResultAsync with 10s timeout...");
+            var result = await _bluetoothService.ScanForDevicesWithResultAsync(
+                timeoutMs: 10000,
+                ct: _scanCancellationTokenSource.Token);
 
-            var deviceList = devices.ToList();
-            System.Diagnostics.Debug.WriteLine($"[VM] Scan returned {deviceList.Count} device(s)");
-
-            // Devices are added via event handler, but this ensures we have the final list
-            foreach (var device in deviceList)
+            switch (result.Outcome)
             {
-                if (!AvailableDevices.Any(d => d.Id == device.Id))
-                {
-                    System.Diagnostics.Debug.WriteLine($"[VM] Adding device from return list: {device.Name}");
-                    AvailableDevices.Add(device);
-                }
-            }
+                case ScanOutcome.DevicesFound:
+                    var deviceList = result.Devices.ToList();
+                    System.Diagnostics.Debug.WriteLine($"[VM] Scan returned {deviceList.Count} device(s)");
 
-            // Don't show alert - UI will show empty state instead
+                    // Devices are added via event handler, but this ensures we have the final list
+                    foreach (var device in deviceList)
+                    {
+                        if (!AvailableDevices.Any(d => d.Id == device.Id))
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[VM] Adding device from return list: {device.Name}");
+                            AvailableDevices.Add(device);
+                        }
+                    }
+
+                    ScanStatusMessage = null;
+                    break;
+
+                case ScanOutcome.NoDevicesFound:
+                    ScanStatusMessage = "No BlueBuzzah devices found. Make sure your gloves are powered on and in range.";
+                    break;
+
+                case ScanOutcome.ScanFailed:
+                    ScanStatusMessage = $"Scan failed: {result.ErrorMessage}. Check that Bluetooth is enabled and permissions are granted.";
+                    break;
+            }
         }
         catch (OperationCanceledException)
         {
