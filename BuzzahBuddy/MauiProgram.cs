@@ -44,6 +44,7 @@ public static class MauiProgram
 		}
 
 		builder.Services.AddSingleton<IGloveControlService, GloveControlService>();
+		builder.Services.AddSingleton<IReconnectionService, ReconnectionService>();
 		builder.Services.AddSingleton<IDataStorageService, PreferencesStorageService>();
 
 		// Register ViewModels
