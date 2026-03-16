@@ -117,6 +117,9 @@ public partial class GloveControlViewModel : BaseViewModel
     private string? _sessionWarningMessage;
 
     [ObservableProperty]
+    private string? _profileLoadingMessage;
+
+    [ObservableProperty]
     private bool _isTestingConnection;
 
     [ObservableProperty]
@@ -521,6 +524,8 @@ public partial class GloveControlViewModel : BaseViewModel
                     IsShowingAdvancedProfiles = true;
                 }
             }
+
+            ProfileLoadingMessage = null;
         }
         catch (Exception ex)
         {
@@ -547,6 +552,8 @@ public partial class GloveControlViewModel : BaseViewModel
                 SelectedProfile = defaultItem.Profile;
                 System.Diagnostics.Debug.WriteLine($"[PROFILES] Fallback selected: {defaultItem.Name}");
             }
+
+            ProfileLoadingMessage = "Showing default profiles — device profiles could not be loaded.";
         }
     }
 
@@ -691,8 +698,21 @@ public partial class GloveControlViewModel : BaseViewModel
         }
         catch (Exception ex)
         {
+            var wasHealthy = IsConnectionHealthy;
             IsConnectionHealthy = false;
             System.Diagnostics.Debug.WriteLine($"Connection health check error: {ex.Message}");
+
+            if (wasHealthy && _bluetoothService != null)
+            {
+                try
+                {
+                    await _bluetoothService.DisconnectForReconnectAsync();
+                }
+                catch (Exception disconnectEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Disconnect for reconnect failed: {disconnectEx.Message}");
+                }
+            }
         }
     }
 
