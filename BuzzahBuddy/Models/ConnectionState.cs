@@ -21,6 +21,11 @@ public enum ConnectionState
     Connected,
 
     /// <summary>
+    /// Attempting to reconnect to a previously connected device.
+    /// </summary>
+    Reconnecting,
+
+    /// <summary>
     /// Connection error occurred.
     /// </summary>
     Error
