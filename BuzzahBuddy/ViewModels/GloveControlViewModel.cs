@@ -24,6 +24,9 @@ public partial class GloveControlViewModel : BaseViewModel
     private System.Timers.Timer? _healthCheckTimer;
     private SessionState _previousSessionState = SessionState.IDLE;
     private bool _userRequestedStop;
+    private int _consecutivePollFailures;
+    private const int PollFailureWarningThreshold = 2;
+    private const int PollFailureReconnectThreshold = 3;
 
     [ObservableProperty]
     private ObservableCollection<ProfileItemViewModel> _availableProfiles = new();
@@ -109,6 +112,9 @@ public partial class GloveControlViewModel : BaseViewModel
 
     [ObservableProperty]
     private string? _batteryStatusMessage;
+
+    [ObservableProperty]
+    private string? _sessionWarningMessage;
 
     [ObservableProperty]
     private bool _isTestingConnection;
@@ -587,10 +593,24 @@ public partial class GloveControlViewModel : BaseViewModel
             }
 
             UpdateSessionState();
+
+            _consecutivePollFailures = 0;
+            SessionWarningMessage = null;
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Status update error: {ex.Message}");
+            _consecutivePollFailures++;
+
+            if (_consecutivePollFailures >= PollFailureReconnectThreshold)
+            {
+                SessionWarningMessage = null;
+                IsConnectionHealthy = false;
+            }
+            else if (_consecutivePollFailures >= PollFailureWarningThreshold)
+            {
+                SessionWarningMessage = "Session data may be outdated";
+            }
         }
     }
 
