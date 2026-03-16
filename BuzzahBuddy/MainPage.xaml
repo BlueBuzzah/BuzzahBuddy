@@ -40,6 +40,9 @@
                     <Border.StrokeShape>
                         <RoundRectangle CornerRadius="8" />
                     </Border.StrokeShape>
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding NavigateToDevicesCommand}" />
+                    </Border.GestureRecognizers>
                     <Label Text="{Binding ReconnectionMessage}"
                            TextColor="{StaticResource Black}"
                            FontSize="14"

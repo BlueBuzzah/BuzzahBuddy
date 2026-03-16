@@ -260,6 +260,12 @@ public partial class MainPageViewModel : BaseViewModel
     }
 
     [RelayCommand]
+    private async Task NavigateToDevicesAsync()
+    {
+        await Shell.Current.GoToAsync("//devices");
+    }
+
+    [RelayCommand]
     private async Task RefreshAsync()
     {
         IsRefreshing = true;

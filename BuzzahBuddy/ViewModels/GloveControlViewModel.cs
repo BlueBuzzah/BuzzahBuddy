@@ -354,6 +354,12 @@ public partial class GloveControlViewModel : BaseViewModel
     }
 
     [RelayCommand]
+    private async Task NavigateToDevicesAsync()
+    {
+        await Shell.Current.GoToAsync("//devices");
+    }
+
+    [RelayCommand]
     private async Task TestConnectionAsync()
     {
         if (!IsConnected)
@@ -885,7 +891,8 @@ public partial class GloveControlViewModel : BaseViewModel
                 case ReconnectionState.Succeeded:
                     IsReconnecting = false;
                     ReconnectionMessage = string.Empty;
-                    StartStatusPolling();
+                    if (IsSessionActive)
+                        StartStatusPolling();
                     break;
                 case ReconnectionState.Failed:
                     IsReconnecting = false;
