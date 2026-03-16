@@ -57,6 +57,13 @@ public static class ErrorMessageHelper
                 "Please stop the current session to change settings.");
         }
 
+        // Invalid Boolean Setting Errors (e.g., "use: true/false" or "use: 1/0")
+        if (lowerError.Contains("use:") && (lowerError.Contains("true/false") || lowerError.Contains("1/0")))
+        {
+            return ("Invalid Setting",
+                "An invalid value was sent. Please try again.");
+        }
+
         // Invalid Parameter Errors
         if (lowerError.Contains("invalid") && (lowerError.Contains("parameter") || lowerError.Contains("value")))
         {
@@ -78,6 +85,13 @@ public static class ErrorMessageHelper
                 "• 4 - Custom VCR\n" +
                 "• 5 - Gentle\n" +
                 "• 6 - Quick Test");
+        }
+
+        // Profile Manager Not Available
+        if (lowerError.Contains("profile manager not available"))
+        {
+            return ("Device Not Ready",
+                "The device is still initializing. Please wait a moment and try again, or restart the gloves.");
         }
 
         // Calibration Errors
@@ -109,6 +123,13 @@ public static class ErrorMessageHelper
             return ("Connection Lost",
                 "The Bluetooth connection to the glove was lost.\n\n" +
                 "Please reconnect and try again.");
+        }
+
+        // Invalid Command Format (more specific, must come before generic "invalid command" check)
+        if (lowerError.Contains("invalid command format"))
+        {
+            return ("Communication Error",
+                "The device received a malformed command. Please try again.");
         }
 
         // Command Errors
