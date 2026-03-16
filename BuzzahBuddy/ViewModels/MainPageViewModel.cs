@@ -14,6 +14,7 @@ public partial class MainPageViewModel : BaseViewModel
 {
     private readonly IBluetoothService _bluetoothService;
     private readonly IGloveControlService _gloveControlService;
+    private readonly IReconnectionService _reconnectionService;
 
     #region Observable Properties
 
@@ -42,6 +43,13 @@ public partial class MainPageViewModel : BaseViewModel
 
     [ObservableProperty]
     private string? _selectedProfileName;
+
+    // Reconnection status
+    [ObservableProperty]
+    private bool _isReconnecting;
+
+    [ObservableProperty]
+    private string _reconnectionMessage = string.Empty;
 
     #endregion
 
@@ -84,6 +92,21 @@ public partial class MainPageViewModel : BaseViewModel
     /// Whether we're currently connecting to a device.
     /// </summary>
     public bool IsConnecting => DashboardState == DashboardState.Connecting;
+
+    /// <summary>
+    /// Whether to show the reconnection banner (reconnecting or has a failure message).
+    /// </summary>
+    public bool ShowReconnectionBanner => IsReconnecting || !string.IsNullOrEmpty(ReconnectionMessage);
+
+    partial void OnIsReconnectingChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShowReconnectionBanner));
+    }
+
+    partial void OnReconnectionMessageChanged(string value)
+    {
+        OnPropertyChanged(nameof(ShowReconnectionBanner));
+    }
 
     /// <summary>
     /// Text for the secondary action link (optional).
@@ -172,16 +195,19 @@ public partial class MainPageViewModel : BaseViewModel
 
     public MainPageViewModel(
         IBluetoothService bluetoothService,
-        IGloveControlService gloveControlService)
+        IGloveControlService gloveControlService,
+        IReconnectionService reconnectionService)
     {
         _bluetoothService = bluetoothService;
         _gloveControlService = gloveControlService;
+        _reconnectionService = reconnectionService;
 
         Title = "BuzzahBuddy";
 
         // Subscribe to connection state changes
         _bluetoothService.ConnectionStateChanged += OnConnectionStateChanged;
         _gloveControlService.SessionStateChanged += OnSessionStateChanged;
+        _reconnectionService.ReconnectionStateChanged += OnReconnectionStateChanged;
 
         System.Diagnostics.Debug.WriteLine("[MAINPAGE] ViewModel created, subscribed to events");
 
@@ -435,6 +461,33 @@ public partial class MainPageViewModel : BaseViewModel
         });
     }
 
+    private void OnReconnectionStateChanged(object? sender, ReconnectionStateEventArgs e)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            switch (e.State)
+            {
+                case ReconnectionState.Reconnecting:
+                    IsReconnecting = true;
+                    ReconnectionMessage = $"Reconnecting to BlueBuzzah... (attempt {e.Attempt}/{e.MaxAttempts})";
+                    break;
+                case ReconnectionState.Succeeded:
+                    IsReconnecting = false;
+                    ReconnectionMessage = string.Empty;
+                    break;
+                case ReconnectionState.Failed:
+                    IsReconnecting = false;
+                    ReconnectionMessage = e.Message ?? "Connection lost. Tap to reconnect.";
+                    break;
+                case ReconnectionState.Cancelled:
+                case ReconnectionState.Idle:
+                    IsReconnecting = false;
+                    ReconnectionMessage = string.Empty;
+                    break;
+            }
+        });
+    }
+
     private void OnSessionStateChanged(object? sender, SessionStatus status)
     {
         System.Diagnostics.Debug.WriteLine($"[MAINPAGE] SessionStateChanged: {status.Status}");
@@ -502,6 +555,7 @@ public partial class MainPageViewModel : BaseViewModel
         {
             _bluetoothService.ConnectionStateChanged -= OnConnectionStateChanged;
             _gloveControlService.SessionStateChanged -= OnSessionStateChanged;
+            _reconnectionService.ReconnectionStateChanged -= OnReconnectionStateChanged;
             System.Diagnostics.Debug.WriteLine("[MAINPAGE] ViewModel disposed, unsubscribed from events");
         }
         base.Dispose(disposing);

@@ -29,6 +29,23 @@
                        HorizontalTextAlignment="Center"
                        Margin="0,0,0,10" />
 
+                <!-- Reconnection Banner -->
+                <Border IsVisible="{Binding ShowReconnectionBanner}"
+                        BackgroundColor="{StaticResource Warning}"
+                        StrokeThickness="0"
+                        Padding="12,8"
+                        Margin="0,0,0,8"
+                        SemanticProperties.Description="Reconnecting to device"
+                        SemanticProperties.Hint="The app is attempting to reconnect to your BlueBuzzah gloves">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="8" />
+                    </Border.StrokeShape>
+                    <Label Text="{Binding ReconnectionMessage}"
+                           TextColor="{StaticResource Black}"
+                           FontSize="14"
+                           HorizontalTextAlignment="Center" />
+                </Border>
+
                 <!-- Welcome Guide (Disconnected State Only) -->
                 <VerticalStackLayout Spacing="20"
                                      IsVisible="{Binding IsConnected, Converter={StaticResource InvertedBoolConverter}}">

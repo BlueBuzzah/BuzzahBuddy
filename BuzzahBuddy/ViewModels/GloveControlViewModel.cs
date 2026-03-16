@@ -18,6 +18,7 @@ public partial class GloveControlViewModel : BaseViewModel
     private readonly IGloveControlService _gloveControlService;
     private readonly IBluetoothService _bluetoothService;
     private readonly IDataStorageService _storageService;
+    private readonly IReconnectionService _reconnectionService;
     private TherapySession? _currentSession;
     private System.Timers.Timer? _statusPollTimer;
     private System.Timers.Timer? _healthCheckTimer;
@@ -130,19 +131,45 @@ public partial class GloveControlViewModel : BaseViewModel
     [ObservableProperty]
     private string? _connectedDeviceName;
 
+    [ObservableProperty]
+    private bool _isReconnecting;
+
+    [ObservableProperty]
+    private string _reconnectionMessage = string.Empty;
+
+    /// <summary>
+    /// Whether to show the reconnection banner (reconnecting or has a message like "Connection lost").
+    /// </summary>
+    public bool ShowReconnectionBanner => IsReconnecting || !string.IsNullOrEmpty(ReconnectionMessage);
+
+    partial void OnIsReconnectingChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShowReconnectionBanner));
+    }
+
+    partial void OnReconnectionMessageChanged(string value)
+    {
+        OnPropertyChanged(nameof(ShowReconnectionBanner));
+    }
+
     public GloveControlViewModel(
         IGloveControlService gloveControlService,
         IBluetoothService bluetoothService,
-        IDataStorageService storageService)
+        IDataStorageService storageService,
+        IReconnectionService reconnectionService)
     {
         _gloveControlService = gloveControlService;
         _bluetoothService = bluetoothService;
         _storageService = storageService;
+        _reconnectionService = reconnectionService;
 
         Title = "Therapy Control";
 
         // Subscribe to connection events
         _bluetoothService.ConnectionStateChanged += OnConnectionStateChanged;
+
+        // Subscribe to reconnection state changes
+        _reconnectionService.ReconnectionStateChanged += OnReconnectionStateChanged;
 
         // Initialize
         _ = LoadProfilesAsync();
@@ -798,6 +825,35 @@ public partial class GloveControlViewModel : BaseViewModel
         }
     }
 
+    private void OnReconnectionStateChanged(object? sender, ReconnectionStateEventArgs e)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            switch (e.State)
+            {
+                case ReconnectionState.Reconnecting:
+                    IsReconnecting = true;
+                    ReconnectionMessage = $"Reconnecting to BlueBuzzah... (attempt {e.Attempt}/{e.MaxAttempts})";
+                    StopStatusPolling();
+                    break;
+                case ReconnectionState.Succeeded:
+                    IsReconnecting = false;
+                    ReconnectionMessage = string.Empty;
+                    StartStatusPolling();
+                    break;
+                case ReconnectionState.Failed:
+                    IsReconnecting = false;
+                    ReconnectionMessage = e.Message ?? "Connection lost. Tap to reconnect.";
+                    break;
+                case ReconnectionState.Cancelled:
+                case ReconnectionState.Idle:
+                    IsReconnecting = false;
+                    ReconnectionMessage = string.Empty;
+                    break;
+            }
+        });
+    }
+
     /// <summary>
     /// Unsubscribes from Bluetooth service events and stops timers to prevent memory leaks.
     /// </summary>
@@ -806,6 +862,7 @@ public partial class GloveControlViewModel : BaseViewModel
         if (disposing)
         {
             _bluetoothService.ConnectionStateChanged -= OnConnectionStateChanged;
+            _reconnectionService.ReconnectionStateChanged -= OnReconnectionStateChanged;
             StopStatusPolling();
             StopConnectionHealthCheck();
             System.Diagnostics.Debug.WriteLine("[GLOVECONTROL] ViewModel disposed, unsubscribed from events");

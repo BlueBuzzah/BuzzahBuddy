@@ -15,6 +15,7 @@ public partial class DeviceListViewModel : BaseViewModel
 {
     private readonly IBluetoothService _bluetoothService;
     private readonly IDataStorageService _storageService;
+    private readonly IReconnectionService _reconnectionService;
     private CancellationTokenSource? _scanCancellationTokenSource;
 
     [ObservableProperty]
@@ -55,12 +56,17 @@ public partial class DeviceListViewModel : BaseViewModel
 
     public DeviceListViewModel(
         IBluetoothService bluetoothService,
-        IDataStorageService storageService)
+        IDataStorageService storageService,
+        IReconnectionService reconnectionService)
     {
         _bluetoothService = bluetoothService;
         _storageService = storageService;
+        _reconnectionService = reconnectionService;
 
         Title = "Devices";
+
+        // Cancel any in-progress reconnection when user navigates to device list
+        _reconnectionService.CancelReconnect();
 
         // Subscribe to device discovery
         _bluetoothService.DeviceDiscovered += OnDeviceDiscovered;
