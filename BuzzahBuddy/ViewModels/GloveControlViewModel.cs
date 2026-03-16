@@ -21,6 +21,8 @@ public partial class GloveControlViewModel : BaseViewModel
     private TherapySession? _currentSession;
     private System.Timers.Timer? _statusPollTimer;
     private System.Timers.Timer? _healthCheckTimer;
+    private SessionState _previousSessionState = SessionState.IDLE;
+    private bool _userRequestedStop;
 
     [ObservableProperty]
     private ObservableCollection<ProfileItemViewModel> _availableProfiles = new();
@@ -251,6 +253,7 @@ public partial class GloveControlViewModel : BaseViewModel
         try
         {
             // Stop session
+            _userRequestedStop = true;
             await _gloveControlService.StopSessionAsync();
 
             if (_currentSession != null)
@@ -521,6 +524,20 @@ public partial class GloveControlViewModel : BaseViewModel
         {
             var previousProgress = SessionStatus.Progress;
             SessionStatus = await _gloveControlService.GetSessionStatusAsync();
+
+            // Detect unexpected session end (e.g., secondary glove disconnected)
+            if (_previousSessionState == SessionState.RUNNING && SessionStatus.Status == SessionState.IDLE && !_userRequestedStop)
+            {
+                await MainThread.InvokeOnMainThreadAsync(async () =>
+                {
+                    await Shell.Current.DisplayAlert(
+                        "Session Ended Unexpectedly",
+                        "The therapy session stopped unexpectedly. The secondary glove may have disconnected.",
+                        "OK");
+                });
+            }
+            _previousSessionState = SessionStatus.Status;
+            _userRequestedStop = false;
 
             // Update current session tracking
             if (_currentSession != null && SessionStatus.IsActive)
