@@ -12,6 +12,8 @@ public class MockBluetoothService : IBluetoothService
 {
     private bool _isConnected;
     private GloveDevice? _connectedDevice;
+    private string? _lastConnectedDeviceId;
+    private bool _userInitiatedDisconnect;
     private SessionState _mockSessionState = SessionState.IDLE;
     private DateTime? _mockSessionStartTime;
     private DateTime? _mockSessionPauseTime;
@@ -23,6 +25,8 @@ public class MockBluetoothService : IBluetoothService
 
     public ConnectionState CurrentConnectionState { get; private set; } = ConnectionState.Disconnected;
     public GloveDevice? ConnectedDevice => _connectedDevice;
+    public string? LastConnectedDeviceId => _lastConnectedDeviceId;
+    public bool UserInitiatedDisconnect => _userInitiatedDisconnect;
 
     public event EventHandler<GloveDevice>? DeviceDiscovered;
     public event EventHandler<ConnectionState>? ConnectionStateChanged;
@@ -69,6 +73,8 @@ public class MockBluetoothService : IBluetoothService
         _connectedDevice = device;
         _connectedDevice.ConnectionState = ConnectionState.Connected;
         CurrentConnectionState = ConnectionState.Connected;
+        _lastConnectedDeviceId = device.Id;
+        _userInitiatedDisconnect = false;
         ConnectionStateChanged?.Invoke(this, ConnectionState.Connected);
 
         return true;
@@ -76,6 +82,7 @@ public class MockBluetoothService : IBluetoothService
 
     public Task DisconnectAsync()
     {
+        _userInitiatedDisconnect = true;
         _isConnected = false;
         if (_connectedDevice != null)
         {
@@ -93,6 +100,54 @@ public class MockBluetoothService : IBluetoothService
         _isInCalibrationMode = false;
 
         return Task.CompletedTask;
+    }
+
+    public async Task<bool> ConnectToLastKnownDeviceAsync(CancellationToken ct = default)
+    {
+        if (string.IsNullOrEmpty(_lastConnectedDeviceId))
+            return false;
+
+        await Task.Delay(300, ct);
+
+        var mockDevice = new GloveDevice
+        {
+            Id = _lastConnectedDeviceId,
+            Name = BlueBuzzahConstants.DeviceName,
+            SignalStrength = -45,
+            ConnectionState = ConnectionState.Connected,
+            LastConnected = DateTime.Now
+        };
+
+        _isConnected = true;
+        _connectedDevice = mockDevice;
+        _userInitiatedDisconnect = false;
+        CurrentConnectionState = ConnectionState.Connected;
+        ConnectionStateChanged?.Invoke(this, ConnectionState.Connected);
+
+        return true;
+    }
+
+    public Task DisconnectForReconnectAsync()
+    {
+        _isConnected = false;
+        if (_connectedDevice != null)
+        {
+            _connectedDevice.ConnectionState = ConnectionState.Disconnected;
+        }
+        _connectedDevice = null;
+        CurrentConnectionState = ConnectionState.Disconnected;
+        ConnectionStateChanged?.Invoke(this, ConnectionState.Disconnected);
+
+        return Task.CompletedTask;
+    }
+
+    public async Task<ScanResult> ScanForDevicesWithResultAsync(int timeoutMs = 10000, CancellationToken ct = default)
+    {
+        var devices = await ScanForDevicesAsync(TimeSpan.FromMilliseconds(timeoutMs), ct);
+        var deviceList = devices.ToList();
+        return deviceList.Count > 0
+            ? new ScanResult(ScanOutcome.DevicesFound, deviceList)
+            : new ScanResult(ScanOutcome.NoDevicesFound, deviceList);
     }
 
     public async Task<CommandResponse> SendCommandAsync(

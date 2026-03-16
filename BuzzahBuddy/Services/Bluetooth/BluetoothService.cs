@@ -28,8 +28,14 @@ public class BluetoothService : IBluetoothService
     private readonly SemaphoreSlim _responseLock = new(1, 1);
     private TaskCompletionSource<CommandResponse>? _pendingResponseTcs;
 
+    // Reconnection state
+    private string? _lastConnectedDeviceId;
+    private bool _userInitiatedDisconnect;
+
     public ConnectionState CurrentConnectionState { get; private set; } = ConnectionState.Disconnected;
     public GloveDevice? ConnectedDevice { get; private set; }
+    public string? LastConnectedDeviceId => _lastConnectedDeviceId;
+    public bool UserInitiatedDisconnect => _userInitiatedDisconnect;
 
     public event EventHandler<GloveDevice>? DeviceDiscovered;
     public event EventHandler<ConnectionState>? ConnectionStateChanged;
@@ -174,6 +180,8 @@ public class BluetoothService : IBluetoothService
             device.LastConnected = DateTime.Now;
 
             UpdateConnectionState(ConnectionState.Connected);
+            _lastConnectedDeviceId = device.Id;
+            _userInitiatedDisconnect = false;
             System.Diagnostics.Debug.WriteLine($"🎉 Successfully connected to {device.Name}");
             return true;
         }
@@ -197,6 +205,8 @@ public class BluetoothService : IBluetoothService
         {
             try
             {
+                _userInitiatedDisconnect = true;
+
                 // Unsubscribe from notifications
                 if (_rxCharacteristic != null)
                 {
@@ -303,6 +313,113 @@ public class BluetoothService : IBluetoothService
     public Task<bool> IsBluetoothEnabledAsync()
     {
         return Task.FromResult(_bluetoothLE.IsOn);
+    }
+
+    public async Task<bool> ConnectToLastKnownDeviceAsync(CancellationToken ct = default)
+    {
+        if (string.IsNullOrEmpty(_lastConnectedDeviceId))
+        {
+            System.Diagnostics.Debug.WriteLine("[BLE RECONNECT] No last connected device ID available");
+            return false;
+        }
+
+        try
+        {
+            UpdateConnectionState(ConnectionState.Reconnecting);
+
+            if (!Guid.TryParse(_lastConnectedDeviceId, out var guid))
+            {
+                System.Diagnostics.Debug.WriteLine($"[BLE RECONNECT] Invalid GUID: {_lastConnectedDeviceId}");
+                UpdateConnectionState(ConnectionState.Disconnected);
+                return false;
+            }
+
+            System.Diagnostics.Debug.WriteLine($"[BLE RECONNECT] Connecting to known device: {guid}");
+            var connectParams = new ConnectParameters(autoConnect: false, forceBleTransport: true);
+            var bleDevice = await _adapter.ConnectToKnownDeviceAsync(guid, connectParams, ct);
+
+            _connectedBleDevice = bleDevice;
+
+            // Discover Nordic UART Service and get TX/RX characteristics
+            var service = await bleDevice.GetServiceAsync(BlueBuzzahConstants.NordicUartServiceUuid);
+            if (service == null)
+            {
+                System.Diagnostics.Debug.WriteLine("[BLE RECONNECT] Nordic UART Service not found");
+                await DisconnectForReconnectAsync();
+                UpdateConnectionState(ConnectionState.Disconnected);
+                return false;
+            }
+
+            _txCharacteristic = await service.GetCharacteristicAsync(BlueBuzzahConstants.TxCharacteristicUuid);
+            _rxCharacteristic = await service.GetCharacteristicAsync(BlueBuzzahConstants.RxCharacteristicUuid);
+
+            if (_txCharacteristic == null || _rxCharacteristic == null)
+            {
+                System.Diagnostics.Debug.WriteLine($"[BLE RECONNECT] TX or RX characteristic not found (TX: {_txCharacteristic != null}, RX: {_rxCharacteristic != null})");
+                await DisconnectForReconnectAsync();
+                UpdateConnectionState(ConnectionState.Disconnected);
+                return false;
+            }
+
+            await SubscribeToNotificationsAsync();
+
+            var gloveDevice = new GloveDevice
+            {
+                Id = bleDevice.Id.ToString(),
+                Name = bleDevice.Name ?? BlueBuzzahConstants.DeviceName,
+                ConnectionState = ConnectionState.Connected,
+                LastConnected = DateTime.Now
+            };
+
+            ConnectedDevice = gloveDevice;
+            UpdateConnectionState(ConnectionState.Connected);
+            _lastConnectedDeviceId = bleDevice.Id.ToString();
+            _userInitiatedDisconnect = false;
+
+            System.Diagnostics.Debug.WriteLine($"[BLE RECONNECT] Successfully reconnected to {gloveDevice.Name}");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[BLE RECONNECT] Failed: {ex.GetType().Name}: {ex.Message}");
+            UpdateConnectionState(ConnectionState.Disconnected);
+            return false;
+        }
+    }
+
+    public async Task DisconnectForReconnectAsync()
+    {
+        try
+        {
+            if (_rxCharacteristic != null)
+                await UnsubscribeFromNotificationsAsync();
+            if (_connectedBleDevice != null)
+                await _adapter.DisconnectDeviceAsync(_connectedBleDevice);
+        }
+        finally
+        {
+            _connectedBleDevice = null;
+            _txCharacteristic = null;
+            _rxCharacteristic = null;
+            ConnectedDevice = null;
+            UpdateConnectionState(ConnectionState.Disconnected);
+        }
+    }
+
+    public async Task<ScanResult> ScanForDevicesWithResultAsync(int timeoutMs = 10000, CancellationToken ct = default)
+    {
+        try
+        {
+            var devices = await ScanForDevicesAsync(TimeSpan.FromMilliseconds(timeoutMs), ct);
+            var deviceList = devices.ToList();
+            return deviceList.Count > 0
+                ? new ScanResult(ScanOutcome.DevicesFound, deviceList)
+                : new ScanResult(ScanOutcome.NoDevicesFound, deviceList);
+        }
+        catch (Exception ex)
+        {
+            return new ScanResult(ScanOutcome.ScanFailed, Enumerable.Empty<GloveDevice>(), ex.Message);
+        }
     }
 
     private void OnRxCharacteristicValueUpdated(object? sender, CharacteristicUpdatedEventArgs e)

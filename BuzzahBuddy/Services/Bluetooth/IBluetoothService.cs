@@ -91,4 +91,33 @@ public interface IBluetoothService
     /// </summary>
     /// <returns>True if Bluetooth is enabled, false otherwise.</returns>
     Task<bool> IsBluetoothEnabledAsync();
+
+    /// <summary>
+    /// GUID string of the last successfully connected device.
+    /// Captured on Connected state entry, persists across disconnects.
+    /// </summary>
+    string? LastConnectedDeviceId { get; }
+
+    /// <summary>
+    /// True when disconnect was user-initiated (via DisconnectAsync).
+    /// Reset to false on next successful connection.
+    /// </summary>
+    bool UserInitiatedDisconnect { get; }
+
+    /// <summary>
+    /// Connect to the last known device by stored GUID without scanning.
+    /// Uses Plugin.BLE's ConnectToKnownDeviceAsync.
+    /// </summary>
+    Task<bool> ConnectToLastKnownDeviceAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Disconnect without setting the user-initiated flag.
+    /// Used by health check to trigger reconnection on unhealthy connection.
+    /// </summary>
+    Task DisconnectForReconnectAsync();
+
+    /// <summary>
+    /// Scan with differentiated result outcomes.
+    /// </summary>
+    Task<ScanResult> ScanForDevicesWithResultAsync(int timeoutMs = 10000, CancellationToken ct = default);
 }
