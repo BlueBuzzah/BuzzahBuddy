@@ -9,5 +9,16 @@
     "context7",
     "tree-sitter",
     "sequential-thinking"
-  ]
+  ],
+  "extraKnownMarketplaces": {
+    "maui-skills": {
+      "source": {
+        "source": "github",
+        "repo": "davidortinau/maui-skills"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "maui-skills:maui-skills": true
+  }
 }
