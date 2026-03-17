@@ -167,20 +167,12 @@
                                    SemanticProperties.Description="Connecting to device" />
 
                 <!-- Session Progress Card (visible during active/paused session) -->
-                <Border Padding="20"
-                        BackgroundColor="{StaticResource CardBackground}"
-                        StrokeThickness="1"
-                        Stroke="{StaticResource CardBorder}"
+                <Border Style="{StaticResource CardWithGlow}"
+                        Padding="20"
                         IsVisible="{Binding ShowSessionProgress}">
                     <Border.StrokeShape>
                         <RoundRectangle CornerRadius="16" />
                     </Border.StrokeShape>
-                    <Border.Shadow>
-                        <Shadow Brush="{StaticResource GlowBrush}"
-                                Offset="0,0"
-                                Radius="15"
-                                Opacity="0.2" />
-                    </Border.Shadow>
 
                     <VerticalStackLayout Spacing="16">
                         <!-- Profile Name -->
@@ -235,20 +227,12 @@
                 </Border>
 
                 <!-- Idle State: Battery and Profile Info -->
-                <Border Padding="20"
-                        BackgroundColor="{StaticResource CardBackground}"
-                        StrokeThickness="1"
-                        Stroke="{StaticResource CardBorder}"
+                <Border Style="{StaticResource CardWithGlow}"
+                        Padding="20"
                         IsVisible="{Binding ShowBatteryStatus}">
                     <Border.StrokeShape>
                         <RoundRectangle CornerRadius="16" />
                     </Border.StrokeShape>
-                    <Border.Shadow>
-                        <Shadow Brush="{StaticResource GlowBrush}"
-                                Offset="0,0"
-                                Radius="15"
-                                Opacity="0.2" />
-                    </Border.Shadow>
                     <Border.Triggers>
                         <DataTrigger TargetType="Border"
                                      Binding="{Binding ShowSessionProgress}"
@@ -322,22 +306,11 @@
                 <!-- Primary CTA Button with Glow -->
                 <Button Text="{Binding PrimaryCTAText}"
                         Command="{Binding ExecutePrimaryCTACommand}"
-                        HeightRequest="72"
-                        FontSize="20"
-                        FontAttributes="Bold"
-                        CornerRadius="16"
+                        Style="{StaticResource PrimaryButtonGlow}"
                         IsEnabled="{Binding IsPrimaryCTAEnabled}"
-                        BackgroundColor="{StaticResource Primary}"
                         SemanticProperties.Hint="Double tap to activate"
                         SemanticProperties.Description="{Binding PrimaryCTADescription}"
-                        AutomationId="PrimaryCTAButton">
-                    <Button.Shadow>
-                        <Shadow Brush="{StaticResource GlowBrush}"
-                                Offset="0,0"
-                                Radius="20"
-                                Opacity="0.3" />
-                    </Button.Shadow>
-                </Button>
+                        AutomationId="PrimaryCTAButton" />
 
                 <!-- Secondary CTA (Stop Session / Change Profile) -->
                 <Button Text="{Binding SecondaryCTAText}"

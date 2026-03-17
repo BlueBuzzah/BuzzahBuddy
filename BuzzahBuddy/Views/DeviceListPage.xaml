@@ -34,20 +34,10 @@
             <VerticalStackLayout Spacing="12">
                 <Button Text="Go to Control"
                         Command="{Binding NavigateToControlCommand}"
-                        HeightRequest="56"
-                        FontSize="18"
-                        CornerRadius="12"
-                        BackgroundColor="{StaticResource Primary}"
+                        Style="{StaticResource SecondaryButtonGlow}"
                         SemanticProperties.Hint="Navigate to device control page"
                         SemanticProperties.Description="Opens the glove control interface"
-                        AutomationId="GoToControlButton">
-                    <Button.Shadow>
-                        <Shadow Brush="{StaticResource GlowBrush}"
-                                Offset="0,0"
-                                Radius="20"
-                                Opacity="0.3" />
-                    </Button.Shadow>
-                </Button>
+                        AutomationId="GoToControlButton" />
 
                 <Button Text="Disconnect Device"
                         Command="{Binding DisconnectCommand}"
@@ -244,21 +234,11 @@
             <Button Grid.Row="3"
                     Text="{Binding ScanButtonText}"
                     Command="{Binding ToggleScanCommand}"
-                    HeightRequest="56"
-                    FontSize="18"
-                    CornerRadius="12"
+                    Style="{StaticResource SecondaryButtonGlow}"
                     Margin="0,12,0,0"
-                    BackgroundColor="{StaticResource Primary}"
                     SemanticProperties.Hint="Double tap to activate"
                     SemanticProperties.Description="{Binding ScanButtonDescription}"
-                    AutomationId="ScanToggleButton">
-                <Button.Shadow>
-                    <Shadow Brush="{StaticResource GlowColor}"
-                            Offset="0,0"
-                            Radius="20"
-                            Opacity="0.3" />
-                </Button.Shadow>
-            </Button>
+                    AutomationId="ScanToggleButton" />
         </Grid>
 
         <!-- Connection Progress Overlay -->

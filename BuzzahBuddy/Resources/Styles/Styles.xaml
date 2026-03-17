@@ -80,10 +80,6 @@
         <Setter Property="CornerRadius" Value="8" />
     </Style>
 
-    <!-- Legacy Aliases (Backward Compatibility) -->
-    <Style x:Key="LargeButton" TargetType="Button" BasedOn="{StaticResource SecondaryButton}" />
-    <Style x:Key="ExtraLargeButton" TargetType="Button" BasedOn="{StaticResource PrimaryButton}" />
-
     <Style TargetType="CheckBox">
         <Setter Property="Color" Value="{StaticResource Primary}" />
         <Setter Property="MinimumHeightRequest" Value="44"/>
@@ -256,11 +252,6 @@
     <Style TargetType="Label" x:Key="CaptionText">
         <Setter Property="FontSize" Value="12" />
         <Setter Property="TextColor" Value="{StaticResource TextMuted}" />
-    </Style>
-
-    <Style TargetType="ListView">
-        <Setter Property="SeparatorColor" Value="{StaticResource CardBorder}" />
-        <Setter Property="RefreshControlColor" Value="{StaticResource Gray200}" />
     </Style>
 
     <Style TargetType="Picker">
@@ -510,6 +501,17 @@
 
     <!-- BlueBuzzah.com Glow Styles -->
     <Style x:Key="PrimaryButtonGlow" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+        <Setter Property="Shadow">
+            <Setter.Value>
+                <Shadow Brush="{StaticResource GlowBrush}"
+                        Offset="0,0"
+                        Radius="20"
+                        Opacity="0.3" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="SecondaryButtonGlow" TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
         <Setter Property="Shadow">
             <Setter.Value>
                 <Shadow Brush="{StaticResource GlowBrush}"
