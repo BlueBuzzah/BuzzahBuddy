@@ -146,14 +146,17 @@ public partial class DeviceListViewModel : BaseViewModel
                     }
 
                     ScanStatusMessage = null;
+                    SemanticScreenReader.Announce($"Scan complete. {deviceList.Count} device{(deviceList.Count != 1 ? "s" : "")} found.");
                     break;
 
                 case ScanOutcome.NoDevicesFound:
                     ScanStatusMessage = "No BlueBuzzah devices found. Make sure your gloves are powered on and in range.";
+                    SemanticScreenReader.Announce("Scan complete. No devices found.");
                     break;
 
                 case ScanOutcome.ScanFailed:
                     ScanStatusMessage = $"Scan failed: {result.ErrorMessage}. Check that Bluetooth is enabled and permissions are granted.";
+                    SemanticScreenReader.Announce("Device scan failed.");
                     break;
             }
         }
@@ -271,6 +274,7 @@ public partial class DeviceListViewModel : BaseViewModel
             if (success)
             {
                 await _storageService.SaveLastDeviceAsync(device);
+                SemanticScreenReader.Announce($"Connected to {device.Name}");
 
                 // Show brief non-blocking feedback
                 // Note: Using DisplayAlert for now, but should be replaced with Toast in production

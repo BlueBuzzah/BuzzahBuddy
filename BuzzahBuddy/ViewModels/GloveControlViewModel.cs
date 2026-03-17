@@ -231,18 +231,21 @@ public partial class GloveControlViewModel : BaseViewModel
 
                 StartStatusPolling();
                 await UpdateSessionStatusAsync();
+                SemanticScreenReader.Announce("Therapy session started");
             }
             else if (IsSessionRunning)
             {
                 // Pause session
                 await _gloveControlService.PauseSessionAsync();
                 await UpdateSessionStatusAsync();
+                SemanticScreenReader.Announce("Session paused");
             }
             else if (IsSessionPaused)
             {
                 // Resume session
                 await _gloveControlService.ResumeSessionAsync();
                 await UpdateSessionStatusAsync();
+                SemanticScreenReader.Announce("Session resumed");
             }
         }
         catch (BlueBuzzahCommandException ex)
@@ -307,6 +310,7 @@ public partial class GloveControlViewModel : BaseViewModel
 
             StopStatusPolling();
             await UpdateSessionStatusAsync();
+            SemanticScreenReader.Announce("Session stopped");
         }
         catch (BlueBuzzahCommandException ex)
         {
@@ -761,6 +765,16 @@ public partial class GloveControlViewModel : BaseViewModel
                     _currentSession.IsCompleted = false; // Incomplete due to disconnection
                 }
             }
+
+            var announcement = state switch
+            {
+                ConnectionState.Connected => "Device connected",
+                ConnectionState.Disconnected => "Device disconnected",
+                ConnectionState.Error => "Connection error",
+                _ => null
+            };
+            if (announcement != null)
+                SemanticScreenReader.Announce(announcement);
         });
     }
 
@@ -860,6 +874,11 @@ public partial class GloveControlViewModel : BaseViewModel
             var (isReconnecting, message) = ReconnectionHelper.MapReconnectionState(e);
             IsReconnecting = isReconnecting;
             ReconnectionMessage = message;
+
+            if (e.State == ReconnectionState.Succeeded)
+                SemanticScreenReader.Announce("Reconnected to BlueBuzzah gloves");
+            else if (!string.IsNullOrEmpty(ReconnectionMessage))
+                SemanticScreenReader.Announce(ReconnectionMessage);
 
             // GloveControl-specific: manage polling during reconnection
             if (e.State == ReconnectionState.Reconnecting)

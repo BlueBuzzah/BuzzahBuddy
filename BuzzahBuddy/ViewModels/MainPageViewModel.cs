@@ -463,6 +463,7 @@ public partial class MainPageViewModel : BaseViewModel
         MainThread.BeginInvokeOnMainThread(async () =>
         {
             await UpdateDashboardStateAsync();
+            SemanticScreenReader.Announce(StatusMessage);
         });
     }
 
@@ -473,6 +474,11 @@ public partial class MainPageViewModel : BaseViewModel
             var (isReconnecting, message) = ReconnectionHelper.MapReconnectionState(e);
             IsReconnecting = isReconnecting;
             ReconnectionMessage = message;
+
+            if (e.State == ReconnectionState.Succeeded)
+                SemanticScreenReader.Announce("Reconnected to BlueBuzzah gloves");
+            else if (!string.IsNullOrEmpty(ReconnectionMessage))
+                SemanticScreenReader.Announce(ReconnectionMessage);
         });
     }
 
@@ -496,6 +502,16 @@ public partial class MainPageViewModel : BaseViewModel
             }
 
             NotifyComputedPropertiesChanged();
+
+            var announcement = status.Status switch
+            {
+                SessionState.RUNNING => "Therapy session started",
+                SessionState.PAUSED => "Therapy session paused",
+                SessionState.IDLE => "Therapy session ended",
+                _ => null
+            };
+            if (announcement != null)
+                SemanticScreenReader.Announce(announcement);
         });
     }
 
