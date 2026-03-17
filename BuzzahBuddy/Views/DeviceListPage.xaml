@@ -199,7 +199,8 @@
 
                 <!-- Device List -->
                 <CollectionView ItemsSource="{Binding AvailableDevices}"
-                                SelectionMode="None">
+                                SelectionMode="None"
+                                ItemSizingStrategy="MeasureFirstItem">
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="models:GloveDevice">
                     <Border Padding="15"

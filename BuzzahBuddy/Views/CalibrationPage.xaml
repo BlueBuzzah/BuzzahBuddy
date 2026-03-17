@@ -239,6 +239,7 @@
                                         FontAttributes="Bold"
                                         CornerRadius="12"
                                         BackgroundColor="{StaticResource Primary}"
+                                        SemanticProperties.Description="Left thumb"
                                         SemanticProperties.Hint="Test left thumb motor"
                                         AutomationId="LeftThumbButton">
                                     <Button.CommandParameter>
@@ -255,6 +256,7 @@
                                         FontAttributes="Bold"
                                         CornerRadius="12"
                                         BackgroundColor="{StaticResource Primary}"
+                                        SemanticProperties.Description="Left index finger"
                                         SemanticProperties.Hint="Test left index finger motor"
                                         AutomationId="LeftIndexButton">
                                     <Button.CommandParameter>
@@ -271,6 +273,7 @@
                                         FontAttributes="Bold"
                                         CornerRadius="12"
                                         BackgroundColor="{StaticResource Primary}"
+                                        SemanticProperties.Description="Left middle finger"
                                         SemanticProperties.Hint="Test left middle finger motor"
                                         AutomationId="LeftMiddleButton">
                                     <Button.CommandParameter>
@@ -287,6 +290,7 @@
                                         FontAttributes="Bold"
                                         CornerRadius="12"
                                         BackgroundColor="{StaticResource Primary}"
+                                        SemanticProperties.Description="Left ring finger"
                                         SemanticProperties.Hint="Test left ring finger motor"
                                         AutomationId="LeftRingButton">
                                     <Button.CommandParameter>
@@ -313,6 +317,7 @@
                                         FontAttributes="Bold"
                                         CornerRadius="12"
                                         BackgroundColor="{StaticResource Secondary}"
+                                        SemanticProperties.Description="Right thumb"
                                         SemanticProperties.Hint="Test right thumb motor"
                                         AutomationId="RightThumbButton">
                                     <Button.CommandParameter>
@@ -329,6 +334,7 @@
                                         FontAttributes="Bold"
                                         CornerRadius="12"
                                         BackgroundColor="{StaticResource Secondary}"
+                                        SemanticProperties.Description="Right index finger"
                                         SemanticProperties.Hint="Test right index finger motor"
                                         AutomationId="RightIndexButton">
                                     <Button.CommandParameter>
@@ -345,6 +351,7 @@
                                         FontAttributes="Bold"
                                         CornerRadius="12"
                                         BackgroundColor="{StaticResource Secondary}"
+                                        SemanticProperties.Description="Right middle finger"
                                         SemanticProperties.Hint="Test right middle finger motor"
                                         AutomationId="RightMiddleButton">
                                     <Button.CommandParameter>
@@ -361,6 +368,7 @@
                                         FontAttributes="Bold"
                                         CornerRadius="12"
                                         BackgroundColor="{StaticResource Secondary}"
+                                        SemanticProperties.Description="Right ring finger"
                                         SemanticProperties.Hint="Test right ring finger motor"
                                         AutomationId="RightRingButton">
                                     <Button.CommandParameter>
