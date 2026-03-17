@@ -19,9 +19,7 @@
                     BackgroundColor="{StaticResource Warning}"
                     StrokeThickness="0"
                     Padding="12,8"
-                    Margin="0,0,0,8"
-                    SemanticProperties.Description="Reconnecting to device"
-                    SemanticProperties.Hint="The app is attempting to reconnect to your BlueBuzzah gloves">
+                    Margin="0,0,0,8">
                 <Border.StrokeShape>
                     <RoundRectangle CornerRadius="8" />
                 </Border.StrokeShape>
@@ -77,8 +75,7 @@
                    IsVisible="{Binding SessionWarningMessage, Converter={StaticResource IsNotNullConverter}}"
                    TextColor="{StaticResource Warning}"
                    FontSize="12"
-                   HorizontalTextAlignment="Center"
-                   SemanticProperties.Description="Session status warning" />
+                   HorizontalTextAlignment="Center" />
 
             <!-- Battery Status (Streamlined) -->
             <Border Padding="15"

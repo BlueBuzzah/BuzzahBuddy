@@ -195,8 +195,7 @@
                        TextColor="{StaticResource TextMuted}"
                        FontSize="14"
                        HorizontalTextAlignment="Center"
-                       Margin="20"
-                       SemanticProperties.Description="Scan result status" />
+                       Margin="20" />
 
                 <!-- Device List -->
                 <CollectionView ItemsSource="{Binding AvailableDevices}"
@@ -215,14 +214,12 @@
                             <Label Grid.Row="0" Grid.Column="0"
                                    Text="{Binding Name}"
                                    FontSize="18"
-                                   FontAttributes="Bold"
-                                   SemanticProperties.Description="Device name" />
+                                   FontAttributes="Bold" />
 
                             <Label Grid.Row="1" Grid.Column="0"
                                    Text="{Binding SignalStrengthDisplay}"
                                    FontSize="14"
-                                   TextColor="{StaticResource TextMuted}"
-                                   SemanticProperties.Description="Signal strength indicator" />
+                                   TextColor="{StaticResource TextMuted}" />
 
                             <!-- Connect Button -->
                             <Button Grid.Row="0" Grid.RowSpan="2" Grid.Column="1"
