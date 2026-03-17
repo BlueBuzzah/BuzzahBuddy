@@ -1,3 +1,4 @@
+using BuzzahBuddy.Helpers;
 using BuzzahBuddy.Models;
 using BuzzahBuddy.Services.Bluetooth;
 using BuzzahBuddy.Services.Storage;
@@ -78,7 +79,7 @@ public partial class DeviceListViewModel : BaseViewModel
         _bluetoothService.ConnectionStateChanged += OnConnectionStateChanged;
 
         // Check Bluetooth status and initial connection state
-        CheckBluetoothStatus();
+        CheckBluetoothStatusAsync().SafeFireAndForget("[DEVICELIST]");
         UpdateConnectionState();
     }
 
@@ -305,7 +306,7 @@ public partial class DeviceListViewModel : BaseViewModel
         }
     }
 
-    private async void CheckBluetoothStatus()
+    private async Task CheckBluetoothStatusAsync()
     {
         BluetoothEnabled = await _bluetoothService.IsBluetoothEnabledAsync();
     }

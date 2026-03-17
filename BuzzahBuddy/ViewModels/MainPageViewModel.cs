@@ -1,3 +1,4 @@
+using BuzzahBuddy.Helpers;
 using BuzzahBuddy.Models;
 using BuzzahBuddy.Services.Bluetooth;
 using BuzzahBuddy.Services.Glove;
@@ -178,12 +179,12 @@ public partial class MainPageViewModel : BaseViewModel
     /// <summary>
     /// Color for primary battery indicator.
     /// </summary>
-    public Color BatteryPrimaryColor => GetBatteryColor(BatteryPrimaryPercentage);
+    public Color BatteryPrimaryColor => BatteryHelper.GetBatteryColor(BatteryPrimaryPercentage);
 
     /// <summary>
     /// Color for secondary battery indicator.
     /// </summary>
-    public Color BatterySecondaryColor => GetBatteryColor(BatterySecondaryPercentage);
+    public Color BatterySecondaryColor => BatteryHelper.GetBatteryColor(BatterySecondaryPercentage);
 
     /// <summary>
     /// Accessibility description for battery status.
@@ -212,7 +213,7 @@ public partial class MainPageViewModel : BaseViewModel
         System.Diagnostics.Debug.WriteLine("[MAINPAGE] ViewModel created, subscribed to events");
 
         // Initialize state
-        _ = UpdateDashboardStateAsync();
+        UpdateDashboardStateAsync().SafeFireAndForget("[MAINPAGE]");
     }
 
     #region Commands
@@ -362,7 +363,7 @@ public partial class MainPageViewModel : BaseViewModel
     public void RefreshConnectionState()
     {
         System.Diagnostics.Debug.WriteLine("[MAINPAGE] RefreshConnectionState called (OnAppearing)");
-        _ = UpdateDashboardStateAsync();
+        UpdateDashboardStateAsync().SafeFireAndForget("[MAINPAGE]");
     }
 
     private async Task UpdateDashboardStateAsync()
@@ -390,7 +391,7 @@ public partial class MainPageViewModel : BaseViewModel
             };
 
             // Refresh battery in background
-            _ = RefreshBatteryAsync();
+            RefreshBatteryAsync().SafeFireAndForget("[MAINPAGE]");
         }
         else
         {
@@ -410,8 +411,6 @@ public partial class MainPageViewModel : BaseViewModel
 
         // Notify all computed properties
         NotifyComputedPropertiesChanged();
-
-        await Task.CompletedTask;
     }
 
     private async Task RefreshBatteryAsync()
@@ -419,8 +418,8 @@ public partial class MainPageViewModel : BaseViewModel
         try
         {
             var (primaryVoltage, secondaryVoltage) = await _gloveControlService.GetBatteryAsync();
-            BatteryPrimaryPercentage = VoltageToPercentage(primaryVoltage);
-            BatterySecondaryPercentage = VoltageToPercentage(secondaryVoltage);
+            BatteryPrimaryPercentage = BatteryHelper.VoltageToPercentage(primaryVoltage);
+            BatterySecondaryPercentage = BatteryHelper.VoltageToPercentage(secondaryVoltage);
 
             OnPropertyChanged(nameof(BatteryPrimaryColor));
             OnPropertyChanged(nameof(BatterySecondaryColor));
@@ -471,26 +470,9 @@ public partial class MainPageViewModel : BaseViewModel
     {
         MainThread.BeginInvokeOnMainThread(() =>
         {
-            switch (e.State)
-            {
-                case ReconnectionState.Reconnecting:
-                    IsReconnecting = true;
-                    ReconnectionMessage = $"Reconnecting to BlueBuzzah... (attempt {e.Attempt}/{e.MaxAttempts})";
-                    break;
-                case ReconnectionState.Succeeded:
-                    IsReconnecting = false;
-                    ReconnectionMessage = string.Empty;
-                    break;
-                case ReconnectionState.Failed:
-                    IsReconnecting = false;
-                    ReconnectionMessage = e.Message ?? "Connection lost. Tap to reconnect.";
-                    break;
-                case ReconnectionState.Cancelled:
-                case ReconnectionState.Idle:
-                    IsReconnecting = false;
-                    ReconnectionMessage = string.Empty;
-                    break;
-            }
+            var (isReconnecting, message) = ReconnectionHelper.MapReconnectionState(e);
+            IsReconnecting = isReconnecting;
+            ReconnectionMessage = message;
         });
     }
 
@@ -515,37 +497,6 @@ public partial class MainPageViewModel : BaseViewModel
 
             NotifyComputedPropertiesChanged();
         });
-    }
-
-    #endregion
-
-    #region Helpers
-
-    /// <summary>
-    /// Converts battery voltage to percentage estimate.
-    /// </summary>
-    private static int VoltageToPercentage(double voltage)
-    {
-        const double minVoltage = 3.0;
-        const double maxVoltage = 4.2;
-
-        if (voltage <= minVoltage) return 0;
-        if (voltage >= maxVoltage) return 100;
-
-        return (int)((voltage - minVoltage) / (maxVoltage - minVoltage) * 100);
-    }
-
-    /// <summary>
-    /// Gets the appropriate color for battery level.
-    /// </summary>
-    private static Color GetBatteryColor(int percentage)
-    {
-        return percentage switch
-        {
-            >= 60 => Colors.Green,
-            >= 20 => Colors.Orange,
-            _ => Colors.Red
-        };
     }
 
     #endregion

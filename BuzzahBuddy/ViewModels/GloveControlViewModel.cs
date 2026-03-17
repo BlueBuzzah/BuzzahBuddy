@@ -1,3 +1,4 @@
+using BuzzahBuddy.Helpers;
 using BuzzahBuddy.Models;
 using BuzzahBuddy.Services.Bluetooth;
 using BuzzahBuddy.Services.Glove;
@@ -93,13 +94,13 @@ public partial class GloveControlViewModel : BaseViewModel
     /// Accessibility description for the primary battery status.
     /// </summary>
     public string BatteryPrimaryDescription =>
-        $"Primary battery: {BatteryPrimaryPercentage} percent, {GetBatteryStatusText(BatteryPrimaryVoltage)}";
+        $"Primary battery: {BatteryPrimaryPercentage} percent, {BatteryHelper.GetBatteryStatusText(BatteryPrimaryVoltage)}";
 
     /// <summary>
     /// Accessibility description for the secondary battery status.
     /// </summary>
     public string BatterySecondaryDescription =>
-        $"Secondary battery: {BatterySecondaryPercentage} percent, {GetBatteryStatusText(BatterySecondaryVoltage)}";
+        $"Secondary battery: {BatterySecondaryPercentage} percent, {BatteryHelper.GetBatteryStatusText(BatterySecondaryVoltage)}";
 
     [ObservableProperty]
     private bool _showBatteryRefresh = true;
@@ -184,7 +185,7 @@ public partial class GloveControlViewModel : BaseViewModel
         _reconnectionService.ReconnectionStateChanged += OnReconnectionStateChanged;
 
         // Initialize
-        _ = LoadProfilesAsync();
+        LoadProfilesAsync().SafeFireAndForget("[GLOVECONTROL]");
         UpdateConnectionState();
     }
 
@@ -420,15 +421,15 @@ public partial class GloveControlViewModel : BaseViewModel
             BatterySecondaryVoltage = secondaryVoltage;
 
             // Calculate percentages (3.0V = 0%, 4.2V = 100%)
-            BatteryPrimaryPercentage = VoltageToPercentage(primaryVoltage);
-            BatterySecondaryPercentage = VoltageToPercentage(secondaryVoltage);
+            BatteryPrimaryPercentage = BatteryHelper.VoltageToPercentage(primaryVoltage);
+            BatterySecondaryPercentage = BatteryHelper.VoltageToPercentage(secondaryVoltage);
 
             // Debug: Log calculated percentages
             System.Diagnostics.Debug.WriteLine($"[BATTERY] Percentages - Primary: {BatteryPrimaryPercentage}%, Secondary: {BatterySecondaryPercentage}%");
 
             // Update colors based on voltage thresholds
-            BatteryPrimaryColor = GetBatteryColor(primaryVoltage);
-            BatterySecondaryColor = GetBatteryColor(secondaryVoltage);
+            BatteryPrimaryColor = BatteryHelper.GetBatteryColorFromVoltage(primaryVoltage);
+            BatterySecondaryColor = BatteryHelper.GetBatteryColorFromVoltage(secondaryVoltage);
 
             // Notify accessibility description properties
             OnPropertyChanged(nameof(BatteryPrimaryDescription));
@@ -453,17 +454,6 @@ public partial class GloveControlViewModel : BaseViewModel
             IsRefreshingBattery = false;
             IsBusy = false;
         }
-    }
-
-    private static int VoltageToPercentage(double voltage)
-    {
-        const double minVoltage = 3.0;
-        const double maxVoltage = 4.2;
-
-        if (voltage <= minVoltage) return 0;
-        if (voltage >= maxVoltage) return 100;
-
-        return (int)((voltage - minVoltage) / (maxVoltage - minVoltage) * 100);
     }
 
     partial void OnSelectedProfileChanged(TherapyProfile? value)
@@ -730,7 +720,7 @@ public partial class GloveControlViewModel : BaseViewModel
 
         if (IsConnected)
         {
-            _ = RefreshBatteryAsync();
+            RefreshBatteryAsync().SafeFireAndForget("[GLOVECONTROL]");
             StartConnectionHealthCheck();
         }
         else
@@ -772,20 +762,6 @@ public partial class GloveControlViewModel : BaseViewModel
                 }
             }
         });
-    }
-
-    private static Color GetBatteryColor(double voltage)
-    {
-        if (voltage > BlueBuzzahConstants.BatteryGoodThreshold) return Colors.Green;
-        if (voltage >= BlueBuzzahConstants.BatteryMediumThreshold) return Colors.Orange;
-        return Colors.Red;
-    }
-
-    private static string GetBatteryStatusText(double voltage)
-    {
-        if (voltage > BlueBuzzahConstants.BatteryGoodThreshold) return "good";
-        if (voltage >= BlueBuzzahConstants.BatteryMediumThreshold) return "low";
-        return "critical";
     }
 
     private async Task HandleSessionCompletionAsync()
@@ -881,29 +857,15 @@ public partial class GloveControlViewModel : BaseViewModel
     {
         MainThread.BeginInvokeOnMainThread(() =>
         {
-            switch (e.State)
-            {
-                case ReconnectionState.Reconnecting:
-                    IsReconnecting = true;
-                    ReconnectionMessage = $"Reconnecting to BlueBuzzah... (attempt {e.Attempt}/{e.MaxAttempts})";
-                    StopStatusPolling();
-                    break;
-                case ReconnectionState.Succeeded:
-                    IsReconnecting = false;
-                    ReconnectionMessage = string.Empty;
-                    if (IsSessionActive)
-                        StartStatusPolling();
-                    break;
-                case ReconnectionState.Failed:
-                    IsReconnecting = false;
-                    ReconnectionMessage = e.Message ?? "Connection lost. Tap to reconnect.";
-                    break;
-                case ReconnectionState.Cancelled:
-                case ReconnectionState.Idle:
-                    IsReconnecting = false;
-                    ReconnectionMessage = string.Empty;
-                    break;
-            }
+            var (isReconnecting, message) = ReconnectionHelper.MapReconnectionState(e);
+            IsReconnecting = isReconnecting;
+            ReconnectionMessage = message;
+
+            // GloveControl-specific: manage polling during reconnection
+            if (e.State == ReconnectionState.Reconnecting)
+                StopStatusPolling();
+            else if (e.State == ReconnectionState.Succeeded && IsSessionActive)
+                StartStatusPolling();
         });
     }
 
