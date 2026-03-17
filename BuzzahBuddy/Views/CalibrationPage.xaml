@@ -39,7 +39,8 @@
                                 IsEnabled="{Binding IsInCalibrationMode, Converter={StaticResource InvertedBoolConverter}}"
                                 Style="{StaticResource SecondaryButton}"
                                 BackgroundColor="{StaticResource Primary}"
-                                SemanticProperties.Hint="Enter calibration mode to test finger motors"
+                                SemanticProperties.Description="Enter calibration mode to test and adjust finger motors"
+                                SemanticProperties.Hint="Double tap to enter calibration mode"
                                 AutomationId="EnterCalibrationButton" />
 
                         <Button Grid.Column="1"
@@ -48,7 +49,8 @@
                                 IsEnabled="{Binding IsInCalibrationMode}"
                                 Style="{StaticResource SecondaryButton}"
                                 BackgroundColor="{StaticResource Secondary}"
-                                SemanticProperties.Hint="Exit calibration mode"
+                                SemanticProperties.Description="Exit calibration mode and return to normal operation"
+                                SemanticProperties.Hint="Double tap to exit calibration mode"
                                 AutomationId="ExitCalibrationButton" />
                     </Grid>
 
@@ -56,7 +58,9 @@
                            FontSize="14"
                            FontAttributes="Bold"
                            HorizontalOptions="Center"
-                           TextColor="{StaticResource Primary}" />
+                           TextColor="{StaticResource Primary}"
+                           SemanticProperties.Description="{Binding IsInCalibrationMode, StringFormat='Calibration mode is {0}'}"
+                           AutomationId="CalibrationStatusLabel" />
                 </VerticalStackLayout>
             </Border>
 
@@ -211,7 +215,9 @@
                         <Border Padding="10"
                                 BackgroundColor="{StaticResource Primary}"
                                 StrokeThickness="0"
-                                IsVisible="{Binding IsBuzzing}">
+                                IsVisible="{Binding IsBuzzing}"
+                                SemanticProperties.Description="{Binding SelectedFingerName, StringFormat='Currently testing: {0}'}"
+                                AutomationId="TestingFingerBanner">
                             <Border.StrokeShape>
                                 <RoundRectangle CornerRadius="8" />
                             </Border.StrokeShape>
@@ -219,7 +225,8 @@
                                    FontSize="16"
                                    FontAttributes="Bold"
                                    TextColor="White"
-                                   HorizontalOptions="Center" />
+                                   HorizontalOptions="Center"
+                                   AutomationProperties.IsInAccessibleTree="False" />
                         </Border>
 
                         <!-- Left Hand -->
@@ -387,7 +394,8 @@
                                 IsEnabled="{Binding CurrentStep, Converter={StaticResource GreaterThanConverter}, ConverterParameter=1}"
                                 Style="{StaticResource TertiaryButton}"
                                 BackgroundColor="{StaticResource Secondary}"
-                                SemanticProperties.Description="Go to previous step"
+                                SemanticProperties.Description="Go to previous calibration step"
+                                SemanticProperties.Hint="Double tap to go back"
                                 AutomationId="PreviousStepButton" />
 
                         <Button Grid.Column="1"
@@ -396,7 +404,8 @@
                                 IsEnabled="{Binding CurrentStep, Converter={StaticResource LessThanConverter}, ConverterParameter=3}"
                                 Style="{StaticResource TertiaryButton}"
                                 BackgroundColor="{StaticResource Primary}"
-                                SemanticProperties.Description="Go to next step"
+                                SemanticProperties.Description="Go to next calibration step"
+                                SemanticProperties.Hint="Double tap to advance"
                                 AutomationId="NextStepButton" />
                     </Grid>
                 </VerticalStackLayout>

@@ -12,25 +12,29 @@
             Title="Home"
             Icon="home"
             ContentTemplate="{DataTemplate local:MainPage}"
-            Route="home" />
+            Route="home"
+            AutomationId="HomeTab" />
 
         <ShellContent
             Title="Control"
             Icon="glove"
             ContentTemplate="{DataTemplate views:GloveControlPage}"
-            Route="control" />
+            Route="control"
+            AutomationId="ControlTab" />
 
         <ShellContent
             Title="Devices"
             Icon="bluetooth"
             ContentTemplate="{DataTemplate views:DeviceListPage}"
-            Route="devices" />
+            Route="devices"
+            AutomationId="DevicesTab" />
 
         <ShellContent
             Title="Settings"
             Icon="gear"
             ContentTemplate="{DataTemplate views:SettingsPage}"
-            Route="settings" />
+            Route="settings"
+            AutomationId="SettingsTab" />
     </TabBar>
 
 </Shell>

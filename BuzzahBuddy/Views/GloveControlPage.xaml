@@ -19,7 +19,10 @@
                     BackgroundColor="{StaticResource Warning}"
                     StrokeThickness="0"
                     Padding="12,8"
-                    Margin="0,0,0,8">
+                    Margin="0,0,0,8"
+                    SemanticProperties.Description="{Binding ReconnectionMessage}"
+                    SemanticProperties.Hint="Tap to go to devices page"
+                    AutomationId="ReconnectionBanner">
                 <Border.StrokeShape>
                     <RoundRectangle CornerRadius="8" />
                 </Border.StrokeShape>
@@ -29,7 +32,8 @@
                 <Label Text="{Binding ReconnectionMessage}"
                        TextColor="{StaticResource Black}"
                        FontSize="14"
-                       HorizontalTextAlignment="Center" />
+                       HorizontalTextAlignment="Center"
+                       AutomationProperties.IsInAccessibleTree="False" />
             </Border>
 
             <!-- Header -->
@@ -60,7 +64,9 @@
 
                     <ProgressBar Progress="{Binding SessionStatus.Progress}"
                                  HeightRequest="8"
-                                 ProgressColor="{StaticResource Primary}" />
+                                 ProgressColor="{StaticResource Primary}"
+                                 SemanticProperties.Description="Session progress"
+                                 AutomationId="SessionProgressBar" />
 
                     <HorizontalStackLayout Spacing="20" HorizontalOptions="Center">
                         <Label Text="{Binding SessionStatus.ElapsedTimeFormatted, StringFormat='Elapsed: {0}'}"
@@ -74,8 +80,10 @@
             <Label Text="{Binding SessionWarningMessage}"
                    IsVisible="{Binding SessionWarningMessage, Converter={StaticResource IsNotNullConverter}}"
                    TextColor="{StaticResource Warning}"
-                   FontSize="12"
-                   HorizontalTextAlignment="Center" />
+                   FontSize="14"
+                   HorizontalTextAlignment="Center"
+                   SemanticProperties.Description="{Binding SessionWarningMessage}"
+                   AutomationId="SessionWarningLabel" />
 
             <!-- Battery Status (Streamlined) -->
             <Border Padding="15"
@@ -94,12 +102,15 @@
 
                     <HorizontalStackLayout Spacing="15" HorizontalOptions="Center">
                         <!-- Primary Glove -->
-                        <HorizontalStackLayout Spacing="8">
+                        <HorizontalStackLayout Spacing="8"
+                                               SemanticProperties.Description="{Binding BatteryPrimaryPercentage, StringFormat='Primary battery: {0} percent'}">
                             <Label Text="●"
                                    FontSize="16"
                                    TextColor="{Binding BatteryPrimaryColor}"
-                                   VerticalOptions="Center" />
-                            <Label VerticalOptions="Center">
+                                   VerticalOptions="Center"
+                                   AutomationProperties.IsInAccessibleTree="False" />
+                            <Label VerticalOptions="Center"
+                                   AutomationProperties.IsInAccessibleTree="False">
                                 <Label.FormattedText>
                                     <FormattedString>
                                         <Span Text="Primary: " FontSize="14" />
@@ -115,12 +126,15 @@
                         </HorizontalStackLayout>
 
                         <!-- Secondary Glove -->
-                        <HorizontalStackLayout Spacing="8">
+                        <HorizontalStackLayout Spacing="8"
+                                               SemanticProperties.Description="{Binding BatterySecondaryPercentage, StringFormat='Secondary battery: {0} percent'}">
                             <Label Text="●"
                                    FontSize="16"
                                    TextColor="{Binding BatterySecondaryColor}"
-                                   VerticalOptions="Center" />
-                            <Label VerticalOptions="Center">
+                                   VerticalOptions="Center"
+                                   AutomationProperties.IsInAccessibleTree="False" />
+                            <Label VerticalOptions="Center"
+                                   AutomationProperties.IsInAccessibleTree="False">
                                 <Label.FormattedText>
                                     <FormattedString>
                                         <Span Text="Secondary: " FontSize="14" />
@@ -144,7 +158,7 @@
                                            SemanticProperties.Description="Refreshing battery status" />
                         <Button Text="🔄 Refresh"
                                 Command="{Binding RefreshBatteryCommand}"
-                                HeightRequest="40"
+                                HeightRequest="48"
                                 FontSize="14"
                                 CornerRadius="8"
                                 HorizontalOptions="Center"
@@ -193,7 +207,9 @@
                             <Border Padding="20"
                                     BackgroundColor="{StaticResource CardBackground}"
                                     StrokeThickness="2"
-                                    Stroke="{StaticResource CardBorder}">
+                                    Stroke="{StaticResource CardBorder}"
+                                    SemanticProperties.Description="{Binding DisplayName}"
+                                    SemanticProperties.Hint="Tap to select this therapy profile">
                                 <Border.StrokeShape>
                                     <RoundRectangle CornerRadius="12" />
                                 </Border.StrokeShape>
@@ -212,7 +228,8 @@
                                             BackgroundColor="{StaticResource Primary}"
                                             VerticalOptions="Center"
                                             HorizontalOptions="Center"
-                                            IsVisible="{Binding IsSelected}">
+                                            IsVisible="{Binding IsSelected}"
+                                            AutomationProperties.IsInAccessibleTree="False">
                                         <Border.StrokeShape>
                                             <RoundRectangle CornerRadius="28" />
                                         </Border.StrokeShape>
@@ -230,14 +247,16 @@
                                            Text="{Binding Name}"
                                            FontSize="20"
                                            FontAttributes="Bold"
-                                           TextColor="{StaticResource TextPrimary}" />
+                                           TextColor="{StaticResource TextPrimary}"
+                                           AutomationProperties.IsInAccessibleTree="False" />
 
                                     <!-- Profile Description -->
                                     <Label Grid.Row="1" Grid.Column="1"
                                            Text="{Binding Description}"
                                            FontSize="15"
                                            TextColor="{StaticResource TextMuted}"
-                                           LineBreakMode="WordWrap" />
+                                           LineBreakMode="WordWrap"
+                                           AutomationProperties.IsInAccessibleTree="False" />
                                 </Grid>
                             </Border>
                         </DataTemplate>
@@ -256,11 +275,13 @@
                     <HorizontalStackLayout Spacing="12">
                         <Label Text="ℹ️"
                                FontSize="24"
-                               VerticalOptions="Center" />
+                               VerticalOptions="Center"
+                               AutomationProperties.IsInAccessibleTree="False" />
                         <Label Text="Please select a therapy profile above to begin."
                                Style="{StaticResource BodyText}"
                                LineBreakMode="WordWrap"
-                               VerticalOptions="Center" />
+                               VerticalOptions="Center"
+                               SemanticProperties.Description="Please select a therapy profile above to begin" />
                     </HorizontalStackLayout>
                 </Border>
             </VerticalStackLayout>
@@ -406,13 +427,14 @@
                 <HorizontalStackLayout Spacing="10">
                     <Label Text="ℹ️"
                            FontSize="20"
-                           VerticalOptions="Center" />
+                           VerticalOptions="Center"
+                           AutomationProperties.IsInAccessibleTree="False" />
                     <Label FontSize="14"
                            LineBreakMode="WordWrap"
                            Text="Select a therapy profile above to begin."
                            TextColor="{StaticResource TextMuted}"
                            VerticalOptions="Center"
-                           SemanticProperties.Description="Usage instructions" />
+                           SemanticProperties.Description="Select a therapy profile above to begin" />
                 </HorizontalStackLayout>
             </Border>
 

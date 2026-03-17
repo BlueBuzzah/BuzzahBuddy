@@ -70,9 +70,9 @@
     <Color x:Key="PastelInfo">#6bb3d4</Color>
     <Color x:Key="PastelInfoDark">#96cde5</Color>
 
-    <!-- Saturated Button Colors (WCAG AA with dark text) -->
+    <!-- Saturated Button Colors (WCAG AA Compliant) -->
     <Color x:Key="DangerButton">#dc2626</Color>
-    <Color x:Key="DangerButtonText">#0a0a0a</Color>
+    <Color x:Key="DangerButtonText">#fafafa</Color>
     <Color x:Key="WarningButton">#d97706</Color>
     <Color x:Key="WarningButtonText">#0a0a0a</Color>
 

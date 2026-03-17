@@ -42,7 +42,8 @@
                                 HeightRequest="48"
                                 CornerRadius="8"
                                 BackgroundColor="{StaticResource Primary}"
-                                SemanticProperties.Hint="Navigate to motor calibration page"
+                                SemanticProperties.Description="Open motor calibration for testing individual finger motors"
+                                SemanticProperties.Hint="Double tap to navigate to calibration"
                                 AutomationId="CalibrateMotorsButton" />
 
                         <Button Text="Disconnect"
@@ -52,14 +53,16 @@
                                 CornerRadius="8"
                                 BackgroundColor="{StaticResource DangerButton}"
                                 TextColor="{StaticResource DangerButtonText}"
-                                SemanticProperties.Hint="Disconnect from current device"
+                                SemanticProperties.Description="Disconnect from the currently connected glove device"
+                                SemanticProperties.Hint="Double tap to disconnect"
                                 AutomationId="DisconnectButton" />
 
                         <Button Text="Find Devices"
                                 Command="{Binding NavigateToDevicesCommand}"
                                 HeightRequest="48"
                                 CornerRadius="8"
-                                SemanticProperties.Hint="Navigate to device scanning page"
+                                SemanticProperties.Description="Scan for and connect to BlueBuzzah glove devices"
+                                SemanticProperties.Hint="Double tap to navigate to device scanning"
                                 AutomationId="FindDevicesButton" />
                     </VerticalStackLayout>
                 </Border>
@@ -80,30 +83,32 @@
                     </Border.StrokeShape>
 
                     <VerticalStackLayout Spacing="15">
-                        <Grid ColumnDefinitions="*,Auto">
+                        <Grid ColumnDefinitions="*,Auto" MinimumHeightRequest="48">
                             <Label Grid.Column="0"
                                    Text="Enable Notifications"
                                    FontSize="16"
                                    VerticalOptions="Center"
-                                   SemanticProperties.Description="Toggle notifications" />
+                                   SemanticProperties.Description="Enable notifications toggle" />
                             <Switch Grid.Column="1"
                                     IsToggled="{Binding EnableNotifications}"
                                     VerticalOptions="Center"
-                                    SemanticProperties.Hint="Enable or disable notifications"
+                                    SemanticProperties.Description="Enable notifications"
+                                    SemanticProperties.Hint="Double tap to toggle notifications on or off"
                                     AutomationId="NotificationsSwitch" />
                         </Grid>
 
-                        <Grid ColumnDefinitions="*,Auto">
+                        <Grid ColumnDefinitions="*,Auto" MinimumHeightRequest="48">
                             <Label Grid.Column="0"
                                    Text="Auto-Connect to Last Device"
                                    FontSize="16"
                                    VerticalOptions="Center"
                                    LineBreakMode="WordWrap"
-                                   SemanticProperties.Description="Toggle auto-connect" />
+                                   SemanticProperties.Description="Auto-connect toggle" />
                             <Switch Grid.Column="1"
                                     IsToggled="{Binding AutoConnect}"
                                     VerticalOptions="Center"
-                                    SemanticProperties.Hint="Automatically connect to last used device on startup"
+                                    SemanticProperties.Description="Auto-connect to last device"
+                                    SemanticProperties.Hint="Double tap to toggle automatic connection to last used device"
                                     AutomationId="AutoConnectSwitch" />
                         </Grid>
                     </VerticalStackLayout>

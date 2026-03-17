@@ -87,7 +87,8 @@
                     <!-- Icon -->
                     <Label Text="📱"
                            FontSize="64"
-                           HorizontalOptions="Center" />
+                           HorizontalOptions="Center"
+                           AutomationProperties.IsInAccessibleTree="False" />
 
                     <!-- Heading -->
                     <Label Text="Ready to Connect"
@@ -112,7 +113,8 @@
                                        HeightRequest="64"
                                        WidthRequest="64"
                                        Color="{StaticResource Primary}"
-                                       HorizontalOptions="Center" />
+                                       HorizontalOptions="Center"
+                                       SemanticProperties.Description="Scanning for nearby Bluetooth devices" />
 
                     <!-- Heading -->
                     <Label Text="Scanning for Devices..."
@@ -143,7 +145,8 @@
                     <!-- Icon -->
                     <Label Text="🔍"
                            FontSize="64"
-                           HorizontalOptions="Center" />
+                           HorizontalOptions="Center"
+                           AutomationProperties.IsInAccessibleTree="False" />
 
                     <!-- Heading -->
                     <Label Text="No Devices Found"
@@ -185,7 +188,9 @@
                        TextColor="{StaticResource TextMuted}"
                        FontSize="14"
                        HorizontalTextAlignment="Center"
-                       Margin="20" />
+                       Margin="20"
+                       SemanticProperties.Description="{Binding ScanStatusMessage}"
+                       AutomationId="ScanStatusLabel" />
 
                 <!-- Device List -->
                 <CollectionView ItemsSource="{Binding AvailableDevices}"
@@ -221,7 +226,8 @@
                                     CornerRadius="8"
                                     VerticalOptions="Center"
                                     IsEnabled="{Binding BindingContext.IsConnecting, Source={x:Reference page}, Converter={StaticResource InvertedBoolConverter}}"
-                                    SemanticProperties.Hint="Connect to this device"
+                                    SemanticProperties.Description="Connect to this Bluetooth device"
+                                    SemanticProperties.Hint="Double tap to connect"
                                     AutomationId="ConnectDeviceButton" />
                         </Grid>
                     </Border>
@@ -248,16 +254,19 @@
                 InputTransparent="False">
             <VerticalStackLayout Spacing="15"
                                 HorizontalOptions="Center"
-                                VerticalOptions="Center">
+                                VerticalOptions="Center"
+                                SemanticProperties.Description="Connecting to device, please wait">
                 <ActivityIndicator IsRunning="{Binding IsConnecting}"
                                  Color="White"
                                  HeightRequest="50"
-                                 WidthRequest="50" />
+                                 WidthRequest="50"
+                                 SemanticProperties.Description="Connection in progress" />
                 <Label Text="Connecting to device..."
                        TextColor="White"
                        FontSize="18"
                        FontAttributes="Bold"
-                       HorizontalTextAlignment="Center" />
+                       HorizontalTextAlignment="Center"
+                       AutomationProperties.IsInAccessibleTree="False" />
             </VerticalStackLayout>
         </Border>
 

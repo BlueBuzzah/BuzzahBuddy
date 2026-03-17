@@ -34,7 +34,10 @@
                         BackgroundColor="{StaticResource Warning}"
                         StrokeThickness="0"
                         Padding="12,8"
-                        Margin="0,0,0,8">
+                        Margin="0,0,0,8"
+                        SemanticProperties.Description="{Binding ReconnectionMessage}"
+                        SemanticProperties.Hint="Tap to go to devices page"
+                        AutomationId="ReconnectionBanner">
                     <Border.StrokeShape>
                         <RoundRectangle CornerRadius="8" />
                     </Border.StrokeShape>
@@ -44,7 +47,8 @@
                     <Label Text="{Binding ReconnectionMessage}"
                            TextColor="{StaticResource Black}"
                            FontSize="14"
-                           HorizontalTextAlignment="Center" />
+                           HorizontalTextAlignment="Center"
+                           AutomationProperties.IsInAccessibleTree="False" />
                 </Border>
 
                 <!-- Welcome Guide (Disconnected State Only) -->
@@ -185,7 +189,9 @@
                         <!-- Progress Bar -->
                         <ProgressBar Progress="{Binding SessionProgressDecimal}"
                                      HeightRequest="12"
-                                     ProgressColor="{StaticResource Primary}" />
+                                     ProgressColor="{StaticResource Primary}"
+                                     SemanticProperties.Description="Therapy session progress"
+                                     AutomationId="SessionProgressBar" />
 
                         <!-- Progress Percentage and Remaining Time -->
                         <HorizontalStackLayout HorizontalOptions="Center" Spacing="20">
@@ -207,20 +213,24 @@
                                          HeightRequest="12"
                                          CornerRadius="6"
                                          Color="{Binding BatteryPrimaryColor}"
-                                         VerticalOptions="Center" />
+                                         VerticalOptions="Center"
+                                         AutomationProperties.IsInAccessibleTree="False" />
                                 <Label Text="{Binding BatteryPrimaryPercentage, StringFormat='Primary: {0}%'}"
                                        FontSize="14"
-                                       VerticalOptions="Center" />
+                                       VerticalOptions="Center"
+                                       SemanticProperties.Description="{Binding BatteryPrimaryPercentage, StringFormat='Primary battery: {0} percent'}" />
                             </HorizontalStackLayout>
                             <HorizontalStackLayout Spacing="6">
                                 <BoxView WidthRequest="12"
                                          HeightRequest="12"
                                          CornerRadius="6"
                                          Color="{Binding BatterySecondaryColor}"
-                                         VerticalOptions="Center" />
+                                         VerticalOptions="Center"
+                                         AutomationProperties.IsInAccessibleTree="False" />
                                 <Label Text="{Binding BatterySecondaryPercentage, StringFormat='Secondary: {0}%'}"
                                        FontSize="14"
-                                       VerticalOptions="Center" />
+                                       VerticalOptions="Center"
+                                       SemanticProperties.Description="{Binding BatterySecondaryPercentage, StringFormat='Secondary battery: {0} percent'}" />
                             </HorizontalStackLayout>
                         </HorizontalStackLayout>
                     </VerticalStackLayout>
@@ -260,43 +270,52 @@
                         <!-- Battery Status -->
                         <HorizontalStackLayout HorizontalOptions="Center"
                                                Spacing="20">
-                            <VerticalStackLayout Spacing="4" HorizontalOptions="Center">
+                            <VerticalStackLayout Spacing="4" HorizontalOptions="Center"
+                                                 SemanticProperties.Description="{Binding BatteryPrimaryPercentage, StringFormat='Primary battery: {0} percent'}">
                                 <Label Text="Primary"
                                        FontSize="12"
                                        TextColor="{StaticResource TextMuted}"
-                                       HorizontalOptions="Center" />
+                                       HorizontalOptions="Center"
+                                       AutomationProperties.IsInAccessibleTree="False" />
                                 <HorizontalStackLayout Spacing="8" HorizontalOptions="Center">
                                     <BoxView WidthRequest="16"
                                              HeightRequest="16"
                                              CornerRadius="8"
                                              Color="{Binding BatteryPrimaryColor}"
-                                             VerticalOptions="Center" />
+                                             VerticalOptions="Center"
+                                             AutomationProperties.IsInAccessibleTree="False" />
                                     <Label Text="{Binding BatteryPrimaryPercentage, StringFormat='{0}%'}"
                                            FontSize="20"
                                            FontAttributes="Bold"
-                                           VerticalOptions="Center" />
+                                           VerticalOptions="Center"
+                                           AutomationProperties.IsInAccessibleTree="False" />
                                 </HorizontalStackLayout>
                             </VerticalStackLayout>
 
                             <BoxView WidthRequest="1"
                                      HeightRequest="40"
-                                     Color="{StaticResource CardBorder}" />
+                                     Color="{StaticResource CardBorder}"
+                                     AutomationProperties.IsInAccessibleTree="False" />
 
-                            <VerticalStackLayout Spacing="4" HorizontalOptions="Center">
+                            <VerticalStackLayout Spacing="4" HorizontalOptions="Center"
+                                                 SemanticProperties.Description="{Binding BatterySecondaryPercentage, StringFormat='Secondary battery: {0} percent'}">
                                 <Label Text="Secondary"
                                        FontSize="12"
                                        TextColor="{StaticResource TextMuted}"
-                                       HorizontalOptions="Center" />
+                                       HorizontalOptions="Center"
+                                       AutomationProperties.IsInAccessibleTree="False" />
                                 <HorizontalStackLayout Spacing="8" HorizontalOptions="Center">
                                     <BoxView WidthRequest="16"
                                              HeightRequest="16"
                                              CornerRadius="8"
                                              Color="{Binding BatterySecondaryColor}"
-                                             VerticalOptions="Center" />
+                                             VerticalOptions="Center"
+                                             AutomationProperties.IsInAccessibleTree="False" />
                                     <Label Text="{Binding BatterySecondaryPercentage, StringFormat='{0}%'}"
                                            FontSize="20"
                                            FontAttributes="Bold"
-                                           VerticalOptions="Center" />
+                                           VerticalOptions="Center"
+                                           AutomationProperties.IsInAccessibleTree="False" />
                                 </HorizontalStackLayout>
                             </VerticalStackLayout>
                         </HorizontalStackLayout>
@@ -321,6 +340,7 @@
                         IsVisible="{Binding HasSecondaryCTA}"
                         BackgroundColor="{Binding SecondaryCTABackgroundColor}"
                         TextColor="{Binding SecondaryCTATextColor}"
+                        SemanticProperties.Description="{Binding SecondaryCTAText}"
                         SemanticProperties.Hint="Double tap to activate"
                         AutomationId="SecondaryCTAButton" />
 
