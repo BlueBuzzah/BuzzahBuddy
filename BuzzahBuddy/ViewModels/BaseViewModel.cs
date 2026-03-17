@@ -2,6 +2,9 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace BuzzahBuddy.ViewModels;
 
+// TODO (.NET 10): Migrate Shell.Current.DisplayAlert/DisplayActionSheet to *Async variants.
+// 46 calls across 5 ViewModels. Consider extracting IDialogService for testability.
+
 /// <summary>
 /// Base class for all ViewModels in the application.
 /// Provides common properties and functionality for MVVM pattern.
