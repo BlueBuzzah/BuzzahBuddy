@@ -1,6 +1,7 @@
 using BuzzahBuddy.Helpers;
 using BuzzahBuddy.Models;
 using BuzzahBuddy.Services.Bluetooth;
+using BuzzahBuddy.Services.ConnectionStateManagement;
 using BuzzahBuddy.Services.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -18,6 +19,11 @@ public partial class DeviceListViewModel : BaseViewModel
     private readonly IDataStorageService _storageService;
     private readonly IReconnectionService _reconnectionService;
     private CancellationTokenSource? _scanCancellationTokenSource;
+
+    /// <summary>
+    /// Centralized connection state service exposed for XAML binding.
+    /// </summary>
+    public IConnectionStateService ConnectionInfo { get; }
 
     [ObservableProperty]
     private ObservableCollection<GloveDevice> _availableDevices = new();
@@ -38,15 +44,6 @@ public partial class DeviceListViewModel : BaseViewModel
     private string? _connectingDeviceId;
 
     [ObservableProperty]
-    private bool _isAlreadyConnected;
-
-    [ObservableProperty]
-    private string? _connectedDeviceName;
-
-    [ObservableProperty]
-    private ConnectionState _connectionState = ConnectionState.Disconnected;
-
-    [ObservableProperty]
     private string _scanButtonText = "Scan for Devices";
 
     [ObservableProperty]
@@ -61,11 +58,13 @@ public partial class DeviceListViewModel : BaseViewModel
     public DeviceListViewModel(
         IBluetoothService bluetoothService,
         IDataStorageService storageService,
-        IReconnectionService reconnectionService)
+        IReconnectionService reconnectionService,
+        IConnectionStateService connectionStateService)
     {
         _bluetoothService = bluetoothService;
         _storageService = storageService;
         _reconnectionService = reconnectionService;
+        ConnectionInfo = connectionStateService;
 
         Title = "Devices";
 
@@ -215,12 +214,12 @@ public partial class DeviceListViewModel : BaseViewModel
     [RelayCommand]
     private async Task DisconnectAsync()
     {
-        if (!IsAlreadyConnected)
+        if (!ConnectionInfo.IsConnected)
             return;
 
         var confirm = await Shell.Current.DisplayAlert(
             "Disconnect Device",
-            $"Are you sure you want to disconnect from {ConnectedDeviceName}?",
+            $"Are you sure you want to disconnect from {ConnectionInfo.ConnectedDeviceName}?",
             "Disconnect",
             "Cancel");
 
@@ -230,6 +229,12 @@ public partial class DeviceListViewModel : BaseViewModel
         try
         {
             await _bluetoothService.DisconnectAsync();
+
+            // Explicitly update state after disconnect completes.
+            // Cannot rely solely on ConnectionStateChanged event due to race condition
+            // in BluetoothService where OnDeviceDisconnected fires before ConnectedDevice
+            // is nulled, and the finally block's UpdateConnectionState is then a no-op.
+            UpdateConnectionState();
 
             await Shell.Current.DisplayAlert(
                 "Disconnected",
@@ -276,9 +281,7 @@ public partial class DeviceListViewModel : BaseViewModel
                 await _storageService.SaveLastDeviceAsync(device);
                 SemanticScreenReader.Announce($"Connected to {device.Name}");
 
-                // Show brief non-blocking feedback
-                // Note: Using DisplayAlert for now, but should be replaced with Toast in production
-                _ = Shell.Current.DisplayAlert(
+                await Shell.Current.DisplayAlert(
                     "Connected",
                     $"Successfully connected to {device.Name}",
                     "OK");
@@ -343,16 +346,9 @@ public partial class DeviceListViewModel : BaseViewModel
 
     private void UpdateConnectionState()
     {
-        ConnectionState = _bluetoothService.CurrentConnectionState;
-        IsAlreadyConnected = ConnectionState == ConnectionState.Connected;
-        ConnectedDeviceName = _bluetoothService.ConnectedDevice?.Name;
+        var state = _bluetoothService.CurrentConnectionState;
 
-        if (ConnectionState == ConnectionState.Connecting)
-        {
-            IsConnecting = true;
-            ConnectingDeviceId = _bluetoothService.ConnectedDevice?.Id;
-        }
-        else if (ConnectionState != ConnectionState.Connecting)
+        if (state != Models.ConnectionState.Connecting)
         {
             IsConnecting = false;
             ConnectingDeviceId = null;
