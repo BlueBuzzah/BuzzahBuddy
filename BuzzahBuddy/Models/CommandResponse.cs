@@ -55,22 +55,31 @@ public class CommandResponse
                 continue;
 
             var colonIndex = trimmed.IndexOf(':');
+            string key;
+            string value;
+
             if (colonIndex > 0)
             {
-                var key = trimmed.Substring(0, colonIndex).Trim();
-                var value = trimmed.Substring(colonIndex + 1).Trim();
-
-                // Store last value for backwards compatibility
-                response._data[key] = value;
-
-                // Also store all values for multi-value support
-                if (!response._multiData.TryGetValue(key, out var list))
-                {
-                    list = new List<string>();
-                    response._multiData[key] = list;
-                }
-                list.Add(value);
+                key = trimmed.Substring(0, colonIndex).Trim();
+                value = trimmed.Substring(colonIndex + 1).Trim();
             }
+            else
+            {
+                // Bare key with no colon (e.g., "PONG") — store as key with empty value
+                key = trimmed;
+                value = string.Empty;
+            }
+
+            // Store last value for backwards compatibility
+            response._data[key] = value;
+
+            // Also store all values for multi-value support
+            if (!response._multiData.TryGetValue(key, out var list))
+            {
+                list = new List<string>();
+                response._multiData[key] = list;
+            }
+            list.Add(value);
         }
 
         return response;
