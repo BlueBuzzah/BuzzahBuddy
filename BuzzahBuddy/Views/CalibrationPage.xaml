@@ -15,6 +15,29 @@
                    SemanticProperties.HeadingLevel="Level1"
                    HorizontalOptions="Center" />
 
+            <!-- Not Connected Banner -->
+            <Border Padding="16"
+                    BackgroundColor="{StaticResource CardBackground}"
+                    StrokeThickness="0"
+                    IsVisible="{Binding ConnectionInfo.IsConnected, Converter={StaticResource InvertedBoolConverter}}"
+                    Margin="0,0,0,12">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="8" />
+                </Border.StrokeShape>
+                <HorizontalStackLayout Spacing="12">
+                    <Label Text="ℹ"
+                           FontSize="24"
+                           VerticalOptions="Center"
+                           AutomationProperties.IsInAccessibleTree="False" />
+                    <Label Text="Connect to a BlueBuzzah device to begin calibration."
+                           Style="{StaticResource BodyText}"
+                           TextColor="{StaticResource TextMuted}"
+                           LineBreakMode="WordWrap"
+                           VerticalOptions="Center"
+                           SemanticProperties.Description="Connect to a BlueBuzzah device to begin calibration" />
+                </HorizontalStackLayout>
+            </Border>
+
             <!-- Calibration Mode Controls -->
             <Border Padding="15"
                     BackgroundColor="{StaticResource CardBackground}"
@@ -36,7 +59,7 @@
                         <Button Grid.Column="0"
                                 Text="Enter Calibration"
                                 Command="{Binding EnterCalibrationModeCommand}"
-                                IsEnabled="{Binding IsInCalibrationMode, Converter={StaticResource InvertedBoolConverter}}"
+                                IsEnabled="{Binding ConnectionInfo.IsConnected}"
                                 Style="{StaticResource SecondaryButton}"
                                 BackgroundColor="{StaticResource Primary}"
                                 SemanticProperties.Description="Enter calibration mode to test and adjust finger motors"
@@ -103,7 +126,14 @@
                                     Style="{StaticResource TertiaryButton}"
                                     BackgroundColor="{Binding Intensity, Converter={StaticResource IntToColorConverter}, ConverterParameter=20}"
                                     SemanticProperties.Description="Set intensity to 20 percent, gentle"
-                                    AutomationId="Intensity20Button" />
+                                    AutomationId="Intensity20Button">
+                                <Button.IsEnabled>
+                                    <MultiBinding Converter="{StaticResource AllTrueConverter}">
+                                        <Binding Path="ConnectionInfo.IsConnected" />
+                                        <Binding Path="IsInCalibrationMode" />
+                                    </MultiBinding>
+                                </Button.IsEnabled>
+                            </Button>
 
                             <!-- 40% Intensity -->
                             <Button Grid.Row="0" Grid.Column="1"
@@ -113,7 +143,14 @@
                                     Style="{StaticResource TertiaryButton}"
                                     BackgroundColor="{Binding Intensity, Converter={StaticResource IntToColorConverter}, ConverterParameter=40}"
                                     SemanticProperties.Description="Set intensity to 40 percent, light"
-                                    AutomationId="Intensity40Button" />
+                                    AutomationId="Intensity40Button">
+                                <Button.IsEnabled>
+                                    <MultiBinding Converter="{StaticResource AllTrueConverter}">
+                                        <Binding Path="ConnectionInfo.IsConnected" />
+                                        <Binding Path="IsInCalibrationMode" />
+                                    </MultiBinding>
+                                </Button.IsEnabled>
+                            </Button>
 
                             <!-- 60% Intensity -->
                             <Button Grid.Row="1" Grid.Column="0"
@@ -123,7 +160,14 @@
                                     Style="{StaticResource TertiaryButton}"
                                     BackgroundColor="{Binding Intensity, Converter={StaticResource IntToColorConverter}, ConverterParameter=60}"
                                     SemanticProperties.Description="Set intensity to 60 percent, moderate"
-                                    AutomationId="Intensity60Button" />
+                                    AutomationId="Intensity60Button">
+                                <Button.IsEnabled>
+                                    <MultiBinding Converter="{StaticResource AllTrueConverter}">
+                                        <Binding Path="ConnectionInfo.IsConnected" />
+                                        <Binding Path="IsInCalibrationMode" />
+                                    </MultiBinding>
+                                </Button.IsEnabled>
+                            </Button>
 
                             <!-- 80% Intensity -->
                             <Button Grid.Row="1" Grid.Column="1"
@@ -133,7 +177,14 @@
                                     Style="{StaticResource TertiaryButton}"
                                     BackgroundColor="{Binding Intensity, Converter={StaticResource IntToColorConverter}, ConverterParameter=80}"
                                     SemanticProperties.Description="Set intensity to 80 percent, strong"
-                                    AutomationId="Intensity80Button" />
+                                    AutomationId="Intensity80Button">
+                                <Button.IsEnabled>
+                                    <MultiBinding Converter="{StaticResource AllTrueConverter}">
+                                        <Binding Path="ConnectionInfo.IsConnected" />
+                                        <Binding Path="IsInCalibrationMode" />
+                                    </MultiBinding>
+                                </Button.IsEnabled>
+                            </Button>
 
                             <!-- 100% Intensity -->
                             <Button Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
@@ -143,7 +194,14 @@
                                     Style="{StaticResource TertiaryButton}"
                                     BackgroundColor="{Binding Intensity, Converter={StaticResource IntToColorConverter}, ConverterParameter=100}"
                                     SemanticProperties.Description="Set intensity to 100 percent, maximum"
-                                    AutomationId="Intensity100Button" />
+                                    AutomationId="Intensity100Button">
+                                <Button.IsEnabled>
+                                    <MultiBinding Converter="{StaticResource AllTrueConverter}">
+                                        <Binding Path="ConnectionInfo.IsConnected" />
+                                        <Binding Path="IsInCalibrationMode" />
+                                    </MultiBinding>
+                                </Button.IsEnabled>
+                            </Button>
                         </Grid>
 
                         <Label Text="{Binding Intensity, StringFormat='Selected: {0}%'}"
@@ -169,7 +227,14 @@
                                     Style="{StaticResource TertiaryButton}"
                                     BackgroundColor="{Binding Duration, Converter={StaticResource IntToColorConverter}, ConverterParameter=100}"
                                     SemanticProperties.Description="Set duration to 100 milliseconds, very brief"
-                                    AutomationId="Duration100Button" />
+                                    AutomationId="Duration100Button">
+                                <Button.IsEnabled>
+                                    <MultiBinding Converter="{StaticResource AllTrueConverter}">
+                                        <Binding Path="ConnectionInfo.IsConnected" />
+                                        <Binding Path="IsInCalibrationMode" />
+                                    </MultiBinding>
+                                </Button.IsEnabled>
+                            </Button>
 
                             <!-- 500ms Duration -->
                             <Button Grid.Row="0" Grid.Column="1"
@@ -179,7 +244,14 @@
                                     Style="{StaticResource TertiaryButton}"
                                     BackgroundColor="{Binding Duration, Converter={StaticResource IntToColorConverter}, ConverterParameter=500}"
                                     SemanticProperties.Description="Set duration to 500 milliseconds, brief"
-                                    AutomationId="Duration500Button" />
+                                    AutomationId="Duration500Button">
+                                <Button.IsEnabled>
+                                    <MultiBinding Converter="{StaticResource AllTrueConverter}">
+                                        <Binding Path="ConnectionInfo.IsConnected" />
+                                        <Binding Path="IsInCalibrationMode" />
+                                    </MultiBinding>
+                                </Button.IsEnabled>
+                            </Button>
 
                             <!-- 1000ms Duration -->
                             <Button Grid.Row="1" Grid.Column="0"
@@ -189,7 +261,14 @@
                                     Style="{StaticResource TertiaryButton}"
                                     BackgroundColor="{Binding Duration, Converter={StaticResource IntToColorConverter}, ConverterParameter=1000}"
                                     SemanticProperties.Description="Set duration to 1000 milliseconds, 1 second"
-                                    AutomationId="Duration1000Button" />
+                                    AutomationId="Duration1000Button">
+                                <Button.IsEnabled>
+                                    <MultiBinding Converter="{StaticResource AllTrueConverter}">
+                                        <Binding Path="ConnectionInfo.IsConnected" />
+                                        <Binding Path="IsInCalibrationMode" />
+                                    </MultiBinding>
+                                </Button.IsEnabled>
+                            </Button>
 
                             <!-- 2000ms Duration -->
                             <Button Grid.Row="1" Grid.Column="1"
@@ -199,7 +278,14 @@
                                     Style="{StaticResource TertiaryButton}"
                                     BackgroundColor="{Binding Duration, Converter={StaticResource IntToColorConverter}, ConverterParameter=2000}"
                                     SemanticProperties.Description="Set duration to 2000 milliseconds, 2 seconds"
-                                    AutomationId="Duration2000Button" />
+                                    AutomationId="Duration2000Button">
+                                <Button.IsEnabled>
+                                    <MultiBinding Converter="{StaticResource AllTrueConverter}">
+                                        <Binding Path="ConnectionInfo.IsConnected" />
+                                        <Binding Path="IsInCalibrationMode" />
+                                    </MultiBinding>
+                                </Button.IsEnabled>
+                            </Button>
                         </Grid>
 
                         <Label Text="{Binding Duration, StringFormat='Selected: {0}ms'}"
@@ -249,6 +335,12 @@
                                         SemanticProperties.Description="Left thumb"
                                         SemanticProperties.Hint="Test left thumb motor"
                                         AutomationId="LeftThumbButton">
+                                    <Button.IsEnabled>
+                                        <MultiBinding Converter="{StaticResource AllTrueConverter}">
+                                            <Binding Path="ConnectionInfo.IsConnected" />
+                                            <Binding Path="IsInCalibrationMode" />
+                                        </MultiBinding>
+                                    </Button.IsEnabled>
                                     <Button.CommandParameter>
                                         <x:Int32>0</x:Int32>
                                     </Button.CommandParameter>
@@ -266,6 +358,12 @@
                                         SemanticProperties.Description="Left index finger"
                                         SemanticProperties.Hint="Test left index finger motor"
                                         AutomationId="LeftIndexButton">
+                                    <Button.IsEnabled>
+                                        <MultiBinding Converter="{StaticResource AllTrueConverter}">
+                                            <Binding Path="ConnectionInfo.IsConnected" />
+                                            <Binding Path="IsInCalibrationMode" />
+                                        </MultiBinding>
+                                    </Button.IsEnabled>
                                     <Button.CommandParameter>
                                         <x:Int32>1</x:Int32>
                                     </Button.CommandParameter>
@@ -283,6 +381,12 @@
                                         SemanticProperties.Description="Left middle finger"
                                         SemanticProperties.Hint="Test left middle finger motor"
                                         AutomationId="LeftMiddleButton">
+                                    <Button.IsEnabled>
+                                        <MultiBinding Converter="{StaticResource AllTrueConverter}">
+                                            <Binding Path="ConnectionInfo.IsConnected" />
+                                            <Binding Path="IsInCalibrationMode" />
+                                        </MultiBinding>
+                                    </Button.IsEnabled>
                                     <Button.CommandParameter>
                                         <x:Int32>2</x:Int32>
                                     </Button.CommandParameter>
@@ -300,6 +404,12 @@
                                         SemanticProperties.Description="Left ring finger"
                                         SemanticProperties.Hint="Test left ring finger motor"
                                         AutomationId="LeftRingButton">
+                                    <Button.IsEnabled>
+                                        <MultiBinding Converter="{StaticResource AllTrueConverter}">
+                                            <Binding Path="ConnectionInfo.IsConnected" />
+                                            <Binding Path="IsInCalibrationMode" />
+                                        </MultiBinding>
+                                    </Button.IsEnabled>
                                     <Button.CommandParameter>
                                         <x:Int32>3</x:Int32>
                                     </Button.CommandParameter>
@@ -327,6 +437,12 @@
                                         SemanticProperties.Description="Right thumb"
                                         SemanticProperties.Hint="Test right thumb motor"
                                         AutomationId="RightThumbButton">
+                                    <Button.IsEnabled>
+                                        <MultiBinding Converter="{StaticResource AllTrueConverter}">
+                                            <Binding Path="ConnectionInfo.IsConnected" />
+                                            <Binding Path="IsInCalibrationMode" />
+                                        </MultiBinding>
+                                    </Button.IsEnabled>
                                     <Button.CommandParameter>
                                         <x:Int32>4</x:Int32>
                                     </Button.CommandParameter>
@@ -344,6 +460,12 @@
                                         SemanticProperties.Description="Right index finger"
                                         SemanticProperties.Hint="Test right index finger motor"
                                         AutomationId="RightIndexButton">
+                                    <Button.IsEnabled>
+                                        <MultiBinding Converter="{StaticResource AllTrueConverter}">
+                                            <Binding Path="ConnectionInfo.IsConnected" />
+                                            <Binding Path="IsInCalibrationMode" />
+                                        </MultiBinding>
+                                    </Button.IsEnabled>
                                     <Button.CommandParameter>
                                         <x:Int32>5</x:Int32>
                                     </Button.CommandParameter>
@@ -361,6 +483,12 @@
                                         SemanticProperties.Description="Right middle finger"
                                         SemanticProperties.Hint="Test right middle finger motor"
                                         AutomationId="RightMiddleButton">
+                                    <Button.IsEnabled>
+                                        <MultiBinding Converter="{StaticResource AllTrueConverter}">
+                                            <Binding Path="ConnectionInfo.IsConnected" />
+                                            <Binding Path="IsInCalibrationMode" />
+                                        </MultiBinding>
+                                    </Button.IsEnabled>
                                     <Button.CommandParameter>
                                         <x:Int32>6</x:Int32>
                                     </Button.CommandParameter>
@@ -378,6 +506,12 @@
                                         SemanticProperties.Description="Right ring finger"
                                         SemanticProperties.Hint="Test right ring finger motor"
                                         AutomationId="RightRingButton">
+                                    <Button.IsEnabled>
+                                        <MultiBinding Converter="{StaticResource AllTrueConverter}">
+                                            <Binding Path="ConnectionInfo.IsConnected" />
+                                            <Binding Path="IsInCalibrationMode" />
+                                        </MultiBinding>
+                                    </Button.IsEnabled>
                                     <Button.CommandParameter>
                                         <x:Int32>7</x:Int32>
                                     </Button.CommandParameter>
