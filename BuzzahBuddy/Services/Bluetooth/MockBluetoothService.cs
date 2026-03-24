@@ -67,6 +67,9 @@ public class MockBluetoothService : IBluetoothService
         GloveDevice device,
         CancellationToken cancellationToken = default)
     {
+        CurrentConnectionState = ConnectionState.Connecting;
+        ConnectionStateChanged?.Invoke(this, ConnectionState.Connecting);
+
         await Task.Delay(300, cancellationToken); // Simulate connection time
 
         _isConnected = true;
@@ -106,6 +109,9 @@ public class MockBluetoothService : IBluetoothService
     {
         if (string.IsNullOrEmpty(_lastConnectedDeviceId))
             return false;
+
+        CurrentConnectionState = ConnectionState.Reconnecting;
+        ConnectionStateChanged?.Invoke(this, ConnectionState.Reconnecting);
 
         await Task.Delay(300, ct);
 
@@ -168,7 +174,7 @@ public class MockBluetoothService : IBluetoothService
         {
             "INFO" => GetMockInfoResponse(),
             "BATTERY" => await GetMockBatteryResponse(cancellationToken),
-            "PING" => "PONG:\n\x04",
+            "PING" => "PONG\n\x04",
             "PROFILE_LIST" => GetMockProfileListResponse(),
             var cmd when cmd.StartsWith("PROFILE_LOAD:") => HandleProfileLoad(cmd),
             "PROFILE_GET" => GetMockProfileSettings(),
