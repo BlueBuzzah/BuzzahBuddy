@@ -1,5 +1,5 @@
-using BuzzahBuddy.Models;
 using BuzzahBuddy.Services.Bluetooth;
+using BuzzahBuddy.Services.ConnectionStateManagement;
 using BuzzahBuddy.Services.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -15,14 +15,10 @@ public partial class SettingsViewModel : BaseViewModel
 	private readonly IBluetoothService _bluetoothService;
 	private readonly IDataStorageService _storageService;
 
-	[ObservableProperty]
-	private bool _isConnected;
-
-	[ObservableProperty]
-	private string _connectedDeviceName = "None";
-
-	[ObservableProperty]
-	private ConnectionState _connectionState = ConnectionState.Disconnected;
+	/// <summary>
+	/// Centralized connection state service exposed for XAML binding.
+	/// </summary>
+	public IConnectionStateService ConnectionInfo { get; }
 
 	[ObservableProperty]
 	private bool _enableNotifications = true;
@@ -35,25 +31,23 @@ public partial class SettingsViewModel : BaseViewModel
 
 	public SettingsViewModel(
 			IBluetoothService bluetoothService,
-			IDataStorageService storageService)
+			IDataStorageService storageService,
+			IConnectionStateService connectionStateService)
 	{
 		_bluetoothService = bluetoothService;
 		_storageService = storageService;
+		ConnectionInfo = connectionStateService;
 
 		Title = "Settings";
 
-		// Subscribe to connection changes
-		_bluetoothService.ConnectionStateChanged += OnConnectionStateChanged;
-
 		// Load settings
 		LoadSettings();
-		UpdateConnectionInfo();
 	}
 
 	[RelayCommand]
 	private async Task DisconnectDeviceAsync()
 	{
-		if (!IsConnected)
+		if (!ConnectionInfo.IsConnected)
 		{
 			await Shell.Current.DisplayAlert(
 					"Not Connected",
@@ -64,18 +58,27 @@ public partial class SettingsViewModel : BaseViewModel
 
 		var confirm = await Shell.Current.DisplayAlert(
 				"Disconnect Device",
-				$"Are you sure you want to disconnect from {ConnectedDeviceName}?",
+				$"Are you sure you want to disconnect from {ConnectionInfo.ConnectedDeviceName}?",
 				"Yes",
 				"No");
 
 		if (confirm)
 		{
-			await _bluetoothService.DisconnectAsync();
-
-			await Shell.Current.DisplayAlert(
-					"Disconnected",
-					"Device disconnected successfully.",
-					"OK");
+			try
+			{
+				await _bluetoothService.DisconnectAsync();
+				await Shell.Current.DisplayAlert(
+						"Disconnected",
+						"Device has been disconnected.",
+						"OK");
+			}
+			catch (Exception ex)
+			{
+				await Shell.Current.DisplayAlert(
+						"Disconnect Error",
+						$"An error occurred while disconnecting: {ex.Message}",
+						"OK");
+			}
 		}
 	}
 
@@ -128,41 +131,5 @@ public partial class SettingsViewModel : BaseViewModel
 
 		// Get app version from assembly
 		AppVersion = AppInfo.Current.VersionString;
-	}
-
-	private void UpdateConnectionInfo()
-	{
-		ConnectionState = _bluetoothService.CurrentConnectionState;
-		IsConnected = ConnectionState == ConnectionState.Connected;
-
-		if (IsConnected && _bluetoothService.ConnectedDevice != null)
-		{
-			ConnectedDeviceName = _bluetoothService.ConnectedDevice.Name;
-		}
-		else
-		{
-			ConnectedDeviceName = "None";
-		}
-	}
-
-	private void OnConnectionStateChanged(object? sender, ConnectionState state)
-	{
-		MainThread.BeginInvokeOnMainThread(() =>
-		{
-			UpdateConnectionInfo();
-		});
-	}
-
-	/// <summary>
-	/// Unsubscribes from Bluetooth service events to prevent memory leaks.
-	/// </summary>
-	protected override void Dispose(bool disposing)
-	{
-		if (disposing)
-		{
-			_bluetoothService.ConnectionStateChanged -= OnConnectionStateChanged;
-			System.Diagnostics.Debug.WriteLine("[SETTINGS] ViewModel disposed, unsubscribed from ConnectionStateChanged");
-		}
-		base.Dispose(disposing);
 	}
 }
