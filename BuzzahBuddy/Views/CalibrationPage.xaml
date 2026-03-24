@@ -549,6 +549,7 @@
             <Button Text="Skip Calibration (Use Defaults)"
                     Command="{Binding SkipCalibrationCommand}"
                     IsVisible="{Binding IsInCalibrationMode}"
+                    IsEnabled="{Binding ConnectionInfo.IsConnected}"
                     Style="{StaticResource TertiaryButton}"
                     BackgroundColor="{StaticResource Gray700}"
                     SemanticProperties.Description="Skip calibration and use safe default settings"

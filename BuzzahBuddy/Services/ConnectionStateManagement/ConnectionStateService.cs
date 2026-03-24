@@ -135,7 +135,8 @@ public class ConnectionStateService : IConnectionStateService, IDisposable
 
     private void OnPropertyChanged(string propertyName)
     {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        var handler = PropertyChanged;
+        handler?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 
     public void Dispose()

@@ -157,6 +157,16 @@ public partial class GloveControlViewModel : BaseViewModel
     /// </summary>
     public bool IsNotRefreshingBattery => !IsRefreshingBattery;
 
+    /// <summary>
+    /// True when no session is active. For XAML MultiBinding use.
+    /// </summary>
+    public bool IsSessionInactive => !IsSessionActive;
+
+    /// <summary>
+    /// True when no therapy profile is selected. For XAML MultiBinding use.
+    /// </summary>
+    public bool HasNoSelectedProfile => SelectedProfile == null;
+
     partial void OnIsTestingConnectionChanged(bool value)
     {
         OnPropertyChanged(nameof(IsNotTestingConnection));
@@ -472,6 +482,8 @@ public partial class GloveControlViewModel : BaseViewModel
 
     partial void OnSelectedProfileChanged(TherapyProfile? value)
     {
+        OnPropertyChanged(nameof(HasNoSelectedProfile));
+
         if (value == null)
             return;
 
@@ -636,6 +648,7 @@ public partial class GloveControlViewModel : BaseViewModel
         IsSessionActive = SessionStatus.IsActive;
         IsSessionRunning = SessionStatus.IsRunning;
         IsSessionPaused = SessionStatus.IsPaused;
+        OnPropertyChanged(nameof(IsSessionInactive));
 
         // Update button text and description based on current state
         if (!IsSessionActive)
@@ -658,8 +671,10 @@ public partial class GloveControlViewModel : BaseViewModel
     private void StartStatusPolling()
     {
         _statusPollTimer?.Stop();
+        _statusPollTimer?.Dispose();
         _statusPollTimer = new System.Timers.Timer(BlueBuzzahConstants.SessionStatusPollIntervalSeconds * 1000);
-        _statusPollTimer.Elapsed += async (s, e) => await UpdateSessionStatusAsync();
+        _statusPollTimer.Elapsed += async (s, e) =>
+            await MainThread.InvokeOnMainThreadAsync(UpdateSessionStatusAsync);
         _statusPollTimer.Start();
     }
 
@@ -672,8 +687,10 @@ public partial class GloveControlViewModel : BaseViewModel
     private void StartConnectionHealthCheck()
     {
         _healthCheckTimer?.Stop();
+        _healthCheckTimer?.Dispose();
         _healthCheckTimer = new System.Timers.Timer(BlueBuzzahConstants.ConnectionHealthCheckIntervalSeconds * 1000);
-        _healthCheckTimer.Elapsed += async (s, e) => await CheckConnectionHealthAsync();
+        _healthCheckTimer.Elapsed += async (s, e) =>
+            await MainThread.InvokeOnMainThreadAsync(CheckConnectionHealthAsync);
         _healthCheckTimer.Start();
     }
 

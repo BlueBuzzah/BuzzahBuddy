@@ -460,8 +460,8 @@
                     StrokeThickness="0">
                 <Border.IsVisible>
                     <MultiBinding Converter="{StaticResource AllTrueConverter}">
-                        <Binding Path="IsSessionActive" Converter="{StaticResource InvertedBoolConverter}" />
-                        <Binding Path="SelectedProfile" Converter="{StaticResource InvertedBoolConverter}" />
+                        <Binding Path="IsSessionInactive" />
+                        <Binding Path="HasNoSelectedProfile" />
                     </MultiBinding>
                 </Border.IsVisible>
                 <Border.StrokeShape>
