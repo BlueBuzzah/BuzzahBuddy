@@ -151,7 +151,10 @@ public class BluetoothService : IBluetoothService
             if (service == null)
             {
                 System.Diagnostics.Debug.WriteLine($"❌ Nordic UART Service not found");
+                // Prevent ReconnectionService from starting a reconnect loop for a first-connect failure
+                _userInitiatedDisconnect = true;
                 await DisconnectAsync();
+                _userInitiatedDisconnect = false;
                 UpdateConnectionState(ConnectionState.Error);
                 return false;
             }
@@ -164,7 +167,10 @@ public class BluetoothService : IBluetoothService
             if (_txCharacteristic == null || _rxCharacteristic == null)
             {
                 System.Diagnostics.Debug.WriteLine($"❌ TX or RX characteristic not found (TX: {_txCharacteristic != null}, RX: {_rxCharacteristic != null})");
+                // Prevent ReconnectionService from starting a reconnect loop for a first-connect failure
+                _userInitiatedDisconnect = true;
                 await DisconnectAsync();
+                _userInitiatedDisconnect = false;
                 UpdateConnectionState(ConnectionState.Error);
                 return false;
             }
@@ -526,9 +532,14 @@ public class BluetoothService : IBluetoothService
         _txCharacteristic = null;
         _rxCharacteristic = null;
 
+        // Clear stale response data before cancelling pending commands
+        _responseBuffer.Clear();
+        _pendingResponseTcs?.TrySetCanceled();
+
         if (ConnectedDevice != null)
         {
             ConnectedDevice.ConnectionState = ConnectionState.Disconnected;
+            ConnectedDevice = null;
         }
         UpdateConnectionState(ConnectionState.Disconnected);
     }
@@ -539,9 +550,14 @@ public class BluetoothService : IBluetoothService
         _txCharacteristic = null;
         _rxCharacteristic = null;
 
+        // Clear stale response data before cancelling pending commands
+        _responseBuffer.Clear();
+        _pendingResponseTcs?.TrySetCanceled();
+
         if (ConnectedDevice != null)
         {
             ConnectedDevice.ConnectionState = ConnectionState.Error;
+            ConnectedDevice = null;
         }
         UpdateConnectionState(ConnectionState.Error);
     }
