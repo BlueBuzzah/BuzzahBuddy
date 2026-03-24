@@ -18,8 +18,8 @@
 
             <!-- Connection Status Banner -->
             <controls:ConnectionStatusBanner
-                ConnectionState="{Binding ConnectionState}"
-                DeviceName="{Binding ConnectedDeviceName}" />
+                ConnectionState="{Binding ConnectionInfo.ConnectionState}"
+                DeviceName="{Binding ConnectionInfo.ConnectedDeviceName}" />
 
             <!-- Device Actions Section -->
             <VerticalStackLayout Spacing="15">
@@ -38,7 +38,7 @@
                     <VerticalStackLayout Spacing="10">
                         <Button Text="Calibrate Motors"
                                 Command="{Binding NavigateToCalibrationCommand}"
-                                IsVisible="{Binding IsConnected}"
+                                IsVisible="{Binding ConnectionInfo.IsConnected}"
                                 HeightRequest="48"
                                 CornerRadius="8"
                                 BackgroundColor="{StaticResource Primary}"
@@ -48,7 +48,7 @@
 
                         <Button Text="Disconnect"
                                 Command="{Binding DisconnectDeviceCommand}"
-                                IsVisible="{Binding IsConnected}"
+                                IsVisible="{Binding ConnectionInfo.IsConnected}"
                                 HeightRequest="48"
                                 CornerRadius="8"
                                 BackgroundColor="{StaticResource DangerButton}"
@@ -64,6 +64,14 @@
                                 SemanticProperties.Description="Scan for and connect to BlueBuzzah glove devices"
                                 SemanticProperties.Hint="Double tap to navigate to device scanning"
                                 AutomationId="FindDevicesButton" />
+
+                        <!-- Instructional text when disconnected -->
+                        <Label Text="Connect to a device to access calibration and device settings."
+                               IsVisible="{Binding ConnectionInfo.IsConnected, Converter={StaticResource InvertedBoolConverter}}"
+                               Style="{StaticResource BodyText}"
+                               TextColor="{StaticResource TextMuted}"
+                               Margin="0,8,0,0"
+                               SemanticProperties.Description="Connect to a device to access calibration and device settings" />
                     </VerticalStackLayout>
                 </Border>
             </VerticalStackLayout>
