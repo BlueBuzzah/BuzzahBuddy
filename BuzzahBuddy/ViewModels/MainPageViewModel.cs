@@ -1,6 +1,7 @@
 using BuzzahBuddy.Helpers;
 using BuzzahBuddy.Models;
 using BuzzahBuddy.Services.Bluetooth;
+using BuzzahBuddy.Services.ConnectionStateManagement;
 using BuzzahBuddy.Services.Glove;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -17,19 +18,15 @@ public partial class MainPageViewModel : BaseViewModel
     private readonly IGloveControlService _gloveControlService;
     private readonly IReconnectionService _reconnectionService;
 
+    /// <summary>
+    /// Centralized connection state service exposed for XAML binding.
+    /// </summary>
+    public IConnectionStateService ConnectionInfo { get; }
+
     #region Observable Properties
 
     [ObservableProperty]
     private DashboardState _dashboardState = DashboardState.Disconnected;
-
-    [ObservableProperty]
-    private ConnectionState _connectionState = ConnectionState.Disconnected;
-
-    [ObservableProperty]
-    private bool _isConnected;
-
-    [ObservableProperty]
-    private string _connectedDeviceName = string.Empty;
 
     // Battery status (simplified - percentage only)
     [ObservableProperty]
@@ -44,13 +41,6 @@ public partial class MainPageViewModel : BaseViewModel
 
     [ObservableProperty]
     private string? _selectedProfileName;
-
-    // Reconnection status
-    [ObservableProperty]
-    private bool _isReconnecting;
-
-    [ObservableProperty]
-    private string _reconnectionMessage = string.Empty;
 
     #endregion
 
@@ -97,17 +87,8 @@ public partial class MainPageViewModel : BaseViewModel
     /// <summary>
     /// Whether to show the reconnection banner (reconnecting or has a failure message).
     /// </summary>
-    public bool ShowReconnectionBanner => IsReconnecting || !string.IsNullOrEmpty(ReconnectionMessage);
-
-    partial void OnIsReconnectingChanged(bool value)
-    {
-        OnPropertyChanged(nameof(ShowReconnectionBanner));
-    }
-
-    partial void OnReconnectionMessageChanged(string value)
-    {
-        OnPropertyChanged(nameof(ShowReconnectionBanner));
-    }
+    public bool ShowReconnectionBanner =>
+        ConnectionInfo.IsReconnecting || !string.IsNullOrEmpty(ConnectionInfo.ReconnectionMessage);
 
     /// <summary>
     /// Text for the secondary action link (optional).
@@ -197,18 +178,20 @@ public partial class MainPageViewModel : BaseViewModel
     public MainPageViewModel(
         IBluetoothService bluetoothService,
         IGloveControlService gloveControlService,
-        IReconnectionService reconnectionService)
+        IReconnectionService reconnectionService,
+        IConnectionStateService connectionStateService)
     {
         _bluetoothService = bluetoothService;
         _gloveControlService = gloveControlService;
         _reconnectionService = reconnectionService;
+        ConnectionInfo = connectionStateService;
 
         Title = "BuzzahBuddy";
 
         // Subscribe to connection state changes
         _bluetoothService.ConnectionStateChanged += OnConnectionStateChanged;
         _gloveControlService.SessionStateChanged += OnSessionStateChanged;
-        _reconnectionService.ReconnectionStateChanged += OnReconnectionStateChanged;
+        ConnectionInfo.PropertyChanged += OnConnectionInfoPropertyChanged;
 
         System.Diagnostics.Debug.WriteLine("[MAINPAGE] ViewModel created, subscribed to events");
 
@@ -275,7 +258,7 @@ public partial class MainPageViewModel : BaseViewModel
         {
             await UpdateDashboardStateAsync();
 
-            if (IsConnected)
+            if (ConnectionInfo.IsConnected)
             {
                 await RefreshBatteryAsync();
             }
@@ -368,13 +351,8 @@ public partial class MainPageViewModel : BaseViewModel
 
     private async Task UpdateDashboardStateAsync()
     {
-        ConnectionState = _bluetoothService.CurrentConnectionState;
-        IsConnected = ConnectionState == ConnectionState.Connected;
-
-        if (IsConnected && _bluetoothService.ConnectedDevice != null)
+        if (ConnectionInfo.IsConnected)
         {
-            ConnectedDeviceName = _bluetoothService.ConnectedDevice.Name;
-
             // Get current profile name
             var profile = _gloveControlService.CurrentProfile;
             SelectedProfileName = profile?.Name ?? "Noisy (Recommended)";
@@ -395,13 +373,12 @@ public partial class MainPageViewModel : BaseViewModel
         }
         else
         {
-            ConnectedDeviceName = string.Empty;
             SelectedProfileName = null;
             SessionStatus = SessionStatus.CreateIdle();
             BatteryPrimaryPercentage = 0;
             BatterySecondaryPercentage = 0;
 
-            DashboardState = ConnectionState switch
+            DashboardState = ConnectionInfo.ConnectionState switch
             {
                 ConnectionState.Connecting => DashboardState.Connecting,
                 ConnectionState.Error => DashboardState.Error,
@@ -467,19 +444,32 @@ public partial class MainPageViewModel : BaseViewModel
         });
     }
 
-    private void OnReconnectionStateChanged(object? sender, ReconnectionStateEventArgs e)
+    private void OnConnectionInfoPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        MainThread.BeginInvokeOnMainThread(() =>
+        if (e.PropertyName is nameof(IConnectionStateService.IsReconnecting) or nameof(IConnectionStateService.ReconnectionMessage))
         {
-            var (isReconnecting, message) = ReconnectionHelper.MapReconnectionState(e);
-            IsReconnecting = isReconnecting;
-            ReconnectionMessage = message;
+            OnPropertyChanged(nameof(ShowReconnectionBanner));
 
-            if (e.State == ReconnectionState.Succeeded)
+            // Screen reader announcements for reconnection state changes
+            if (e.PropertyName == nameof(IConnectionStateService.IsReconnecting) && !ConnectionInfo.IsReconnecting
+                && ConnectionInfo.ConnectionState == ConnectionState.Connected)
+            {
                 SemanticScreenReader.Announce("Reconnected to BlueBuzzah gloves");
-            else if (!string.IsNullOrEmpty(ReconnectionMessage))
-                SemanticScreenReader.Announce(ReconnectionMessage);
-        });
+            }
+            else if (e.PropertyName == nameof(IConnectionStateService.ReconnectionMessage)
+                     && !string.IsNullOrEmpty(ConnectionInfo.ReconnectionMessage))
+            {
+                SemanticScreenReader.Announce(ConnectionInfo.ReconnectionMessage);
+            }
+        }
+
+        if (e.PropertyName is nameof(IConnectionStateService.ConnectionState) or nameof(IConnectionStateService.IsConnected))
+        {
+            MainThread.BeginInvokeOnMainThread(async () =>
+            {
+                await UpdateDashboardStateAsync();
+            });
+        }
     }
 
     private void OnSessionStateChanged(object? sender, SessionStatus status)
@@ -491,7 +481,7 @@ public partial class MainPageViewModel : BaseViewModel
             SessionStatus = status;
 
             // Update dashboard state based on session
-            if (IsConnected)
+            if (ConnectionInfo.IsConnected)
             {
                 DashboardState = status.Status switch
                 {
@@ -528,7 +518,7 @@ public partial class MainPageViewModel : BaseViewModel
         {
             _bluetoothService.ConnectionStateChanged -= OnConnectionStateChanged;
             _gloveControlService.SessionStateChanged -= OnSessionStateChanged;
-            _reconnectionService.ReconnectionStateChanged -= OnReconnectionStateChanged;
+            ConnectionInfo.PropertyChanged -= OnConnectionInfoPropertyChanged;
             System.Diagnostics.Debug.WriteLine("[MAINPAGE] ViewModel disposed, unsubscribed from events");
         }
         base.Dispose(disposing);
