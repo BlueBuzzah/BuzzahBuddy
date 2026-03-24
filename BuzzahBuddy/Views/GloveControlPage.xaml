@@ -100,7 +100,8 @@
                            HorizontalOptions="Center"
                            SemanticProperties.HeadingLevel="Level2" />
 
-                    <HorizontalStackLayout Spacing="15" HorizontalOptions="Center">
+                    <HorizontalStackLayout Spacing="15" HorizontalOptions="Center"
+                                           IsVisible="{Binding ConnectionInfo.IsConnected}">
                         <!-- Primary Glove -->
                         <HorizontalStackLayout Spacing="8"
                                                SemanticProperties.Description="{Binding BatteryPrimaryPercentage, StringFormat='Primary battery: {0} percent'}">
@@ -150,7 +151,13 @@
                         </HorizontalStackLayout>
                     </HorizontalStackLayout>
 
-                    <VerticalStackLayout Spacing="8" IsVisible="{Binding ShowBatteryRefresh}" HorizontalOptions="Center">
+                    <VerticalStackLayout Spacing="8" HorizontalOptions="Center">
+                        <VerticalStackLayout.IsVisible>
+                            <MultiBinding Converter="{StaticResource AllTrueConverter}">
+                                <Binding Path="ShowBatteryRefresh" />
+                                <Binding Path="ConnectionInfo.IsConnected" />
+                            </MultiBinding>
+                        </VerticalStackLayout.IsVisible>
                         <ActivityIndicator IsRunning="{Binding IsRefreshingBattery}"
                                            IsVisible="{Binding IsRefreshingBattery}"
                                            HeightRequest="20"
@@ -163,10 +170,16 @@
                                 CornerRadius="8"
                                 HorizontalOptions="Center"
                                 Padding="20,0"
-                                IsEnabled="{Binding IsRefreshingBattery, Converter={StaticResource InvertedBoolConverter}}"
                                 SemanticProperties.Hint="Refresh battery levels"
                                 SemanticProperties.Description="Updates the current battery status"
-                                AutomationId="RefreshBatteryButton" />
+                                AutomationId="RefreshBatteryButton">
+                            <Button.IsEnabled>
+                                <MultiBinding Converter="{StaticResource AllTrueConverter}">
+                                    <Binding Path="IsNotRefreshingBattery" />
+                                    <Binding Path="ConnectionInfo.IsConnected" />
+                                </MultiBinding>
+                            </Button.IsEnabled>
+                        </Button>
                     </VerticalStackLayout>
 
                     <Label Text="{Binding BatteryStatusMessage}"
@@ -175,6 +188,14 @@
                            FontSize="12"
                            HorizontalTextAlignment="Center"
                            SemanticProperties.Description="Battery status warning" />
+
+                    <Label Text="Connect to a device to view battery status"
+                           IsVisible="{Binding ConnectionInfo.IsConnected, Converter={StaticResource InvertedBoolConverter}}"
+                           Style="{StaticResource BodyText}"
+                           TextColor="{StaticResource TextMuted}"
+                           HorizontalTextAlignment="Center"
+                           Margin="0,8,0,0"
+                           SemanticProperties.Description="Connect to a device to view battery status" />
                 </VerticalStackLayout>
             </Border>
 
@@ -216,7 +237,11 @@
 
                                 <!-- Tap to select this profile -->
                                 <Border.GestureRecognizers>
-                                    <TapGestureRecognizer Command="{Binding Source={x:Reference page}, Path=BindingContext.SelectProfileCommand}"
+                                    <!-- x:DataType must be cleared here: compiled bindings cannot resolve
+                                         SelectProfileCommand through BindingContext (typed as object) on the
+                                         x:Reference source. Without this, the command silently fails to bind. -->
+                                    <TapGestureRecognizer x:DataType="{x:Null}"
+                                                          Command="{Binding Source={x:Reference page}, Path=BindingContext.SelectProfileCommand}"
                                                           CommandParameter="{Binding}" />
                                 </Border.GestureRecognizers>
 
@@ -229,6 +254,7 @@
                                             VerticalOptions="Center"
                                             HorizontalOptions="Center"
                                             IsVisible="{Binding IsSelected}"
+                                            InputTransparent="True"
                                             AutomationProperties.IsInAccessibleTree="False">
                                         <Border.StrokeShape>
                                             <RoundRectangle CornerRadius="28" />
@@ -367,11 +393,17 @@
                         HeightRequest="48"
                         FontSize="16"
                         CornerRadius="12"
-                        IsEnabled="{Binding IsTestingConnection, Converter={StaticResource InvertedBoolConverter}}"
                         BackgroundColor="{StaticResource Primary}"
                         SemanticProperties.Hint="Send a brief test pulse to the device"
                         SemanticProperties.Description="Test connection with brief vibration pulse"
-                        AutomationId="TestConnectionButton" />
+                        AutomationId="TestConnectionButton">
+                    <Button.IsEnabled>
+                        <MultiBinding Converter="{StaticResource AllTrueConverter}">
+                            <Binding Path="IsNotTestingConnection" />
+                            <Binding Path="ConnectionInfo.IsConnected" />
+                        </MultiBinding>
+                    </Button.IsEnabled>
+                </Button>
             </VerticalStackLayout>
 
             <!-- Spacer to push primary actions to bottom -->
@@ -388,11 +420,17 @@
                         FontSize="20"
                         FontAttributes="Bold"
                         CornerRadius="16"
-                        IsEnabled="{Binding IsNotBusy}"
                         BackgroundColor="{StaticResource Primary}"
                         SemanticProperties.Hint="Double tap to activate"
                         SemanticProperties.Description="{Binding SessionButtonDescription}"
-                        AutomationId="SessionControlButton" />
+                        AutomationId="SessionControlButton">
+                    <Button.IsEnabled>
+                        <MultiBinding Converter="{StaticResource AllTrueConverter}">
+                            <Binding Path="IsNotBusy" />
+                            <Binding Path="ConnectionInfo.IsConnected" />
+                        </MultiBinding>
+                    </Button.IsEnabled>
+                </Button>
 
                 <!-- Stop Session Button (only visible when session is active) -->
                 <Button Text="Stop Session"
@@ -401,12 +439,18 @@
                         FontSize="18"
                         FontAttributes="Bold"
                         CornerRadius="12"
-                        IsEnabled="{Binding IsNotBusy}"
                         IsVisible="{Binding IsSessionActive}"
                         BackgroundColor="{StaticResource PastelDanger}"
                         SemanticProperties.Hint="Double tap to stop the current session"
                         SemanticProperties.Description="Stops the active therapy session"
-                        AutomationId="StopSessionButton" />
+                        AutomationId="StopSessionButton">
+                    <Button.IsEnabled>
+                        <MultiBinding Converter="{StaticResource AllTrueConverter}">
+                            <Binding Path="IsNotBusy" />
+                            <Binding Path="ConnectionInfo.IsConnected" />
+                        </MultiBinding>
+                    </Button.IsEnabled>
+                </Button>
             </VerticalStackLayout>
 
             <!-- Info Card (only show when NO profile selected AND not in session) -->
