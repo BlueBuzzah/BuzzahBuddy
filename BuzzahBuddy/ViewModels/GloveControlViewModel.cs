@@ -2,6 +2,7 @@ using BuzzahBuddy.Helpers;
 using BuzzahBuddy.Models;
 using BuzzahBuddy.Services.Bluetooth;
 using BuzzahBuddy.Services.Glove;
+using BuzzahBuddy.Services.ConnectionStateManagement;
 using BuzzahBuddy.Services.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -124,9 +125,6 @@ public partial class GloveControlViewModel : BaseViewModel
     private bool _isTestingConnection;
 
     [ObservableProperty]
-    private bool _isConnected;
-
-    [ObservableProperty]
     private string _sessionButtonText = "Start Session";
 
     [ObservableProperty]
@@ -138,51 +136,57 @@ public partial class GloveControlViewModel : BaseViewModel
     [ObservableProperty]
     private DateTime? _lastSuccessfulPing;
 
-    [ObservableProperty]
-    private ConnectionState _connectionState = ConnectionState.Disconnected;
-
-    [ObservableProperty]
-    private string? _connectedDeviceName;
-
-    [ObservableProperty]
-    private bool _isReconnecting;
-
-    [ObservableProperty]
-    private string _reconnectionMessage = string.Empty;
+    /// <summary>
+    /// Single source of truth for connection state. Exposed for XAML binding.
+    /// </summary>
+    public IConnectionStateService ConnectionInfo { get; }
 
     /// <summary>
     /// Whether to show the reconnection banner (reconnecting or has a message like "Connection lost").
     /// </summary>
-    public bool ShowReconnectionBanner => IsReconnecting || !string.IsNullOrEmpty(ReconnectionMessage);
+    public bool ShowReconnectionBanner =>
+        ConnectionInfo.IsReconnecting || !string.IsNullOrEmpty(ConnectionInfo.ReconnectionMessage);
 
-    partial void OnIsReconnectingChanged(bool value)
+    /// <summary>
+    /// Inverse of IsTestingConnection for XAML MultiBinding (MAUI ignores Converter on child Binding in MultiBinding).
+    /// </summary>
+    public bool IsNotTestingConnection => !IsTestingConnection;
+
+    /// <summary>
+    /// Inverse of IsRefreshingBattery for XAML MultiBinding (MAUI ignores Converter on child Binding in MultiBinding).
+    /// </summary>
+    public bool IsNotRefreshingBattery => !IsRefreshingBattery;
+
+    partial void OnIsTestingConnectionChanged(bool value)
     {
-        OnPropertyChanged(nameof(ShowReconnectionBanner));
+        OnPropertyChanged(nameof(IsNotTestingConnection));
     }
 
-    partial void OnReconnectionMessageChanged(string value)
+    partial void OnIsRefreshingBatteryChanged(bool value)
     {
-        OnPropertyChanged(nameof(ShowReconnectionBanner));
+        OnPropertyChanged(nameof(IsNotRefreshingBattery));
     }
 
     public GloveControlViewModel(
         IGloveControlService gloveControlService,
         IBluetoothService bluetoothService,
         IDataStorageService storageService,
-        IReconnectionService reconnectionService)
+        IReconnectionService reconnectionService,
+        IConnectionStateService connectionStateService)
     {
         _gloveControlService = gloveControlService;
         _bluetoothService = bluetoothService;
         _storageService = storageService;
         _reconnectionService = reconnectionService;
+        ConnectionInfo = connectionStateService;
 
         Title = "Therapy Control";
 
         // Subscribe to connection events
         _bluetoothService.ConnectionStateChanged += OnConnectionStateChanged;
 
-        // Subscribe to reconnection state changes
-        _reconnectionService.ReconnectionStateChanged += OnReconnectionStateChanged;
+        // Subscribe to centralized connection state changes
+        ConnectionInfo.PropertyChanged += OnConnectionInfoPropertyChanged;
 
         // Initialize
         LoadProfilesAsync().SafeFireAndForget("[GLOVECONTROL]");
@@ -192,7 +196,7 @@ public partial class GloveControlViewModel : BaseViewModel
     [RelayCommand]
     private async Task ToggleSessionAsync()
     {
-        if (!IsConnected)
+        if (!ConnectionInfo.IsConnected)
         {
             await Shell.Current.DisplayAlert(
                 "Not Connected",
@@ -367,7 +371,7 @@ public partial class GloveControlViewModel : BaseViewModel
     [RelayCommand]
     private async Task TestConnectionAsync()
     {
-        if (!IsConnected)
+        if (!ConnectionInfo.IsConnected)
         {
             await Shell.Current.DisplayAlert(
                 "Not Connected",
@@ -408,8 +412,14 @@ public partial class GloveControlViewModel : BaseViewModel
     [RelayCommand]
     private async Task RefreshBatteryAsync()
     {
-        if (!IsConnected)
+        if (!ConnectionInfo.IsConnected)
+        {
+            await Shell.Current.DisplayAlert(
+                "Not Connected",
+                "Please connect to a BlueBuzzah glove first.",
+                "OK");
             return;
+        }
 
         IsBusy = true;
         IsRefreshingBattery = true;
@@ -559,7 +569,7 @@ public partial class GloveControlViewModel : BaseViewModel
 
     private async Task UpdateSessionStatusAsync()
     {
-        if (!IsConnected)
+        if (!ConnectionInfo.IsConnected)
         {
             SessionStatus = SessionStatus.CreateIdle();
             UpdateSessionState();
@@ -675,7 +685,7 @@ public partial class GloveControlViewModel : BaseViewModel
 
     private async Task CheckConnectionHealthAsync()
     {
-        if (!IsConnected)
+        if (!ConnectionInfo.IsConnected)
         {
             IsConnectionHealthy = false;
             return;
@@ -718,11 +728,7 @@ public partial class GloveControlViewModel : BaseViewModel
 
     private void UpdateConnectionState()
     {
-        ConnectionState = _bluetoothService.CurrentConnectionState;
-        IsConnected = ConnectionState == ConnectionState.Connected;
-        ConnectedDeviceName = _bluetoothService.ConnectedDevice?.Name;
-
-        if (IsConnected)
+        if (ConnectionInfo.IsConnected)
         {
             RefreshBatteryAsync().SafeFireAndForget("[GLOVECONTROL]");
             StartConnectionHealthCheck();
@@ -738,13 +744,13 @@ public partial class GloveControlViewModel : BaseViewModel
     {
         MainThread.BeginInvokeOnMainThread(() =>
         {
-            ConnectionState = state;
-            IsConnected = state == ConnectionState.Connected;
-            ConnectedDeviceName = _bluetoothService.ConnectedDevice?.Name;
+            // Use state parameter directly — ConnectionInfo may not have updated yet
+            var isConnected = state == ConnectionState.Connected;
 
-            if (IsConnected)
+            if (isConnected)
             {
                 StartConnectionHealthCheck();
+                RefreshBatteryAsync().SafeFireAndForget("[GLOVECONTROL]");
             }
             else
             {
@@ -752,17 +758,20 @@ public partial class GloveControlViewModel : BaseViewModel
                 IsConnectionHealthy = false;
             }
 
-            // Stop session if disconnected
-            if (!IsConnected && IsSessionActive)
+            // Session teardown on disconnect
+            if (!isConnected && IsSessionActive)
             {
                 StopStatusPolling();
                 SessionStatus = SessionStatus.CreateIdle();
                 UpdateSessionState();
 
+                // Persist incomplete session
                 if (_currentSession != null)
                 {
                     _currentSession.EndTime = DateTime.Now;
-                    _currentSession.IsCompleted = false; // Incomplete due to disconnection
+                    _currentSession.IsCompleted = false;
+                    _storageService.SaveSessionAsync(_currentSession).SafeFireAndForget("[GLOVECONTROL]");
+                    _currentSession = null;
                 }
             }
 
@@ -770,11 +779,14 @@ public partial class GloveControlViewModel : BaseViewModel
             {
                 ConnectionState.Connected => "Device connected",
                 ConnectionState.Disconnected => "Device disconnected",
-                ConnectionState.Error => "Connection error",
+                ConnectionState.Error => "Device connection lost",
+                ConnectionState.Reconnecting => "Attempting to reconnect",
                 _ => null
             };
             if (announcement != null)
+            {
                 SemanticScreenReader.Announce(announcement);
+            }
         });
     }
 
@@ -867,25 +879,26 @@ public partial class GloveControlViewModel : BaseViewModel
         }
     }
 
-    private void OnReconnectionStateChanged(object? sender, ReconnectionStateEventArgs e)
+    private void OnConnectionInfoPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        MainThread.BeginInvokeOnMainThread(() =>
+        if (e.PropertyName is nameof(IConnectionStateService.IsReconnecting) or nameof(IConnectionStateService.ReconnectionMessage))
         {
-            var (isReconnecting, message) = ReconnectionHelper.MapReconnectionState(e);
-            IsReconnecting = isReconnecting;
-            ReconnectionMessage = message;
+            OnPropertyChanged(nameof(ShowReconnectionBanner));
+        }
 
-            if (e.State == ReconnectionState.Succeeded)
-                SemanticScreenReader.Announce("Reconnected to BlueBuzzah gloves");
-            else if (!string.IsNullOrEmpty(ReconnectionMessage))
-                SemanticScreenReader.Announce(ReconnectionMessage);
-
-            // GloveControl-specific: manage polling during reconnection
-            if (e.State == ReconnectionState.Reconnecting)
+        // GloveControl-specific: manage polling during reconnection
+        if (e.PropertyName == nameof(IConnectionStateService.IsReconnecting))
+        {
+            if (ConnectionInfo.IsReconnecting)
+            {
                 StopStatusPolling();
-            else if (e.State == ReconnectionState.Succeeded && IsSessionActive)
+            }
+            else if (!ConnectionInfo.IsReconnecting && IsSessionActive)
+            {
+                // Reconnection ended (succeeded or failed) — restart polling if session active
                 StartStatusPolling();
-        });
+            }
+        }
     }
 
     /// <summary>
@@ -896,9 +909,11 @@ public partial class GloveControlViewModel : BaseViewModel
         if (disposing)
         {
             _bluetoothService.ConnectionStateChanged -= OnConnectionStateChanged;
-            _reconnectionService.ReconnectionStateChanged -= OnReconnectionStateChanged;
+            ConnectionInfo.PropertyChanged -= OnConnectionInfoPropertyChanged;
             StopStatusPolling();
+            _statusPollTimer?.Dispose();
             StopConnectionHealthCheck();
+            _healthCheckTimer?.Dispose();
             System.Diagnostics.Debug.WriteLine("[GLOVECONTROL] ViewModel disposed, unsubscribed from events");
         }
         base.Dispose(disposing);
