@@ -35,7 +35,7 @@
                         StrokeThickness="0"
                         Padding="12,8"
                         Margin="0,0,0,8"
-                        SemanticProperties.Description="{Binding ReconnectionMessage}"
+                        SemanticProperties.Description="{Binding ConnectionInfo.ReconnectionMessage}"
                         SemanticProperties.Hint="Tap to go to devices page"
                         AutomationId="ReconnectionBanner">
                     <Border.StrokeShape>
@@ -44,7 +44,7 @@
                     <Border.GestureRecognizers>
                         <TapGestureRecognizer Command="{Binding NavigateToDevicesCommand}" />
                     </Border.GestureRecognizers>
-                    <Label Text="{Binding ReconnectionMessage}"
+                    <Label Text="{Binding ConnectionInfo.ReconnectionMessage}"
                            TextColor="{StaticResource Black}"
                            FontSize="14"
                            HorizontalTextAlignment="Center"
@@ -53,7 +53,7 @@
 
                 <!-- Welcome Guide (Disconnected State Only) -->
                 <VerticalStackLayout Spacing="20"
-                                     IsVisible="{Binding IsConnected, Converter={StaticResource InvertedBoolConverter}}">
+                                     IsVisible="{Binding ConnectionInfo.IsConnected, Converter={StaticResource InvertedBoolConverter}}">
 
                     <!-- Getting Started Card -->
                     <Border Padding="24"
@@ -267,9 +267,18 @@
                                    SemanticProperties.HeadingLevel="Level3" />
                         </VerticalStackLayout>
 
+                        <!-- Disconnected state -->
+                        <Label Text="Connect to view battery status"
+                               IsVisible="{Binding ConnectionInfo.IsConnected, Converter={StaticResource InvertedBoolConverter}}"
+                               Style="{StaticResource BodyText}"
+                               TextColor="{StaticResource TextMuted}"
+                               HorizontalTextAlignment="Center"
+                               SemanticProperties.Description="Connect to view battery status" />
+
                         <!-- Battery Status -->
                         <HorizontalStackLayout HorizontalOptions="Center"
-                                               Spacing="20">
+                                               Spacing="20"
+                                               IsVisible="{Binding ConnectionInfo.IsConnected}">
                             <VerticalStackLayout Spacing="4" HorizontalOptions="Center"
                                                  SemanticProperties.Description="{Binding BatteryPrimaryPercentage, StringFormat='Primary battery: {0} percent'}">
                                 <Label Text="Primary"
