@@ -1,5 +1,6 @@
 using BuzzahBuddy.Models;
 using BuzzahBuddy.Services.Bluetooth;
+using BuzzahBuddy.Services.ConnectionStateManagement;
 using BuzzahBuddy.Services.Glove;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -16,8 +17,10 @@ public partial class CalibrationViewModel : BaseViewModel
     private readonly IGloveControlService _gloveControlService;
     private readonly IBluetoothService _bluetoothService;
 
-    [ObservableProperty]
-    private bool _isConnected;
+    /// <summary>
+    /// Centralized connection state service exposed for XAML binding.
+    /// </summary>
+    public IConnectionStateService ConnectionInfo { get; }
 
     [ObservableProperty]
     private bool _isInCalibrationMode;
@@ -54,10 +57,12 @@ public partial class CalibrationViewModel : BaseViewModel
 
     public CalibrationViewModel(
         IGloveControlService gloveControlService,
-        IBluetoothService bluetoothService)
+        IBluetoothService bluetoothService,
+        IConnectionStateService connectionStateService)
     {
         _gloveControlService = gloveControlService;
         _bluetoothService = bluetoothService;
+        ConnectionInfo = connectionStateService;
 
         Title = "Calibration";
 
@@ -71,7 +76,7 @@ public partial class CalibrationViewModel : BaseViewModel
     [RelayCommand]
     private async Task EnterCalibrationModeAsync()
     {
-        if (!IsConnected)
+        if (!ConnectionInfo.IsConnected)
         {
             await Shell.Current.DisplayAlert(
                 "Not Connected",
@@ -274,14 +279,20 @@ public partial class CalibrationViewModel : BaseViewModel
 
     private void UpdateConnectionState()
     {
-        IsConnected = _bluetoothService.CurrentConnectionState == ConnectionState.Connected;
-
-        // Exit calibration mode if disconnected
-        if (!IsConnected && IsInCalibrationMode)
+        if (!ConnectionInfo.IsConnected && IsInCalibrationMode)
         {
             IsInCalibrationMode = false;
             SelectedFingerIndex = -1;
             SelectedFingerName = "None";
+
+            // Notify user that calibration was interrupted
+            MainThread.BeginInvokeOnMainThread(async () =>
+            {
+                await Shell.Current.DisplayAlert(
+                    "Device Disconnected",
+                    "Calibration mode has been exited because the device was disconnected.",
+                    "OK");
+            });
         }
     }
 
@@ -291,6 +302,16 @@ public partial class CalibrationViewModel : BaseViewModel
         {
             UpdateConnectionState();
         });
+    }
+
+    /// <inheritdoc />
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _bluetoothService.ConnectionStateChanged -= OnConnectionStateChanged;
+        }
+        base.Dispose(disposing);
     }
 
     private void UpdateStepInfo()
