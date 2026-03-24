@@ -16,7 +16,7 @@
                             Spacing="25"
                             VerticalOptions="Center"
                             Padding="20"
-                            IsVisible="{Binding IsAlreadyConnected}">
+                            IsVisible="{Binding ConnectionInfo.IsConnected}">
 
             <!-- Connection Status Banner -->
             <VerticalStackLayout Spacing="15">
@@ -26,8 +26,8 @@
                        SemanticProperties.HeadingLevel="Level1" />
 
                 <controls:ConnectionStatusBanner
-                    ConnectionState="{Binding ConnectionState}"
-                    DeviceName="{Binding ConnectedDeviceName}" />
+                    ConnectionState="{Binding ConnectionInfo.ConnectionState}"
+                    DeviceName="{Binding ConnectionInfo.ConnectedDeviceName}" />
             </VerticalStackLayout>
 
             <!-- Action Buttons -->
@@ -55,7 +55,7 @@
         <!-- Device Scanning View - Show when NOT connected -->
         <Grid Grid.Row="0"
               RowDefinitions="Auto,Auto,*,Auto"
-              IsVisible="{Binding IsAlreadyConnected, Converter={StaticResource InvertedBoolConverter}}">
+              IsVisible="{Binding ConnectionInfo.IsConnected, Converter={StaticResource InvertedBoolConverter}}">
 
             <!-- TOP ZONE: Header Info (Read-Only) -->
             <VerticalStackLayout Grid.Row="0" Spacing="10" Margin="0,0,0,16">
