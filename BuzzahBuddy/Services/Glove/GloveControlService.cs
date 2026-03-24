@@ -55,6 +55,20 @@ public class GloveControlService : IGloveControlService
     }
 
     /// <summary>
+    /// Validates that the Bluetooth service is in a connected state before issuing a command.
+    /// Provides a clear error message instead of letting the transport layer throw a generic exception.
+    /// </summary>
+    private void EnsureConnected()
+    {
+        if (_bluetoothService.CurrentConnectionState != ConnectionState.Connected)
+        {
+            throw new InvalidOperationException(
+                "Cannot send command: not connected to a BlueBuzzah device. " +
+                "Please connect to a device first.");
+        }
+    }
+
+    /// <summary>
     /// Updates the current session status and fires the SessionStateChanged event if the state changed.
     /// </summary>
     private void UpdateSessionStatus(SessionStatus newStatus)
@@ -75,6 +89,7 @@ public class GloveControlService : IGloveControlService
 
     public async Task<GloveDeviceInfo> GetDeviceInfoAsync()
     {
+        EnsureConnected();
         var response = await _bluetoothService.SendCommandAsync("INFO");
         response.ThrowIfError();
         return GloveDeviceInfo.FromCommandResponse(response);
@@ -82,6 +97,7 @@ public class GloveControlService : IGloveControlService
 
     public async Task<(double primaryVoltage, double secondaryVoltage)> GetBatteryAsync()
     {
+        EnsureConnected();
         // BATTERY command may take up to 1 second (Primary queries Secondary)
         var response = await _bluetoothService.SendCommandAsync("BATTERY", timeoutMs: 3000);
         response.ThrowIfError();
@@ -104,13 +120,19 @@ public class GloveControlService : IGloveControlService
 
     public async Task<bool> PingAsync(int timeoutMs = 2000)
     {
+        EnsureConnected();
         try
         {
             var response = await _bluetoothService.SendCommandAsync("PING", timeoutMs: timeoutMs);
-            return response.GetString("PONG") != null || response.ContainsKey("PONG");
+
+            System.Diagnostics.Debug.WriteLine($"[PING] Response keys: [{string.Join(", ", response.Keys)}]");
+            System.Diagnostics.Debug.WriteLine($"[PING] HasData: {response.HasData}, ContainsKey('PONG'): {response.ContainsKey("PONG")}");
+
+            return response.ContainsKey("PONG");
         }
         catch (TimeoutException)
         {
+            System.Diagnostics.Debug.WriteLine("[PING] Timed out");
             return false;
         }
     }
@@ -119,6 +141,7 @@ public class GloveControlService : IGloveControlService
 
     public async Task<List<TherapyProfile>> ListProfilesAsync()
     {
+        EnsureConnected();
         System.Diagnostics.Debug.WriteLine("[PROFILE_LIST] Sending PROFILE_LIST command...");
         var response = await _bluetoothService.SendCommandAsync("PROFILE_LIST");
         response.ThrowIfError();
@@ -171,6 +194,7 @@ public class GloveControlService : IGloveControlService
 
     public async Task LoadProfileAsync(int profileId)
     {
+        EnsureConnected();
         // Per BLE protocol v2.0.0: 6 profiles available (1-6)
         if (profileId < 1 || profileId > 6)
         {
@@ -198,6 +222,7 @@ public class GloveControlService : IGloveControlService
 
     public async Task<TherapyProfile> GetCurrentProfileAsync()
     {
+        EnsureConnected();
         var response = await _bluetoothService.SendCommandAsync("PROFILE_GET");
         response.ThrowIfError();
 
@@ -224,6 +249,7 @@ public class GloveControlService : IGloveControlService
 
     public async Task SetCustomProfileAsync(Dictionary<string, string> parameters)
     {
+        EnsureConnected();
         if (parameters == null || parameters.Count == 0)
         {
             throw new ArgumentException("Parameters dictionary cannot be null or empty", nameof(parameters));
@@ -246,6 +272,7 @@ public class GloveControlService : IGloveControlService
 
     public async Task StartSessionAsync()
     {
+        EnsureConnected();
         // SESSION_START may take up to 500ms (establishes Primary↔Secondary sync)
         var response = await _bluetoothService.SendCommandAsync("SESSION_START", timeoutMs: 7000);
         response.ThrowIfError();
@@ -263,6 +290,7 @@ public class GloveControlService : IGloveControlService
 
     public async Task PauseSessionAsync()
     {
+        EnsureConnected();
         var response = await _bluetoothService.SendCommandAsync("SESSION_PAUSE");
         response.ThrowIfError();
 
@@ -279,6 +307,7 @@ public class GloveControlService : IGloveControlService
 
     public async Task ResumeSessionAsync()
     {
+        EnsureConnected();
         var response = await _bluetoothService.SendCommandAsync("SESSION_RESUME");
         response.ThrowIfError();
 
@@ -295,6 +324,7 @@ public class GloveControlService : IGloveControlService
 
     public async Task StopSessionAsync()
     {
+        EnsureConnected();
         var response = await _bluetoothService.SendCommandAsync("SESSION_STOP");
         response.ThrowIfError();
 
@@ -304,6 +334,7 @@ public class GloveControlService : IGloveControlService
 
     public async Task<SessionStatus> GetSessionStatusAsync()
     {
+        EnsureConnected();
         var response = await _bluetoothService.SendCommandAsync("SESSION_STATUS");
         response.ThrowIfError();
         var status = SessionStatus.FromCommandResponse(response);
@@ -318,6 +349,7 @@ public class GloveControlService : IGloveControlService
 
     public async Task SetParameterAsync(string parameterName, string value)
     {
+        EnsureConnected();
         if (string.IsNullOrWhiteSpace(parameterName))
         {
             throw new ArgumentException("Parameter name cannot be null or empty", nameof(parameterName));
@@ -336,12 +368,14 @@ public class GloveControlService : IGloveControlService
 
     public async Task EnterCalibrationAsync()
     {
+        EnsureConnected();
         var response = await _bluetoothService.SendCommandAsync("CALIBRATE_START");
         response.ThrowIfError();
     }
 
     public async Task BuzzFingerAsync(int fingerIndex, int intensity, int durationMs)
     {
+        EnsureConnected();
         if (fingerIndex < 0 || fingerIndex > 7)
         {
             throw new ArgumentException("Finger index must be 0-7", nameof(fingerIndex));
@@ -364,6 +398,7 @@ public class GloveControlService : IGloveControlService
 
     public async Task ExitCalibrationAsync()
     {
+        EnsureConnected();
         var response = await _bluetoothService.SendCommandAsync("CALIBRATE_STOP");
         response.ThrowIfError();
     }
@@ -372,6 +407,7 @@ public class GloveControlService : IGloveControlService
 
     public async Task<List<string>> GetAvailableCommandsAsync()
     {
+        EnsureConnected();
         var response = await _bluetoothService.SendCommandAsync("HELP");
         response.ThrowIfError();
 
@@ -393,6 +429,7 @@ public class GloveControlService : IGloveControlService
 
     public async Task RestartDeviceAsync()
     {
+        EnsureConnected();
         // RESTART command causes immediate disconnection
         _expectingReboot = true;
         try
@@ -413,6 +450,7 @@ public class GloveControlService : IGloveControlService
 
     public async Task<bool> GetTherapyLedOffAsync()
     {
+        EnsureConnected();
         var response = await _bluetoothService.SendCommandAsync("THERAPY_LED_OFF");
         response.ThrowIfError();
 
@@ -423,6 +461,7 @@ public class GloveControlService : IGloveControlService
 
     public async Task SetTherapyLedOffAsync(bool enabled)
     {
+        EnsureConnected();
         var value = enabled ? "true" : "false";
         var response = await _bluetoothService.SendCommandAsync($"THERAPY_LED_OFF:{value}");
         response.ThrowIfError();
@@ -430,6 +469,7 @@ public class GloveControlService : IGloveControlService
 
     public async Task<bool> GetDebugModeAsync()
     {
+        EnsureConnected();
         var response = await _bluetoothService.SendCommandAsync("DEBUG");
         response.ThrowIfError();
 
@@ -440,6 +480,7 @@ public class GloveControlService : IGloveControlService
 
     public async Task SetDebugModeAsync(bool enabled)
     {
+        EnsureConnected();
         var value = enabled ? "true" : "false";
         var response = await _bluetoothService.SendCommandAsync($"DEBUG:{value}");
         response.ThrowIfError();
