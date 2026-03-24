@@ -94,18 +94,15 @@ public class ConnectionStateService : IConnectionStateService, IDisposable
         _bluetoothService = bluetoothService;
         _reconnectionService = reconnectionService;
 
+        // Initialize backing fields synchronously so state is correct immediately
+        // after construction — before any ViewModel reads ConnectionInfo.IsConnected.
+        // PropertyChanged is NOT fired here (no UI subscribers exist yet during DI resolution).
+        _connectionState = _bluetoothService.CurrentConnectionState;
+        _isConnected = _connectionState == Models.ConnectionState.Connected;
+        _connectedDeviceName = _bluetoothService.ConnectedDevice?.Name;
+
         _bluetoothService.ConnectionStateChanged += OnConnectionStateChanged;
         _reconnectionService.ReconnectionStateChanged += OnReconnectionStateChanged;
-
-        // Initialize from current state (must be on main thread for PropertyChanged)
-        MainThread.BeginInvokeOnMainThread(SyncFromService);
-    }
-
-    private void SyncFromService()
-    {
-        ConnectionState = _bluetoothService.CurrentConnectionState;
-        IsConnected = ConnectionState == Models.ConnectionState.Connected;
-        ConnectedDeviceName = _bluetoothService.ConnectedDevice?.Name;
     }
 
     private void OnConnectionStateChanged(object? sender, Models.ConnectionState state)
