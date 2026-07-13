@@ -174,7 +174,7 @@ public class MockBluetoothService : IBluetoothService
         {
             "INFO" => GetMockInfoResponse(),
             "BATTERY" => await GetMockBatteryResponse(cancellationToken),
-            "PING" => "PONG\n\x04",
+            "PING" => "PONG:\n\x04",
             "PROFILE_LIST" => GetMockProfileListResponse(),
             var cmd when cmd.StartsWith("PROFILE_LOAD:") => HandleProfileLoad(cmd),
             "PROFILE_GET" => GetMockProfileSettings(),
@@ -226,11 +226,24 @@ public class MockBluetoothService : IBluetoothService
         return "ROLE:PRIMARY\n" +
                "NAME:BlueBuzzah\n" +
                "FW:2.0.0\n" +
+               "MOTORS:4\n" +
+               $"PROFILE:{_mockCurrentProfile}:{ProfileNameFor(_mockCurrentProfile)}\n" +
                "BATP:3.72\n" +
                "BATS:3.68\n" +
                $"STATUS:{_mockSessionState}\n" +
                "\x04";
     }
+
+    private static string ProfileNameFor(int profileId) => profileId switch
+    {
+        1 => "regular_vcr",
+        2 => "noisy_vcr",
+        3 => "hybrid_vcr",
+        4 => "custom_vcr",
+        5 => "gentle",
+        6 => "quick_test",
+        _ => "unknown"
+    };
 
     private async Task<string> GetMockBatteryResponse(CancellationToken cancellationToken)
     {
@@ -257,6 +270,12 @@ public class MockBluetoothService : IBluetoothService
 
     private string HandleProfileLoad(string command)
     {
+        // Firmware rejects PROFILE_LOAD while a session is active; must be stopped first.
+        if (_mockSessionState != SessionState.IDLE)
+        {
+            return "ERROR:Session must be stopped before loading a profile\n\x04";
+        }
+
         var parts = command.Split(':');
         if (parts.Length >= 2 && int.TryParse(parts[1], out var profileId))
         {
@@ -264,16 +283,7 @@ public class MockBluetoothService : IBluetoothService
             if (profileId >= 1 && profileId <= 6)
             {
                 _mockCurrentProfile = profileId;
-                var profileName = profileId switch
-                {
-                    1 => "regular_vcr",
-                    2 => "noisy_vcr",
-                    3 => "hybrid_vcr",
-                    4 => "custom_vcr",
-                    5 => "gentle",
-                    6 => "quick_test",
-                    _ => "unknown"
-                };
+                var profileName = ProfileNameFor(profileId);
                 // Per BLE protocol v2.0.0: Device reboots after PROFILE_LOAD
                 return $"STATUS:REBOOTING\nPROFILE:{profileName}\n\x04";
             }
@@ -394,7 +404,13 @@ public class MockBluetoothService : IBluetoothService
 
         var progress = Math.Min(100, (int)((double)elapsedSeconds / totalSeconds * 100));
 
-        return $"SESSION_STATUS:{_mockSessionState}\n" +
+        var stateStr = _mockSessionState.ToString();
+        if (_mockSessionState == SessionState.RUNNING && progress >= 95)
+        {
+            stateStr = "LOW_BATTERY";   // exercise the app's non-trivial state handling in Debug builds
+        }
+
+        return $"SESSION_STATUS:{stateStr}\n" +
                $"ELAPSED:{elapsedSeconds}\n" +
                $"TOTAL:{totalSeconds}\n" +
                $"PROGRESS:{progress}\n" +
@@ -415,11 +431,18 @@ public class MockBluetoothService : IBluetoothService
         }
 
         var parts = command.Split(':');
-        if (parts.Length >= 4)
+        if (parts.Length >= 4 &&
+            int.TryParse(parts[1], out var finger) &&
+            int.TryParse(parts[2], out var intensity) &&
+            int.TryParse(parts[3], out var duration))
         {
-            return $"FINGER:{parts[1]}\n" +
-                   $"INTENSITY:{parts[2]}\n" +
-                   $"DURATION:{parts[3]}\n" +
+            // Mock simulates a 4-motor BlueBuzzah primary; firmware's finger range is 0-7 for it.
+            if (finger < 0 || finger > 7) return "ERROR:Invalid finger index (0-7)\n\x04";
+            if (intensity < 0 || intensity > 100) return "ERROR:Intensity out of range (0-100)\n\x04";
+            if (duration < 50 || duration > 2000) return "ERROR:Duration out of range (50-2000ms)\n\x04";
+            return $"FINGER:{finger}\n" +
+                   $"INTENSITY:{intensity}\n" +
+                   $"DURATION:{duration}\n" +
                    "\x04";
         }
 
