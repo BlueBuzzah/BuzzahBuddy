@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+  <!--
+    Fallback strategy (see .superpowers/sdd/task-6-brief.md): a ProjectReference to
+    BuzzahBuddy.csproj forces `dotnet restore` to resolve NuGet/workload assets for
+    ALL of that project's TargetFrameworks (net9.0;net9.0-android;net9.0-ios), not just
+    the net9.0 one this test project needs. The android/ios MAUI workloads are not
+    installed in this environment (and workload install requires elevated privileges),
+    so restore fails with NETSDK1147 even though `dotnet build BuzzahBuddy/BuzzahBuddy.csproj
+    -f net9.0` succeeds standalone. Compiling the plain-C# model sources directly avoids
+    the cross-TFM restore requirement.
+  -->
+  <ItemGroup>
+    <Compile Include="../BuzzahBuddy/Models/**/*.cs" LinkBase="AppModels" />
+  </ItemGroup>
+</Project>

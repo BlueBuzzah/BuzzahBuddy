@@ -1,10 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<!-- Only targeting iOS and Android -->
-		<TargetFrameworks>net9.0-android;net9.0-ios</TargetFrameworks>
+		<!-- Only targeting iOS and Android (net9.0 added so plain-TFM test projects can reference this project) -->
+		<TargetFrameworks>net9.0;net9.0-android;net9.0-ios</TargetFrameworks>
 
-		<OutputType>Exe</OutputType>
+		<!-- Exe requires a platform-generated Main; plain net9.0 has none, so it builds as a library -->
+		<OutputType Condition="'$(TargetFramework)' != 'net9.0'">Exe</OutputType>
+		<OutputType Condition="'$(TargetFramework)' == 'net9.0'">Library</OutputType>
 		<RootNamespace>BuzzahBuddy</RootNamespace>
 		<UseMaui>true</UseMaui>
 		<SingleProject>true</SingleProject>
