@@ -7,24 +7,46 @@ on:
       - main
     paths:
       - "BuzzahBuddy/**"
+      - "BuzzahBuddy.Tests/**"
       - ".github/workflows/build.yml"
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - name: Setup dotnet
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "9.0.x"
+      # Test project compiles app sources directly (no ProjectReference),
+      # so no mobile workloads are needed here
+      - name: Test
+        run: dotnet test BuzzahBuddy.Tests -c Release
+
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Setup dotnet
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: "9.0.x"
       - name: Restore Workloads
-        run: dotnet workload restore
-      - name: Restore Dependencies
-        run: dotnet restore
+        run: dotnet workload install maui-android
+      # -p:TargetFrameworks pins restore/build to the android TFM; the iOS
+      # workload packs don't exist on Linux, so a full multi-TFM restore fails
       - name: Build Android
-        run: dotnet build -f net9.0-android -c debug --no-restore
+        run: dotnet build BuzzahBuddy/BuzzahBuddy.csproj -f net9.0-android -c Debug -p:TargetFrameworks=net9.0-android
+
+  build-ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Setup dotnet
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "9.0.x"
+      - name: Restore Workloads
+        run: dotnet workload install maui-ios
       - name: Build iOS
-        run: dotnet build -f net9.0-ios -c debug --no-restore
-      # Uncomment test step when tests are implemented
-      # - name: Test with the dotnet CLI
-      #   run: dotnet test --no-build
+        run: dotnet build BuzzahBuddy/BuzzahBuddy.csproj -f net9.0-ios -c Debug -p:TargetFrameworks=net9.0-ios
