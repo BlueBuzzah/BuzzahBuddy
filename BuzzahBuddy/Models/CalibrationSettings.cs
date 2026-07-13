@@ -2,15 +2,23 @@ namespace BuzzahBuddy.Models;
 
 /// <summary>
 /// Represents settings for calibration mode finger testing.
+/// Finger indices follow the firmware map (config.h): 0=Index, 1=Middle,
+/// 2=Ring, 3=Pinky, 4=Thumb (5-motor boards only). Indices at and above the
+/// per-glove actuator count address the same fingers on the secondary glove.
 /// </summary>
 public class CalibrationSettings
 {
+    private static readonly string[] FingerNames = { "Index", "Middle", "Ring", "Pinky", "Thumb" };
+
     /// <summary>
-    /// Finger index (0-7).
-    /// 0-3: Primary device - Thumb, Index, Middle, Ring
-    /// 4-7: Secondary device - Thumb, Index, Middle, Ring
+    /// Finger index (0 to 2*ActuatorsPerGlove-1).
     /// </summary>
     public int FingerIndex { get; set; }
+
+    /// <summary>
+    /// Motors per glove: 4 (BlueBuzzah) or 5 (PentaBuzzer).
+    /// </summary>
+    public int ActuatorsPerGlove { get; set; } = 4;
 
     /// <summary>
     /// Vibration intensity percentage (0-100).
@@ -23,69 +31,43 @@ public class CalibrationSettings
     public int DurationMs { get; set; } = 500;
 
     /// <summary>
-    /// Gets whether this is a Primary device finger (0-3).
+    /// Gets whether this finger is on the primary glove.
     /// </summary>
-    public bool IsPrimaryDevice => FingerIndex >= 0 && FingerIndex <= 3;
+    public bool IsPrimaryDevice => FingerIndex >= 0 && FingerIndex < ActuatorsPerGlove;
 
     /// <summary>
-    /// Gets whether this is a Secondary device finger (4-7).
+    /// Gets whether this finger is on the secondary glove.
     /// </summary>
-    public bool IsSecondaryDevice => FingerIndex >= 4 && FingerIndex <= 7;
+    public bool IsSecondaryDevice => FingerIndex >= ActuatorsPerGlove && FingerIndex < 2 * ActuatorsPerGlove;
 
     /// <summary>
-    /// Gets the display name for the finger.
+    /// Gets the display name for the finger (e.g. "Primary Index").
     /// </summary>
-    public string FingerName
+    public string FingerName => GetFingerLabel(FingerIndex, ActuatorsPerGlove);
+
+    /// <summary>
+    /// Maps a protocol finger index to its display label, per the firmware finger map.
+    /// </summary>
+    public static string GetFingerLabel(int fingerIndex, int actuatorsPerGlove)
     {
-        get
+        var glove = fingerIndex < actuatorsPerGlove ? "Primary" : "Secondary";
+        var local = fingerIndex % actuatorsPerGlove;
+        if (fingerIndex < 0 || fingerIndex >= 2 * actuatorsPerGlove || local >= FingerNames.Length)
         {
-            return FingerIndex switch
-            {
-                0 => "Primary Thumb",
-                1 => "Primary Index",
-                2 => "Primary Middle",
-                3 => "Primary Ring",
-                4 => "Secondary Thumb",
-                5 => "Secondary Index",
-                6 => "Secondary Middle",
-                7 => "Secondary Ring",
-                _ => $"Finger {FingerIndex}"
-            };
+            return $"Finger {fingerIndex}";
         }
+        return $"{glove} {FingerNames[local]}";
     }
 
     /// <summary>
-    /// Gets the short name for the finger (for compact UI).
+    /// Creates calibration settings for every finger on both gloves.
     /// </summary>
-    public string FingerShortName
-    {
-        get
-        {
-            return FingerIndex switch
-            {
-                0 => "P-Thumb",
-                1 => "P-Index",
-                2 => "P-Middle",
-                3 => "P-Ring",
-                4 => "S-Thumb",
-                5 => "S-Index",
-                6 => "S-Middle",
-                7 => "S-Ring",
-                _ => $"F{FingerIndex}"
-            };
-        }
-    }
-
-    /// <summary>
-    /// Creates calibration settings for all 8 fingers.
-    /// </summary>
-    /// <returns>List of 8 CalibrationSettings objects</returns>
-    public static List<CalibrationSettings> CreateAll()
+    public static List<CalibrationSettings> CreateAll(int actuatorsPerGlove = 4)
     {
         var settings = new List<CalibrationSettings>();
-        for (int i = 0; i < 8; i++)
+        for (int i = 0; i < 2 * actuatorsPerGlove; i++)
         {
-            settings.Add(new CalibrationSettings { FingerIndex = i });
+            settings.Add(new CalibrationSettings { FingerIndex = i, ActuatorsPerGlove = actuatorsPerGlove });
         }
         return settings;
     }

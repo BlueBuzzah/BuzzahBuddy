@@ -353,17 +353,7 @@ public partial class CalibrationViewModel : BaseViewModel
 
     private static string GetFingerName(int fingerIndex)
     {
-        return fingerIndex switch
-        {
-            0 => "Left Thumb",
-            1 => "Left Index",
-            2 => "Left Middle",
-            3 => "Left Ring",
-            4 => "Right Thumb",
-            5 => "Right Index",
-            6 => "Right Middle",
-            7 => "Right Ring",
-            _ => "Unknown"
-        };
+        // 4 is provisional; Task 11 replaces it with the connected device's actuator count
+        return CalibrationSettings.GetFingerLabel(fingerIndex, 4);
     }
 }

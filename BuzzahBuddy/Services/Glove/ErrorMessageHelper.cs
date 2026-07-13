@@ -105,9 +105,8 @@ public static class ErrorMessageHelper
         if (lowerError.Contains("invalid finger") || lowerError.Contains("finger index"))
         {
             return ("Invalid Finger Selection",
-                "Finger index must be 0-7:\n\n" +
-                "Primary device: 0 (Thumb), 1 (Index), 2 (Middle), 3 (Ring)\n" +
-                "Secondary device: 4 (Thumb), 5 (Index), 6 (Middle), 7 (Ring)");
+                "That finger isn't available on the connected gloves.\n\n" +
+                "Please pick one of the finger buttons shown on the calibration screen.");
         }
 
         // Connection/Communication Errors
