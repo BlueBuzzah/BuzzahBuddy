@@ -56,4 +56,18 @@ public class GloveControlServiceTests
         Assert.True(service.ExpectingReboot);
         Assert.Contains("PROFILE_LOAD:3", fake.SentCommands);
     }
+
+    [Fact]
+    public async Task ListProfilesAsync_ReturnsAllSixDeviceProfiles()
+    {
+        var fake = new FakeBluetoothService();
+        fake.CannedResponses["PROFILE_LIST"] =
+            "PROFILE:1:regular_vcr\nPROFILE:2:noisy_vcr\nPROFILE:3:hybrid_vcr\n" +
+            "PROFILE:4:custom_vcr\nPROFILE:5:gentle\nPROFILE:6:quick_test\n\x04";
+        var service = new GloveControlService(fake);
+
+        var profiles = await service.ListProfilesAsync();
+
+        Assert.Equal(6, profiles.Count);
+    }
 }

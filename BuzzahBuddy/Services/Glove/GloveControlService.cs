@@ -192,18 +192,10 @@ public class GloveControlService : IGloveControlService
         if (profiles.Count == 0)
         {
             System.Diagnostics.Debug.WriteLine("[PROFILE_LIST] No profiles parsed, using preset fallback");
-            // Filter to main therapy profiles only (1-3: Regular, Noisy, Hybrid)
-            var fallback = TherapyProfile.GetPresetProfiles()
-                .Where(p => p.ProfileId >= 1 && p.ProfileId <= 3)
-                .ToList();
-            System.Diagnostics.Debug.WriteLine($"[PROFILE_LIST] Returning {fallback.Count} fallback profiles");
-            return fallback;
+            return TherapyProfile.GetPresetProfiles();
         }
 
-        // Filter to main therapy profiles only (1-3: Regular, Noisy, Hybrid)
-        var filtered = profiles.Where(p => p.ProfileId >= 1 && p.ProfileId <= 3).ToList();
-        System.Diagnostics.Debug.WriteLine($"[PROFILE_LIST] Returning {filtered.Count} filtered profiles");
-        return filtered;
+        return profiles;
     }
 
     public async Task LoadProfileAsync(int profileId)
