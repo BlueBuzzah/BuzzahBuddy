@@ -1,7 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<!-- Only targeting iOS and Android (net9.0 added so plain-TFM test projects can reference this project) -->
+		<!-- Only targeting iOS and Android (net9.0 added because a ProjectReference from a plain-TFM
+		     test project would force restore to resolve assets for every TFM here, including
+		     android/ios, which fails with NETSDK1147 when those workloads aren't installed; test
+		     projects instead Compile-Include the net9.0-safe sources directly, which needs this TFM) -->
 		<TargetFrameworks>net9.0;net9.0-android;net9.0-ios</TargetFrameworks>
 
 		<!-- Exe requires a platform-generated Main; plain net9.0 has none, so it builds as a library -->

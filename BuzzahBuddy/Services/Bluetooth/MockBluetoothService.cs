@@ -7,6 +7,8 @@ namespace BuzzahBuddy.Services.Bluetooth;
 /// Mock Bluetooth service for testing without hardware.
 /// Implements all 20 BlueBuzzah commands with realistic responses.
 /// Per BLE protocol v2.0.0.
+/// This mock simulates a 4-motor BlueBuzzah primary board; 5-motor (PentaBuzzer) ranges
+/// are only testable on hardware.
 /// </summary>
 public class MockBluetoothService : IBluetoothService
 {
@@ -282,8 +284,8 @@ public class MockBluetoothService : IBluetoothService
 
     private string HandleProfileLoad(string command)
     {
-        // Firmware rejects PROFILE_LOAD while a session is active; must be stopped first.
-        if (_mockSessionState != SessionState.IDLE)
+        // Firmware rejects PROFILE_LOAD only in active states (mirrors isActiveState); must be stopped first.
+        if (_mockSessionState is SessionState.RUNNING or SessionState.PAUSED or SessionState.LOW_BATTERY)
         {
             return "ERROR:Session must be stopped before loading a profile\n\x04";
         }

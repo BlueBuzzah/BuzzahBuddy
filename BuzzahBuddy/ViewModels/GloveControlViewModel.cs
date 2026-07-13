@@ -30,6 +30,7 @@ public partial class GloveControlViewModel : BaseViewModel
     private int _consecutiveHealthCheckFailures;
     private const int PollFailureWarningThreshold = 2;
     private const int PollFailureReconnectThreshold = 3;
+    private const string ConnectionUnstableWarning = "Connection unstable — trying to recover…";
 
     [ObservableProperty]
     private ObservableCollection<ProfileItemViewModel> _availableProfiles = new();
@@ -798,7 +799,7 @@ public partial class GloveControlViewModel : BaseViewModel
             IsConnectionHealthy = true;
             LastSuccessfulPing = DateTime.Now;
             _consecutiveHealthCheckFailures = 0;
-            if (SessionWarningMessage == "Connection unstable — trying to recover…")
+            if (SessionWarningMessage == ConnectionUnstableWarning)
             {
                 SessionWarningMessage = null;
             }
@@ -807,7 +808,7 @@ public partial class GloveControlViewModel : BaseViewModel
 
         _consecutiveHealthCheckFailures++;
         IsConnectionHealthy = false;
-        SessionWarningMessage = "Connection unstable — trying to recover…";
+        SessionWarningMessage = ConnectionUnstableWarning;
 
         // Two consecutive missed pings (60s of silence): force a reconnect cycle
         if (_consecutiveHealthCheckFailures >= 2)

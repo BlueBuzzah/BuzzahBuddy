@@ -75,7 +75,8 @@ public enum SessionState
 public class SessionStatus
 {
     /// <summary>
-    /// Current session state (IDLE, RUNNING, or PAUSED).
+    /// Current session state reported by the firmware; see SessionState for the full
+    /// 11-state vocabulary plus UNKNOWN.
     /// </summary>
     public SessionState Status { get; set; } = SessionState.IDLE;
 
