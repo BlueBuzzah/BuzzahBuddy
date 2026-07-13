@@ -43,4 +43,17 @@ public class GloveControlServiceTests
         var service = new GloveControlService(fake);
         await Assert.ThrowsAsync<ArgumentException>(() => service.BuzzFingerAsync(8, 80, 500));
     }
+
+    [Fact]
+    public async Task LoadProfileAsync_RebootingResponse_SetsExpectingReboot()
+    {
+        var fake = new FakeBluetoothService();
+        fake.CannedResponses["PROFILE_LOAD"] = "STATUS:REBOOTING\nPROFILE:hybrid_vcr\n\x04";
+        var service = new GloveControlService(fake);
+
+        await service.LoadProfileAsync(3);
+
+        Assert.True(service.ExpectingReboot);
+        Assert.Contains("PROFILE_LOAD:3", fake.SentCommands);
+    }
 }

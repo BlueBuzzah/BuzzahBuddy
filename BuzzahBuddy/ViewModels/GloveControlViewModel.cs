@@ -230,6 +230,17 @@ public partial class GloveControlViewModel : BaseViewModel
         {
             if (!IsSessionActive)
             {
+                if (_gloveControlService.DeviceProfileId > 0 &&
+                    SelectedProfile != null &&
+                    SelectedProfile.ProfileId != _gloveControlService.DeviceProfileId)
+                {
+                    await Shell.Current.DisplayAlert(
+                        "Profile Not Applied",
+                        $"The gloves are still using a different profile. Tap \"{SelectedProfile.Name}\" again to apply it before starting.",
+                        "OK");
+                    return;
+                }
+
                 // Start session
                 await _gloveControlService.StartSessionAsync();
 
@@ -351,10 +362,56 @@ public partial class GloveControlViewModel : BaseViewModel
     }
 
     [RelayCommand]
-    private void SelectProfile(ProfileItemViewModel profileItem)
+    private async Task SelectProfileAsync(ProfileItemViewModel profileItem)
     {
         if (profileItem?.Profile == null)
             return;
+
+        // Selecting the profile already on the device is just a UI highlight
+        var isDeviceCurrent = profileItem.Profile.ProfileId == _gloveControlService.DeviceProfileId;
+
+        if (!isDeviceCurrent && ConnectionInfo.IsConnected)
+        {
+            if (IsSessionActive)
+            {
+                await Shell.Current.DisplayAlert(
+                    "Session Active",
+                    "Stop the current session before changing profiles.",
+                    "OK");
+                return;
+            }
+
+            var confirm = await Shell.Current.DisplayAlert(
+                "Change Profile?",
+                $"Switching to \"{profileItem.Profile.Name}\" will restart your gloves. " +
+                "They will reconnect automatically in about 15 seconds.",
+                "Change Profile",
+                "Cancel");
+            if (!confirm)
+                return;
+
+            IsBusy = true;
+            try
+            {
+                await _gloveControlService.LoadProfileAsync(profileItem.Profile.ProfileId);
+                SessionWarningMessage = "Gloves are restarting to apply the new profile…";
+            }
+            catch (BlueBuzzahCommandException ex)
+            {
+                var (title, message) = ErrorMessageHelper.GetFriendlyError(ex.Message);
+                await Shell.Current.DisplayAlert(title, message, "OK");
+                return;
+            }
+            catch (Exception ex)
+            {
+                await Shell.Current.DisplayAlert(ErrorMessageHelper.GetErrorTitle(ex), ErrorMessageHelper.GetErrorMessage(ex), "OK");
+                return;
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
 
         // Deselect all profiles
         foreach (var item in AvailableProfiles)
@@ -763,12 +820,43 @@ public partial class GloveControlViewModel : BaseViewModel
         if (ConnectionInfo.IsConnected)
         {
             RefreshBatteryAsync().SafeFireAndForget("[GLOVECONTROL]");
+            SyncSelectedProfileFromDeviceAsync().SafeFireAndForget("[GLOVECONTROL]");
             StartConnectionHealthCheck();
         }
         else
         {
             StopConnectionHealthCheck();
             IsConnectionHealthy = false;
+        }
+    }
+
+    /// <summary>
+    /// Queries the device for its currently loaded profile and syncs local selection state
+    /// to match. Called on every (re)connect so the UI never disagrees with the device.
+    /// </summary>
+    private async Task SyncSelectedProfileFromDeviceAsync()
+    {
+        try
+        {
+            await _gloveControlService.GetDeviceInfoAsync();
+            var deviceProfileId = _gloveControlService.DeviceProfileId;
+            if (deviceProfileId <= 0)
+                return;
+
+            SessionWarningMessage = null;
+            var match = AvailableProfiles.FirstOrDefault(p => p.Profile?.ProfileId == deviceProfileId);
+            if (match != null)
+            {
+                foreach (var item in AvailableProfiles)
+                {
+                    item.IsSelected = item == match;
+                }
+                SelectedProfile = match.Profile;
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[GLOVECONTROL] Profile sync failed: {ex.Message}");
         }
     }
 
