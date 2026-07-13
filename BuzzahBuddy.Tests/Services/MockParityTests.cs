@@ -17,8 +17,11 @@ public class MockParityTests
     public async Task Ping_UsesColonFormat_LikeFirmware()
     {
         var mock = await ConnectedMock();
-        var response = await mock.SendCommandAsync("PING");
-        Assert.True(response.ContainsKey("PONG"));
+        // Assert on the raw pre-parse wire text: CommandResponse.Parse normalizes both
+        // "PONG\n" and "PONG:\n" to the same key/value pair, so asserting on the parsed
+        // CommandResponse cannot detect a regression to the bare (non-firmware) form.
+        var raw = await mock.GetRawResponseAsync("PING");
+        Assert.StartsWith("PONG:", raw);
     }
 
     [Fact]

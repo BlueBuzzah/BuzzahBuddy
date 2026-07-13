@@ -169,8 +169,24 @@ public class MockBluetoothService : IBluetoothService
         // Simulate command processing delay
         await Task.Delay(50, cancellationToken);
 
+        var responseText = await GetRawResponseAsync(command, cancellationToken);
+
+        var response = CommandResponse.Parse(responseText);
+        ResponseReceived?.Invoke(this, response);
+        return response;
+    }
+
+    /// <summary>
+    /// Builds the raw, pre-parse wire response text for a command, exactly as the mock
+    /// would send it over BLE (KEY:VALUE lines terminated with \x04). Exposed separately
+    /// from <see cref="SendCommandAsync"/> so tests can assert on the literal wire text
+    /// (e.g. the presence of a trailing colon) without CommandResponse.Parse normalizing
+    /// away the distinction they care about.
+    /// </summary>
+    internal async Task<string> GetRawResponseAsync(string command, CancellationToken cancellationToken = default)
+    {
         // Per BLE protocol v2.0.0: Handle all 20 commands
-        var responseText = command.ToUpperInvariant() switch
+        return command.ToUpperInvariant() switch
         {
             "INFO" => GetMockInfoResponse(),
             "BATTERY" => await GetMockBatteryResponse(cancellationToken),
@@ -197,10 +213,6 @@ public class MockBluetoothService : IBluetoothService
             var cmd when cmd.StartsWith("DEBUG:") => HandleDebug(cmd),
             _ => $"ERROR:Unknown command: {command}\n\x04"
         };
-
-        var response = CommandResponse.Parse(responseText);
-        ResponseReceived?.Invoke(this, response);
-        return response;
     }
 
     public Task SubscribeToNotificationsAsync()
