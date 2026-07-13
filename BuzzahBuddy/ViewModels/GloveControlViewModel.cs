@@ -27,6 +27,7 @@ public partial class GloveControlViewModel : BaseViewModel
     private SessionState _previousSessionState = SessionState.IDLE;
     private bool _userRequestedStop;
     private int _consecutivePollFailures;
+    private int _consecutiveHealthCheckFailures;
     private const int PollFailureWarningThreshold = 2;
     private const int PollFailureReconnectThreshold = 3;
 
@@ -758,6 +759,7 @@ public partial class GloveControlViewModel : BaseViewModel
 
     private void StartConnectionHealthCheck()
     {
+        _consecutiveHealthCheckFailures = 0;
         _healthCheckTimer?.Stop();
         _healthCheckTimer?.Dispose();
         _healthCheckTimer = new System.Timers.Timer(BlueBuzzahConstants.ConnectionHealthCheckIntervalSeconds * 1000);
@@ -780,37 +782,44 @@ public partial class GloveControlViewModel : BaseViewModel
             return;
         }
 
+        bool pingSuccess;
         try
         {
-            var pingSuccess = await _gloveControlService.PingAsync(timeoutMs: BlueBuzzahConstants.PingTimeoutMs);
-
-            if (pingSuccess)
-            {
-                IsConnectionHealthy = true;
-                LastSuccessfulPing = DateTime.Now;
-            }
-            else
-            {
-                IsConnectionHealthy = false;
-                System.Diagnostics.Debug.WriteLine("Connection health check: PING failed");
-            }
+            pingSuccess = await _gloveControlService.PingAsync(timeoutMs: BlueBuzzahConstants.PingTimeoutMs);
         }
         catch (Exception ex)
         {
-            var wasHealthy = IsConnectionHealthy;
-            IsConnectionHealthy = false;
             System.Diagnostics.Debug.WriteLine($"Connection health check error: {ex.Message}");
+            pingSuccess = false;
+        }
 
-            if (wasHealthy && _bluetoothService != null)
+        if (pingSuccess)
+        {
+            IsConnectionHealthy = true;
+            LastSuccessfulPing = DateTime.Now;
+            _consecutiveHealthCheckFailures = 0;
+            if (SessionWarningMessage == "Connection unstable — trying to recover…")
             {
-                try
-                {
-                    await _bluetoothService.DisconnectForReconnectAsync();
-                }
-                catch (Exception disconnectEx)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Disconnect for reconnect failed: {disconnectEx.Message}");
-                }
+                SessionWarningMessage = null;
+            }
+            return;
+        }
+
+        _consecutiveHealthCheckFailures++;
+        IsConnectionHealthy = false;
+        SessionWarningMessage = "Connection unstable — trying to recover…";
+
+        // Two consecutive missed pings (60s of silence): force a reconnect cycle
+        if (_consecutiveHealthCheckFailures >= 2)
+        {
+            _consecutiveHealthCheckFailures = 0;
+            try
+            {
+                await _bluetoothService.DisconnectForReconnectAsync();
+            }
+            catch (Exception disconnectEx)
+            {
+                System.Diagnostics.Debug.WriteLine($"Disconnect for reconnect failed: {disconnectEx.Message}");
             }
         }
     }
