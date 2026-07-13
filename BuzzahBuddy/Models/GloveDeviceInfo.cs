@@ -38,13 +38,29 @@ public class GloveDeviceInfo
     public string Status { get; set; } = "IDLE";
 
     /// <summary>
+    /// Motors per glove: 4 (BlueBuzzah) or 5 (PentaBuzzer). Firmware ≥2.1 reports
+    /// MOTORS in INFO; older firmware defaults to 4.
+    /// </summary>
+    public int Motors { get; set; } = 4;
+
+    /// <summary>
+    /// Active profile ID (1-6), 0 if the firmware didn't report one.
+    /// </summary>
+    public int ProfileId { get; set; }
+
+    /// <summary>
+    /// Active profile name as stored on the device (e.g. "noisy_vcr").
+    /// </summary>
+    public string ProfileName { get; set; } = string.Empty;
+
+    /// <summary>
     /// Parses a CommandResponse into a GloveDeviceInfo object.
     /// </summary>
     /// <param name="response">The response from INFO command</param>
     /// <returns>Parsed GloveDeviceInfo</returns>
     public static GloveDeviceInfo FromCommandResponse(CommandResponse response)
     {
-        return new GloveDeviceInfo
+        var info = new GloveDeviceInfo
         {
             Role = response.GetString("ROLE") ?? "UNKNOWN",
             Name = response.GetString("NAME") ?? "UNKNOWN",
@@ -54,5 +70,19 @@ public class GloveDeviceInfo
             BatterySecondaryVoltage = response.GetDouble("BATS") ?? 0.0,
             Status = response.GetString("STATUS") ?? "IDLE"
         };
+
+        info.Motors = response.GetInt("MOTORS") ?? 4;
+        var profileValue = response.GetString("PROFILE");   // "2:noisy_vcr"
+        if (profileValue != null)
+        {
+            var parts = profileValue.Split(':', 2);
+            if (int.TryParse(parts[0], out var pid))
+            {
+                info.ProfileId = pid;
+                info.ProfileName = parts.Length > 1 ? parts[1] : string.Empty;
+            }
+        }
+
+        return info;
     }
 }

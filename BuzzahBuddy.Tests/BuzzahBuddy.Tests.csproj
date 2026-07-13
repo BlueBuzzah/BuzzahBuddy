@@ -9,6 +9,7 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageReference Include="Plugin.BLE" Version="3.1.0" />
   </ItemGroup>
   <!--
     Fallback strategy (see .superpowers/sdd/task-6-brief.md): a ProjectReference to
@@ -33,5 +34,7 @@
     <Compile Include="../BuzzahBuddy/Models/**/*.cs" LinkBase="AppModels" />
     <Compile Include="../BuzzahBuddy/Services/Bluetooth/RxFrameAssembler.cs" LinkBase="AppServicesBluetooth" />
     <Compile Include="../BuzzahBuddy/Services/Bluetooth/BlueBuzzahConstants.cs" LinkBase="AppServicesBluetooth" />
+    <Compile Include="../BuzzahBuddy/Services/Bluetooth/IBluetoothService.cs" LinkBase="AppServicesBluetooth" />
+    <Compile Include="../BuzzahBuddy/Services/Glove/**/*.cs" LinkBase="AppServicesGlove" />
   </ItemGroup>
 </Project>

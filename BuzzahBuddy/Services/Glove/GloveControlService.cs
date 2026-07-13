@@ -24,6 +24,12 @@ public class GloveControlService : IGloveControlService
     public TherapyProfile? CurrentProfile => _currentProfile;
 
     /// <inheritdoc />
+    public int DeviceActuatorCount { get; private set; } = 4;
+
+    /// <inheritdoc />
+    public int DeviceProfileId { get; private set; }
+
+    /// <inheritdoc />
     public bool ExpectingReboot => _expectingReboot;
 
     /// <inheritdoc />
@@ -37,6 +43,7 @@ public class GloveControlService : IGloveControlService
     {
         try
         {
+            await GetDeviceInfoAsync();
             await PingAsync();
             await GetBatteryAsync();
             await GetSessionStatusAsync();
@@ -92,7 +99,14 @@ public class GloveControlService : IGloveControlService
         EnsureConnected();
         var response = await _bluetoothService.SendCommandAsync("INFO");
         response.ThrowIfError();
-        return GloveDeviceInfo.FromCommandResponse(response);
+        var info = GloveDeviceInfo.FromCommandResponse(response);
+        DeviceActuatorCount = info.Motors;
+        if (info.ProfileId > 0)
+        {
+            DeviceProfileId = info.ProfileId;
+            _currentProfile = TherapyProfile.GetPresetProfiles().FirstOrDefault(p => p.ProfileId == info.ProfileId);
+        }
+        return info;
     }
 
     public async Task<(double primaryVoltage, double secondaryVoltage)> GetBatteryAsync()
@@ -376,9 +390,10 @@ public class GloveControlService : IGloveControlService
     public async Task BuzzFingerAsync(int fingerIndex, int intensity, int durationMs)
     {
         EnsureConnected();
-        if (fingerIndex < 0 || fingerIndex > 7)
+        var maxFinger = DeviceActuatorCount * 2 - 1;
+        if (fingerIndex < 0 || fingerIndex > maxFinger)
         {
-            throw new ArgumentException("Finger index must be 0-7", nameof(fingerIndex));
+            throw new ArgumentException($"Finger index must be 0-{maxFinger}", nameof(fingerIndex));
         }
 
         if (intensity < 0 || intensity > 100)

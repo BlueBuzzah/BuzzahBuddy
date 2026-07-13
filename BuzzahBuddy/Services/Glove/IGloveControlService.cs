@@ -27,6 +27,17 @@ public interface IGloveControlService
     /// </summary>
     TherapyProfile? CurrentProfile { get; }
 
+    /// <summary>
+    /// Motors per glove on the connected device (4 or 5). Defaults to 4 until
+    /// GetDeviceInfoAsync has run against a firmware that reports MOTORS.
+    /// </summary>
+    int DeviceActuatorCount { get; }
+
+    /// <summary>
+    /// Profile ID currently loaded on the device (1-6), 0 if unknown.
+    /// </summary>
+    int DeviceProfileId { get; }
+
     // ========== Reboot Handling ==========
 
     /// <summary>
