@@ -386,7 +386,7 @@ public partial class GloveControlViewModel : BaseViewModel
             var confirm = await Shell.Current.DisplayAlert(
                 "Change Profile?",
                 $"Switching to \"{profileItem.Profile.Name}\" will restart your gloves. " +
-                "They will reconnect automatically in about 15 seconds.",
+                "They will reconnect automatically in a few moments.",
                 "Change Profile",
                 "Cancel");
             if (!confirm)
@@ -655,7 +655,7 @@ public partial class GloveControlViewModel : BaseViewModel
             // Detect unexpected session end (e.g., secondary glove disconnected, error,
             // critical battery). State-aware: LOW_BATTERY keeps the session running and
             // surfaces a non-blocking warning instead of an "ended unexpectedly" alert.
-            bool wasActive = _previousSessionState is SessionState.RUNNING or SessionState.PAUSED or SessionState.LOW_BATTERY;
+            bool wasActive = _previousSessionState is SessionState.RUNNING or SessionState.PAUSED or SessionState.LOW_BATTERY or SessionState.STOPPING;
             string? endReason = SessionStatus.Status switch
             {
                 SessionState.ERROR => "The gloves reported an error and stopped the session.",
@@ -676,6 +676,7 @@ public partial class GloveControlViewModel : BaseViewModel
                 });
             }
 
+            var previousState = _previousSessionState;
             _previousSessionState = SessionStatus.Status;
             _userRequestedStop = false;
 
@@ -687,8 +688,8 @@ public partial class GloveControlViewModel : BaseViewModel
                 _currentSession.Status = SessionStatus.Status;
             }
 
-            // Check for session completion
-            if (SessionStatus.Progress >= 1.0 && previousProgress < 1.0)
+            // Check for session completion (Progress is a 0-100 percent, not a 0-1 fraction)
+            if (SessionStatus.Progress >= 100 && previousProgress < 100)
             {
                 await HandleSessionCompletionAsync();
             }
@@ -696,9 +697,21 @@ public partial class GloveControlViewModel : BaseViewModel
             UpdateSessionState();
 
             _consecutivePollFailures = 0;
-            SessionWarningMessage = SessionStatus.Status == SessionState.LOW_BATTERY
-                ? "Glove battery is low — session will continue."
-                : null;
+            if (SessionStatus.Status == SessionState.LOW_BATTERY)
+            {
+                const string lowBatteryMessage = "Glove battery is low — session will continue.";
+                SessionWarningMessage = lowBatteryMessage;
+
+                // Announce once on transition into LOW_BATTERY, not on every poll.
+                if (previousState != SessionState.LOW_BATTERY)
+                {
+                    SemanticScreenReader.Announce(lowBatteryMessage);
+                }
+            }
+            else
+            {
+                SessionWarningMessage = null;
+            }
         }
         catch (Exception ex)
         {
@@ -849,11 +862,15 @@ public partial class GloveControlViewModel : BaseViewModel
         try
         {
             await _gloveControlService.GetDeviceInfoAsync();
+
+            // Clear on any successful INFO fetch so a stuck "restarting" banner from a
+            // profile-change reboot is cleared even if the device profile can't be resolved.
+            SessionWarningMessage = null;
+
             var deviceProfileId = _gloveControlService.DeviceProfileId;
             if (deviceProfileId <= 0)
                 return;
 
-            SessionWarningMessage = null;
             var match = AvailableProfiles.FirstOrDefault(p => p.Profile?.ProfileId == deviceProfileId);
             if (match != null)
             {
@@ -881,6 +898,7 @@ public partial class GloveControlViewModel : BaseViewModel
             {
                 StartConnectionHealthCheck();
                 RefreshBatteryAsync().SafeFireAndForget("[GLOVECONTROL]");
+                SyncSelectedProfileFromDeviceAsync().SafeFireAndForget("[GLOVECONTROL]");
             }
             else
             {
