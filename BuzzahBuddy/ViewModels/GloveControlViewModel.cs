@@ -593,17 +593,30 @@ public partial class GloveControlViewModel : BaseViewModel
             var previousProgress = SessionStatus.Progress;
             SessionStatus = await _gloveControlService.GetSessionStatusAsync();
 
-            // Detect unexpected session end (e.g., secondary glove disconnected)
-            if (_previousSessionState == SessionState.RUNNING && SessionStatus.Status == SessionState.IDLE && !_userRequestedStop)
+            // Detect unexpected session end (e.g., secondary glove disconnected, error,
+            // critical battery). State-aware: LOW_BATTERY keeps the session running and
+            // surfaces a non-blocking warning instead of an "ended unexpectedly" alert.
+            bool wasActive = _previousSessionState is SessionState.RUNNING or SessionState.PAUSED or SessionState.LOW_BATTERY;
+            string? endReason = SessionStatus.Status switch
+            {
+                SessionState.ERROR => "The gloves reported an error and stopped the session.",
+                SessionState.CONNECTION_LOST => "The gloves lost connection and stopped the session.",
+                SessionState.CRITICAL_BATTERY => "A glove battery is critically low. The session was stopped — please charge the gloves.",
+                SessionState.IDLE when SessionStatus.Progress < 100 => "The therapy session stopped unexpectedly. The secondary glove may have disconnected.",
+                _ => null
+            };
+
+            if (wasActive && endReason != null && !_userRequestedStop)
             {
                 await MainThread.InvokeOnMainThreadAsync(async () =>
                 {
                     await Shell.Current.DisplayAlert(
                         "Session Ended Unexpectedly",
-                        "The therapy session stopped unexpectedly. The secondary glove may have disconnected.",
+                        endReason,
                         "OK");
                 });
             }
+
             _previousSessionState = SessionStatus.Status;
             _userRequestedStop = false;
 
@@ -624,7 +637,9 @@ public partial class GloveControlViewModel : BaseViewModel
             UpdateSessionState();
 
             _consecutivePollFailures = 0;
-            SessionWarningMessage = null;
+            SessionWarningMessage = SessionStatus.Status == SessionState.LOW_BATTERY
+                ? "Glove battery is low — session will continue."
+                : null;
         }
         catch (Exception ex)
         {

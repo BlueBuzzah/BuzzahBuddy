@@ -15,4 +15,42 @@ public class SessionStatusTests
         Assert.Equal(7200, status.TotalTimeSeconds);
         Assert.True(status.IsActive);
     }
+
+    [Theory]
+    [InlineData("LOW_BATTERY", SessionState.LOW_BATTERY, true, true)]
+    [InlineData("STOPPING", SessionState.STOPPING, false, false)]
+    [InlineData("CONNECTION_LOST", SessionState.CONNECTION_LOST, false, false)]
+    [InlineData("CRITICAL_BATTERY", SessionState.CRITICAL_BATTERY, false, false)]
+    [InlineData("READY", SessionState.READY, false, false)]
+    [InlineData("CONNECTING", SessionState.CONNECTING, false, false)]
+    [InlineData("ERROR", SessionState.ERROR, false, false)]
+    [InlineData("PHONE_DISCONNECTED", SessionState.PHONE_DISCONNECTED, false, false)]
+    [InlineData("PAUSED", SessionState.PAUSED, true, false)]
+    [InlineData("IDLE", SessionState.IDLE, false, false)]
+    public void FromCommandResponse_FirmwareStates_ParseWithoutDecay(
+        string wire, SessionState expected, bool isActive, bool isRunning)
+    {
+        var response = CommandResponse.Parse($"SESSION_STATUS:{wire}\nELAPSED:10\nTOTAL:100\nPROGRESS:10\n\x04");
+        var status = SessionStatus.FromCommandResponse(response);
+        Assert.Equal(expected, status.Status);
+        Assert.Equal(isActive, status.IsActive);
+        Assert.Equal(isRunning, status.IsRunning);
+    }
+
+    [Fact]
+    public void FromCommandResponse_UnknownWireString_ParsesToUnknown_NotIdle()
+    {
+        var response = CommandResponse.Parse("SESSION_STATUS:SOME_FUTURE_STATE\nELAPSED:10\nTOTAL:100\nPROGRESS:10\n\x04");
+        var status = SessionStatus.FromCommandResponse(response);
+        Assert.Equal(SessionState.UNKNOWN, status.Status);
+        Assert.False(status.IsIdle);
+    }
+
+    [Fact]
+    public void FromCommandResponse_LowercaseWireString_ParsesCaseInsensitively()
+    {
+        var response = CommandResponse.Parse("SESSION_STATUS:running\nELAPSED:10\nTOTAL:100\nPROGRESS:10\n\x04");
+        var status = SessionStatus.FromCommandResponse(response);
+        Assert.Equal(SessionState.RUNNING, status.Status);
+    }
 }
