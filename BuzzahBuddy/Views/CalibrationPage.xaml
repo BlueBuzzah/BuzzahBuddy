@@ -338,6 +338,7 @@
                                                 FontAttributes="Bold"
                                                 CornerRadius="12"
                                                 BackgroundColor="{StaticResource Primary}"
+                                                TextColor="{StaticResource PrimaryDarkText}"
                                                 SemanticProperties.Description="{Binding Label, StringFormat='Primary glove {0} finger'}"
                                                 SemanticProperties.Hint="Tests this finger's motor"
                                                 AutomationId="{Binding AutomationId}">

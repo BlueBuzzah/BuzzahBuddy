@@ -23,7 +23,7 @@ public static class ErrorMessageHelper
         var lowerError = errorMessage.ToLowerInvariant();
 
         // Secondary Device Connection Errors
-        if (lowerError.Contains("vr not connected") || lowerError.Contains("right glove") || lowerError.Contains("secondary"))
+        if (lowerError.Contains("secondary"))
         {
             return ("Second Glove Not Connected",
                 "The second glove (Secondary device) is not detected. Please ensure:\n\n" +
