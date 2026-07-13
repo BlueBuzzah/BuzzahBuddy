@@ -41,4 +41,18 @@ public class MockParityTests
         var response = await mock.SendCommandAsync("PROFILE_LOAD:3");
         Assert.Contains("Session must be stopped", response.GetString("ERROR") ?? "");
     }
+
+    [Fact]
+    public async Task SessionStatus_AtNinetyFivePercentElapsed_ReportsLowBattery()
+    {
+        var mock = await ConnectedMock();
+        await mock.SendCommandAsync("SESSION_START");
+
+        // Default mock session length is 2 hours (120 min); advance to 95% elapsed
+        // without waiting ~114 real minutes.
+        mock.AdvanceMockSession(TimeSpan.FromMinutes(114));
+
+        var raw = await mock.GetRawResponseAsync("SESSION_STATUS");
+        Assert.Contains("SESSION_STATUS:LOW_BATTERY", raw);
+    }
 }

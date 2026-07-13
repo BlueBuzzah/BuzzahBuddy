@@ -392,6 +392,20 @@ public class MockBluetoothService : IBluetoothService
         return "SESSION_STATUS:IDLE\n\x04";
     }
 
+    /// <summary>
+    /// Test-only seam: shifts the mock session's start time backwards so tests can exercise
+    /// elapsed-time-dependent behavior (e.g. the LOW_BATTERY transition at ~95% progress)
+    /// without waiting ~114 real minutes for a 2-hour session. Internal because the mock
+    /// compiles directly into the test assembly.
+    /// </summary>
+    internal void AdvanceMockSession(TimeSpan elapsed)
+    {
+        if (_mockSessionStartTime.HasValue)
+        {
+            _mockSessionStartTime = _mockSessionStartTime.Value - elapsed;
+        }
+    }
+
     private string GetMockSessionStatus()
     {
         // Per BLE protocol v2.0.0: Use ELAPSED/TOTAL (not ELAPSED_TIME/TOTAL_TIME)
