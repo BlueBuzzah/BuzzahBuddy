@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using BuzzahBuddy.Models;
 using BuzzahBuddy.Services.Bluetooth;
 using BuzzahBuddy.Services.ConnectionStateManagement;
@@ -7,6 +8,14 @@ using CommunityToolkit.Mvvm.Input;
 using static BuzzahBuddy.Services.Glove.ErrorMessageHelper;
 
 namespace BuzzahBuddy.ViewModels;
+
+/// <summary>
+/// One calibration finger button.
+/// </summary>
+/// <param name="Index">Protocol finger index sent to <see cref="IGloveControlService.BuzzFingerAsync"/>.</param>
+/// <param name="Label">Finger-only display label used as the button's visible text (e.g. "Index").</param>
+/// <param name="AutomationId">AutomationId for UI testing (e.g. "PrimaryIndexButton").</param>
+public record FingerButtonItem(int Index, string Label, string AutomationId);
 
 /// <summary>
 /// ViewModel for the calibration page.
@@ -55,6 +64,16 @@ public partial class CalibrationViewModel : BaseViewModel
 
     public bool IsFingerTested(int fingerIndex) => _testedFingers.Contains(fingerIndex);
 
+    /// <summary>
+    /// Finger-test buttons for the primary glove, sized to the connected device's actuator count.
+    /// </summary>
+    public ObservableCollection<FingerButtonItem> PrimaryFingers { get; } = new();
+
+    /// <summary>
+    /// Finger-test buttons for the secondary glove, sized to the connected device's actuator count.
+    /// </summary>
+    public ObservableCollection<FingerButtonItem> SecondaryFingers { get; } = new();
+
     public CalibrationViewModel(
         IGloveControlService gloveControlService,
         IBluetoothService bluetoothService,
@@ -69,8 +88,41 @@ public partial class CalibrationViewModel : BaseViewModel
         // Subscribe to connection events
         _bluetoothService.ConnectionStateChanged += OnConnectionStateChanged;
 
+        // Build the finger-test button collections from the current actuator count
+        RebuildFingerButtons();
+
         // Initialize connection state
         UpdateConnectionState();
+    }
+
+    /// <summary>
+    /// (Re)builds the <see cref="PrimaryFingers"/> and <see cref="SecondaryFingers"/> collections
+    /// from <see cref="IGloveControlService.DeviceActuatorCount"/> and <see cref="CalibrationSettings.GetFingerLabel"/>.
+    /// </summary>
+    private void RebuildFingerButtons()
+    {
+        var count = _gloveControlService.DeviceActuatorCount;
+        PrimaryFingers.Clear();
+        SecondaryFingers.Clear();
+
+        for (int i = 0; i < 2 * count; i++)
+        {
+            // Full label is "{Glove} {Finger}" (e.g. "Primary Index"); the button shows just the finger part.
+            // Guard against GetFingerLabel's out-of-range fallback ("Finger N"), which has no space to split on
+            // beyond index 0 — Split(' ')[1] would throw in that case.
+            var fullLabel = CalibrationSettings.GetFingerLabel(i, count);
+            var spaceIndex = fullLabel.IndexOf(' ');
+            var shortLabel = spaceIndex >= 0 && spaceIndex < fullLabel.Length - 1
+                ? fullLabel[(spaceIndex + 1)..]
+                : fullLabel;
+
+            var item = new FingerButtonItem(i, shortLabel, fullLabel.Replace(" ", "") + "Button");
+
+            if (i < count)
+                PrimaryFingers.Add(item);
+            else
+                SecondaryFingers.Add(item);
+        }
     }
 
     [RelayCommand]
@@ -91,6 +143,9 @@ public partial class CalibrationViewModel : BaseViewModel
         {
             await _gloveControlService.EnterCalibrationAsync();
             IsInCalibrationMode = true;
+
+            // Actuator count is populated on connect; rebuild in case it changed.
+            RebuildFingerButtons();
 
             await Shell.Current.DisplayAlert(
                 "Calibration Mode Active",
@@ -215,11 +270,12 @@ public partial class CalibrationViewModel : BaseViewModel
             return;
         }
 
-        if (fingerIndex < 0 || fingerIndex > 7)
+        var maxFingerIndex = (_gloveControlService.DeviceActuatorCount * 2) - 1;
+        if (fingerIndex < 0 || fingerIndex > maxFingerIndex)
         {
             await Shell.Current.DisplayAlert(
                 "Invalid Finger",
-                "Finger index must be 0-7.",
+                $"Finger index must be 0-{maxFingerIndex}.",
                 "OK");
             return;
         }
@@ -351,9 +407,8 @@ public partial class CalibrationViewModel : BaseViewModel
         }
     }
 
-    private static string GetFingerName(int fingerIndex)
+    private string GetFingerName(int fingerIndex)
     {
-        // 4 is provisional; Task 11 replaces it with the connected device's actuator count
-        return CalibrationSettings.GetFingerLabel(fingerIndex, 4);
+        return CalibrationSettings.GetFingerLabel(fingerIndex, _gloveControlService.DeviceActuatorCount);
     }
 }
