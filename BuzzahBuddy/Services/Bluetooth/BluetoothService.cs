@@ -24,7 +24,7 @@ public class BluetoothService : IBluetoothService
     private readonly ConcurrentDictionary<string, IDevice> _discoveredBleDevices = new();
 
     // Response buffering and parsing
-    private readonly StringBuilder _responseBuffer = new();
+    private readonly RxFrameAssembler _rxAssembler = new();
     private readonly SemaphoreSlim _responseLock = new(1, 1);
     private TaskCompletionSource<CommandResponse>? _pendingResponseTcs;
 
@@ -181,6 +181,18 @@ public class BluetoothService : IBluetoothService
             await SubscribeToNotificationsAsync();
             System.Diagnostics.Debug.WriteLine($"✅ Subscribed to notifications");
 
+            // Identify ourselves so the firmware types this connection as PHONE
+            // without waiting out its identification window
+            try
+            {
+                var identify = Encoding.UTF8.GetBytes("IDENTIFY:PHONE" + BlueBuzzahConstants.CommandTerminator);
+                await _txCharacteristic!.WriteAsync(identify);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"IDENTIFY:PHONE write failed (non-fatal): {ex.Message}");
+            }
+
             ConnectedDevice = device;
             device.ConnectionState = ConnectionState.Connected;
             device.LastConnected = DateTime.Now;
@@ -250,7 +262,7 @@ public class BluetoothService : IBluetoothService
         try
         {
             // Clear any previous response buffer
-            _responseBuffer.Clear();
+            _rxAssembler.Reset();
 
             // Create task completion source for this command
             _pendingResponseTcs = new TaskCompletionSource<CommandResponse>();
@@ -436,40 +448,28 @@ public class BluetoothService : IBluetoothService
             if (data == null || data.Length == 0)
                 return;
 
-            var message = Encoding.UTF8.GetString(data);
-
-            // IMPORTANT: Filter internal VL↔VR sync messages
-            // Only process messages containing EOT character (app-directed responses)
-            if (!message.Contains(BlueBuzzahConstants.EndOfTransmission))
-            {
-                // Ignore internal messages like EXECUTE_BUZZ, BUZZ_COMPLETE, etc.
-                return;
-            }
-
-            // Append to response buffer
-            _responseBuffer.Append(message);
-
-            // Check if we have a complete response (contains EOT)
-            var fullResponse = _responseBuffer.ToString();
-            if (fullResponse.Contains(BlueBuzzahConstants.EndOfTransmission))
-            {
-                // Parse the response
-                var response = CommandResponse.Parse(fullResponse);
-
-                // Clear buffer for next response
-                _responseBuffer.Clear();
-
-                // Raise event for any listeners
-                ResponseReceived?.Invoke(this, response);
-
-                // Complete pending command if waiting
-                _pendingResponseTcs?.TrySetResult(response);
-            }
+            ProcessIncomingRxText(Encoding.UTF8.GetString(data));
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"RX parse error: {ex.Message}");
             _pendingResponseTcs?.TrySetException(ex);
+        }
+    }
+
+    /// <summary>
+    /// Delivers one CommandResponse per EOT-terminated frame reassembled by
+    /// <see cref="_rxAssembler"/> from incoming RX text. Responses may span multiple
+    /// BLE notification packets; a packet may also carry the tail of one frame and
+    /// the head of the next.
+    /// </summary>
+    internal void ProcessIncomingRxText(string text)
+    {
+        foreach (var frame in _rxAssembler.Append(text))
+        {
+            var response = CommandResponse.Parse(frame);
+            ResponseReceived?.Invoke(this, response);
+            _pendingResponseTcs?.TrySetResult(response);
         }
     }
 
@@ -533,7 +533,7 @@ public class BluetoothService : IBluetoothService
         _rxCharacteristic = null;
 
         // Clear stale response data before cancelling pending commands
-        _responseBuffer.Clear();
+        _rxAssembler.Reset();
         _pendingResponseTcs?.TrySetCanceled();
 
         if (ConnectedDevice != null)
@@ -551,7 +551,7 @@ public class BluetoothService : IBluetoothService
         _rxCharacteristic = null;
 
         // Clear stale response data before cancelling pending commands
-        _responseBuffer.Clear();
+        _rxAssembler.Reset();
         _pendingResponseTcs?.TrySetCanceled();
 
         if (ConnectedDevice != null)

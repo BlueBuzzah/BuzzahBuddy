@@ -19,8 +19,19 @@
     so restore fails with NETSDK1147 even though `dotnet build BuzzahBuddy/BuzzahBuddy.csproj
     -f net9.0` succeeds standalone. Compiling the plain-C# model sources directly avoids
     the cross-TFM restore requirement.
+
+    Task 7: RxFrameAssembler owns RX framing/buffering and has no Plugin.BLE dependency, so
+    it (plus the constants it references) can be compiled and unit-tested directly here.
+    BluetoothService.cs itself is intentionally NOT compiled into this test project — its
+    constructor eagerly calls Plugin.BLE's CrossBluetoothLE.Current, which throws
+    NotImplementedException under the portable/off-device build used by a plain net9.0 test
+    host. The BluetoothService passthrough (CommandResponse.Parse + ResponseReceived +
+    _pendingResponseTcs wiring around RxFrameAssembler) is therefore covered only by the
+    `dotnet build BuzzahBuddy/BuzzahBuddy.csproj -f net9.0` compile check, not by a unit test.
   -->
   <ItemGroup>
     <Compile Include="../BuzzahBuddy/Models/**/*.cs" LinkBase="AppModels" />
+    <Compile Include="../BuzzahBuddy/Services/Bluetooth/RxFrameAssembler.cs" LinkBase="AppServicesBluetooth" />
+    <Compile Include="../BuzzahBuddy/Services/Bluetooth/BlueBuzzahConstants.cs" LinkBase="AppServicesBluetooth" />
   </ItemGroup>
 </Project>
