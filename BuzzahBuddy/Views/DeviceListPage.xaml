@@ -221,7 +221,7 @@
 
         <!-- Connection Progress Overlay -->
         <Border Grid.Row="0" Grid.RowSpan="2"
-                BackgroundColor="#80000000"
+                BackgroundColor="{StaticResource OverlayBackground}"
                 IsVisible="{Binding IsConnecting}"
                 InputTransparent="False">
             <VerticalStackLayout Spacing="15"
@@ -229,12 +229,12 @@
                                 VerticalOptions="Center"
                                 SemanticProperties.Description="Connecting to device, please wait">
                 <ActivityIndicator IsRunning="{Binding IsConnecting}"
-                                 Color="White"
+                                 Color="{StaticResource White}"
                                  HeightRequest="50"
                                  WidthRequest="50"
                                  SemanticProperties.Description="Connection in progress" />
                 <Label Text="Connecting to device..."
-                       TextColor="White"
+                       TextColor="{StaticResource TextPrimary}"
                        FontSize="18"
                        FontAttributes="Bold"
                        HorizontalTextAlignment="Center"

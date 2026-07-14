@@ -165,9 +165,7 @@
                                            SemanticProperties.Description="Refreshing battery status" />
                         <Button Text="🔄 Refresh"
                                 Command="{Binding RefreshBatteryCommand}"
-                                HeightRequest="48"
-                                FontSize="14"
-                                CornerRadius="8"
+                                Style="{StaticResource TertiaryButton}"
                                 HorizontalOptions="Center"
                                 Padding="20,0"
                                 SemanticProperties.Hint="Refresh battery levels"
@@ -263,7 +261,7 @@
                                         <Label Text="✓"
                                                FontSize="32"
                                                FontAttributes="Bold"
-                                               TextColor="White"
+                                               TextColor="{StaticResource PrimaryDarkText}"
                                                HorizontalOptions="Center"
                                                VerticalOptions="Center" />
                                     </Border>
@@ -402,9 +400,7 @@
                                    SemanticProperties.Description="Testing connection" />
                 <Button Text="Test Connection"
                         Command="{Binding TestConnectionCommand}"
-                        HeightRequest="48"
-                        FontSize="16"
-                        CornerRadius="12"
+                        Style="{StaticResource TertiaryButton}"
                         BackgroundColor="{StaticResource Primary}"
                         SemanticProperties.Hint="Send a brief test pulse to the device"
                         SemanticProperties.Description="Test connection with brief vibration pulse"
@@ -428,11 +424,7 @@
                 <!-- Primary Session Control Button (Start/Pause/Resume) -->
                 <Button Text="{Binding SessionButtonText}"
                         Command="{Binding ToggleSessionCommand}"
-                        HeightRequest="72"
-                        FontSize="20"
-                        FontAttributes="Bold"
-                        CornerRadius="16"
-                        BackgroundColor="{StaticResource Primary}"
+                        Style="{StaticResource PrimaryButton}"
                         SemanticProperties.Hint="Double tap to activate"
                         SemanticProperties.Description="{Binding SessionButtonDescription}"
                         AutomationId="SessionControlButton">
@@ -447,10 +439,7 @@
                 <!-- Stop Session Button (only visible when session is active) -->
                 <Button Text="Stop Session"
                         Command="{Binding StopSessionCommand}"
-                        HeightRequest="56"
-                        FontSize="18"
-                        FontAttributes="Bold"
-                        CornerRadius="12"
+                        Style="{StaticResource SecondaryButton}"
                         IsVisible="{Binding IsSessionActive}"
                         BackgroundColor="{StaticResource PastelDanger}"
                         SemanticProperties.Hint="Double tap to stop the current session"

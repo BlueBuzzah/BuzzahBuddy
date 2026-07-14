@@ -343,9 +343,7 @@
                 <!-- Secondary CTA (Stop Session / Change Profile) -->
                 <Button Text="{Binding SecondaryCTAText}"
                         Command="{Binding ExecuteSecondaryCTACommand}"
-                        HeightRequest="56"
-                        FontSize="18"
-                        CornerRadius="12"
+                        Style="{StaticResource SecondaryButton}"
                         IsVisible="{Binding HasSecondaryCTA}"
                         BackgroundColor="{Binding SecondaryCTABackgroundColor}"
                         TextColor="{Binding SecondaryCTATextColor}"
