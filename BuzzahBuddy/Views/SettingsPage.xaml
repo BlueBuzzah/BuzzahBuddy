@@ -48,9 +48,7 @@
                         <Button Text="Disconnect"
                                 Command="{Binding DisconnectDeviceCommand}"
                                 IsVisible="{Binding ConnectionInfo.IsConnected}"
-                                Style="{StaticResource TertiaryButton}"
-                                BackgroundColor="{StaticResource DangerButton}"
-                                TextColor="{StaticResource DangerButtonText}"
+                                Style="{StaticResource DangerActionButton}"
                                 SemanticProperties.Description="Disconnect from the currently connected glove device"
                                 SemanticProperties.Hint="Double tap to disconnect"
                                 AutomationId="DisconnectButton" />
@@ -149,11 +147,7 @@
 
                 <Button Text="Clear All Data"
                         Command="{Binding ClearDataCommand}"
-                        HeightRequest="56"
-                        FontSize="16"
-                        CornerRadius="12"
-                        BackgroundColor="{StaticResource WarningButton}"
-                        TextColor="{StaticResource WarningButtonText}"
+                        Style="{StaticResource WarningActionButton}"
                         SemanticProperties.Hint="Delete all therapy sessions and custom patterns"
                         SemanticProperties.Description="Clear all stored data"
                         AutomationId="ClearDataButton" />

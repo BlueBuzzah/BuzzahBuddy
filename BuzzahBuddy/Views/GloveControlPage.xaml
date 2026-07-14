@@ -411,10 +411,8 @@
                 <!-- Stop Session Button (only visible when session is active) -->
                 <Button Text="Stop Session"
                         Command="{Binding StopSessionCommand}"
-                        Style="{StaticResource SecondaryButton}"
+                        Style="{StaticResource DangerActionButton}"
                         IsVisible="{Binding IsSessionActive}"
-                        BackgroundColor="{StaticResource DangerButton}"
-                        TextColor="{StaticResource DangerButtonText}"
                         SemanticProperties.Hint="Double tap to stop the current session"
                         SemanticProperties.Description="Stops the active therapy session"
                         AutomationId="StopSessionButton">

@@ -380,7 +380,6 @@
                     IsVisible="{Binding IsInCalibrationMode}"
                     IsEnabled="{Binding ConnectionInfo.IsConnected}"
                     Style="{StaticResource TertiaryButton}"
-                    BackgroundColor="{StaticResource Gray700}"
                     SemanticProperties.Description="Skip calibration and use safe default settings"
                     SemanticProperties.Hint="Bypasses testing and uses 50% intensity, 200ms duration"
                     AutomationId="SkipCalibrationButton" />
