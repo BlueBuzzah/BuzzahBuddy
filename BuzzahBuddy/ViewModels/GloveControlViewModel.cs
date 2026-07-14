@@ -159,6 +159,10 @@ public partial class GloveControlViewModel : BaseViewModel
         // The service fetches INFO once per (re)connect; mirror its profile here
         _gloveControlService.DeviceProfileChanged += OnDeviceProfileChanged;
 
+        // Session state from the service (fires on command success and every status
+        // poll) — the UI must not depend on the first SESSION_STATUS poll succeeding
+        _gloveControlService.SessionStateChanged += OnServiceSessionStateChanged;
+
         // Subscribe to centralized connection state changes
         ConnectionInfo.PropertyChanged += OnConnectionInfoPropertyChanged;
 
@@ -621,6 +625,21 @@ public partial class GloveControlViewModel : BaseViewModel
     /// Keeps the displayed profile in lockstep with the device. GloveControlService
     /// fetches INFO once per (re)connect and raises this for every INFO response.
     /// </summary>
+    /// <summary>
+    /// Mirrors the service's session state. StartSessionAsync/PauseSessionAsync/etc.
+    /// synthesize a status on command success, so the session UI (progress card,
+    /// button text, Stop button) updates even if the follow-up SESSION_STATUS poll
+    /// fails or is slow while the gloves establish sync.
+    /// </summary>
+    private void OnServiceSessionStateChanged(object? sender, SessionStatus status)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            SessionStatus = status;
+            UpdateSessionState();
+        });
+    }
+
     private void OnDeviceProfileChanged(object? sender, int profileId)
     {
         MainThread.BeginInvokeOnMainThread(() =>
@@ -836,6 +855,7 @@ public partial class GloveControlViewModel : BaseViewModel
         {
             _bluetoothService.ConnectionStateChanged -= OnConnectionStateChanged;
             _gloveControlService.DeviceProfileChanged -= OnDeviceProfileChanged;
+            _gloveControlService.SessionStateChanged -= OnServiceSessionStateChanged;
             ConnectionInfo.PropertyChanged -= OnConnectionInfoPropertyChanged;
             _appLifecycle.Stopped -= OnAppStopped;
             _appLifecycle.Resumed -= OnAppResumed;
