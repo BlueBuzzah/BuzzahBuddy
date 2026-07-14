@@ -46,8 +46,6 @@ public class MockBluetoothService : IBluetoothService
             Name = BlueBuzzahConstants.DeviceName, // "BlueBuzzah"
             SignalStrength = -45,
             ConnectionState = ConnectionState.Disconnected,
-            BatteryPrimaryVoltage = 3.72,
-            BatterySecondaryVoltage = 3.68,
             FirmwareVersion = "2.0.0"
         };
 

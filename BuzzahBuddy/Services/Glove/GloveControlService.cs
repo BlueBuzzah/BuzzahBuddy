@@ -109,7 +109,7 @@ public class GloveControlService : IGloveControlService
         return info;
     }
 
-    public async Task<(double primaryVoltage, double secondaryVoltage)> GetBatteryAsync()
+    public async Task<(double? primaryVoltage, double? secondaryVoltage)> GetBatteryAsync()
     {
         EnsureConnected();
         // BATTERY command may take up to 1 second (Primary queries Secondary)
@@ -124,8 +124,9 @@ public class GloveControlService : IGloveControlService
         }
 
         // Per BLE protocol v2.0.0: Battery keys are BATP and BATS
-        var primaryVoltage = response.GetDouble("BATP") ?? 0.0;
-        var secondaryVoltage = response.GetDouble("BATS") ?? 0.0;
+        // Missing keys and the firmware's 0.00 sentinel both mean "no reading".
+        var primaryVoltage = BatteryReading.FromRaw(response.GetDouble("BATP"));
+        var secondaryVoltage = BatteryReading.FromRaw(response.GetDouble("BATS"));
 
         System.Diagnostics.Debug.WriteLine($"[BATTERY CMD] Parsed values - BATP: {primaryVoltage}, BATS: {secondaryVoltage}");
 

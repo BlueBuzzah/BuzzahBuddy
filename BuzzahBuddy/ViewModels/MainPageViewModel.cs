@@ -41,16 +41,18 @@ public partial class MainPageViewModel : BaseViewModel
     [NotifyPropertyChangedFor(nameof(StatusMessage))]
     private DashboardState _dashboardState = DashboardState.Disconnected;
 
-    // Battery status (simplified - percentage only)
+    // Battery status (simplified - percentage only); null = no reading available
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(BatteryPrimaryColor))]
+    [NotifyPropertyChangedFor(nameof(BatteryPrimaryPercentText))]
     [NotifyPropertyChangedFor(nameof(BatteryStatusDescription))]
-    private int _batteryPrimaryPercentage;
+    private int? _batteryPrimaryPercentage;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(BatterySecondaryColor))]
+    [NotifyPropertyChangedFor(nameof(BatterySecondaryPercentText))]
     [NotifyPropertyChangedFor(nameof(BatteryStatusDescription))]
-    private int _batterySecondaryPercentage;
+    private int? _batterySecondaryPercentage;
 
     // Session status
     [ObservableProperty]
@@ -172,20 +174,37 @@ public partial class MainPageViewModel : BaseViewModel
     public string RemainingTimeText => $"{SessionStatus.RemainingTimeFormatted} remaining";
 
     /// <summary>
-    /// Color for primary battery indicator.
+    /// Color for primary battery indicator; gray when no reading is available.
     /// </summary>
-    public Color BatteryPrimaryColor => BatteryHelper.GetBatteryColor(BatteryPrimaryPercentage);
+    public Color BatteryPrimaryColor =>
+        BatteryPrimaryPercentage is { } p ? BatteryReading.GetBatteryColor(p) : Colors.Gray;
 
     /// <summary>
-    /// Color for secondary battery indicator.
+    /// Color for secondary battery indicator; gray when no reading is available.
     /// </summary>
-    public Color BatterySecondaryColor => BatteryHelper.GetBatteryColor(BatterySecondaryPercentage);
+    public Color BatterySecondaryColor =>
+        BatterySecondaryPercentage is { } p ? BatteryReading.GetBatteryColor(p) : Colors.Gray;
+
+    /// <summary>
+    /// Display text for the primary battery percentage, e.g. "60%" or "—".
+    /// </summary>
+    public string BatteryPrimaryPercentText =>
+        BatteryPrimaryPercentage is { } p ? $"{p}%" : "—";
+
+    /// <summary>
+    /// Display text for the secondary battery percentage, e.g. "58%" or "—".
+    /// </summary>
+    public string BatterySecondaryPercentText =>
+        BatterySecondaryPercentage is { } p ? $"{p}%" : "—";
 
     /// <summary>
     /// Accessibility description for battery status.
     /// </summary>
     public string BatteryStatusDescription =>
-        $"Primary battery {BatteryPrimaryPercentage} percent, Secondary battery {BatterySecondaryPercentage} percent";
+        $"Primary battery {DescribePercent(BatteryPrimaryPercentage)}, Secondary battery {DescribePercent(BatterySecondaryPercentage)}";
+
+    private static string DescribePercent(int? percentage) =>
+        percentage is { } p ? $"{p} percent" : "status unavailable";
 
     #endregion
 
@@ -397,8 +416,8 @@ public partial class MainPageViewModel : BaseViewModel
         {
             SelectedProfileName = null;
             SessionStatus = SessionStatus.CreateIdle();
-            BatteryPrimaryPercentage = 0;
-            BatterySecondaryPercentage = 0;
+            BatteryPrimaryPercentage = null;
+            BatterySecondaryPercentage = null;
 
             DashboardState = ConnectionInfo.ConnectionState switch
             {
@@ -415,8 +434,8 @@ public partial class MainPageViewModel : BaseViewModel
         try
         {
             var (primaryVoltage, secondaryVoltage) = await _gloveControlService.GetBatteryAsync();
-            BatteryPrimaryPercentage = BatteryHelper.VoltageToPercentage(primaryVoltage);
-            BatterySecondaryPercentage = BatteryHelper.VoltageToPercentage(secondaryVoltage);
+            BatteryPrimaryPercentage = primaryVoltage is { } p ? BatteryReading.ToPercentage(p) : null;
+            BatterySecondaryPercentage = secondaryVoltage is { } s ? BatteryReading.ToPercentage(s) : null;
         }
         catch (Exception ex)
         {

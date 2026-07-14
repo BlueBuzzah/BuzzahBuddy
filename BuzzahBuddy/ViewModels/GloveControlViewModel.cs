@@ -78,35 +78,49 @@ public partial class GloveControlViewModel : BaseViewModel
     [ObservableProperty]
     private bool _isSessionPaused;
 
+    // Null voltage = no reading available (missing key or firmware 0.00 sentinel)
     [ObservableProperty]
-    private double _batteryPrimaryVoltage;
+    [NotifyPropertyChangedFor(nameof(BatteryPrimaryText))]
+    [NotifyPropertyChangedFor(nameof(BatteryPrimaryDescription))]
+    private double? _batteryPrimaryVoltage;
 
     [ObservableProperty]
-    private double _batterySecondaryVoltage;
+    [NotifyPropertyChangedFor(nameof(BatterySecondaryText))]
+    [NotifyPropertyChangedFor(nameof(BatterySecondaryDescription))]
+    private double? _batterySecondaryVoltage;
+
+    // Gray = no reading yet; real thresholds apply after the first battery poll
+    [ObservableProperty]
+    private Color _batteryPrimaryColor = Colors.Gray;
 
     [ObservableProperty]
-    private int _batteryPrimaryPercentage;
+    private Color _batterySecondaryColor = Colors.Gray;
 
-    [ObservableProperty]
-    private int _batterySecondaryPercentage;
+    /// <summary>
+    /// Display text for the primary battery, e.g. "60% (3.72V)" or "—".
+    /// </summary>
+    public string BatteryPrimaryText => BatteryReading.Format(BatteryPrimaryVoltage);
 
-    [ObservableProperty]
-    private Color _batteryPrimaryColor = Colors.Green;
-
-    [ObservableProperty]
-    private Color _batterySecondaryColor = Colors.Green;
+    /// <summary>
+    /// Display text for the secondary battery, e.g. "58% (3.68V)" or "—".
+    /// </summary>
+    public string BatterySecondaryText => BatteryReading.Format(BatterySecondaryVoltage);
 
     /// <summary>
     /// Accessibility description for the primary battery status.
     /// </summary>
     public string BatteryPrimaryDescription =>
-        $"Primary battery: {BatteryPrimaryPercentage} percent, {BatteryHelper.GetBatteryStatusText(BatteryPrimaryVoltage)}";
+        BatteryPrimaryVoltage is { } v
+            ? $"Primary battery: {BatteryReading.ToPercentage(v)} percent, {BatteryReading.GetBatteryStatusText(v)}"
+            : "Primary battery: status unavailable";
 
     /// <summary>
     /// Accessibility description for the secondary battery status.
     /// </summary>
     public string BatterySecondaryDescription =>
-        $"Secondary battery: {BatterySecondaryPercentage} percent, {BatteryHelper.GetBatteryStatusText(BatterySecondaryVoltage)}";
+        BatterySecondaryVoltage is { } v
+            ? $"Secondary battery: {BatteryReading.ToPercentage(v)} percent, {BatteryReading.GetBatteryStatusText(v)}"
+            : "Secondary battery: status unavailable";
 
     [ObservableProperty]
     private bool _showBatteryRefresh = true;
@@ -510,29 +524,28 @@ public partial class GloveControlViewModel : BaseViewModel
             BatteryPrimaryVoltage = primaryVoltage;
             BatterySecondaryVoltage = secondaryVoltage;
 
-            // Calculate percentages (3.0V = 0%, 4.2V = 100%)
-            BatteryPrimaryPercentage = BatteryHelper.VoltageToPercentage(primaryVoltage);
-            BatterySecondaryPercentage = BatteryHelper.VoltageToPercentage(secondaryVoltage);
+            // Gray = no reading; colored = real voltage thresholds
+            BatteryPrimaryColor = primaryVoltage is { } pv
+                ? BatteryReading.GetBatteryColorFromVoltage(pv) : Colors.Gray;
+            BatterySecondaryColor = secondaryVoltage is { } sv
+                ? BatteryReading.GetBatteryColorFromVoltage(sv) : Colors.Gray;
 
-            // Debug: Log calculated percentages
-            System.Diagnostics.Debug.WriteLine($"[BATTERY] Percentages - Primary: {BatteryPrimaryPercentage}%, Secondary: {BatterySecondaryPercentage}%");
-
-            // Update colors based on voltage thresholds
-            BatteryPrimaryColor = BatteryHelper.GetBatteryColorFromVoltage(primaryVoltage);
-            BatterySecondaryColor = BatteryHelper.GetBatteryColorFromVoltage(secondaryVoltage);
-
-            // Notify accessibility description properties
-            OnPropertyChanged(nameof(BatteryPrimaryDescription));
-            OnPropertyChanged(nameof(BatterySecondaryDescription));
-
-            // Progressive disclosure: Hide refresh button when battery is good
-            var minPercentage = Math.Min(BatteryPrimaryPercentage, BatterySecondaryPercentage);
+            // Progressive disclosure: Hide refresh button when battery is good.
+            // A missing reading counts as "not good" so refresh stays available.
+            var minPercentage = Math.Min(
+                primaryVoltage is { } p ? BatteryReading.ToPercentage(p) : 0,
+                secondaryVoltage is { } s ? BatteryReading.ToPercentage(s) : 0);
             ShowBatteryRefresh = minPercentage <= 50;
 
             // Check for low battery warnings
             await CheckBatteryWarningAsync();
 
-            BatteryStatusMessage = null;
+            // Primary always has a battery; a null secondary may just mean no
+            // secondary glove (firmware reports both as BATS:0.00), so only
+            // flag the primary.
+            BatteryStatusMessage = primaryVoltage is null
+                ? "Battery status unavailable — try refreshing"
+                : null;
         }
         catch (Exception ex)
         {
@@ -1043,24 +1056,24 @@ public partial class GloveControlViewModel : BaseViewModel
 
     private async Task CheckBatteryWarningAsync()
     {
-        if (BatteryPrimaryVoltage > 0 && BatteryPrimaryVoltage < BlueBuzzahConstants.BatteryLowThreshold)
+        if (BatteryPrimaryVoltage is { } primary && primary < BlueBuzzahConstants.BatteryLowThreshold)
         {
             await MainThread.InvokeOnMainThreadAsync(async () =>
             {
                 await Shell.Current.DisplayAlert(
                     "Low Battery Warning",
-                    $"Primary device battery is low ({BatteryPrimaryVoltage:F2}V). Consider charging before starting a session.",
+                    $"Primary device battery is low ({primary:F2}V). Consider charging before starting a session.",
                     "OK");
             });
         }
 
-        if (BatterySecondaryVoltage > 0 && BatterySecondaryVoltage < BlueBuzzahConstants.BatteryLowThreshold)
+        if (BatterySecondaryVoltage is { } secondary && secondary < BlueBuzzahConstants.BatteryLowThreshold)
         {
             await MainThread.InvokeOnMainThreadAsync(async () =>
             {
                 await Shell.Current.DisplayAlert(
                     "Low Battery Warning",
-                    $"Second glove battery is low ({BatterySecondaryVoltage:F2}V). Consider charging before starting a session.",
+                    $"Second glove battery is low ({secondary:F2}V). Consider charging before starting a session.",
                     "OK");
             });
         }

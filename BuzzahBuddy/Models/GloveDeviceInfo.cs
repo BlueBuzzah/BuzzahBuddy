@@ -23,14 +23,14 @@ public class GloveDeviceInfo
     public string FirmwareVersion { get; set; } = string.Empty;
 
     /// <summary>
-    /// Primary device battery voltage.
+    /// Primary device battery voltage; null when no reading is available.
     /// </summary>
-    public double BatteryPrimaryVoltage { get; set; }
+    public double? BatteryPrimaryVoltage { get; set; }
 
     /// <summary>
-    /// Secondary device battery voltage.
+    /// Secondary device battery voltage; null when no reading is available.
     /// </summary>
-    public double BatterySecondaryVoltage { get; set; }
+    public double? BatterySecondaryVoltage { get; set; }
 
     /// <summary>
     /// Current session status (IDLE, RUNNING, PAUSED).
@@ -65,9 +65,10 @@ public class GloveDeviceInfo
             Role = response.GetString("ROLE") ?? "UNKNOWN",
             Name = response.GetString("NAME") ?? "UNKNOWN",
             FirmwareVersion = response.GetString("FW") ?? "0.0.0",
-            // Per BLE protocol v2.0.0: Battery keys are BATP and BATS
-            BatteryPrimaryVoltage = response.GetDouble("BATP") ?? 0.0,
-            BatterySecondaryVoltage = response.GetDouble("BATS") ?? 0.0,
+            // Per BLE protocol v2.0.0: Battery keys are BATP and BATS.
+            // Missing keys and the firmware's 0.00 sentinel both mean "no reading".
+            BatteryPrimaryVoltage = BatteryReading.FromRaw(response.GetDouble("BATP")),
+            BatterySecondaryVoltage = BatteryReading.FromRaw(response.GetDouble("BATS")),
             Status = response.GetString("STATUS") ?? "IDLE"
         };
 

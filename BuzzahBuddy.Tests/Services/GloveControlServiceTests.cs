@@ -270,4 +270,47 @@ public class GloveControlServiceTests
 
         Assert.Equal(6, profiles.Count);
     }
+
+    [Fact]
+    public async Task GetBatteryAsync_ValidReadings_ReturnsVoltages()
+    {
+        var fake = new FakeBluetoothService();
+        fake.CannedResponses["BATTERY"] = "BATP:3.72\nBATS:3.68\n\x04";
+        var service = new GloveControlService(fake);
+
+        var (primary, secondary) = await service.GetBatteryAsync();
+
+        Assert.Equal(3.72, primary);
+        Assert.Equal(3.68, secondary);
+    }
+
+    [Fact]
+    public async Task GetBatteryAsync_MissingKeys_ReturnsNulls()
+    {
+        // A response without BATP/BATS (and no ERROR key) must not masquerade
+        // as a 0.0V reading.
+        var fake = new FakeBluetoothService();
+        fake.CannedResponses["BATTERY"] = "STATUS:IDLE\n\x04";
+        var service = new GloveControlService(fake);
+
+        var (primary, secondary) = await service.GetBatteryAsync();
+
+        Assert.Null(primary);
+        Assert.Null(secondary);
+    }
+
+    [Fact]
+    public async Task GetBatteryAsync_ZeroSentinel_ReturnsNulls()
+    {
+        // Firmware reports 0.00 for "no monitor"/"no reading"/"secondary
+        // timed out" — treat as unavailable, not as an empty pack.
+        var fake = new FakeBluetoothService();
+        fake.CannedResponses["BATTERY"] = "BATP:0.00\nBATS:0.00\n\x04";
+        var service = new GloveControlService(fake);
+
+        var (primary, secondary) = await service.GetBatteryAsync();
+
+        Assert.Null(primary);
+        Assert.Null(secondary);
+    }
 }
