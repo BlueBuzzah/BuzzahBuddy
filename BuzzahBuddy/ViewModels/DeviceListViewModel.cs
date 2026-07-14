@@ -25,6 +25,11 @@ public partial class DeviceListViewModel : BaseViewModel
     /// </summary>
     public IConnectionStateService ConnectionInfo { get; }
 
+    /// <summary>
+    /// Device settings (therapy profile, LED, battery, diagnostics) shown when connected.
+    /// </summary>
+    public DeviceSettingsViewModel Settings { get; }
+
     [ObservableProperty]
     private ObservableCollection<GloveDevice> _availableDevices = new();
 
@@ -64,14 +69,16 @@ public partial class DeviceListViewModel : BaseViewModel
         IBluetoothService bluetoothService,
         IDataStorageService storageService,
         IReconnectionService reconnectionService,
-        IConnectionStateService connectionStateService)
+        IConnectionStateService connectionStateService,
+        DeviceSettingsViewModel deviceSettingsViewModel)
     {
         _bluetoothService = bluetoothService;
         _storageService = storageService;
         _reconnectionService = reconnectionService;
         ConnectionInfo = connectionStateService;
+        Settings = deviceSettingsViewModel;
 
-        Title = "Devices";
+        Title = "Device";
 
         // Subscribe to device discovery
         _bluetoothService.DeviceDiscovered += OnDeviceDiscovered;
@@ -108,9 +115,15 @@ public partial class DeviceListViewModel : BaseViewModel
     /// </summary>
     public void OnPageAppearing()
     {
-        _reconnectionService.CancelReconnect();
+        // Only cancel auto-reconnect when the scan UI is showing — when connected,
+        // the user is here for device settings, not to pick a new device.
+        if (!ConnectionInfo.IsConnected)
+        {
+            _reconnectionService.CancelReconnect();
+        }
         CheckBluetoothStatusAsync().SafeFireAndForget("[DEVICELIST]");
         UpdateConnectionState();
+        Settings.OnPageAppearing();
     }
 
     /// <summary>Empty-state variant: before the first scan has run.</summary>

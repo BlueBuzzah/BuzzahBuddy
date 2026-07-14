@@ -12,11 +12,4 @@ public partial class SettingsPage : ContentPage
         _viewModel = viewModel;
         BindingContext = viewModel;
     }
-
-    protected override void OnAppearing()
-    {
-        base.OnAppearing();
-        _viewModel.LoadDeviceSettingsCommand.Execute(null);
-    }
-
 }

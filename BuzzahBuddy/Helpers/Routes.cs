@@ -6,7 +6,6 @@ namespace BuzzahBuddy.Helpers;
 /// </summary>
 public static class Routes
 {
-    public const string Home = "//home";
     public const string Control = "//control";
     public const string Devices = "//devices";
     public const string Settings = "//settings";
