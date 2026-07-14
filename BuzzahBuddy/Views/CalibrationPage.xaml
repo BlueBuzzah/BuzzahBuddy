@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:BuzzahBuddy.ViewModels"
              x:Class="BuzzahBuddy.Views.CalibrationPage"
+             x:Name="CalibrationPageRoot"
              x:DataType="vm:CalibrationViewModel"
              Title="{Binding Title}">
 
@@ -315,208 +316,79 @@
                                    AutomationProperties.IsInAccessibleTree="False" />
                         </Border>
 
-                        <!-- Left Hand -->
+                        <!-- Primary glove -->
                         <VerticalStackLayout Spacing="10">
-                            <Label Text="Left Hand"
+                            <Label Text="Primary Glove"
                                    Style="{StaticResource Heading3}"
                                    HorizontalOptions="Center"
                                    SemanticProperties.HeadingLevel="Level3" />
 
-                            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="10">
-                                <!-- Left Thumb (Index 0) -->
-                                <Button Grid.Row="0" Grid.Column="0"
-                                        Text="✓ Thumb"
-                                        Command="{Binding BuzzFingerCommand}"
-                                        HeightRequest="64"
-                                        FontSize="18"
-                                        FontAttributes="Bold"
-                                        CornerRadius="12"
-                                        BackgroundColor="{StaticResource Primary}"
-                                        SemanticProperties.Description="Left thumb"
-                                        SemanticProperties.Hint="Test left thumb motor"
-                                        AutomationId="LeftThumbButton">
-                                    <Button.IsEnabled>
-                                        <MultiBinding Converter="{StaticResource AllTrueConverter}">
-                                            <Binding Path="ConnectionInfo.IsConnected" />
-                                            <Binding Path="IsInCalibrationMode" />
-                                        </MultiBinding>
-                                    </Button.IsEnabled>
-                                    <Button.CommandParameter>
-                                        <x:Int32>0</x:Int32>
-                                    </Button.CommandParameter>
-                                </Button>
-
-                                <!-- Left Index (Index 1) -->
-                                <Button Grid.Row="0" Grid.Column="1"
-                                        Text="✓ Index"
-                                        Command="{Binding BuzzFingerCommand}"
-                                        HeightRequest="64"
-                                        FontSize="18"
-                                        FontAttributes="Bold"
-                                        CornerRadius="12"
-                                        BackgroundColor="{StaticResource Primary}"
-                                        SemanticProperties.Description="Left index finger"
-                                        SemanticProperties.Hint="Test left index finger motor"
-                                        AutomationId="LeftIndexButton">
-                                    <Button.IsEnabled>
-                                        <MultiBinding Converter="{StaticResource AllTrueConverter}">
-                                            <Binding Path="ConnectionInfo.IsConnected" />
-                                            <Binding Path="IsInCalibrationMode" />
-                                        </MultiBinding>
-                                    </Button.IsEnabled>
-                                    <Button.CommandParameter>
-                                        <x:Int32>1</x:Int32>
-                                    </Button.CommandParameter>
-                                </Button>
-
-                                <!-- Left Middle (Index 2) -->
-                                <Button Grid.Row="1" Grid.Column="0"
-                                        Text="✓ Middle"
-                                        Command="{Binding BuzzFingerCommand}"
-                                        HeightRequest="64"
-                                        FontSize="18"
-                                        FontAttributes="Bold"
-                                        CornerRadius="12"
-                                        BackgroundColor="{StaticResource Primary}"
-                                        SemanticProperties.Description="Left middle finger"
-                                        SemanticProperties.Hint="Test left middle finger motor"
-                                        AutomationId="LeftMiddleButton">
-                                    <Button.IsEnabled>
-                                        <MultiBinding Converter="{StaticResource AllTrueConverter}">
-                                            <Binding Path="ConnectionInfo.IsConnected" />
-                                            <Binding Path="IsInCalibrationMode" />
-                                        </MultiBinding>
-                                    </Button.IsEnabled>
-                                    <Button.CommandParameter>
-                                        <x:Int32>2</x:Int32>
-                                    </Button.CommandParameter>
-                                </Button>
-
-                                <!-- Left Ring (Index 3) -->
-                                <Button Grid.Row="1" Grid.Column="1"
-                                        Text="✓ Ring"
-                                        Command="{Binding BuzzFingerCommand}"
-                                        HeightRequest="64"
-                                        FontSize="18"
-                                        FontAttributes="Bold"
-                                        CornerRadius="12"
-                                        BackgroundColor="{StaticResource Primary}"
-                                        SemanticProperties.Description="Left ring finger"
-                                        SemanticProperties.Hint="Test left ring finger motor"
-                                        AutomationId="LeftRingButton">
-                                    <Button.IsEnabled>
-                                        <MultiBinding Converter="{StaticResource AllTrueConverter}">
-                                            <Binding Path="ConnectionInfo.IsConnected" />
-                                            <Binding Path="IsInCalibrationMode" />
-                                        </MultiBinding>
-                                    </Button.IsEnabled>
-                                    <Button.CommandParameter>
-                                        <x:Int32>3</x:Int32>
-                                    </Button.CommandParameter>
-                                </Button>
-                            </Grid>
+                            <FlexLayout Wrap="Wrap"
+                                        JustifyContent="Center"
+                                        BindableLayout.ItemsSource="{Binding PrimaryFingers}">
+                                <BindableLayout.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:FingerButtonItem">
+                                        <Button Text="{Binding Label}"
+                                                Command="{Binding BindingContext.BuzzFingerCommand, Source={x:Reference CalibrationPageRoot}}"
+                                                CommandParameter="{Binding Index}"
+                                                HeightRequest="64"
+                                                WidthRequest="150"
+                                                Margin="5"
+                                                FontSize="18"
+                                                FontAttributes="Bold"
+                                                CornerRadius="12"
+                                                BackgroundColor="{StaticResource Primary}"
+                                                TextColor="{StaticResource PrimaryDarkText}"
+                                                SemanticProperties.Description="{Binding Label, StringFormat='Primary glove {0}'}"
+                                                SemanticProperties.Hint="Tests this finger's motor"
+                                                AutomationId="{Binding AutomationId}">
+                                            <Button.IsEnabled>
+                                                <MultiBinding Converter="{StaticResource AllTrueConverter}">
+                                                    <Binding Path="BindingContext.ConnectionInfo.IsConnected" Source="{x:Reference CalibrationPageRoot}" />
+                                                    <Binding Path="BindingContext.IsInCalibrationMode" Source="{x:Reference CalibrationPageRoot}" />
+                                                </MultiBinding>
+                                            </Button.IsEnabled>
+                                        </Button>
+                                    </DataTemplate>
+                                </BindableLayout.ItemTemplate>
+                            </FlexLayout>
                         </VerticalStackLayout>
 
-                        <!-- Right Hand -->
+                        <!-- Secondary glove -->
                         <VerticalStackLayout Spacing="10">
-                            <Label Text="Right Hand"
+                            <Label Text="Secondary Glove"
                                    Style="{StaticResource Heading3}"
                                    HorizontalOptions="Center"
                                    SemanticProperties.HeadingLevel="Level3" />
 
-                            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="10">
-                                <!-- Right Thumb (Index 4) -->
-                                <Button Grid.Row="0" Grid.Column="0"
-                                        Text="✓ Thumb"
-                                        Command="{Binding BuzzFingerCommand}"
-                                        HeightRequest="64"
-                                        FontSize="18"
-                                        FontAttributes="Bold"
-                                        CornerRadius="12"
-                                        BackgroundColor="{StaticResource Secondary}"
-                                        SemanticProperties.Description="Right thumb"
-                                        SemanticProperties.Hint="Test right thumb motor"
-                                        AutomationId="RightThumbButton">
-                                    <Button.IsEnabled>
-                                        <MultiBinding Converter="{StaticResource AllTrueConverter}">
-                                            <Binding Path="ConnectionInfo.IsConnected" />
-                                            <Binding Path="IsInCalibrationMode" />
-                                        </MultiBinding>
-                                    </Button.IsEnabled>
-                                    <Button.CommandParameter>
-                                        <x:Int32>4</x:Int32>
-                                    </Button.CommandParameter>
-                                </Button>
-
-                                <!-- Right Index (Index 5) -->
-                                <Button Grid.Row="0" Grid.Column="1"
-                                        Text="✓ Index"
-                                        Command="{Binding BuzzFingerCommand}"
-                                        HeightRequest="64"
-                                        FontSize="18"
-                                        FontAttributes="Bold"
-                                        CornerRadius="12"
-                                        BackgroundColor="{StaticResource Secondary}"
-                                        SemanticProperties.Description="Right index finger"
-                                        SemanticProperties.Hint="Test right index finger motor"
-                                        AutomationId="RightIndexButton">
-                                    <Button.IsEnabled>
-                                        <MultiBinding Converter="{StaticResource AllTrueConverter}">
-                                            <Binding Path="ConnectionInfo.IsConnected" />
-                                            <Binding Path="IsInCalibrationMode" />
-                                        </MultiBinding>
-                                    </Button.IsEnabled>
-                                    <Button.CommandParameter>
-                                        <x:Int32>5</x:Int32>
-                                    </Button.CommandParameter>
-                                </Button>
-
-                                <!-- Right Middle (Index 6) -->
-                                <Button Grid.Row="1" Grid.Column="0"
-                                        Text="✓ Middle"
-                                        Command="{Binding BuzzFingerCommand}"
-                                        HeightRequest="64"
-                                        FontSize="18"
-                                        FontAttributes="Bold"
-                                        CornerRadius="12"
-                                        BackgroundColor="{StaticResource Secondary}"
-                                        SemanticProperties.Description="Right middle finger"
-                                        SemanticProperties.Hint="Test right middle finger motor"
-                                        AutomationId="RightMiddleButton">
-                                    <Button.IsEnabled>
-                                        <MultiBinding Converter="{StaticResource AllTrueConverter}">
-                                            <Binding Path="ConnectionInfo.IsConnected" />
-                                            <Binding Path="IsInCalibrationMode" />
-                                        </MultiBinding>
-                                    </Button.IsEnabled>
-                                    <Button.CommandParameter>
-                                        <x:Int32>6</x:Int32>
-                                    </Button.CommandParameter>
-                                </Button>
-
-                                <!-- Right Ring (Index 7) -->
-                                <Button Grid.Row="1" Grid.Column="1"
-                                        Text="✓ Ring"
-                                        Command="{Binding BuzzFingerCommand}"
-                                        HeightRequest="64"
-                                        FontSize="18"
-                                        FontAttributes="Bold"
-                                        CornerRadius="12"
-                                        BackgroundColor="{StaticResource Secondary}"
-                                        SemanticProperties.Description="Right ring finger"
-                                        SemanticProperties.Hint="Test right ring finger motor"
-                                        AutomationId="RightRingButton">
-                                    <Button.IsEnabled>
-                                        <MultiBinding Converter="{StaticResource AllTrueConverter}">
-                                            <Binding Path="ConnectionInfo.IsConnected" />
-                                            <Binding Path="IsInCalibrationMode" />
-                                        </MultiBinding>
-                                    </Button.IsEnabled>
-                                    <Button.CommandParameter>
-                                        <x:Int32>7</x:Int32>
-                                    </Button.CommandParameter>
-                                </Button>
-                            </Grid>
+                            <FlexLayout Wrap="Wrap"
+                                        JustifyContent="Center"
+                                        BindableLayout.ItemsSource="{Binding SecondaryFingers}">
+                                <BindableLayout.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:FingerButtonItem">
+                                        <Button Text="{Binding Label}"
+                                                Command="{Binding BindingContext.BuzzFingerCommand, Source={x:Reference CalibrationPageRoot}}"
+                                                CommandParameter="{Binding Index}"
+                                                HeightRequest="64"
+                                                WidthRequest="150"
+                                                Margin="5"
+                                                FontSize="18"
+                                                FontAttributes="Bold"
+                                                CornerRadius="12"
+                                                BackgroundColor="{StaticResource Secondary}"
+                                                SemanticProperties.Description="{Binding Label, StringFormat='Secondary glove {0}'}"
+                                                SemanticProperties.Hint="Tests this finger's motor"
+                                                AutomationId="{Binding AutomationId}">
+                                            <Button.IsEnabled>
+                                                <MultiBinding Converter="{StaticResource AllTrueConverter}">
+                                                    <Binding Path="BindingContext.ConnectionInfo.IsConnected" Source="{x:Reference CalibrationPageRoot}" />
+                                                    <Binding Path="BindingContext.IsInCalibrationMode" Source="{x:Reference CalibrationPageRoot}" />
+                                                </MultiBinding>
+                                            </Button.IsEnabled>
+                                        </Button>
+                                    </DataTemplate>
+                                </BindableLayout.ItemTemplate>
+                            </FlexLayout>
                         </VerticalStackLayout>
                     </VerticalStackLayout>
 

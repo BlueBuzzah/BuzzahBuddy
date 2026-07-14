@@ -7,6 +7,8 @@ namespace BuzzahBuddy.Services.Bluetooth;
 /// Mock Bluetooth service for testing without hardware.
 /// Implements all 20 BlueBuzzah commands with realistic responses.
 /// Per BLE protocol v2.0.0.
+/// This mock simulates a 4-motor BlueBuzzah primary board; 5-motor (PentaBuzzer) ranges
+/// are only testable on hardware.
 /// </summary>
 public class MockBluetoothService : IBluetoothService
 {
@@ -169,12 +171,28 @@ public class MockBluetoothService : IBluetoothService
         // Simulate command processing delay
         await Task.Delay(50, cancellationToken);
 
+        var responseText = await GetRawResponseAsync(command, cancellationToken);
+
+        var response = CommandResponse.Parse(responseText);
+        ResponseReceived?.Invoke(this, response);
+        return response;
+    }
+
+    /// <summary>
+    /// Builds the raw, pre-parse wire response text for a command, exactly as the mock
+    /// would send it over BLE (KEY:VALUE lines terminated with \x04). Exposed separately
+    /// from <see cref="SendCommandAsync"/> so tests can assert on the literal wire text
+    /// (e.g. the presence of a trailing colon) without CommandResponse.Parse normalizing
+    /// away the distinction they care about.
+    /// </summary>
+    internal async Task<string> GetRawResponseAsync(string command, CancellationToken cancellationToken = default)
+    {
         // Per BLE protocol v2.0.0: Handle all 20 commands
-        var responseText = command.ToUpperInvariant() switch
+        return command.ToUpperInvariant() switch
         {
             "INFO" => GetMockInfoResponse(),
             "BATTERY" => await GetMockBatteryResponse(cancellationToken),
-            "PING" => "PONG\n\x04",
+            "PING" => "PONG:\n\x04",
             "PROFILE_LIST" => GetMockProfileListResponse(),
             var cmd when cmd.StartsWith("PROFILE_LOAD:") => HandleProfileLoad(cmd),
             "PROFILE_GET" => GetMockProfileSettings(),
@@ -197,10 +215,6 @@ public class MockBluetoothService : IBluetoothService
             var cmd when cmd.StartsWith("DEBUG:") => HandleDebug(cmd),
             _ => $"ERROR:Unknown command: {command}\n\x04"
         };
-
-        var response = CommandResponse.Parse(responseText);
-        ResponseReceived?.Invoke(this, response);
-        return response;
     }
 
     public Task SubscribeToNotificationsAsync()
@@ -226,11 +240,24 @@ public class MockBluetoothService : IBluetoothService
         return "ROLE:PRIMARY\n" +
                "NAME:BlueBuzzah\n" +
                "FW:2.0.0\n" +
+               "MOTORS:4\n" +
+               $"PROFILE:{_mockCurrentProfile}:{ProfileNameFor(_mockCurrentProfile)}\n" +
                "BATP:3.72\n" +
                "BATS:3.68\n" +
                $"STATUS:{_mockSessionState}\n" +
                "\x04";
     }
+
+    private static string ProfileNameFor(int profileId) => profileId switch
+    {
+        1 => "regular_vcr",
+        2 => "noisy_vcr",
+        3 => "hybrid_vcr",
+        4 => "custom_vcr",
+        5 => "gentle",
+        6 => "quick_test",
+        _ => "unknown"
+    };
 
     private async Task<string> GetMockBatteryResponse(CancellationToken cancellationToken)
     {
@@ -257,6 +284,12 @@ public class MockBluetoothService : IBluetoothService
 
     private string HandleProfileLoad(string command)
     {
+        // Firmware rejects PROFILE_LOAD only in active states (mirrors isActiveState); must be stopped first.
+        if (_mockSessionState is SessionState.RUNNING or SessionState.PAUSED or SessionState.LOW_BATTERY)
+        {
+            return "ERROR:Session must be stopped before loading a profile\n\x04";
+        }
+
         var parts = command.Split(':');
         if (parts.Length >= 2 && int.TryParse(parts[1], out var profileId))
         {
@@ -264,16 +297,7 @@ public class MockBluetoothService : IBluetoothService
             if (profileId >= 1 && profileId <= 6)
             {
                 _mockCurrentProfile = profileId;
-                var profileName = profileId switch
-                {
-                    1 => "regular_vcr",
-                    2 => "noisy_vcr",
-                    3 => "hybrid_vcr",
-                    4 => "custom_vcr",
-                    5 => "gentle",
-                    6 => "quick_test",
-                    _ => "unknown"
-                };
+                var profileName = ProfileNameFor(profileId);
                 // Per BLE protocol v2.0.0: Device reboots after PROFILE_LOAD
                 return $"STATUS:REBOOTING\nPROFILE:{profileName}\n\x04";
             }
@@ -368,6 +392,20 @@ public class MockBluetoothService : IBluetoothService
         return "SESSION_STATUS:IDLE\n\x04";
     }
 
+    /// <summary>
+    /// Test-only seam: shifts the mock session's start time backwards so tests can exercise
+    /// elapsed-time-dependent behavior (e.g. the LOW_BATTERY transition at ~95% progress)
+    /// without waiting ~114 real minutes for a 2-hour session. Internal because the mock
+    /// compiles directly into the test assembly.
+    /// </summary>
+    internal void AdvanceMockSession(TimeSpan elapsed)
+    {
+        if (_mockSessionStartTime.HasValue)
+        {
+            _mockSessionStartTime = _mockSessionStartTime.Value - elapsed;
+        }
+    }
+
     private string GetMockSessionStatus()
     {
         // Per BLE protocol v2.0.0: Use ELAPSED/TOTAL (not ELAPSED_TIME/TOTAL_TIME)
@@ -394,7 +432,13 @@ public class MockBluetoothService : IBluetoothService
 
         var progress = Math.Min(100, (int)((double)elapsedSeconds / totalSeconds * 100));
 
-        return $"SESSION_STATUS:{_mockSessionState}\n" +
+        var stateStr = _mockSessionState.ToString();
+        if (_mockSessionState == SessionState.RUNNING && progress >= 95)
+        {
+            stateStr = "LOW_BATTERY";   // exercise the app's non-trivial state handling in Debug builds
+        }
+
+        return $"SESSION_STATUS:{stateStr}\n" +
                $"ELAPSED:{elapsedSeconds}\n" +
                $"TOTAL:{totalSeconds}\n" +
                $"PROGRESS:{progress}\n" +
@@ -415,11 +459,18 @@ public class MockBluetoothService : IBluetoothService
         }
 
         var parts = command.Split(':');
-        if (parts.Length >= 4)
+        if (parts.Length >= 4 &&
+            int.TryParse(parts[1], out var finger) &&
+            int.TryParse(parts[2], out var intensity) &&
+            int.TryParse(parts[3], out var duration))
         {
-            return $"FINGER:{parts[1]}\n" +
-                   $"INTENSITY:{parts[2]}\n" +
-                   $"DURATION:{parts[3]}\n" +
+            // Mock simulates a 4-motor BlueBuzzah primary; firmware's finger range is 0-7 for it.
+            if (finger < 0 || finger > 7) return "ERROR:Invalid finger index (0-7)\n\x04";
+            if (intensity < 0 || intensity > 100) return "ERROR:Intensity out of range (0-100)\n\x04";
+            if (duration < 50 || duration > 2000) return "ERROR:Duration out of range (50-2000ms)\n\x04";
+            return $"FINGER:{finger}\n" +
+                   $"INTENSITY:{intensity}\n" +
+                   $"DURATION:{duration}\n" +
                    "\x04";
         }
 

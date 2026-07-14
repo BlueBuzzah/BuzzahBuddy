@@ -24,6 +24,12 @@ public class GloveControlService : IGloveControlService
     public TherapyProfile? CurrentProfile => _currentProfile;
 
     /// <inheritdoc />
+    public int DeviceActuatorCount { get; private set; } = 4;
+
+    /// <inheritdoc />
+    public int DeviceProfileId { get; private set; }
+
+    /// <inheritdoc />
     public bool ExpectingReboot => _expectingReboot;
 
     /// <inheritdoc />
@@ -37,6 +43,7 @@ public class GloveControlService : IGloveControlService
     {
         try
         {
+            await GetDeviceInfoAsync();
             await PingAsync();
             await GetBatteryAsync();
             await GetSessionStatusAsync();
@@ -92,7 +99,14 @@ public class GloveControlService : IGloveControlService
         EnsureConnected();
         var response = await _bluetoothService.SendCommandAsync("INFO");
         response.ThrowIfError();
-        return GloveDeviceInfo.FromCommandResponse(response);
+        var info = GloveDeviceInfo.FromCommandResponse(response);
+        DeviceActuatorCount = info.Motors;
+        if (info.ProfileId > 0)
+        {
+            DeviceProfileId = info.ProfileId;
+            _currentProfile = TherapyProfile.GetPresetProfiles().FirstOrDefault(p => p.ProfileId == info.ProfileId);
+        }
+        return info;
     }
 
     public async Task<(double primaryVoltage, double secondaryVoltage)> GetBatteryAsync()
@@ -178,18 +192,10 @@ public class GloveControlService : IGloveControlService
         if (profiles.Count == 0)
         {
             System.Diagnostics.Debug.WriteLine("[PROFILE_LIST] No profiles parsed, using preset fallback");
-            // Filter to main therapy profiles only (1-3: Regular, Noisy, Hybrid)
-            var fallback = TherapyProfile.GetPresetProfiles()
-                .Where(p => p.ProfileId >= 1 && p.ProfileId <= 3)
-                .ToList();
-            System.Diagnostics.Debug.WriteLine($"[PROFILE_LIST] Returning {fallback.Count} fallback profiles");
-            return fallback;
+            return TherapyProfile.GetPresetProfiles();
         }
 
-        // Filter to main therapy profiles only (1-3: Regular, Noisy, Hybrid)
-        var filtered = profiles.Where(p => p.ProfileId >= 1 && p.ProfileId <= 3).ToList();
-        System.Diagnostics.Debug.WriteLine($"[PROFILE_LIST] Returning {filtered.Count} filtered profiles");
-        return filtered;
+        return profiles;
     }
 
     public async Task LoadProfileAsync(int profileId)
@@ -255,18 +261,139 @@ public class GloveControlService : IGloveControlService
             throw new ArgumentException("Parameters dictionary cannot be null or empty", nameof(parameters));
         }
 
+        // Firmware parseCommand limits (menu_controller.h/.cpp): MAX_COMMAND_PARAMS=16
+        // tokens (8 KEY:VAL pairs), PARAM_BUFFER_SIZE=64 per token, 256-char command
+        // buffer, ':' as the token delimiter. The firmware SILENTLY drops anything
+        // over these limits and still replies CUSTOM_LOADED, so reject here instead.
+        const int maxPairs = 8;
+        const int maxTokenLength = 63;
+        const int maxCommandLength = 255;
+
+        if (parameters.Count > maxPairs)
+        {
+            throw new ArgumentException(
+                $"At most {maxPairs} parameters per PROFILE_CUSTOM command; the firmware silently drops extras",
+                nameof(parameters));
+        }
+
         // Build command: PROFILE_CUSTOM:KEY:VAL:KEY:VAL...
         var commandParts = new List<string> { "PROFILE_CUSTOM" };
         foreach (var kvp in parameters)
         {
+            foreach (var token in new[] { kvp.Key, kvp.Value })
+            {
+                if (string.IsNullOrEmpty(token) || token.Length > maxTokenLength ||
+                    token.Contains(':') || token.Contains('\n') || token.Contains(BlueBuzzahConstants.CommandTerminator))
+                {
+                    throw new ArgumentException(
+                        $"Invalid parameter token '{token}': must be 1-{maxTokenLength} chars with no ':' or control characters",
+                        nameof(parameters));
+                }
+            }
             commandParts.Add(kvp.Key);
             commandParts.Add(kvp.Value);
         }
 
         var command = string.Join(":", commandParts);
+        if (command.Length > maxCommandLength)
+        {
+            throw new ArgumentException(
+                $"PROFILE_CUSTOM command is {command.Length} chars; the firmware truncates past {maxCommandLength}",
+                nameof(parameters));
+        }
         var response = await _bluetoothService.SendCommandAsync(command);
         response.ThrowIfError();
     }
+
+    public async Task ApplyCustomProfileAsync(TherapyProfile desired, TherapyProfile? baseline = null)
+    {
+        var parameters = BuildCustomProfileParameters(desired, baseline);
+
+        // Firmware accepts at most 8 KEY:VAL pairs per PROFILE_CUSTOM command
+        // (MAX_COMMAND_PARAMS=16 tokens), so a full 10-parameter profile is
+        // split across sequential commands.
+        for (int i = 0; i < parameters.Count; i += 8)
+        {
+            await SetCustomProfileAsync(
+                parameters.Skip(i).Take(8).ToDictionary(p => p.Key, p => p.Value));
+        }
+    }
+
+    /// <summary>
+    /// Maps a <see cref="TherapyProfile"/> to PROFILE_CUSTOM protocol parameters,
+    /// validating against the firmware's setParameter ranges (profile_manager.cpp).
+    /// When <paramref name="baseline"/> is provided, only parameters whose protocol
+    /// value differs from the baseline are returned.
+    /// </summary>
+    public static List<KeyValuePair<string, string>> BuildCustomProfileParameters(
+        TherapyProfile desired, TherapyProfile? baseline = null)
+    {
+        // Firmware validation ranges (profile_manager.cpp setParameter). Round the
+        // ms/percent floats to the 1 decimal the protocol carries ("0.#") before
+        // range-checking, so a seconds value that computes to e.g. 1000.0000000002 ms
+        // isn't spuriously rejected at the ceiling.
+        var timeOnMs = Math.Round(desired.TimeOn * 1000.0, 1);
+        var timeOffMs = Math.Round(desired.TimeOff * 1000.0, 1);
+        var jitter = Math.Round(desired.Jitter, 1);
+        if (desired.ActuatorFrequency is < 50 or > 300)
+            throw new ArgumentException("Frequency must be 50-300 Hz", nameof(desired));
+        if (timeOnMs is < 10 or > 1000)
+            throw new ArgumentException("Time on must be 10-1000 ms", nameof(desired));
+        if (timeOffMs is < 10 or > 1000)
+            throw new ArgumentException("Time off must be 10-1000 ms", nameof(desired));
+        if (desired.TimeSession is < 1 or > 240)
+            throw new ArgumentException("Session duration must be 1-240 minutes", nameof(desired));
+        if (desired.AmplitudeMin is < 0 or > 100 || desired.AmplitudeMax is < 0 or > 100)
+            throw new ArgumentException("Amplitude must be 0-100%", nameof(desired));
+        if (desired.AmplitudeMin > desired.AmplitudeMax)
+            throw new ArgumentException("Minimum amplitude cannot exceed maximum amplitude", nameof(desired));
+        if (jitter is < 0 or > 100)
+            throw new ArgumentException("Jitter must be 0-100%", nameof(desired));
+        if (desired.PatternType.ToUpperInvariant() is not ("RNDP" or "SEQ" or "SEQUENTIAL" or "MIRRORED"))
+            throw new ArgumentException($"Unknown pattern type '{desired.PatternType}' (expected RNDP, SEQ, or MIRRORED)", nameof(desired));
+
+        var desiredParams = ToProtocolParameters(desired);
+        if (baseline == null)
+        {
+            return desiredParams;
+        }
+
+        var baselineParams = ToProtocolParameters(baseline).ToDictionary(p => p.Key, p => p.Value);
+        return desiredParams
+            .Where(p => !baselineParams.TryGetValue(p.Key, out var old) || old != p.Value)
+            .ToList();
+    }
+
+    // Ordered list (not Dictionary) so chunk membership across the 8-pair
+    // PROFILE_CUSTOM boundary is deterministic by contract, not by the CLR's
+    // incidental dictionary insertion-order behavior.
+    private static List<KeyValuePair<string, string>> ToProtocolParameters(TherapyProfile profile)
+    {
+        var inv = System.Globalization.CultureInfo.InvariantCulture;
+        return new List<KeyValuePair<string, string>>
+        {
+            new("TYPE", profile.ActuatorType.Equals("ERM", StringComparison.OrdinalIgnoreCase) ? "ERM" : "LRA"),
+            new("FREQ", profile.ActuatorFrequency.ToString(inv)),
+            new("ON", (profile.TimeOn * 1000.0).ToString("0.#", inv)),   // protocol uses ms
+            new("OFF", (profile.TimeOff * 1000.0).ToString("0.#", inv)), // protocol uses ms
+            new("SESSION", profile.TimeSession.ToString(inv)),
+            new("AMPMIN", profile.AmplitudeMin.ToString(inv)),
+            new("AMPMAX", profile.AmplitudeMax.ToString(inv)),
+            new("PATTERN", ToProtocolPattern(profile.PatternType)),
+            new("MIRROR", profile.Mirror ? "1" : "0"),
+            new("JITTER", profile.Jitter.ToString("0.#", inv)),
+        };
+    }
+
+    private static string ToProtocolPattern(string patternType) =>
+        patternType.ToUpperInvariant() switch
+        {
+            // App/spec names vs. firmware setParameter's accepted values
+            "RNDP" => "rndp",
+            "SEQ" or "SEQUENTIAL" => "sequential",
+            "MIRRORED" => "mirrored",
+            _ => throw new ArgumentException($"Unknown pattern type '{patternType}' (expected RNDP, SEQ, or MIRRORED)"),
+        };
 
     // ========== Session Control Commands ==========
 
@@ -376,9 +503,10 @@ public class GloveControlService : IGloveControlService
     public async Task BuzzFingerAsync(int fingerIndex, int intensity, int durationMs)
     {
         EnsureConnected();
-        if (fingerIndex < 0 || fingerIndex > 7)
+        var maxFinger = DeviceActuatorCount * 2 - 1;
+        if (fingerIndex < 0 || fingerIndex > maxFinger)
         {
-            throw new ArgumentException("Finger index must be 0-7", nameof(fingerIndex));
+            throw new ArgumentException($"Finger index must be 0-{maxFinger}", nameof(fingerIndex));
         }
 
         if (intensity < 0 || intensity > 100)

@@ -27,8 +27,11 @@ public partial class GloveControlViewModel : BaseViewModel
     private SessionState _previousSessionState = SessionState.IDLE;
     private bool _userRequestedStop;
     private int _consecutivePollFailures;
+    private int _consecutiveHealthCheckFailures;
     private const int PollFailureWarningThreshold = 2;
     private const int PollFailureReconnectThreshold = 3;
+    private const string ConnectionUnstableWarning = "Connection unstable — trying to recover…";
+    private const string ProfileRebootWarning = "Gloves are restarting to apply the new profile…";
 
     [ObservableProperty]
     private ObservableCollection<ProfileItemViewModel> _availableProfiles = new();
@@ -230,6 +233,17 @@ public partial class GloveControlViewModel : BaseViewModel
         {
             if (!IsSessionActive)
             {
+                if (_gloveControlService.DeviceProfileId > 0 &&
+                    SelectedProfile != null &&
+                    SelectedProfile.ProfileId != _gloveControlService.DeviceProfileId)
+                {
+                    await Shell.Current.DisplayAlert(
+                        "Profile Not Applied",
+                        $"The gloves are still using a different profile. Tap \"{SelectedProfile.Name}\" again to apply it before starting.",
+                        "OK");
+                    return;
+                }
+
                 // Start session
                 await _gloveControlService.StartSessionAsync();
 
@@ -351,10 +365,56 @@ public partial class GloveControlViewModel : BaseViewModel
     }
 
     [RelayCommand]
-    private void SelectProfile(ProfileItemViewModel profileItem)
+    private async Task SelectProfileAsync(ProfileItemViewModel profileItem)
     {
         if (profileItem?.Profile == null)
             return;
+
+        // Selecting the profile already on the device is just a UI highlight
+        var isDeviceCurrent = profileItem.Profile.ProfileId == _gloveControlService.DeviceProfileId;
+
+        if (!isDeviceCurrent && ConnectionInfo.IsConnected)
+        {
+            if (IsSessionActive)
+            {
+                await Shell.Current.DisplayAlert(
+                    "Session Active",
+                    "Stop the current session before changing profiles.",
+                    "OK");
+                return;
+            }
+
+            var confirm = await Shell.Current.DisplayAlert(
+                "Change Profile?",
+                $"Switching to \"{profileItem.Profile.Name}\" will restart your gloves. " +
+                "They will reconnect automatically in a few moments.",
+                "Change Profile",
+                "Cancel");
+            if (!confirm)
+                return;
+
+            IsBusy = true;
+            try
+            {
+                await _gloveControlService.LoadProfileAsync(profileItem.Profile.ProfileId);
+                SessionWarningMessage = ProfileRebootWarning;
+            }
+            catch (BlueBuzzahCommandException ex)
+            {
+                var (title, message) = ErrorMessageHelper.GetFriendlyError(ex.Message);
+                await Shell.Current.DisplayAlert(title, message, "OK");
+                return;
+            }
+            catch (Exception ex)
+            {
+                await Shell.Current.DisplayAlert(ErrorMessageHelper.GetErrorTitle(ex), ErrorMessageHelper.GetErrorMessage(ex), "OK");
+                return;
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
 
         // Deselect all profiles
         foreach (var item in AvailableProfiles)
@@ -376,6 +436,12 @@ public partial class GloveControlViewModel : BaseViewModel
     private async Task NavigateToDevicesAsync()
     {
         await Shell.Current.GoToAsync("//devices");
+    }
+
+    [RelayCommand]
+    private async Task NavigateToProfileSettingsAsync()
+    {
+        await Shell.Current.GoToAsync("profilesettings");
     }
 
     [RelayCommand]
@@ -593,17 +659,31 @@ public partial class GloveControlViewModel : BaseViewModel
             var previousProgress = SessionStatus.Progress;
             SessionStatus = await _gloveControlService.GetSessionStatusAsync();
 
-            // Detect unexpected session end (e.g., secondary glove disconnected)
-            if (_previousSessionState == SessionState.RUNNING && SessionStatus.Status == SessionState.IDLE && !_userRequestedStop)
+            // Detect unexpected session end (e.g., secondary glove disconnected, error,
+            // critical battery). State-aware: LOW_BATTERY keeps the session running and
+            // surfaces a non-blocking warning instead of an "ended unexpectedly" alert.
+            bool wasActive = _previousSessionState is SessionState.RUNNING or SessionState.PAUSED or SessionState.LOW_BATTERY or SessionState.STOPPING;
+            string? endReason = SessionStatus.Status switch
+            {
+                SessionState.ERROR => "The gloves reported an error and stopped the session.",
+                SessionState.CONNECTION_LOST => "The gloves lost connection and stopped the session.",
+                SessionState.CRITICAL_BATTERY => "A glove battery is critically low. The session was stopped — please charge the gloves.",
+                SessionState.IDLE when SessionStatus.Progress < 100 => "The therapy session stopped unexpectedly. The secondary glove may have disconnected.",
+                _ => null
+            };
+
+            if (wasActive && endReason != null && !_userRequestedStop)
             {
                 await MainThread.InvokeOnMainThreadAsync(async () =>
                 {
                     await Shell.Current.DisplayAlert(
                         "Session Ended Unexpectedly",
-                        "The therapy session stopped unexpectedly. The secondary glove may have disconnected.",
+                        endReason,
                         "OK");
                 });
             }
+
+            var previousState = _previousSessionState;
             _previousSessionState = SessionStatus.Status;
             _userRequestedStop = false;
 
@@ -615,8 +695,8 @@ public partial class GloveControlViewModel : BaseViewModel
                 _currentSession.Status = SessionStatus.Status;
             }
 
-            // Check for session completion
-            if (SessionStatus.Progress >= 1.0 && previousProgress < 1.0)
+            // Check for session completion (Progress is a 0-100 percent, not a 0-1 fraction)
+            if (SessionStatus.Progress >= 100 && previousProgress < 100)
             {
                 await HandleSessionCompletionAsync();
             }
@@ -624,7 +704,21 @@ public partial class GloveControlViewModel : BaseViewModel
             UpdateSessionState();
 
             _consecutivePollFailures = 0;
-            SessionWarningMessage = null;
+            if (SessionStatus.Status == SessionState.LOW_BATTERY)
+            {
+                const string lowBatteryMessage = "Glove battery is low — session will continue.";
+                SessionWarningMessage = lowBatteryMessage;
+
+                // Announce once on transition into LOW_BATTERY, not on every poll.
+                if (previousState != SessionState.LOW_BATTERY)
+                {
+                    SemanticScreenReader.Announce(lowBatteryMessage);
+                }
+            }
+            else
+            {
+                SessionWarningMessage = null;
+            }
         }
         catch (Exception ex)
         {
@@ -686,6 +780,7 @@ public partial class GloveControlViewModel : BaseViewModel
 
     private void StartConnectionHealthCheck()
     {
+        _consecutiveHealthCheckFailures = 0;
         _healthCheckTimer?.Stop();
         _healthCheckTimer?.Dispose();
         _healthCheckTimer = new System.Timers.Timer(BlueBuzzahConstants.ConnectionHealthCheckIntervalSeconds * 1000);
@@ -708,37 +803,44 @@ public partial class GloveControlViewModel : BaseViewModel
             return;
         }
 
+        bool pingSuccess;
         try
         {
-            var pingSuccess = await _gloveControlService.PingAsync(timeoutMs: BlueBuzzahConstants.PingTimeoutMs);
-
-            if (pingSuccess)
-            {
-                IsConnectionHealthy = true;
-                LastSuccessfulPing = DateTime.Now;
-            }
-            else
-            {
-                IsConnectionHealthy = false;
-                System.Diagnostics.Debug.WriteLine("Connection health check: PING failed");
-            }
+            pingSuccess = await _gloveControlService.PingAsync(timeoutMs: BlueBuzzahConstants.PingTimeoutMs);
         }
         catch (Exception ex)
         {
-            var wasHealthy = IsConnectionHealthy;
-            IsConnectionHealthy = false;
             System.Diagnostics.Debug.WriteLine($"Connection health check error: {ex.Message}");
+            pingSuccess = false;
+        }
 
-            if (wasHealthy && _bluetoothService != null)
+        if (pingSuccess)
+        {
+            IsConnectionHealthy = true;
+            LastSuccessfulPing = DateTime.Now;
+            _consecutiveHealthCheckFailures = 0;
+            if (SessionWarningMessage == ConnectionUnstableWarning)
             {
-                try
-                {
-                    await _bluetoothService.DisconnectForReconnectAsync();
-                }
-                catch (Exception disconnectEx)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Disconnect for reconnect failed: {disconnectEx.Message}");
-                }
+                SessionWarningMessage = null;
+            }
+            return;
+        }
+
+        _consecutiveHealthCheckFailures++;
+        IsConnectionHealthy = false;
+        SessionWarningMessage = ConnectionUnstableWarning;
+
+        // Two consecutive missed pings (60s of silence): force a reconnect cycle
+        if (_consecutiveHealthCheckFailures >= 2)
+        {
+            _consecutiveHealthCheckFailures = 0;
+            try
+            {
+                await _bluetoothService.DisconnectForReconnectAsync();
+            }
+            catch (Exception disconnectEx)
+            {
+                System.Diagnostics.Debug.WriteLine($"Disconnect for reconnect failed: {disconnectEx.Message}");
             }
         }
     }
@@ -748,12 +850,51 @@ public partial class GloveControlViewModel : BaseViewModel
         if (ConnectionInfo.IsConnected)
         {
             RefreshBatteryAsync().SafeFireAndForget("[GLOVECONTROL]");
+            SyncSelectedProfileFromDeviceAsync().SafeFireAndForget("[GLOVECONTROL]");
             StartConnectionHealthCheck();
         }
         else
         {
             StopConnectionHealthCheck();
             IsConnectionHealthy = false;
+        }
+    }
+
+    /// <summary>
+    /// Queries the device for its currently loaded profile and syncs local selection state
+    /// to match. Called on every (re)connect so the UI never disagrees with the device.
+    /// </summary>
+    private async Task SyncSelectedProfileFromDeviceAsync()
+    {
+        try
+        {
+            await _gloveControlService.GetDeviceInfoAsync();
+
+            // Clear a stuck "restarting" banner from a profile-change reboot on any
+            // successful INFO fetch — but only that banner, so warnings owned by other
+            // paths (low battery, unstable connection) aren't wiped here.
+            if (SessionWarningMessage == ProfileRebootWarning)
+            {
+                SessionWarningMessage = null;
+            }
+
+            var deviceProfileId = _gloveControlService.DeviceProfileId;
+            if (deviceProfileId <= 0)
+                return;
+
+            var match = AvailableProfiles.FirstOrDefault(p => p.Profile?.ProfileId == deviceProfileId);
+            if (match != null)
+            {
+                foreach (var item in AvailableProfiles)
+                {
+                    item.IsSelected = item == match;
+                }
+                SelectedProfile = match.Profile;
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[GLOVECONTROL] Profile sync failed: {ex.Message}");
         }
     }
 
@@ -768,6 +909,7 @@ public partial class GloveControlViewModel : BaseViewModel
             {
                 StartConnectionHealthCheck();
                 RefreshBatteryAsync().SafeFireAndForget("[GLOVECONTROL]");
+                SyncSelectedProfileFromDeviceAsync().SafeFireAndForget("[GLOVECONTROL]");
             }
             else
             {

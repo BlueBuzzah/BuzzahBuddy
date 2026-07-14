@@ -4,6 +4,7 @@ obj/
 
 # Temp Folder
 tmp/
+temp/
 
 # Claude Code
 .claude/settings.local.json

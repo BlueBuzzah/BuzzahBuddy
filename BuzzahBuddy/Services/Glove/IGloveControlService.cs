@@ -27,6 +27,17 @@ public interface IGloveControlService
     /// </summary>
     TherapyProfile? CurrentProfile { get; }
 
+    /// <summary>
+    /// Motors per glove on the connected device (4 or 5). Defaults to 4 until
+    /// GetDeviceInfoAsync has run against a firmware that reports MOTORS.
+    /// </summary>
+    int DeviceActuatorCount { get; }
+
+    /// <summary>
+    /// Profile ID currently loaded on the device (1-6), 0 if unknown.
+    /// </summary>
+    int DeviceProfileId { get; }
+
     // ========== Reboot Handling ==========
 
     /// <summary>
@@ -97,6 +108,23 @@ public interface IGloveControlService
     /// <param name="parameters">Dictionary of parameter name/value pairs to modify</param>
     /// <exception cref="BlueBuzzahCommandException">If session is active or parameters invalid</exception>
     Task SetCustomProfileAsync(Dictionary<string, string> parameters);
+
+    /// <summary>
+    /// Applies a full profile edit to the device by diffing <paramref name="desired"/>
+    /// against <paramref name="baseline"/> and sending only the changed parameters via
+    /// PROFILE_CUSTOM (chunked to the firmware's 8-pairs-per-command limit).
+    /// Changes affect the currently loaded profile and are NOT persisted by the
+    /// firmware — they last until the gloves restart or another profile is loaded.
+    /// NOT atomic: the protocol has no transactions, so if a chunk fails after an
+    /// earlier one succeeded, some parameters are already applied on the device.
+    /// Callers should re-read via <see cref="GetCurrentProfileAsync"/> after a failure.
+    /// </summary>
+    /// <param name="desired">Target parameter values.</param>
+    /// <param name="baseline">Current device values (from <see cref="GetCurrentProfileAsync"/>); null sends every
+    /// parameter. A stale baseline causes changed parameters to be silently skipped — read it fresh.</param>
+    /// <exception cref="ArgumentException">If a value is outside the firmware's accepted range.</exception>
+    /// <exception cref="BlueBuzzahCommandException">If a session is active or the firmware rejects a parameter.</exception>
+    Task ApplyCustomProfileAsync(TherapyProfile desired, TherapyProfile? baseline = null);
 
     // ========== Session Control Commands ==========
 

@@ -364,6 +364,7 @@ public partial class MainPageViewModel : BaseViewModel
             DashboardState = SessionStatus.Status switch
             {
                 SessionState.RUNNING => DashboardState.SessionActive,
+                SessionState.LOW_BATTERY => DashboardState.SessionActive,
                 SessionState.PAUSED => DashboardState.SessionPaused,
                 _ => DashboardState.Idle
             };
@@ -486,6 +487,7 @@ public partial class MainPageViewModel : BaseViewModel
                 DashboardState = status.Status switch
                 {
                     SessionState.RUNNING => DashboardState.SessionActive,
+                    SessionState.LOW_BATTERY => DashboardState.SessionActive,
                     SessionState.PAUSED => DashboardState.SessionPaused,
                     _ => DashboardState.Idle
                 };
