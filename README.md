@@ -61,7 +61,7 @@ xcode-select --install
 1. **Clone the repository**
 
    ```bash
-   git clone https://github.com/rbonestell/buzzahbuddy
+   git clone https://github.com/bluebuzzah/buzzahbuddy
    cd BuzzahBuddy
    ```
 
@@ -183,4 +183,4 @@ The BlueBuzzah project is see [MIT licensed](./LICENSE).
 2. Create your feature branch: `git checkout -b my-new-feature`
 3. Commit your changes: `git commit -am 'Added some new feature'`
 4. Push to the branch: `git push origin my-new-feature`
-5. [Submit a pull request!](https://github.com/rbonestell/bluebuzzah/pull/new/development)
+5. [Submit a pull request!](https://github.com/bluebuzzah/bluebuzzah/pull/new/development)
