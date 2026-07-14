@@ -15,6 +15,7 @@ public partial class BaseViewModel : ObservableObject, IDisposable
     private bool _disposed;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsNotBusy))]
     private bool _isBusy;
 
     [ObservableProperty]
@@ -28,11 +29,6 @@ public partial class BaseViewModel : ObservableObject, IDisposable
     /// Useful for enabling/disabling UI elements.
     /// </summary>
     public bool IsNotBusy => !IsBusy;
-
-    partial void OnIsBusyChanged(bool value)
-    {
-        OnPropertyChanged(nameof(IsNotBusy));
-    }
 
     /// <summary>
     /// Releases all resources used by the ViewModel.

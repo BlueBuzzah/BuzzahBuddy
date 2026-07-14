@@ -27,20 +27,38 @@ public partial class MainPageViewModel : BaseViewModel
     #region Observable Properties
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PrimaryCTAText))]
+    [NotifyPropertyChangedFor(nameof(PrimaryCTADescription))]
+    [NotifyPropertyChangedFor(nameof(IsPrimaryCTAEnabled))]
+    [NotifyPropertyChangedFor(nameof(IsConnecting))]
+    [NotifyPropertyChangedFor(nameof(SecondaryCTAText))]
+    [NotifyPropertyChangedFor(nameof(HasSecondaryCTA))]
+    [NotifyPropertyChangedFor(nameof(SecondaryCTABackgroundColor))]
+    [NotifyPropertyChangedFor(nameof(SecondaryCTATextColor))]
+    [NotifyPropertyChangedFor(nameof(ShowSessionProgress))]
+    [NotifyPropertyChangedFor(nameof(ShowBatteryStatus))]
+    [NotifyPropertyChangedFor(nameof(ShowSelectedProfile))]
+    [NotifyPropertyChangedFor(nameof(StatusMessage))]
     private DashboardState _dashboardState = DashboardState.Disconnected;
 
     // Battery status (simplified - percentage only)
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(BatteryPrimaryColor))]
+    [NotifyPropertyChangedFor(nameof(BatteryStatusDescription))]
     private int _batteryPrimaryPercentage;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(BatterySecondaryColor))]
+    [NotifyPropertyChangedFor(nameof(BatteryStatusDescription))]
     private int _batterySecondaryPercentage;
 
     // Session status
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RemainingTimeText))]
     private SessionStatus _sessionStatus = SessionStatus.CreateIdle();
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowSelectedProfile))]
     private string? _selectedProfileName;
 
     #endregion
@@ -390,8 +408,6 @@ public partial class MainPageViewModel : BaseViewModel
             };
         }
 
-        // Notify all computed properties
-        NotifyComputedPropertiesChanged();
     }
 
     private async Task RefreshBatteryAsync()
@@ -401,37 +417,12 @@ public partial class MainPageViewModel : BaseViewModel
             var (primaryVoltage, secondaryVoltage) = await _gloveControlService.GetBatteryAsync();
             BatteryPrimaryPercentage = BatteryHelper.VoltageToPercentage(primaryVoltage);
             BatterySecondaryPercentage = BatteryHelper.VoltageToPercentage(secondaryVoltage);
-
-            OnPropertyChanged(nameof(BatteryPrimaryColor));
-            OnPropertyChanged(nameof(BatterySecondaryColor));
-            OnPropertyChanged(nameof(BatteryStatusDescription));
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[MAINPAGE] Battery fetch error: {ex.Message}");
         }
     }
-
-    private void NotifyComputedPropertiesChanged()
-    {
-        OnPropertyChanged(nameof(PrimaryCTAText));
-        OnPropertyChanged(nameof(PrimaryCTADescription));
-        OnPropertyChanged(nameof(IsPrimaryCTAEnabled));
-        OnPropertyChanged(nameof(IsConnecting));
-        OnPropertyChanged(nameof(SecondaryCTAText));
-        OnPropertyChanged(nameof(HasSecondaryCTA));
-        OnPropertyChanged(nameof(SecondaryCTABackgroundColor));
-        OnPropertyChanged(nameof(SecondaryCTATextColor));
-        OnPropertyChanged(nameof(ShowSessionProgress));
-        OnPropertyChanged(nameof(ShowBatteryStatus));
-        OnPropertyChanged(nameof(ShowSelectedProfile));
-        OnPropertyChanged(nameof(StatusMessage));
-        OnPropertyChanged(nameof(RemainingTimeText));
-        OnPropertyChanged(nameof(BatteryPrimaryColor));
-        OnPropertyChanged(nameof(BatterySecondaryColor));
-        OnPropertyChanged(nameof(BatteryStatusDescription));
-    }
-
     #endregion
 
     #region Event Handlers
@@ -494,8 +485,6 @@ public partial class MainPageViewModel : BaseViewModel
                     _ => DashboardState.Idle
                 };
             }
-
-            NotifyComputedPropertiesChanged();
 
             var announcement = status.Status switch
             {

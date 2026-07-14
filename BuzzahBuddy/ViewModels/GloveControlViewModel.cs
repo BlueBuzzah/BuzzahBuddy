@@ -40,9 +40,11 @@ public partial class GloveControlViewModel : BaseViewModel
     private ObservableCollection<ProfileItemViewModel> _availableProfiles = new();
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasNoSelectedProfile))]
     private TherapyProfile? _selectedProfile;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowMoreButtonText))]
     private bool _isShowingAdvancedProfiles;
 
     /// <summary>
@@ -62,15 +64,11 @@ public partial class GloveControlViewModel : BaseViewModel
     /// </summary>
     public string ShowMoreButtonText => IsShowingAdvancedProfiles ? "Show Less" : "Show More Profiles";
 
-    partial void OnIsShowingAdvancedProfilesChanged(bool value)
-    {
-        OnPropertyChanged(nameof(ShowMoreButtonText));
-    }
-
     [ObservableProperty]
     private SessionStatus _sessionStatus = SessionStatus.CreateIdle();
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSessionInactive))]
     private bool _isSessionActive;
 
     [ObservableProperty]
@@ -116,6 +114,7 @@ public partial class GloveControlViewModel : BaseViewModel
     private bool _isLoadingProfile;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsNotRefreshingBattery))]
     private bool _isRefreshingBattery;
 
     [ObservableProperty]
@@ -128,6 +127,7 @@ public partial class GloveControlViewModel : BaseViewModel
     private string? _profileLoadingMessage;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsNotTestingConnection))]
     private bool _isTestingConnection;
 
     [ObservableProperty]
@@ -172,16 +172,6 @@ public partial class GloveControlViewModel : BaseViewModel
     /// True when no therapy profile is selected. For XAML MultiBinding use.
     /// </summary>
     public bool HasNoSelectedProfile => SelectedProfile == null;
-
-    partial void OnIsTestingConnectionChanged(bool value)
-    {
-        OnPropertyChanged(nameof(IsNotTestingConnection));
-    }
-
-    partial void OnIsRefreshingBatteryChanged(bool value)
-    {
-        OnPropertyChanged(nameof(IsNotRefreshingBattery));
-    }
 
     public GloveControlViewModel(
         IGloveControlService gloveControlService,
@@ -557,8 +547,6 @@ public partial class GloveControlViewModel : BaseViewModel
 
     partial void OnSelectedProfileChanged(TherapyProfile? value)
     {
-        OnPropertyChanged(nameof(HasNoSelectedProfile));
-
         if (value == null)
             return;
 
@@ -751,7 +739,6 @@ public partial class GloveControlViewModel : BaseViewModel
         IsSessionActive = SessionStatus.IsActive;
         IsSessionRunning = SessionStatus.IsRunning;
         IsSessionPaused = SessionStatus.IsPaused;
-        OnPropertyChanged(nameof(IsSessionInactive));
 
         // Update button text and description based on current state
         if (!IsSessionActive)
