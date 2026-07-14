@@ -18,6 +18,9 @@ public class GloveControlService : IGloveControlService
     public event EventHandler<SessionStatus>? SessionStateChanged;
 
     /// <inheritdoc />
+    public event EventHandler<int>? DeviceProfileChanged;
+
+    /// <inheritdoc />
     public SessionStatus CurrentSessionStatus => _currentSessionStatus;
 
     /// <inheritdoc />
@@ -59,6 +62,38 @@ public class GloveControlService : IGloveControlService
     public GloveControlService(IBluetoothService bluetoothService)
     {
         _bluetoothService = bluetoothService;
+        _bluetoothService.ConnectionStateChanged += OnTransportConnectionStateChanged;
+    }
+
+    /// <summary>
+    /// Fetches device INFO once per (re)connect so DeviceProfileId is populated and
+    /// DeviceProfileChanged fires without every page having to ask the device itself.
+    /// Uses the transport's own state (no race with the UI-facing connection service),
+    /// with one retry because the first command right after connect can fail while
+    /// the link settles.
+    /// </summary>
+    private void OnTransportConnectionStateChanged(object? sender, ConnectionState state)
+    {
+        if (state != ConnectionState.Connected)
+            return;
+
+        _ = Task.Run(async () =>
+        {
+            for (var attempt = 1; attempt <= 2; attempt++)
+            {
+                try
+                {
+                    await GetDeviceInfoAsync();
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine(
+                        $"[GLOVE_SERVICE] Post-connect INFO failed (attempt {attempt}): {ex.Message}");
+                    await Task.Delay(500);
+                }
+            }
+        });
     }
 
     /// <summary>
@@ -105,6 +140,7 @@ public class GloveControlService : IGloveControlService
         {
             DeviceProfileId = info.ProfileId;
             _currentProfile = TherapyProfile.GetPresetProfiles().FirstOrDefault(p => p.ProfileId == info.ProfileId);
+            DeviceProfileChanged?.Invoke(this, info.ProfileId);
         }
         return info;
     }

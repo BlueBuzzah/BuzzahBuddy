@@ -160,6 +160,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
 
         _bluetoothService.ConnectionStateChanged += OnConnectionStateChanged;
         _gloveControlService.SessionStateChanged += OnSessionStateChanged;
+        _gloveControlService.DeviceProfileChanged += OnDeviceProfileChanged;
 
         LoadProfilesAsync().SafeFireAndForget("[DEVICESETTINGS]");
     }
@@ -179,7 +180,13 @@ public partial class DeviceSettingsViewModel : BaseViewModel
 
         LoadDeviceSettingsAsync().SafeFireAndForget("[DEVICESETTINGS]");
         RefreshBatteryAsync().SafeFireAndForget("[DEVICESETTINGS]");
-        SyncSelectedProfileFromDeviceAsync().SafeFireAndForget("[DEVICESETTINGS]");
+
+        // The service normally fetches INFO on connect; this is just a fallback for
+        // the rare case where both post-connect attempts failed.
+        if (_gloveControlService.DeviceProfileId <= 0)
+        {
+            _gloveControlService.GetDeviceInfoAsync().SafeFireAndForget("[DEVICESETTINGS]");
+        }
     }
 
     /// <summary>
@@ -469,27 +476,21 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     }
 
     /// <summary>
-    /// Queries the device for its currently loaded profile and syncs local selection state
-    /// to match. Called on every (re)connect so the UI never disagrees with the device.
+    /// Syncs card selection to the profile the device reports. GloveControlService
+    /// fetches INFO once per (re)connect and raises this for every INFO response.
     /// </summary>
-    private async Task SyncSelectedProfileFromDeviceAsync()
+    private void OnDeviceProfileChanged(object? sender, int profileId)
     {
-        try
+        MainThread.BeginInvokeOnMainThread(() =>
         {
-            await _gloveControlService.GetDeviceInfoAsync();
-
-            // Clear a stuck "restarting" banner from a profile-change reboot on any
-            // successful INFO fetch.
+            // Clear a stuck "restarting" banner from a profile-change reboot — the
+            // INFO response means the gloves are back.
             if (ProfileStatusMessage == ProfileRebootWarning)
             {
                 ProfileStatusMessage = null;
             }
 
-            var deviceProfileId = _gloveControlService.DeviceProfileId;
-            if (deviceProfileId <= 0)
-                return;
-
-            var match = AvailableProfiles.FirstOrDefault(p => p.Profile?.ProfileId == deviceProfileId);
+            var match = AvailableProfiles.FirstOrDefault(p => p.Profile?.ProfileId == profileId);
             if (match != null)
             {
                 foreach (var item in AvailableProfiles)
@@ -499,14 +500,9 @@ public partial class DeviceSettingsViewModel : BaseViewModel
                 SelectedProfile = match.Profile;
             }
 
-            // DeviceProfileId (the profile baseline) may have changed even if the
-            // local selection didn't.
+            // The profile baseline changed even if the local selection didn't.
             OnPropertyChanged(nameof(HasPendingChanges));
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[DEVICESETTINGS] Profile sync failed: {ex.Message}");
-        }
+        });
     }
 
     private void OnConnectionStateChanged(object? sender, ConnectionState state)
@@ -517,7 +513,6 @@ public partial class DeviceSettingsViewModel : BaseViewModel
             {
                 LoadDeviceSettingsAsync().SafeFireAndForget("[DEVICESETTINGS]");
                 RefreshBatteryAsync().SafeFireAndForget("[DEVICESETTINGS]");
-                SyncSelectedProfileFromDeviceAsync().SafeFireAndForget("[DEVICESETTINGS]");
             }
             else
             {
@@ -543,6 +538,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         {
             _bluetoothService.ConnectionStateChanged -= OnConnectionStateChanged;
             _gloveControlService.SessionStateChanged -= OnSessionStateChanged;
+            _gloveControlService.DeviceProfileChanged -= OnDeviceProfileChanged;
         }
         base.Dispose(disposing);
     }

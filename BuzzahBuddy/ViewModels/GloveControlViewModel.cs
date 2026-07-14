@@ -34,7 +34,6 @@ public partial class GloveControlViewModel : BaseViewModel
     private const int PollFailureWarningThreshold = 2;
     private const int PollFailureReconnectThreshold = 3;
     private const string ConnectionUnstableWarning = "Connection unstable — trying to recover…";
-    private const string ProfileRebootWarning = "Gloves are restarting to apply the new profile…";
 
     /// <summary>Preset profiles, used to map the device's profile id to a display profile.</summary>
     private readonly List<TherapyProfile> _profiles = TherapyProfile.GetPresetProfiles();
@@ -156,6 +155,9 @@ public partial class GloveControlViewModel : BaseViewModel
 
         // Subscribe to connection events
         _bluetoothService.ConnectionStateChanged += OnConnectionStateChanged;
+
+        // The service fetches INFO once per (re)connect; mirror its profile here
+        _gloveControlService.DeviceProfileChanged += OnDeviceProfileChanged;
 
         // Subscribe to centralized connection state changes
         ConnectionInfo.PropertyChanged += OnConnectionInfoPropertyChanged;
@@ -606,7 +608,6 @@ public partial class GloveControlViewModel : BaseViewModel
         if (ConnectionInfo.IsConnected)
         {
             RefreshBatteryAsync().SafeFireAndForget("[GLOVECONTROL]");
-            SyncSelectedProfileFromDeviceAsync().SafeFireAndForget("[GLOVECONTROL]");
             StartConnectionHealthCheck();
         }
         else
@@ -617,37 +618,19 @@ public partial class GloveControlViewModel : BaseViewModel
     }
 
     /// <summary>
-    /// Queries the device for its currently loaded profile and syncs local selection state
-    /// to match. Called on every (re)connect so the UI never disagrees with the device.
+    /// Keeps the displayed profile in lockstep with the device. GloveControlService
+    /// fetches INFO once per (re)connect and raises this for every INFO response.
     /// </summary>
-    private async Task SyncSelectedProfileFromDeviceAsync()
+    private void OnDeviceProfileChanged(object? sender, int profileId)
     {
-        try
+        MainThread.BeginInvokeOnMainThread(() =>
         {
-            await _gloveControlService.GetDeviceInfoAsync();
-
-            // Clear a stuck "restarting" banner from a profile-change reboot on any
-            // successful INFO fetch — but only that banner, so warnings owned by other
-            // paths (low battery, unstable connection) aren't wiped here.
-            if (SessionWarningMessage == ProfileRebootWarning)
-            {
-                SessionWarningMessage = null;
-            }
-
-            var deviceProfileId = _gloveControlService.DeviceProfileId;
-            if (deviceProfileId <= 0)
-                return;
-
-            var match = _profiles.FirstOrDefault(p => p.ProfileId == deviceProfileId);
+            var match = _profiles.FirstOrDefault(p => p.ProfileId == profileId);
             if (match != null)
             {
                 SelectedProfile = match;
             }
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[GLOVECONTROL] Profile sync failed: {ex.Message}");
-        }
+        });
     }
 
     private void OnAppStopped(object? sender, EventArgs e)
@@ -690,7 +673,6 @@ public partial class GloveControlViewModel : BaseViewModel
                 if (!_isBackgrounded)
                     StartConnectionHealthCheck();
                 RefreshBatteryAsync().SafeFireAndForget("[GLOVECONTROL]");
-                SyncSelectedProfileFromDeviceAsync().SafeFireAndForget("[GLOVECONTROL]");
             }
             else
             {
@@ -853,6 +835,7 @@ public partial class GloveControlViewModel : BaseViewModel
         if (disposing)
         {
             _bluetoothService.ConnectionStateChanged -= OnConnectionStateChanged;
+            _gloveControlService.DeviceProfileChanged -= OnDeviceProfileChanged;
             ConnectionInfo.PropertyChanged -= OnConnectionInfoPropertyChanged;
             _appLifecycle.Stopped -= OnAppStopped;
             _appLifecycle.Resumed -= OnAppResumed;

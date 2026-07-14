@@ -38,6 +38,14 @@ public interface IGloveControlService
     /// </summary>
     int DeviceProfileId { get; }
 
+    /// <summary>
+    /// Event fired whenever the device reports its loaded profile (INFO response),
+    /// including right after (re)connect. Payload is the profile ID. Subscribe to
+    /// this instead of fetching INFO per page — the service fetches it once per
+    /// connection.
+    /// </summary>
+    event EventHandler<int>? DeviceProfileChanged;
+
     // ========== Reboot Handling ==========
 
     /// <summary>
