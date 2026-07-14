@@ -41,11 +41,9 @@
 
                 <Button Text="Disconnect Device"
                         Command="{Binding DisconnectCommand}"
-                        HeightRequest="56"
-                        FontSize="18"
-                        CornerRadius="12"
-                        BackgroundColor="{StaticResource PastelDangerDark}"
-                        TextColor="{StaticResource DangerDark}"
+                        Style="{StaticResource SecondaryButton}"
+                        BackgroundColor="{StaticResource DangerButton}"
+                        TextColor="{StaticResource DangerButtonText}"
                         SemanticProperties.Hint="Disconnect from current device"
                         SemanticProperties.Description="Tap to disconnect from the connected device"
                         AutomationId="DisconnectButton" />
