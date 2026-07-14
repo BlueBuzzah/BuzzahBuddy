@@ -1,4 +1,7 @@
 using System.Globalization;
+using BuzzahBuddy.Services.Bluetooth;
+// Explicit for the plain net9.0 test build, which lacks MAUI implicit usings
+using Microsoft.Maui.Graphics;
 
 namespace BuzzahBuddy.Models;
 
@@ -37,4 +40,34 @@ public static class BatteryReading
         voltage is { } v
             ? string.Create(CultureInfo.InvariantCulture, $"{ToPercentage(v)}% ({v:F2}V)")
             : "—";
+
+    /// <summary>
+    /// Gets display color for a battery percentage. Green >= 60%, Orange >= 20%, Red below.
+    /// </summary>
+    public static Color GetBatteryColor(int percentage) => percentage switch
+    {
+        >= 60 => Colors.Green,
+        >= 20 => Colors.Orange,
+        _ => Colors.Red
+    };
+
+    /// <summary>
+    /// Gets display color based on battery voltage using BlueBuzzahConstants thresholds.
+    /// </summary>
+    public static Color GetBatteryColorFromVoltage(double voltage)
+    {
+        if (voltage > BlueBuzzahConstants.BatteryGoodThreshold) return Colors.Green;
+        if (voltage >= BlueBuzzahConstants.BatteryMediumThreshold) return Colors.Orange;
+        return Colors.Red;
+    }
+
+    /// <summary>
+    /// Gets human-readable status text for a battery voltage level.
+    /// </summary>
+    public static string GetBatteryStatusText(double voltage)
+    {
+        if (voltage > BlueBuzzahConstants.BatteryGoodThreshold) return "good";
+        if (voltage >= BlueBuzzahConstants.BatteryMediumThreshold) return "low";
+        return "critical";
+    }
 }

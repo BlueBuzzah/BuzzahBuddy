@@ -89,11 +89,12 @@ public partial class GloveControlViewModel : BaseViewModel
     [NotifyPropertyChangedFor(nameof(BatterySecondaryDescription))]
     private double? _batterySecondaryVoltage;
 
+    // Gray = no reading yet; real thresholds apply after the first battery poll
     [ObservableProperty]
-    private Color _batteryPrimaryColor = Colors.Green;
+    private Color _batteryPrimaryColor = Colors.Gray;
 
     [ObservableProperty]
-    private Color _batterySecondaryColor = Colors.Green;
+    private Color _batterySecondaryColor = Colors.Gray;
 
     /// <summary>
     /// Display text for the primary battery, e.g. "60% (3.72V)" or "—".
@@ -110,7 +111,7 @@ public partial class GloveControlViewModel : BaseViewModel
     /// </summary>
     public string BatteryPrimaryDescription =>
         BatteryPrimaryVoltage is { } v
-            ? $"Primary battery: {BatteryReading.ToPercentage(v)} percent, {BatteryHelper.GetBatteryStatusText(v)}"
+            ? $"Primary battery: {BatteryReading.ToPercentage(v)} percent, {BatteryReading.GetBatteryStatusText(v)}"
             : "Primary battery: status unavailable";
 
     /// <summary>
@@ -118,7 +119,7 @@ public partial class GloveControlViewModel : BaseViewModel
     /// </summary>
     public string BatterySecondaryDescription =>
         BatterySecondaryVoltage is { } v
-            ? $"Secondary battery: {BatteryReading.ToPercentage(v)} percent, {BatteryHelper.GetBatteryStatusText(v)}"
+            ? $"Secondary battery: {BatteryReading.ToPercentage(v)} percent, {BatteryReading.GetBatteryStatusText(v)}"
             : "Secondary battery: status unavailable";
 
     [ObservableProperty]
@@ -525,9 +526,9 @@ public partial class GloveControlViewModel : BaseViewModel
 
             // Gray = no reading; colored = real voltage thresholds
             BatteryPrimaryColor = primaryVoltage is { } pv
-                ? BatteryHelper.GetBatteryColorFromVoltage(pv) : Colors.Gray;
+                ? BatteryReading.GetBatteryColorFromVoltage(pv) : Colors.Gray;
             BatterySecondaryColor = secondaryVoltage is { } sv
-                ? BatteryHelper.GetBatteryColorFromVoltage(sv) : Colors.Gray;
+                ? BatteryReading.GetBatteryColorFromVoltage(sv) : Colors.Gray;
 
             // Progressive disclosure: Hide refresh button when battery is good.
             // A missing reading counts as "not good" so refresh stays available.

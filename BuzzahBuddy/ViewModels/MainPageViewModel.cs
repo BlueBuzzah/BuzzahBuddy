@@ -177,13 +177,13 @@ public partial class MainPageViewModel : BaseViewModel
     /// Color for primary battery indicator; gray when no reading is available.
     /// </summary>
     public Color BatteryPrimaryColor =>
-        BatteryPrimaryPercentage is { } p ? BatteryHelper.GetBatteryColor(p) : Colors.Gray;
+        BatteryPrimaryPercentage is { } p ? BatteryReading.GetBatteryColor(p) : Colors.Gray;
 
     /// <summary>
     /// Color for secondary battery indicator; gray when no reading is available.
     /// </summary>
     public Color BatterySecondaryColor =>
-        BatterySecondaryPercentage is { } p ? BatteryHelper.GetBatteryColor(p) : Colors.Gray;
+        BatterySecondaryPercentage is { } p ? BatteryReading.GetBatteryColor(p) : Colors.Gray;
 
     /// <summary>
     /// Display text for the primary battery percentage, e.g. "60%" or "—".
