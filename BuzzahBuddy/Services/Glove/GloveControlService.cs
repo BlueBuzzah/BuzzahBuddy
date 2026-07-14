@@ -246,7 +246,32 @@ public class GloveControlService : IGloveControlService
 
         // Note: Per BLE protocol v2.0.0, PROFILE_LOAD triggers a device reboot.
         // The device will disconnect after sending the response.
-        var response = await _bluetoothService.SendCommandAsync($"PROFILE_LOAD:{profileId}");
+        CommandResponse response;
+        try
+        {
+            response = await _bluetoothService.SendCommandAsync($"PROFILE_LOAD:{profileId}");
+        }
+        catch (Exception ex) when (ex is not BlueBuzzahCommandException)
+        {
+            // The reboot can drop the link before the response arrives (or even
+            // mid-write). If we're no longer connected, that IS the expected
+            // outcome — the profile was applied and the gloves are restarting.
+            // The write exception can surface a moment before the disconnect
+            // event flips the state, so give it one short grace re-check.
+            if (_bluetoothService.CurrentConnectionState == ConnectionState.Connected)
+            {
+                await Task.Delay(250);
+            }
+
+            if (_bluetoothService.CurrentConnectionState != ConnectionState.Connected)
+            {
+                _expectingReboot = true;
+                System.Diagnostics.Debug.WriteLine(
+                    $"[GLOVE_SERVICE] Link dropped during PROFILE_LOAD — treating as reboot: {ex.Message}");
+                return;
+            }
+            throw;
+        }
 
         // Check if the device is rebooting before throwing on error
         if (response.GetString("STATUS") == "REBOOTING")
