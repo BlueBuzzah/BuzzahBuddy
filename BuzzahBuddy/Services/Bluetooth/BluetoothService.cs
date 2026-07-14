@@ -251,6 +251,29 @@ public class BluetoothService : IBluetoothService
         }
     }
 
+    /// <summary>
+    /// Key each command's response must contain. The protocol has no correlation IDs,
+    /// so a late/stray frame would otherwise resolve the wrong command and shift every
+    /// subsequent response by one (permanent desync). A resolved frame missing its
+    /// command's expected key is discarded as stale and the wait continues.
+    /// Commands absent from this map accept any frame. Error frames always match.
+    /// </summary>
+    private static readonly Dictionary<string, string> ExpectedResponseKeys = new()
+    {
+        ["INFO"] = "ROLE",
+        ["BATTERY"] = "BATP",
+        ["PING"] = "PONG",
+        ["PROFILE_LIST"] = "PROFILE",
+        ["PROFILE_GET"] = "TYPE",
+        ["PROFILE_LOAD"] = "STATUS",
+        ["SESSION_START"] = "SESSION_STATUS",
+        ["SESSION_PAUSE"] = "SESSION_STATUS",
+        ["SESSION_RESUME"] = "SESSION_STATUS",
+        ["SESSION_STOP"] = "SESSION_STATUS",
+        ["SESSION_STATUS"] = "SESSION_STATUS",
+        ["THERAPY_LED_OFF"] = "THERAPY_LED_OFF",
+    };
+
     public async Task<CommandResponse> SendCommandAsync(
         string command,
         int timeoutMs = 5000,
@@ -280,14 +303,29 @@ public class BluetoothService : IBluetoothService
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
                 cancellationToken, timeoutCts.Token);
 
+            ExpectedResponseKeys.TryGetValue(command.Split(':')[0], out var expectedKey);
+
             try
             {
-                var response = await _pendingResponseTcs.Task.WaitAsync(linkedCts.Token);
+                while (true)
+                {
+                    var response = await _pendingResponseTcs.Task.WaitAsync(linkedCts.Token);
 
-                // Add recommended delay between commands (100ms per spec)
-                await Task.Delay(BlueBuzzahConstants.CommandDelayMs, cancellationToken);
+                    if (expectedKey != null && !response.IsError && response.GetString(expectedKey) == null)
+                    {
+                        // Stale frame from an earlier timed-out command — drop it and
+                        // keep waiting for this command's real response.
+                        System.Diagnostics.Debug.WriteLine(
+                            $"[BLE] Discarded stale response for '{command}' (missing {expectedKey})");
+                        _pendingResponseTcs = new TaskCompletionSource<CommandResponse>();
+                        continue;
+                    }
 
-                return response;
+                    // Add recommended delay between commands (100ms per spec)
+                    await Task.Delay(BlueBuzzahConstants.CommandDelayMs, cancellationToken);
+
+                    return response;
+                }
             }
             catch (OperationCanceledException)
             {
