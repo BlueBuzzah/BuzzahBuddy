@@ -123,7 +123,8 @@ public class ConnectionStateService : IConnectionStateService, IDisposable
             ReconnectionMessage = e.State switch
             {
                 ReconnectionState.Reconnecting => $"Reconnecting... (attempt {e.Attempt}/{e.MaxAttempts})",
-                ReconnectionState.Succeeded => "Reconnected to BlueBuzzah gloves",
+                // Succeeded intentionally maps to null: recovery needs no lingering
+                // warning banner (screen readers get "Device connected" already).
                 ReconnectionState.Failed => "Could not reconnect. Please reconnect manually.",
                 _ => null
             };
