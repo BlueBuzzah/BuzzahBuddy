@@ -49,18 +49,19 @@ public static class MauiProgram
 		builder.Services.AddSingleton<IDataStorageService, PreferencesStorageService>();
 
 		// Register ViewModels
-		builder.Services.AddTransient<MainPageViewModel>();
-		builder.Services.AddTransient<DeviceListViewModel>();
-		builder.Services.AddTransient<GloveControlViewModel>();
-		builder.Services.AddTransient<SettingsViewModel>();
+		// Tab pages and their ViewModels live for the app's lifetime (Shell caches TabBar content)
+		builder.Services.AddSingleton<MainPageViewModel>();
+		builder.Services.AddSingleton<DeviceListViewModel>();
+		builder.Services.AddSingleton<GloveControlViewModel>();
+		builder.Services.AddSingleton<SettingsViewModel>();
 		builder.Services.AddTransient<CalibrationViewModel>();
 		builder.Services.AddTransient<ProfileSettingsViewModel>();
 
 		// Register Views
-		builder.Services.AddTransient<MainPage>();
-		builder.Services.AddTransient<DeviceListPage>();
-		builder.Services.AddTransient<GloveControlPage>();
-		builder.Services.AddTransient<SettingsPage>();
+		builder.Services.AddSingleton<MainPage>();
+		builder.Services.AddSingleton<DeviceListPage>();
+		builder.Services.AddSingleton<GloveControlPage>();
+		builder.Services.AddSingleton<SettingsPage>();
 		builder.Services.AddTransient<CalibrationPage>();
 		builder.Services.AddTransient<ProfileSettingsPage>();
 

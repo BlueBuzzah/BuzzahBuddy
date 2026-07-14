@@ -12,9 +12,12 @@ public partial class DeviceListPage : ContentPage
         InitializeComponent();
         _viewModel = viewModel;
         BindingContext = viewModel;
+    }
 
-        // Subscribe to Unloaded event for cleanup
-        Unloaded += OnPageUnloaded;
+    protected override void OnAppearing()
+    {
+        base.OnAppearing();
+        _viewModel.OnPageAppearing();
     }
 
     private async void OnConnectClicked(object sender, EventArgs e)
@@ -32,9 +35,4 @@ public partial class DeviceListPage : ContentPage
         }
     }
 
-    private void OnPageUnloaded(object? sender, EventArgs e)
-    {
-        // Dispose ViewModel to unsubscribe from events
-        _viewModel.Dispose();
-    }
 }

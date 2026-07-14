@@ -68,9 +68,6 @@ public partial class DeviceListViewModel : BaseViewModel
 
         Title = "Devices";
 
-        // Cancel any in-progress reconnection when user navigates to device list
-        _reconnectionService.CancelReconnect();
-
         // Subscribe to device discovery
         _bluetoothService.DeviceDiscovered += OnDeviceDiscovered;
 
@@ -95,6 +92,17 @@ public partial class DeviceListViewModel : BaseViewModel
             // Start scanning
             await StartScanningAsync();
         }
+    }
+
+    /// <summary>
+    /// Called from DeviceListPage.OnAppearing. Cancels any in-progress reconnection
+    /// (the user is choosing a device manually) and refreshes Bluetooth state.
+    /// </summary>
+    public void OnPageAppearing()
+    {
+        _reconnectionService.CancelReconnect();
+        CheckBluetoothStatusAsync().SafeFireAndForget("[DEVICELIST]");
+        UpdateConnectionState();
     }
 
     private async Task StartScanningAsync()
