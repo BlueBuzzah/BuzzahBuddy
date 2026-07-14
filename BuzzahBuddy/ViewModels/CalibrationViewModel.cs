@@ -32,6 +32,8 @@ public partial class CalibrationViewModel : BaseViewModel
     public IConnectionStateService ConnectionInfo { get; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanCalibrate))]
+    [NotifyPropertyChangedFor(nameof(CanBuzzFingers))]
     private bool _isInCalibrationMode;
 
     [ObservableProperty]
@@ -47,10 +49,16 @@ public partial class CalibrationViewModel : BaseViewModel
     private string _selectedFingerName = "None";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanBuzzFingers))]
     private bool _isBuzzing;
 
     // Wizard step tracking (1 = Intensity, 2 = Duration, 3 = Test Fingers)
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsStep1))]
+    [NotifyPropertyChangedFor(nameof(IsStep2))]
+    [NotifyPropertyChangedFor(nameof(IsStep3))]
+    [NotifyPropertyChangedFor(nameof(CanGoPrevious))]
+    [NotifyPropertyChangedFor(nameof(CanGoNext))]
     private int _currentStep = 1;
 
     [ObservableProperty]
@@ -63,6 +71,18 @@ public partial class CalibrationViewModel : BaseViewModel
     private readonly HashSet<int> _testedFingers = new();
 
     public bool IsFingerTested(int fingerIndex) => _testedFingers.Contains(fingerIndex);
+
+    public bool IsStep1 => CurrentStep == 1;
+    public bool IsStep2 => CurrentStep == 2;
+    public bool IsStep3 => CurrentStep == 3;
+    public bool CanGoPrevious => CurrentStep > 1;
+    public bool CanGoNext => CurrentStep < 3;
+
+    /// <summary>Connected and in calibration mode — gates intensity/duration buttons.</summary>
+    public bool CanCalibrate => ConnectionInfo.IsConnected && IsInCalibrationMode;
+
+    /// <summary>Like CanCalibrate, but also blocks taps while a buzz command is in flight.</summary>
+    public bool CanBuzzFingers => CanCalibrate && !IsBuzzing;
 
     /// <summary>
     /// Finger-test buttons for the primary glove, sized to the connected device's actuator count.
@@ -357,6 +377,8 @@ public partial class CalibrationViewModel : BaseViewModel
         MainThread.BeginInvokeOnMainThread(() =>
         {
             UpdateConnectionState();
+            OnPropertyChanged(nameof(CanCalibrate));
+            OnPropertyChanged(nameof(CanBuzzFingers));
 
             // A different device (4- vs 5-motor) may have connected; actuator count
             // is refreshed by the post-connect INFO sync, and EnterCalibrationModeAsync
