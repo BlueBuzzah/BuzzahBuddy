@@ -27,6 +27,7 @@ public partial class GloveControlViewModel : BaseViewModel
     private System.Timers.Timer? _healthCheckTimer;
     private readonly IAppLifecycleService _appLifecycle;
     private bool _pollingPausedByLifecycle;
+    private bool _isBackgrounded;
     private SessionState _previousSessionState = SessionState.IDLE;
     private bool _userRequestedStop;
     private int _consecutivePollFailures;
@@ -899,6 +900,7 @@ public partial class GloveControlViewModel : BaseViewModel
     private void OnAppStopped(object? sender, EventArgs e)
     {
         // Pause BLE polling while backgrounded; the OS may kill timers anyway.
+        _isBackgrounded = true;
         _pollingPausedByLifecycle = _statusPollTimer != null;
         StopStatusPolling();
         StopConnectionHealthCheck();
@@ -906,6 +908,7 @@ public partial class GloveControlViewModel : BaseViewModel
 
     private void OnAppResumed(object? sender, EventArgs e)
     {
+        _isBackgrounded = false;
         MainThread.BeginInvokeOnMainThread(() =>
         {
             if (!ConnectionInfo.IsConnected)
@@ -931,7 +934,8 @@ public partial class GloveControlViewModel : BaseViewModel
 
             if (isConnected)
             {
-                StartConnectionHealthCheck();
+                if (!_isBackgrounded)
+                    StartConnectionHealthCheck();
                 RefreshBatteryAsync().SafeFireAndForget("[GLOVECONTROL]");
                 SyncSelectedProfileFromDeviceAsync().SafeFireAndForget("[GLOVECONTROL]");
             }
@@ -1078,8 +1082,12 @@ public partial class GloveControlViewModel : BaseViewModel
             }
             else if (!ConnectionInfo.IsReconnecting && IsSessionActive)
             {
-                // Reconnection ended (succeeded or failed) — restart polling if session active
-                StartStatusPolling();
+                // Reconnection ended (succeeded or failed) — restart polling if session active.
+                // While backgrounded, defer to OnAppResumed instead of restarting a background timer.
+                if (_isBackgrounded)
+                    _pollingPausedByLifecycle = true;
+                else
+                    StartStatusPolling();
             }
         }
     }
