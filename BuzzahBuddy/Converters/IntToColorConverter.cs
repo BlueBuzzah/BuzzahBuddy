@@ -14,7 +14,7 @@ public class IntToColorConverter : IValueConverter
         if (value == null || parameter == null)
             return Application.Current?.Resources.TryGetValue("Secondary", out var secondaryColor) == true
                 ? secondaryColor
-                : Colors.Gray;
+                : Color.FromArgb("#05212D");
 
         bool isSelected = false;
         if (int.TryParse(value.ToString(), out int intValue) && int.TryParse(parameter.ToString(), out int intParameter))
@@ -26,13 +26,13 @@ public class IntToColorConverter : IValueConverter
         {
             return Application.Current?.Resources.TryGetValue("Primary", out var primaryColor) == true
                 ? primaryColor
-                : Colors.Blue;
+                : Color.FromArgb("#35B6F2");
         }
         else
         {
             return Application.Current?.Resources.TryGetValue("Secondary", out var secondaryColor) == true
                 ? secondaryColor
-                : Colors.Gray;
+                : Color.FromArgb("#05212D");
         }
     }
 

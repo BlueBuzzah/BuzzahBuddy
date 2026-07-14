@@ -139,16 +139,16 @@ public partial class ConnectionStatusBanner : ContentView
     {
         if (!IsBluetoothEnabled)
         {
-            return GetColorResource("WarningLight", "WarningLightDark");
+            return GetColorResource("WarningLightDark");
         }
 
         return ConnectionState switch
         {
-            ConnectionState.Connected => GetColorResource("SuccessLight", "SuccessLightDark"),
-            ConnectionState.Connecting => GetColorResource("InfoLight", "InfoLightDark"),
-            ConnectionState.Disconnected => GetColorResource("Gray100", "Gray600"),
-            ConnectionState.Error => GetColorResource("DangerLight", "DangerLightDark"),
-            _ => GetColorResource("Gray100", "Gray600")
+            ConnectionState.Connected => GetColorResource("SuccessLightDark"),
+            ConnectionState.Connecting => GetColorResource("InfoLightDark"),
+            ConnectionState.Disconnected => GetColorResource("Gray600"),
+            ConnectionState.Error => GetColorResource("DangerLightDark"),
+            _ => GetColorResource("Gray600")
         };
     }
 
@@ -207,16 +207,16 @@ public partial class ConnectionStatusBanner : ContentView
     {
         if (!IsBluetoothEnabled)
         {
-            return GetColorResource("WarningLightDark", "WarningDark");
+            return GetColorResource("WarningDark");
         }
 
         return ConnectionState switch
         {
-            ConnectionState.Connected => GetColorResource("SuccessLightDark", "SuccessDark"),
-            ConnectionState.Connecting => GetColorResource("InfoLightDark", "InfoDark"),
-            ConnectionState.Disconnected => GetColorResource("Gray600", "Gray400"),
-            ConnectionState.Error => GetColorResource("DangerLightDark", "DangerDark"),
-            _ => GetColorResource("Gray600", "Gray400")
+            ConnectionState.Connected => GetColorResource("SuccessDark"),
+            ConnectionState.Connecting => GetColorResource("InfoDark"),
+            ConnectionState.Disconnected => GetColorResource("Gray400"),
+            ConnectionState.Error => GetColorResource("DangerDark"),
+            _ => GetColorResource("Gray400")
         };
     }
 
@@ -233,7 +233,7 @@ public partial class ConnectionStatusBanner : ContentView
     private Color GetDetailTextColor()
     {
         // Slightly muted version of status text color
-        return GetColorResource("Gray500", "Gray400");
+        return GetColorResource("Gray400");
     }
 
     private string GetActionText()
@@ -266,15 +266,12 @@ public partial class ConnectionStatusBanner : ContentView
         };
     }
 
-    private Color GetColorResource(string lightKey, string darkKey)
+    private Color GetColorResource(string key)
     {
-        // Dark-mode-only app - always use the dark key (BlueBuzzah.com design)
-        if (Application.Current?.Resources.TryGetValue(darkKey, out var colorValue) == true && colorValue is Color color)
-        {
+        if (Application.Current?.Resources.TryGetValue(key, out var colorValue) == true && colorValue is Color color)
             return color;
-        }
 
-        // Fallback color for dark mode
+        // Fallback for dark mode
         return Colors.DarkGray;
     }
 
