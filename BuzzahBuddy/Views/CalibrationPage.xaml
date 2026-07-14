@@ -100,7 +100,8 @@
                 <VerticalStackLayout Spacing="20">
                     <!-- Step Title & Description -->
                     <VerticalStackLayout Spacing="8">
-                        <Label Text="{Binding StepTitle}"
+                        <Label x:Name="StepTitleLabel"
+                               Text="{Binding StepTitle}"
                                Style="{StaticResource Heading2}"
                                HorizontalOptions="Center"
                                SemanticProperties.HeadingLevel="Level2" />
