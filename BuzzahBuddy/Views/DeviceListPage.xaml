@@ -60,7 +60,7 @@
                                         StrokeThickness="2"
                                         Stroke="{StaticResource CardBorder}"
                                         SemanticProperties.Description="{Binding DisplayName}"
-                                        SemanticProperties.Hint="Tap to apply this therapy profile to the gloves">
+                                        SemanticProperties.Hint="Tap to select this therapy profile, then press Apply Settings to send it to the gloves">
                                     <Border.StrokeShape>
                                         <RoundRectangle CornerRadius="12" />
                                     </Border.StrokeShape>
@@ -173,7 +173,6 @@
                             <Button Text="Test Connection"
                                     Command="{Binding Settings.TestConnectionCommand}"
                                     Style="{StaticResource TertiaryButton}"
-                                    BackgroundColor="{StaticResource Primary}"
                                     SemanticProperties.Hint="Send a brief test pulse to the device"
                                     SemanticProperties.Description="Test connection with brief vibration pulse"
                                     AutomationId="TestConnectionButton">
@@ -188,7 +187,6 @@
                             <Button Text="Calibrate Motors"
                                     Command="{Binding Settings.NavigateToCalibrationCommand}"
                                     Style="{StaticResource TertiaryButton}"
-                                    BackgroundColor="{StaticResource Primary}"
                                     SemanticProperties.Description="Open motor calibration for testing individual finger motors"
                                     SemanticProperties.Hint="Double tap to navigate to calibration"
                                     AutomationId="CalibrateMotorsButton">
@@ -217,49 +215,51 @@
                         </Border.StrokeShape>
 
                         <VerticalStackLayout Spacing="12">
-                            <HorizontalStackLayout Spacing="15" HorizontalOptions="Center">
+                            <!-- One row per glove: dot | name | value, columns aligned -->
+                            <Grid ColumnDefinitions="Auto,Auto,*"
+                                  RowDefinitions="Auto,Auto"
+                                  ColumnSpacing="8"
+                                  RowSpacing="10">
                                 <!-- Primary Glove -->
-                                <HorizontalStackLayout Spacing="8"
-                                                       SemanticProperties.Description="{Binding Settings.BatteryPrimaryDescription}">
-                                    <Label Text="●"
-                                           FontSize="16"
-                                           TextColor="{Binding Settings.BatteryPrimaryColor}"
-                                           VerticalOptions="Center"
-                                           AutomationProperties.IsInAccessibleTree="False" />
-                                    <Label VerticalOptions="Center"
-                                           AutomationProperties.IsInAccessibleTree="False">
-                                        <Label.FormattedText>
-                                            <FormattedString>
-                                                <Span Text="Primary: " FontSize="14" />
-                                                <Span Text="{Binding Settings.BatteryPrimaryText}"
-                                                      FontSize="16"
-                                                      FontAttributes="Bold" />
-                                            </FormattedString>
-                                        </Label.FormattedText>
-                                    </Label>
-                                </HorizontalStackLayout>
+                                <Label Grid.Row="0" Grid.Column="0"
+                                       Text="●"
+                                       FontSize="16"
+                                       TextColor="{Binding Settings.BatteryPrimaryColor}"
+                                       VerticalOptions="Center"
+                                       AutomationProperties.IsInAccessibleTree="False" />
+                                <Label Grid.Row="0" Grid.Column="1"
+                                       Text="Primary:"
+                                       FontSize="14"
+                                       VerticalOptions="Center"
+                                       AutomationProperties.IsInAccessibleTree="False" />
+                                <Label Grid.Row="0" Grid.Column="2"
+                                       Text="{Binding Settings.BatteryPrimaryText}"
+                                       FontSize="16"
+                                       FontAttributes="Bold"
+                                       HorizontalOptions="End"
+                                       VerticalOptions="Center"
+                                       SemanticProperties.Description="{Binding Settings.BatteryPrimaryDescription}" />
 
                                 <!-- Secondary Glove -->
-                                <HorizontalStackLayout Spacing="8"
-                                                       SemanticProperties.Description="{Binding Settings.BatterySecondaryDescription}">
-                                    <Label Text="●"
-                                           FontSize="16"
-                                           TextColor="{Binding Settings.BatterySecondaryColor}"
-                                           VerticalOptions="Center"
-                                           AutomationProperties.IsInAccessibleTree="False" />
-                                    <Label VerticalOptions="Center"
-                                           AutomationProperties.IsInAccessibleTree="False">
-                                        <Label.FormattedText>
-                                            <FormattedString>
-                                                <Span Text="Secondary: " FontSize="14" />
-                                                <Span Text="{Binding Settings.BatterySecondaryText}"
-                                                      FontSize="16"
-                                                      FontAttributes="Bold" />
-                                            </FormattedString>
-                                        </Label.FormattedText>
-                                    </Label>
-                                </HorizontalStackLayout>
-                            </HorizontalStackLayout>
+                                <Label Grid.Row="1" Grid.Column="0"
+                                       Text="●"
+                                       FontSize="16"
+                                       TextColor="{Binding Settings.BatterySecondaryColor}"
+                                       VerticalOptions="Center"
+                                       AutomationProperties.IsInAccessibleTree="False" />
+                                <Label Grid.Row="1" Grid.Column="1"
+                                       Text="Secondary:"
+                                       FontSize="14"
+                                       VerticalOptions="Center"
+                                       AutomationProperties.IsInAccessibleTree="False" />
+                                <Label Grid.Row="1" Grid.Column="2"
+                                       Text="{Binding Settings.BatterySecondaryText}"
+                                       FontSize="16"
+                                       FontAttributes="Bold"
+                                       HorizontalOptions="End"
+                                       VerticalOptions="Center"
+                                       SemanticProperties.Description="{Binding Settings.BatterySecondaryDescription}" />
+                            </Grid>
 
                             <Label Text="{Binding Settings.BatteryStatusMessage}"
                                    IsVisible="{Binding Settings.BatteryStatusMessage, Converter={StaticResource IsNotNullConverter}}"
@@ -293,6 +293,24 @@
                         </VerticalStackLayout>
                     </Border>
                 </VerticalStackLayout>
+
+                <!-- Apply Settings: writes all pending device settings to the gloves -->
+                <Button Text="Apply Settings"
+                        Command="{Binding Settings.ApplySettingsCommand}"
+                        Style="{StaticResource PrimaryButtonGlow}"
+                        Margin="0,8,0,0"
+                        SemanticProperties.Description="Applies the selected therapy profile and device options to the gloves"
+                        SemanticProperties.Hint="Double tap to apply all pending device settings"
+                        AutomationId="ApplyDeviceSettingsButton">
+                    <Button.IsEnabled>
+                        <MultiBinding Converter="{StaticResource AllTrueConverter}">
+                            <Binding Path="ConnectionInfo.IsConnected" />
+                            <Binding Path="Settings.IsSessionInactive" />
+                            <Binding Path="Settings.HasPendingChanges" />
+                            <Binding Path="Settings.IsNotBusy" />
+                        </MultiBinding>
+                    </Button.IsEnabled>
+                </Button>
 
                 <!-- Disconnect -->
                 <Button Text="Disconnect Device"

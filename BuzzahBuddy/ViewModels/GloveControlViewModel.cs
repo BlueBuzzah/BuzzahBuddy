@@ -215,7 +215,7 @@ public partial class GloveControlViewModel : BaseViewModel
                 {
                     await Shell.Current.DisplayAlert(
                         "Profile Not Applied",
-                        $"The gloves are still using a different profile. Go to the Device page and tap \"{SelectedProfile.Name}\" to apply it before starting.",
+                        $"The gloves are still using a different profile. Go to the Devices page and apply \"{SelectedProfile.Name}\" before starting.",
                         "OK");
                     return;
                 }

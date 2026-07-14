@@ -25,8 +25,11 @@ public partial class DeviceSettingsViewModel : BaseViewModel
 
     private const string ProfileRebootWarning = "Gloves are restarting to apply the new profile…";
 
-    /// <summary>Suppresses the device write in OnTherapyLedOffChanged while syncing from the device.</summary>
+    /// <summary>Suppresses pending-change tracking while syncing the LED toggle from the device.</summary>
     private bool _suppressTherapyLedWrite;
+
+    /// <summary>LED state as last read from (or successfully written to) the device.</summary>
+    private bool _deviceTherapyLedOff;
 
     /// <summary>
     /// Centralized connection state service exposed for XAML binding.
@@ -56,6 +59,20 @@ public partial class DeviceSettingsViewModel : BaseViewModel
 
     /// <summary>Inverse of IsSessionActive for XAML binding.</summary>
     public bool IsSessionInactive => !IsSessionActive;
+
+    /// <summary>
+    /// True when the selection on this page differs from what's on the gloves —
+    /// enables the Apply Settings button.
+    /// </summary>
+    public bool HasPendingChanges => IsLedDirty || IsProfileDirty;
+
+    private bool IsLedDirty => TherapyLedLoaded && TherapyLedOff != _deviceTherapyLedOff;
+
+    private bool IsProfileDirty =>
+        ConnectionInfo.IsConnected
+        && _gloveControlService.DeviceProfileId > 0
+        && SelectedProfile != null
+        && SelectedProfile.ProfileId != _gloveControlService.DeviceProfileId;
 
     // Null voltage = no reading available (missing key or firmware 0.00 sentinel)
     [ObservableProperty]
@@ -165,58 +182,15 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         SyncSelectedProfileFromDeviceAsync().SafeFireAndForget("[DEVICESETTINGS]");
     }
 
+    /// <summary>
+    /// Selects a profile locally. Nothing is written to the gloves until the user
+    /// presses Apply Settings.
+    /// </summary>
     [RelayCommand]
     private async Task SelectProfileAsync(ProfileItemViewModel profileItem)
     {
         if (profileItem?.Profile == null)
             return;
-
-        // Selecting the profile already on the device is just a UI highlight
-        var isDeviceCurrent = profileItem.Profile.ProfileId == _gloveControlService.DeviceProfileId;
-
-        if (!isDeviceCurrent && ConnectionInfo.IsConnected)
-        {
-            if (IsSessionActive)
-            {
-                await Shell.Current.DisplayAlert(
-                    "Session Active",
-                    "Stop the current session before changing profiles.",
-                    "OK");
-                return;
-            }
-
-            var confirm = await Shell.Current.DisplayAlert(
-                "Change Profile?",
-                $"Switching to \"{profileItem.Profile.Name}\" will restart your gloves. " +
-                "They will reconnect automatically in a few moments.",
-                "Change Profile",
-                "Cancel");
-            if (!confirm)
-                return;
-
-            IsBusy = true;
-            try
-            {
-                await _gloveControlService.LoadProfileAsync(profileItem.Profile.ProfileId);
-                ProfileStatusMessage = ProfileRebootWarning;
-            }
-            catch (BlueBuzzahCommandException ex)
-            {
-                // Device rejected the profile — keep the previous selection.
-                var (title, message) = ErrorMessageHelper.GetFriendlyError(ex.Message);
-                await Shell.Current.DisplayAlert(title, message, "OK");
-                return;
-            }
-            catch (Exception ex)
-            {
-                await Shell.Current.DisplayAlert(GetErrorTitle(ex), GetErrorMessage(ex), "OK");
-                return;
-            }
-            finally
-            {
-                IsBusy = false;
-            }
-        }
 
         // Deselect all profiles
         foreach (var item in AvailableProfiles)
@@ -235,6 +209,95 @@ public partial class DeviceSettingsViewModel : BaseViewModel
 
         // Save selection preference for next app launch
         await _storageService.SaveLastProfileAsync(profileItem.Profile.ProfileId);
+    }
+
+    /// <summary>
+    /// Writes every pending device setting (therapy LED, then profile) to the gloves
+    /// in one go. The LED is written first because a profile change reboots the gloves.
+    /// </summary>
+    [RelayCommand]
+    private async Task ApplySettingsAsync()
+    {
+        if (!ConnectionInfo.IsConnected || !HasPendingChanges)
+            return;
+
+        if (IsSessionActive)
+        {
+            await Shell.Current.DisplayAlert(
+                "Session Active",
+                "Stop the current session before changing device settings.",
+                "OK");
+            return;
+        }
+
+        var applyProfile = IsProfileDirty;
+        if (applyProfile)
+        {
+            var confirm = await Shell.Current.DisplayAlert(
+                "Apply Settings?",
+                $"Switching to \"{SelectedProfile!.Name}\" will restart your gloves. " +
+                "They will reconnect automatically in a few moments.",
+                "Apply",
+                "Cancel");
+            if (!confirm)
+                return;
+        }
+
+        IsBusy = true;
+        try
+        {
+            if (IsLedDirty)
+            {
+                await _gloveControlService.SetTherapyLedOffAsync(TherapyLedOff);
+                _deviceTherapyLedOff = TherapyLedOff;
+            }
+
+            if (applyProfile)
+            {
+                await _gloveControlService.LoadProfileAsync(SelectedProfile!.ProfileId);
+                ProfileStatusMessage = ProfileRebootWarning;
+            }
+
+            SemanticScreenReader.Announce("Device settings applied");
+        }
+        catch (BlueBuzzahCommandException ex)
+        {
+            var (title, message) = ErrorMessageHelper.GetFriendlyError(ex.Message);
+            await Shell.Current.DisplayAlert(title, message, "OK");
+            await ResyncTherapyLedAsync();
+        }
+        catch (Exception ex)
+        {
+            await Shell.Current.DisplayAlert(GetErrorTitle(ex), GetErrorMessage(ex), "OK");
+            await ResyncTherapyLedAsync();
+        }
+        finally
+        {
+            IsBusy = false;
+            OnPropertyChanged(nameof(HasPendingChanges));
+        }
+    }
+
+    /// <summary>
+    /// After a failed apply, re-read the LED state so the toggle shows what's actually
+    /// on the device; if even the read fails, hide the toggle.
+    /// </summary>
+    private async Task ResyncTherapyLedAsync()
+    {
+        try
+        {
+            _suppressTherapyLedWrite = true;
+            TherapyLedOff = await _gloveControlService.GetTherapyLedOffAsync();
+            _deviceTherapyLedOff = TherapyLedOff;
+        }
+        catch
+        {
+            TherapyLedLoaded = false;
+        }
+        finally
+        {
+            _suppressTherapyLedWrite = false;
+        }
     }
 
     [RelayCommand]
@@ -343,6 +406,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         {
             _suppressTherapyLedWrite = true;
             TherapyLedOff = await _gloveControlService.GetTherapyLedOffAsync();
+            _deviceTherapyLedOff = TherapyLedOff;
             TherapyLedLoaded = true;
         }
         catch
@@ -354,50 +418,22 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         {
             _suppressTherapyLedWrite = false;
             TherapyLedBusy = false;
+            OnPropertyChanged(nameof(HasPendingChanges));
         }
     }
 
     partial void OnTherapyLedOffChanged(bool value)
     {
-        if (_suppressTherapyLedWrite)
-            return;
-
-        // async via discard: Switch toggles aren't awaitable. TherapyLedBusy disables
-        // the switch until the write settles, so writes can't overlap.
-        _ = ApplyTherapyLedOffAsync(value);
+        // No device write here — changes are batched behind Apply Settings.
+        if (!_suppressTherapyLedWrite)
+        {
+            OnPropertyChanged(nameof(HasPendingChanges));
+        }
     }
 
-    private async Task ApplyTherapyLedOffAsync(bool value)
+    partial void OnSelectedProfileChanged(TherapyProfile? value)
     {
-        TherapyLedBusy = true;
-        try
-        {
-            await _gloveControlService.SetTherapyLedOffAsync(value);
-        }
-        catch (Exception ex)
-        {
-            // Re-sync from the device rather than blind-reverting, so the switch
-            // shows the device's actual state; if even the read fails, hide it.
-            try
-            {
-                _suppressTherapyLedWrite = true;
-                TherapyLedOff = await _gloveControlService.GetTherapyLedOffAsync();
-            }
-            catch
-            {
-                TherapyLedLoaded = false;
-            }
-            finally
-            {
-                _suppressTherapyLedWrite = false;
-            }
-
-            await Shell.Current.DisplayAlert(GetErrorTitle(ex), GetErrorMessage(ex), "OK");
-        }
-        finally
-        {
-            TherapyLedBusy = false;
-        }
+        OnPropertyChanged(nameof(HasPendingChanges));
     }
 
     private async Task LoadProfilesAsync()
@@ -462,6 +498,10 @@ public partial class DeviceSettingsViewModel : BaseViewModel
                 }
                 SelectedProfile = match.Profile;
             }
+
+            // DeviceProfileId (the profile baseline) may have changed even if the
+            // local selection didn't.
+            OnPropertyChanged(nameof(HasPendingChanges));
         }
         catch (Exception ex)
         {
