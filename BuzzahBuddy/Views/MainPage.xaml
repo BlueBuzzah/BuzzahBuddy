@@ -23,7 +23,7 @@
 
                 <!-- Status Message -->
                 <Label Text="{Binding StatusMessage}"
-                       Style="{StaticResource SubHeadline}"
+                       Style="{StaticResource Heading2}"
                        SemanticProperties.HeadingLevel="Level2"
                        HorizontalOptions="Center"
                        HorizontalTextAlignment="Center"
