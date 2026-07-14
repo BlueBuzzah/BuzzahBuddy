@@ -439,6 +439,12 @@ public partial class GloveControlViewModel : BaseViewModel
     }
 
     [RelayCommand]
+    private async Task NavigateToProfileSettingsAsync()
+    {
+        await Shell.Current.GoToAsync("profilesettings");
+    }
+
+    [RelayCommand]
     private async Task TestConnectionAsync()
     {
         if (!ConnectionInfo.IsConnected)

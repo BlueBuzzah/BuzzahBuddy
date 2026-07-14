@@ -54,6 +54,7 @@ public static class MauiProgram
 		builder.Services.AddTransient<GloveControlViewModel>();
 		builder.Services.AddTransient<SettingsViewModel>();
 		builder.Services.AddTransient<CalibrationViewModel>();
+		builder.Services.AddTransient<ProfileSettingsViewModel>();
 
 		// Register Views
 		builder.Services.AddTransient<MainPage>();
@@ -61,6 +62,7 @@ public static class MauiProgram
 		builder.Services.AddTransient<GloveControlPage>();
 		builder.Services.AddTransient<SettingsPage>();
 		builder.Services.AddTransient<CalibrationPage>();
+		builder.Services.AddTransient<ProfileSettingsPage>();
 
 		return builder.Build();
 	}

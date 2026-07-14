@@ -10,5 +10,6 @@ public partial class AppShell : Shell
 
 		// Register routes for navigation
 		Routing.RegisterRoute("calibration", typeof(CalibrationPage));
+		Routing.RegisterRoute("profilesettings", typeof(ProfileSettingsPage));
 	}
 }

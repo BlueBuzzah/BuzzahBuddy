@@ -305,6 +305,82 @@ public class GloveControlService : IGloveControlService
         response.ThrowIfError();
     }
 
+    public async Task ApplyCustomProfileAsync(TherapyProfile desired, TherapyProfile? baseline = null)
+    {
+        var parameters = BuildCustomProfileParameters(desired, baseline);
+
+        // Firmware accepts at most 8 KEY:VAL pairs per PROFILE_CUSTOM command
+        // (MAX_COMMAND_PARAMS=16 tokens), so a full 10-parameter profile is
+        // split across sequential commands.
+        for (int i = 0; i < parameters.Count; i += 8)
+        {
+            await SetCustomProfileAsync(
+                parameters.Skip(i).Take(8).ToDictionary(p => p.Key, p => p.Value));
+        }
+    }
+
+    /// <summary>
+    /// Maps a <see cref="TherapyProfile"/> to PROFILE_CUSTOM protocol parameters,
+    /// validating against the firmware's setParameter ranges (profile_manager.cpp).
+    /// When <paramref name="baseline"/> is provided, only parameters whose protocol
+    /// value differs from the baseline are returned.
+    /// </summary>
+    public static List<KeyValuePair<string, string>> BuildCustomProfileParameters(
+        TherapyProfile desired, TherapyProfile? baseline = null)
+    {
+        // Firmware validation ranges (profile_manager.cpp setParameter)
+        var timeOnMs = desired.TimeOn * 1000.0;
+        var timeOffMs = desired.TimeOff * 1000.0;
+        if (desired.ActuatorFrequency is < 50 or > 300)
+            throw new ArgumentException("Frequency must be 50-300 Hz", nameof(desired));
+        if (timeOnMs is < 10 or > 1000)
+            throw new ArgumentException("Time on must be 10-1000 ms", nameof(desired));
+        if (timeOffMs is < 10 or > 1000)
+            throw new ArgumentException("Time off must be 10-1000 ms", nameof(desired));
+        if (desired.TimeSession is < 1 or > 240)
+            throw new ArgumentException("Session duration must be 1-240 minutes", nameof(desired));
+        if (desired.AmplitudeMin is < 0 or > 100 || desired.AmplitudeMax is < 0 or > 100)
+            throw new ArgumentException("Amplitude must be 0-100%", nameof(desired));
+        if (desired.Jitter is < 0 or > 100)
+            throw new ArgumentException("Jitter must be 0-100%", nameof(desired));
+
+        var desiredParams = ToProtocolParameters(desired);
+        var baselineParams = baseline != null ? ToProtocolParameters(baseline) : null;
+
+        return desiredParams
+            .Where(p => baselineParams == null ||
+                        !baselineParams.TryGetValue(p.Key, out var old) || old != p.Value)
+            .ToList();
+    }
+
+    private static Dictionary<string, string> ToProtocolParameters(TherapyProfile profile)
+    {
+        var inv = System.Globalization.CultureInfo.InvariantCulture;
+        return new Dictionary<string, string>
+        {
+            ["TYPE"] = profile.ActuatorType.Equals("ERM", StringComparison.OrdinalIgnoreCase) ? "ERM" : "LRA",
+            ["FREQ"] = profile.ActuatorFrequency.ToString(inv),
+            ["ON"] = (profile.TimeOn * 1000.0).ToString("0.#", inv),   // protocol uses ms
+            ["OFF"] = (profile.TimeOff * 1000.0).ToString("0.#", inv), // protocol uses ms
+            ["SESSION"] = profile.TimeSession.ToString(inv),
+            ["AMPMIN"] = profile.AmplitudeMin.ToString(inv),
+            ["AMPMAX"] = profile.AmplitudeMax.ToString(inv),
+            ["PATTERN"] = ToProtocolPattern(profile.PatternType),
+            ["MIRROR"] = profile.Mirror ? "1" : "0",
+            ["JITTER"] = profile.Jitter.ToString("0.#", inv),
+        };
+    }
+
+    private static string ToProtocolPattern(string patternType) =>
+        patternType.ToUpperInvariant() switch
+        {
+            // App/spec names vs. firmware setParameter's accepted values
+            "RNDP" => "rndp",
+            "SEQ" or "SEQUENTIAL" => "sequential",
+            "MIRRORED" => "mirrored",
+            _ => throw new ArgumentException($"Unknown pattern type '{patternType}' (expected RNDP, SEQ, or MIRRORED)"),
+        };
+
     // ========== Session Control Commands ==========
 
     public async Task StartSessionAsync()

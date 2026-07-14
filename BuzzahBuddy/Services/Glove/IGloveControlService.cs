@@ -109,6 +109,19 @@ public interface IGloveControlService
     /// <exception cref="BlueBuzzahCommandException">If session is active or parameters invalid</exception>
     Task SetCustomProfileAsync(Dictionary<string, string> parameters);
 
+    /// <summary>
+    /// Applies a full profile edit to the device by diffing <paramref name="desired"/>
+    /// against <paramref name="baseline"/> and sending only the changed parameters via
+    /// PROFILE_CUSTOM (chunked to the firmware's 8-pairs-per-command limit).
+    /// Changes affect the currently loaded profile and are NOT persisted by the
+    /// firmware — they last until the gloves restart or another profile is loaded.
+    /// </summary>
+    /// <param name="desired">Target parameter values.</param>
+    /// <param name="baseline">Current device values (from <see cref="GetCurrentProfileAsync"/>); null sends every parameter.</param>
+    /// <exception cref="ArgumentException">If a value is outside the firmware's accepted range.</exception>
+    /// <exception cref="BlueBuzzahCommandException">If a session is active or the firmware rejects a parameter.</exception>
+    Task ApplyCustomProfileAsync(TherapyProfile desired, TherapyProfile? baseline = null);
+
     // ========== Session Control Commands ==========
 
     /// <summary>

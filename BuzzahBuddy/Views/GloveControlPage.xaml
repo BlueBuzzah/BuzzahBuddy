@@ -376,6 +376,17 @@
                                FontAttributes="Bold"
                                HorizontalOptions="End" />
                     </Grid>
+
+                    <Button Text="Adjust Settings"
+                            Command="{Binding NavigateToProfileSettingsCommand}"
+                            IsEnabled="{Binding ConnectionInfo.IsConnected}"
+                            HeightRequest="48"
+                            FontSize="16"
+                            CornerRadius="8"
+                            Margin="0,8,0,0"
+                            SemanticProperties.Description="View and adjust the current profile's timing, amplitude, and pattern settings"
+                            SemanticProperties.Hint="Double tap to open profile settings"
+                            AutomationId="AdjustProfileSettingsButton" />
                 </VerticalStackLayout>
             </Border>
 

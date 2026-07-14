@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:BuzzahBuddy.ViewModels"
+             xmlns:controls="clr-namespace:BuzzahBuddy.Views.Controls"
+             x:Class="BuzzahBuddy.Views.ProfileSettingsPage"
+             x:DataType="vm:ProfileSettingsViewModel"
+             Title="{Binding Title}">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="20">
+
+            <!-- Header -->
+            <Label Text="Profile Settings"
+                   Style="{StaticResource Headline}"
+                   SemanticProperties.HeadingLevel="Level1"
+                   HorizontalOptions="Center" />
+
+            <!-- Connection Status Banner -->
+            <controls:ConnectionStatusBanner
+                ConnectionState="{Binding ConnectionInfo.ConnectionState}"
+                DeviceName="{Binding ConnectionInfo.ConnectedDeviceName}" />
+
+            <!-- Not connected / not loaded guidance -->
+            <Label Text="Connect to a BlueBuzzah glove to view and adjust the current profile settings."
+                   IsVisible="{Binding IsLoaded, Converter={StaticResource InvertedBoolConverter}}"
+                   Style="{StaticResource BodyText}"
+                   TextColor="{StaticResource TextMuted}"
+                   SemanticProperties.Description="Connect to a glove to view and adjust profile settings" />
+
+            <ActivityIndicator IsRunning="{Binding IsBusy}"
+                               IsVisible="{Binding IsBusy}"
+                               SemanticProperties.Description="Working" />
+
+            <!-- Editor -->
+            <Border Padding="15"
+                    BackgroundColor="{StaticResource CardBackground}"
+                    StrokeThickness="0"
+                    IsVisible="{Binding IsLoaded}">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="12" />
+                </Border.StrokeShape>
+
+                <VerticalStackLayout Spacing="15">
+
+                    <Label Text="These settings adjust the profile currently loaded on the gloves. Changes last until the gloves restart or another profile is loaded."
+                           Style="{StaticResource BodyText}"
+                           TextColor="{StaticResource TextMuted}"
+                           SemanticProperties.Description="Changes last until the gloves restart or another profile is loaded" />
+
+                    <Grid ColumnDefinitions="*,140" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                          ColumnSpacing="15" RowSpacing="12">
+
+                        <Label Grid.Row="0" Grid.Column="0" Text="Actuator Type" FontSize="16" VerticalOptions="Center" />
+                        <Picker Grid.Row="0" Grid.Column="1"
+                                ItemsSource="{Binding ActuatorTypeOptions}"
+                                SelectedItem="{Binding ActuatorType}"
+                                MinimumHeightRequest="48"
+                                SemanticProperties.Description="Actuator type, LRA or ERM"
+                                AutomationId="ActuatorTypePicker" />
+
+                        <Label Grid.Row="1" Grid.Column="0" Text="Frequency (Hz, 50-300)" FontSize="16" VerticalOptions="Center" LineBreakMode="WordWrap" />
+                        <Entry Grid.Row="1" Grid.Column="1"
+                               Text="{Binding FrequencyText}"
+                               Keyboard="Numeric"
+                               MinimumHeightRequest="48"
+                               HorizontalTextAlignment="End"
+                               SemanticProperties.Description="Actuator frequency in hertz, 50 to 300"
+                               AutomationId="FrequencyEntry" />
+
+                        <Label Grid.Row="2" Grid.Column="0" Text="Time On (ms, 10-1000)" FontSize="16" VerticalOptions="Center" LineBreakMode="WordWrap" />
+                        <Entry Grid.Row="2" Grid.Column="1"
+                               Text="{Binding TimeOnMsText}"
+                               Keyboard="Numeric"
+                               MinimumHeightRequest="48"
+                               HorizontalTextAlignment="End"
+                               SemanticProperties.Description="Vibration on time in milliseconds, 10 to 1000"
+                               AutomationId="TimeOnEntry" />
+
+                        <Label Grid.Row="3" Grid.Column="0" Text="Time Off (ms, 10-1000)" FontSize="16" VerticalOptions="Center" LineBreakMode="WordWrap" />
+                        <Entry Grid.Row="3" Grid.Column="1"
+                               Text="{Binding TimeOffMsText}"
+                               Keyboard="Numeric"
+                               MinimumHeightRequest="48"
+                               HorizontalTextAlignment="End"
+                               SemanticProperties.Description="Vibration off time in milliseconds, 10 to 1000"
+                               AutomationId="TimeOffEntry" />
+
+                        <Label Grid.Row="4" Grid.Column="0" Text="Session (min, 1-240)" FontSize="16" VerticalOptions="Center" LineBreakMode="WordWrap" />
+                        <Entry Grid.Row="4" Grid.Column="1"
+                               Text="{Binding SessionMinutesText}"
+                               Keyboard="Numeric"
+                               MinimumHeightRequest="48"
+                               HorizontalTextAlignment="End"
+                               SemanticProperties.Description="Session duration in minutes, 1 to 240"
+                               AutomationId="SessionEntry" />
+
+                        <Label Grid.Row="5" Grid.Column="0" Text="Amplitude Min (%, 0-100)" FontSize="16" VerticalOptions="Center" LineBreakMode="WordWrap" />
+                        <Entry Grid.Row="5" Grid.Column="1"
+                               Text="{Binding AmplitudeMinText}"
+                               Keyboard="Numeric"
+                               MinimumHeightRequest="48"
+                               HorizontalTextAlignment="End"
+                               SemanticProperties.Description="Minimum amplitude percentage, 0 to 100"
+                               AutomationId="AmplitudeMinEntry" />
+
+                        <Label Grid.Row="6" Grid.Column="0" Text="Amplitude Max (%, 0-100)" FontSize="16" VerticalOptions="Center" LineBreakMode="WordWrap" />
+                        <Entry Grid.Row="6" Grid.Column="1"
+                               Text="{Binding AmplitudeMaxText}"
+                               Keyboard="Numeric"
+                               MinimumHeightRequest="48"
+                               HorizontalTextAlignment="End"
+                               SemanticProperties.Description="Maximum amplitude percentage, 0 to 100"
+                               AutomationId="AmplitudeMaxEntry" />
+
+                        <Label Grid.Row="7" Grid.Column="0" Text="Jitter (%, 0-100)" FontSize="16" VerticalOptions="Center" LineBreakMode="WordWrap" />
+                        <Entry Grid.Row="7" Grid.Column="1"
+                               Text="{Binding JitterText}"
+                               Keyboard="Numeric"
+                               MinimumHeightRequest="48"
+                               HorizontalTextAlignment="End"
+                               SemanticProperties.Description="Timing jitter percentage, 0 to 100"
+                               AutomationId="JitterEntry" />
+
+                        <Label Grid.Row="8" Grid.Column="0" Text="Pattern" FontSize="16" VerticalOptions="Center" />
+                        <Picker Grid.Row="8" Grid.Column="1"
+                                ItemsSource="{Binding PatternOptions}"
+                                SelectedItem="{Binding Pattern}"
+                                MinimumHeightRequest="48"
+                                SemanticProperties.Description="Vibration pattern: random, sequential, or mirrored"
+                                AutomationId="PatternPicker" />
+
+                        <Label Grid.Row="9" Grid.Column="0" Text="Mirror Pattern" FontSize="16" VerticalOptions="Center" />
+                        <Switch Grid.Row="9" Grid.Column="1"
+                                IsToggled="{Binding Mirror}"
+                                HorizontalOptions="End"
+                                VerticalOptions="Center"
+                                SemanticProperties.Description="Mirror pattern between primary and secondary glove"
+                                SemanticProperties.Hint="Double tap to toggle pattern mirroring"
+                                AutomationId="MirrorSwitch" />
+                    </Grid>
+
+                    <Button Text="Apply to Gloves"
+                            Command="{Binding ApplyCommand}"
+                            IsEnabled="{Binding IsBusy, Converter={StaticResource InvertedBoolConverter}}"
+                            HeightRequest="56"
+                            FontSize="18"
+                            CornerRadius="12"
+                            BackgroundColor="{StaticResource Primary}"
+                            SemanticProperties.Description="Apply the edited profile settings to the connected gloves"
+                            SemanticProperties.Hint="Double tap to send the settings to the gloves"
+                            AutomationId="ApplyProfileSettingsButton" />
+
+                    <Button Text="Reload from Gloves"
+                            Command="{Binding LoadCommand}"
+                            IsEnabled="{Binding IsBusy, Converter={StaticResource InvertedBoolConverter}}"
+                            HeightRequest="48"
+                            FontSize="16"
+                            CornerRadius="8"
+                            SemanticProperties.Description="Discard edits and reload the current settings from the gloves"
+                            SemanticProperties.Hint="Double tap to reload settings from the gloves"
+                            AutomationId="ReloadProfileSettingsButton" />
+
+                </VerticalStackLayout>
+            </Border>
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

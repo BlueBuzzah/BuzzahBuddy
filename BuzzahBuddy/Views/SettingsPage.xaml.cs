@@ -16,6 +16,12 @@ public partial class SettingsPage : ContentPage
         Unloaded += OnPageUnloaded;
     }
 
+    protected override void OnAppearing()
+    {
+        base.OnAppearing();
+        _viewModel.LoadDeviceSettingsCommand.Execute(null);
+    }
+
     private void OnPageUnloaded(object? sender, EventArgs e)
     {
         // Dispose ViewModel to unsubscribe from events
