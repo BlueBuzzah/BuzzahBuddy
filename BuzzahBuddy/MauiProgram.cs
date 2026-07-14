@@ -13,7 +13,7 @@ public static class MauiProgram
 	/// Set to true to use mock Bluetooth service for testing without hardware.
 	/// Set to false to use real Bluetooth hardware.
 	/// </summary>
-	private const bool UseMockBluetooth = false;
+	private static readonly bool UseMockBluetooth = false;
 
 	public static MauiApp CreateMauiApp()
 	{

@@ -228,11 +228,9 @@
 
                                 <!-- Tap to select this profile -->
                                 <Border.GestureRecognizers>
-                                    <!-- x:DataType must be cleared here: compiled bindings cannot resolve
-                                         SelectProfileCommand through BindingContext (typed as object) on the
-                                         x:Reference source. Without this, the command silently fails to bind. -->
-                                    <TapGestureRecognizer x:DataType="{x:Null}"
-                                                          Command="{Binding Source={x:Reference page}, Path=BindingContext.SelectProfileCommand}"
+                                    <!-- AncestorType binding reaches the page ViewModel with compiled
+                                         bindings (x:Reference BindingContext.* cannot compile). -->
+                                    <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type vm:GloveControlViewModel}}, Path=SelectProfileCommand}"
                                                           CommandParameter="{Binding}"
                                                           Tapped="OnProfileCardTapped" />
                                 </Border.GestureRecognizers>

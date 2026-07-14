@@ -315,11 +315,8 @@
                                                 Style="{StaticResource FingerTestButton}"
                                                 SemanticProperties.Description="{Binding Label, StringFormat='Primary glove {0}'}"
                                                 SemanticProperties.Hint="Tests this finger's motor"
-                                                AutomationId="{Binding AutomationId}">
-                                            <Button.IsEnabled>
-                                                <Binding Path="BindingContext.CanBuzzFingers" Source="{x:Reference CalibrationPageRoot}" x:DataType="{x:Null}" />
-                                            </Button.IsEnabled>
-                                        </Button>
+                                                AutomationId="{Binding AutomationId}"
+                                                IsEnabled="{Binding Source={RelativeSource AncestorType={x:Type vm:CalibrationViewModel}}, Path=CanBuzzFingers}" />
                                     </DataTemplate>
                                 </BindableLayout.ItemTemplate>
                             </FlexLayout>
@@ -345,11 +342,8 @@
                                                 TextColor="{StaticResource TextPrimary}"
                                                 SemanticProperties.Description="{Binding Label, StringFormat='Secondary glove {0}'}"
                                                 SemanticProperties.Hint="Tests this finger's motor"
-                                                AutomationId="{Binding AutomationId}">
-                                            <Button.IsEnabled>
-                                                <Binding Path="BindingContext.CanBuzzFingers" Source="{x:Reference CalibrationPageRoot}" x:DataType="{x:Null}" />
-                                            </Button.IsEnabled>
-                                        </Button>
+                                                AutomationId="{Binding AutomationId}"
+                                                IsEnabled="{Binding Source={RelativeSource AncestorType={x:Type vm:CalibrationViewModel}}, Path=CanBuzzFingers}" />
                                     </DataTemplate>
                                 </BindableLayout.ItemTemplate>
                             </FlexLayout>

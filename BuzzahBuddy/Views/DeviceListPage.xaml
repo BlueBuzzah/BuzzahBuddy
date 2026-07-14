@@ -183,19 +183,17 @@
                                            FontSize="14"
                                            TextColor="{StaticResource TextMuted}" />
 
-                                    <!-- Connect Button. x:DataType cleared: compiled bindings cannot
-                                         resolve members through BindingContext (typed object) on an
-                                         x:Reference source (same pattern as GloveControlPage). -->
+                                    <!-- Connect Button: AncestorType binding reaches the page ViewModel
+                                         with compiled bindings (x:Reference BindingContext.* cannot compile). -->
                                     <Button Grid.Row="0" Grid.RowSpan="2" Grid.Column="1"
-                                            x:DataType="{x:Null}"
                                             Text="Connect"
-                                            Command="{Binding BindingContext.ConnectCommand, Source={x:Reference page}}"
+                                            Command="{Binding Source={RelativeSource AncestorType={x:Type vm:DeviceListViewModel}}, Path=ConnectCommand}"
                                             CommandParameter="{Binding}"
                                             HeightRequest="48"
                                             WidthRequest="100"
                                             CornerRadius="8"
                                             VerticalOptions="Center"
-                                            IsEnabled="{Binding BindingContext.IsConnecting, Source={x:Reference page}, Converter={StaticResource InvertedBoolConverter}}"
+                                            IsEnabled="{Binding Source={RelativeSource AncestorType={x:Type vm:DeviceListViewModel}}, Path=IsConnecting, Converter={StaticResource InvertedBoolConverter}}"
                                             SemanticProperties.Description="Connect to this Bluetooth device"
                                             SemanticProperties.Hint="Double tap to connect"
                                             AutomationId="ConnectDeviceButton" />
