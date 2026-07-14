@@ -1,6 +1,6 @@
 using BuzzahBuddy.ViewModels;
 
-namespace BuzzahBuddy;
+namespace BuzzahBuddy.Views;
 
 public partial class MainPage : ContentPage
 {
