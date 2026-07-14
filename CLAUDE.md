@@ -426,14 +426,17 @@ public class MainPageViewModelTests
 - **Use C#** for dynamic UI generation, complex animations, or platform-specific rendering
 
 ### Resource Dictionaries
-Organize styles in `Resources/Styles/`:
+Organize styles in `Resources/Styles/`. All color and style values come from the
+**design system** (`docs/design/`) — the authoritative visual spec derived from
+bluebuzzah.com (dark theme only; blue `#35B6F2` = success, never green; dark text on blue fills):
 
 ```xaml
-<!-- Colors.xaml -->
-<Color x:Key="Primary">#512BD4</Color>
-<Color x:Key="Accent">#2B0B98</Color>
+<!-- Colors.xaml (see docs/design/colors.md for the full token set) -->
+<Color x:Key="Primary">#35B6F2</Color>
+<Color x:Key="PageBackground">#0a0a0a</Color>
+<Color x:Key="CardBackground">#05212D</Color>
 
-<!-- Styles.xaml -->
+<!-- Styles.xaml (per-control specs in docs/design/components.md) -->
 <Style x:Key="LargeButton" TargetType="Button">
     <Setter Property="HeightRequest" Value="56" />
     <Setter Property="FontSize" Value="18" />
@@ -603,6 +606,10 @@ dotnet restore
 - [iOS Accessibility (Apple HIG)](https://developer.apple.com/design/human-interface-guidelines/accessibility)
 - [Android Accessibility](https://developer.android.com/guide/topics/ui/accessibility)
 
+### Project Design Docs
+- `docs/design/` — **Design system** (visual source of truth: colors, typography, components, motion)
+- `DESIGN_GUIDE.md` — UX and interaction patterns
+
 ### Parkinson's-Specific Design
 - [Designing for Motor Impairments](https://www.w3.org/WAI/perspective-videos/controls/)
 - [Tremor-Friendly UI Patterns](https://webaim.org/articles/motor/)
@@ -613,5 +620,5 @@ dotnet restore
 
 For questions or contributions related to BuzzahBuddy development, refer to the BlueBuzzah community resources and project repository.
 
-**Version:** 1.0
-**Last Updated:** 2025-10-26
+**Version:** 1.1
+**Last Updated:** 2026-07-14

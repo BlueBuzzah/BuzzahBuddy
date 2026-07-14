@@ -8,6 +8,8 @@ This guide establishes UI/UX principles and patterns for BuzzahBuddy, a therapeu
 
 **Target Audience:** Developers, designers, and AI coding assistants (like Claude Code) working on BuzzahBuddy.
 
+**Visual language:** This guide owns UX and interaction patterns. Colors, typography, per-control styling, and motion are owned by the [design system](docs/design/README.md) (`docs/design/`) — where the two disagree on visual specifics, the design system wins.
+
 ---
 
 ## Core Design Principles
@@ -192,7 +194,7 @@ Optimize for one-handed operation by placing controls within natural thumb reach
 - **Font weight:** Medium (500-600) or Bold for interactive elements
 
 **Color:**
-- Support both light and dark modes
+- Dark theme only — use the design system palette ([docs/design/colors.md](docs/design/colors.md)); there is no light mode
 - Never rely on color alone to convey information (use icons, text labels, patterns)
 - Test all colors at high contrast settings (users may enable OS accessibility features)
 - Avoid red/green as sole differentiators (color blindness)
@@ -473,7 +475,7 @@ Users with Parkinson's disease already face challenges with motor control. Addin
 BAD: Multiple ways of showing the same information
 
 Connected Status:
-● Green indicator
+● Blue indicator
 "Connected" text label
 "Device is connected" description
 ✓ Checkmark icon
@@ -660,9 +662,9 @@ Redundant information is especially problematic for screen reader users:
 
 **❌ Redundant Announcements**
 ```text
-Button with green checkmark icon labeled "Connected"
+Button with blue checkmark icon labeled "Connected"
 Screen reader announces:
-"Connected button, connected status, connection confirmed, green checkmark"
+"Connected button, connected status, connection confirmed, blue checkmark"
 ```
 
 **✅ Clear, Concise Announcement**
@@ -727,8 +729,8 @@ Prefer large, obvious toggle switches over checkboxes or radio buttons.
 
 **Design:**
 - **Size:** 60pt wide × 36pt tall minimum
-- **On state:** High contrast color (e.g., green/blue)
-- **Off state:** Neutral gray
+- **On state:** Primary blue (`#35B6F2`)
+- **Off state:** Neutral dark surface (`#0d3a4d`)
 - **Tap target:** Entire switch area (not just the thumb)
 - **Feedback:** Immediate visual transition + haptic feedback (if available)
 
@@ -774,10 +776,10 @@ Use large, obvious visual indicators for connection state, battery level, and se
 ```
 
 **Color coding:**
-- 🟢 Green: Connected, battery >50%
-- 🟡 Yellow: Connected, battery 20-50%
-- 🔴 Red: Disconnected or battery <20%
-- ⚪ Gray: Not paired
+- 🔵 Blue (`#35B6F2`): Connected, battery >50% — blue is the brand's success/active color, never green
+- 🟡 Amber (`#f59e0b`): Connected, battery 20-50%
+- 🔴 Danger (`#fb7185` text / `#e11d48` fill): Disconnected or battery <20%
+- ⚪ Muted (`#a3a3a3`): Not paired
 
 **Battery Level:**
 - Show percentage numerically (don't rely on icon alone)
@@ -1039,7 +1041,7 @@ Small, purposeful animations enhance perceived responsiveness:
 
 - Button press: Visual depression + haptic pulse
 - Toggle switch: Smooth slide animation + color change
-- Success action: Checkmark animation + brief green flash
+- Success action: Checkmark animation + brief blue flash
 - Connection established: Pulse animation on connection indicator
 - Error state: Gentle shake animation (2-3 cycles, 300ms total)
 
@@ -1069,51 +1071,44 @@ Never leave users wondering if something is happening:
 
 ## Color and Theme Guidelines
 
+The full palette, WCAG contrast matrix, and per-control color specs live in the
+[design system](docs/design/colors.md). This section covers only how to apply it.
+
 ### Semantic Color Usage
 
-Use colors consistently to convey meaning:
+Use colors consistently to convey meaning (BlueBuzzah brand rule: **blue is success — never green**):
 
-**Primary Color (Brand):**
-- App branding, primary action buttons
-- Selected/active states
-- **Example:** Blue (#007AFF iOS style, #2196F3 Material style)
-
-**Success/Active:**
-- Connected devices, successful operations, "on" states
-- **Example:** Green (#34C759 iOS style, #4CAF50 Material style)
+**Primary / Success / Active (Brand):**
+- App branding, primary action buttons, selected states, connected devices, successful operations, progress
+- `#35B6F2` — always with dark `#0a0a0a` text/icons on blue fills
 
 **Warning:**
-- Low battery, non-critical alerts, "attention needed" states
-- **Example:** Orange/Amber (#FF9500 iOS style, #FF9800 Material style)
+- Low battery, weak signal, non-critical alerts, "attention needed" states
+- `#f59e0b` (dark text on warning fills)
 
 **Danger/Error:**
 - Disconnected devices, errors, destructive actions
-- **Example:** Red (#FF3B30 iOS style, #F44336 Material style)
+- `#e11d48` fills with `#fafafa` text; `#fb7185` for danger text/icons on dark surfaces
 
 **Neutral:**
-- Inactive states, disabled controls, backgrounds
-- **Example:** Grays (adjust based on light/dark mode)
+- Inactive states, disabled controls: muted `#a3a3a3`; surfaces step `#0a0a0a → #05212D → #0d3a4d`
 
-### Light vs. Dark Mode
+### Dark Theme Only
 
-Support both modes and respect user's system preference.
+BuzzahBuddy is dark-theme only (`AppTheme.Dark` is forced) — there is no light mode, matching
+the BlueBuzzah brand. Do not add light-mode variants or `AppThemeBinding` pairs.
 
-**Light Mode:**
-- Background: White or very light gray (#FFFFFF, #F5F5F5)
-- Text: Dark gray or black (#000000, #212121)
-- Borders: Light gray (#E0E0E0)
+- Background: `#0a0a0a`; cards `#05212D`
+- Text: `#fafafa`; muted `#a3a3a3`
+- Borders: `#0A3143`
 
-**Dark Mode:**
-- Background: Dark gray or true black (#000000, #121212)
-- Text: White or light gray (#FFFFFF, #E0E0E0)
-- Borders: Dark gray (#424242)
-
-**Ensure contrast ratios meet WCAG AA standards in both modes.**
+**Every text/background pair must appear in the approved
+[contrast matrix](docs/design/colors.md#contrast-matrix) (WCAG AA minimum).**
 
 ### Avoid Over-Reliance on Color
 
 Always pair color with another indicator:
-- ✅ Green checkmark icon + "Connected" text
+- ✅ Blue checkmark icon + "Connected" text
 - ✅ Red warning icon + "Disconnected" text
 - ✅ Disabled button: gray background + low opacity + cursor change
 
@@ -1366,6 +1361,11 @@ When choosing between design alternatives, use A/B testing:
 
 ## Version History
 
+- **v1.4** (2026-07-14) - Aligned with the BlueBuzzah design system (`docs/design/`):
+  - Visual language (colors, typography, controls, motion) now deferred to the design system
+  - Dark theme only — removed light-mode guidance
+  - Blue `#35B6F2` replaces green for all success/connected/active states
+  - Status color coding updated to design-system tokens (amber warning, `#fb7185`/`#e11d48` danger, `#a3a3a3` muted)
 - **v1.3** (2025-01-09) - Integrated mobile UX best practices and UI design principles:
   - Added "Visual Hierarchy" as 7th core principle
   - Enhanced "Progressive Complexity" with progressive disclosure guidance
