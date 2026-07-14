@@ -1,5 +1,6 @@
 using BuzzahBuddy.Helpers;
 using BuzzahBuddy.Models;
+using BuzzahBuddy.Services.AppLifecycle;
 using BuzzahBuddy.Services.Bluetooth;
 using BuzzahBuddy.Services.ConnectionStateManagement;
 using BuzzahBuddy.Services.Glove;
@@ -170,11 +171,14 @@ public partial class MainPageViewModel : BaseViewModel
 
     #endregion
 
+    private readonly IAppLifecycleService _appLifecycle;
+
     public MainPageViewModel(
         IBluetoothService bluetoothService,
         IGloveControlService gloveControlService,
         IReconnectionService reconnectionService,
-        IConnectionStateService connectionStateService)
+        IConnectionStateService connectionStateService,
+        IAppLifecycleService appLifecycleService)
     {
         _bluetoothService = bluetoothService;
         _gloveControlService = gloveControlService;
@@ -187,6 +191,10 @@ public partial class MainPageViewModel : BaseViewModel
         _bluetoothService.ConnectionStateChanged += OnConnectionStateChanged;
         _gloveControlService.SessionStateChanged += OnSessionStateChanged;
         ConnectionInfo.PropertyChanged += OnConnectionInfoPropertyChanged;
+
+        // Refresh the dashboard when the app returns to the foreground
+        _appLifecycle = appLifecycleService;
+        _appLifecycle.Resumed += OnAppResumed;
 
         System.Diagnostics.Debug.WriteLine("[MAINPAGE] ViewModel created, subscribed to events");
 
@@ -508,6 +516,11 @@ public partial class MainPageViewModel : BaseViewModel
     /// <summary>
     /// Unsubscribes from service events to prevent memory leaks.
     /// </summary>
+    private void OnAppResumed(object? sender, EventArgs e)
+    {
+        MainThread.BeginInvokeOnMainThread(() => RefreshConnectionState());
+    }
+
     protected override void Dispose(bool disposing)
     {
         if (disposing)
@@ -515,6 +528,7 @@ public partial class MainPageViewModel : BaseViewModel
             _bluetoothService.ConnectionStateChanged -= OnConnectionStateChanged;
             _gloveControlService.SessionStateChanged -= OnSessionStateChanged;
             ConnectionInfo.PropertyChanged -= OnConnectionInfoPropertyChanged;
+            _appLifecycle.Resumed -= OnAppResumed;
             System.Diagnostics.Debug.WriteLine("[MAINPAGE] ViewModel disposed, unsubscribed from events");
         }
         base.Dispose(disposing);

@@ -1,5 +1,6 @@
 using BuzzahBuddy.Helpers;
 using BuzzahBuddy.Models;
+using BuzzahBuddy.Services.AppLifecycle;
 using BuzzahBuddy.Services.Bluetooth;
 using BuzzahBuddy.Services.Glove;
 using BuzzahBuddy.Services.ConnectionStateManagement;
@@ -24,6 +25,8 @@ public partial class GloveControlViewModel : BaseViewModel
     private TherapySession? _currentSession;
     private System.Timers.Timer? _statusPollTimer;
     private System.Timers.Timer? _healthCheckTimer;
+    private readonly IAppLifecycleService _appLifecycle;
+    private bool _pollingPausedByLifecycle;
     private SessionState _previousSessionState = SessionState.IDLE;
     private bool _userRequestedStop;
     private int _consecutivePollFailures;
@@ -185,7 +188,8 @@ public partial class GloveControlViewModel : BaseViewModel
         IBluetoothService bluetoothService,
         IDataStorageService storageService,
         IReconnectionService reconnectionService,
-        IConnectionStateService connectionStateService)
+        IConnectionStateService connectionStateService,
+        IAppLifecycleService appLifecycleService)
     {
         _gloveControlService = gloveControlService;
         _bluetoothService = bluetoothService;
@@ -200,6 +204,11 @@ public partial class GloveControlViewModel : BaseViewModel
 
         // Subscribe to centralized connection state changes
         ConnectionInfo.PropertyChanged += OnConnectionInfoPropertyChanged;
+
+        // Pause/resume BLE polling with the app window lifecycle
+        _appLifecycle = appLifecycleService;
+        _appLifecycle.Stopped += OnAppStopped;
+        _appLifecycle.Resumed += OnAppResumed;
 
         // Initialize
         LoadProfilesAsync().SafeFireAndForget("[GLOVECONTROL]");
@@ -775,6 +784,7 @@ public partial class GloveControlViewModel : BaseViewModel
     private void StopStatusPolling()
     {
         _statusPollTimer?.Stop();
+        _statusPollTimer?.Dispose();
         _statusPollTimer = null;
     }
 
@@ -792,6 +802,7 @@ public partial class GloveControlViewModel : BaseViewModel
     private void StopConnectionHealthCheck()
     {
         _healthCheckTimer?.Stop();
+        _healthCheckTimer?.Dispose();
         _healthCheckTimer = null;
     }
 
@@ -896,6 +907,32 @@ public partial class GloveControlViewModel : BaseViewModel
         {
             System.Diagnostics.Debug.WriteLine($"[GLOVECONTROL] Profile sync failed: {ex.Message}");
         }
+    }
+
+    private void OnAppStopped(object? sender, EventArgs e)
+    {
+        // Pause BLE polling while backgrounded; the OS may kill timers anyway.
+        _pollingPausedByLifecycle = _statusPollTimer != null;
+        StopStatusPolling();
+        StopConnectionHealthCheck();
+    }
+
+    private void OnAppResumed(object? sender, EventArgs e)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            if (!ConnectionInfo.IsConnected)
+                return;
+
+            StartConnectionHealthCheck();
+            if (_pollingPausedByLifecycle || IsSessionActive)
+            {
+                StartStatusPolling();
+                _pollingPausedByLifecycle = false;
+            }
+            // Resync session state — it may have changed or ended while backgrounded.
+            UpdateSessionStatusAsync().SafeFireAndForget("[GLOVECONTROL]");
+        });
     }
 
     private void OnConnectionStateChanged(object? sender, ConnectionState state)
@@ -1069,10 +1106,10 @@ public partial class GloveControlViewModel : BaseViewModel
         {
             _bluetoothService.ConnectionStateChanged -= OnConnectionStateChanged;
             ConnectionInfo.PropertyChanged -= OnConnectionInfoPropertyChanged;
+            _appLifecycle.Stopped -= OnAppStopped;
+            _appLifecycle.Resumed -= OnAppResumed;
             StopStatusPolling();
-            _statusPollTimer?.Dispose();
             StopConnectionHealthCheck();
-            _healthCheckTimer?.Dispose();
             System.Diagnostics.Debug.WriteLine("[GLOVECONTROL] ViewModel disposed, unsubscribed from events");
         }
         base.Dispose(disposing);
