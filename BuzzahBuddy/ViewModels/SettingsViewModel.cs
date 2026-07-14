@@ -48,6 +48,13 @@ public partial class SettingsViewModel : BaseViewModel
 	[ObservableProperty]
 	private bool _therapyLedLoaded;
 
+	/// <summary>
+	/// True while a therapy-LED read or write is in flight; disables the switch so
+	/// toggles can't overlap (a stale failure would otherwise desync the UI).
+	/// </summary>
+	[ObservableProperty]
+	private bool _therapyLedBusy;
+
 	public SettingsViewModel(
 			IBluetoothService bluetoothService,
 			IDataStorageService storageService,
@@ -142,12 +149,16 @@ public partial class SettingsViewModel : BaseViewModel
 	[RelayCommand]
 	private async Task LoadDeviceSettingsAsync()
 	{
+		if (TherapyLedBusy)
+			return;
+
 		if (!ConnectionInfo.IsConnected)
 		{
 			TherapyLedLoaded = false;
 			return;
 		}
 
+		TherapyLedBusy = true;
 		try
 		{
 			_suppressTherapyLedWrite = true;
@@ -162,6 +173,7 @@ public partial class SettingsViewModel : BaseViewModel
 		finally
 		{
 			_suppressTherapyLedWrite = false;
+			TherapyLedBusy = false;
 		}
 	}
 
@@ -170,23 +182,41 @@ public partial class SettingsViewModel : BaseViewModel
 		if (_suppressTherapyLedWrite)
 			return;
 
-		// async void via discard: Switch toggles aren't awaitable; revert on failure.
+		// async via discard: Switch toggles aren't awaitable. TherapyLedBusy disables
+		// the switch until the write settles, so writes can't overlap.
 		_ = ApplyTherapyLedOffAsync(value);
 	}
 
 	private async Task ApplyTherapyLedOffAsync(bool value)
 	{
+		TherapyLedBusy = true;
 		try
 		{
 			await _gloveControlService.SetTherapyLedOffAsync(value);
 		}
 		catch (Exception ex)
 		{
-			_suppressTherapyLedWrite = true;
-			TherapyLedOff = !value;
-			_suppressTherapyLedWrite = false;
+			// Re-sync from the device rather than blind-reverting, so the switch
+			// shows the device's actual state; if even the read fails, hide it.
+			try
+			{
+				_suppressTherapyLedWrite = true;
+				TherapyLedOff = await _gloveControlService.GetTherapyLedOffAsync();
+			}
+			catch
+			{
+				TherapyLedLoaded = false;
+			}
+			finally
+			{
+				_suppressTherapyLedWrite = false;
+			}
 
 			await Shell.Current.DisplayAlert(GetErrorTitle(ex), GetErrorMessage(ex), "OK");
+		}
+		finally
+		{
+			TherapyLedBusy = false;
 		}
 	}
 

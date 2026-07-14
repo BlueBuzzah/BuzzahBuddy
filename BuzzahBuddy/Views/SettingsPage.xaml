@@ -65,23 +65,29 @@
                                 SemanticProperties.Hint="Double tap to navigate to device scanning"
                                 AutomationId="FindDevicesButton" />
 
-                        <!-- Device setting: therapy LED off (THERAPY_LED_OFF) -->
-                        <Grid ColumnDefinitions="*,Auto"
-                              MinimumHeightRequest="48"
-                              IsVisible="{Binding TherapyLedLoaded}">
-                            <Label Grid.Column="0"
-                                   Text="Turn LED Off During Therapy"
-                                   FontSize="16"
-                                   VerticalOptions="Center"
-                                   LineBreakMode="WordWrap"
-                                   SemanticProperties.Description="Turn LED off during therapy toggle" />
-                            <Switch Grid.Column="1"
-                                    IsToggled="{Binding TherapyLedOff}"
-                                    VerticalOptions="Center"
-                                    SemanticProperties.Description="Turn the glove's status light off during therapy sessions to avoid visual distraction"
-                                    SemanticProperties.Hint="Double tap to toggle the therapy LED setting"
-                                    AutomationId="TherapyLedOffSwitch" />
-                        </Grid>
+                        <!-- Device setting: therapy LED off (THERAPY_LED_OFF).
+                             Nested IsVisible bindings AND the two conditions: the row hides
+                             immediately on disconnect (like the buttons above) and also stays
+                             hidden until the setting has been read from the device. -->
+                        <VerticalStackLayout IsVisible="{Binding ConnectionInfo.IsConnected}">
+                            <Grid ColumnDefinitions="*,Auto"
+                                  MinimumHeightRequest="48"
+                                  IsVisible="{Binding TherapyLedLoaded}">
+                                <Label Grid.Column="0"
+                                       Text="Turn LED Off During Therapy"
+                                       FontSize="16"
+                                       VerticalOptions="Center"
+                                       LineBreakMode="WordWrap"
+                                       SemanticProperties.Description="Turn LED off during therapy toggle" />
+                                <Switch Grid.Column="1"
+                                        IsToggled="{Binding TherapyLedOff}"
+                                        IsEnabled="{Binding TherapyLedBusy, Converter={StaticResource InvertedBoolConverter}}"
+                                        VerticalOptions="Center"
+                                        SemanticProperties.Description="Turn the glove's status light off during therapy sessions to avoid visual distraction"
+                                        SemanticProperties.Hint="Double tap to toggle the therapy LED setting"
+                                        AutomationId="TherapyLedOffSwitch" />
+                            </Grid>
+                        </VerticalStackLayout>
 
                         <!-- Instructional text when disconnected -->
                         <Label Text="Connect to a device to access calibration and device settings."

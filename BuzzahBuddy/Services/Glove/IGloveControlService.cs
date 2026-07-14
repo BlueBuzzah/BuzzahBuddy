@@ -115,9 +115,13 @@ public interface IGloveControlService
     /// PROFILE_CUSTOM (chunked to the firmware's 8-pairs-per-command limit).
     /// Changes affect the currently loaded profile and are NOT persisted by the
     /// firmware — they last until the gloves restart or another profile is loaded.
+    /// NOT atomic: the protocol has no transactions, so if a chunk fails after an
+    /// earlier one succeeded, some parameters are already applied on the device.
+    /// Callers should re-read via <see cref="GetCurrentProfileAsync"/> after a failure.
     /// </summary>
     /// <param name="desired">Target parameter values.</param>
-    /// <param name="baseline">Current device values (from <see cref="GetCurrentProfileAsync"/>); null sends every parameter.</param>
+    /// <param name="baseline">Current device values (from <see cref="GetCurrentProfileAsync"/>); null sends every
+    /// parameter. A stale baseline causes changed parameters to be silently skipped — read it fresh.</param>
     /// <exception cref="ArgumentException">If a value is outside the firmware's accepted range.</exception>
     /// <exception cref="BlueBuzzahCommandException">If a session is active or the firmware rejects a parameter.</exception>
     Task ApplyCustomProfileAsync(TherapyProfile desired, TherapyProfile? baseline = null);

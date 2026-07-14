@@ -379,6 +379,7 @@
 
                     <Button Text="Adjust Settings"
                             Command="{Binding NavigateToProfileSettingsCommand}"
+                            IsVisible="{Binding SelectedProfile, Converter={StaticResource IsNotNullConverter}}"
                             IsEnabled="{Binding ConnectionInfo.IsConnected}"
                             HeightRequest="48"
                             FontSize="16"

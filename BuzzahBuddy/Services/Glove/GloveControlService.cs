@@ -328,9 +328,13 @@ public class GloveControlService : IGloveControlService
     public static List<KeyValuePair<string, string>> BuildCustomProfileParameters(
         TherapyProfile desired, TherapyProfile? baseline = null)
     {
-        // Firmware validation ranges (profile_manager.cpp setParameter)
-        var timeOnMs = desired.TimeOn * 1000.0;
-        var timeOffMs = desired.TimeOff * 1000.0;
+        // Firmware validation ranges (profile_manager.cpp setParameter). Round the
+        // ms/percent floats to the 1 decimal the protocol carries ("0.#") before
+        // range-checking, so a seconds value that computes to e.g. 1000.0000000002 ms
+        // isn't spuriously rejected at the ceiling.
+        var timeOnMs = Math.Round(desired.TimeOn * 1000.0, 1);
+        var timeOffMs = Math.Round(desired.TimeOff * 1000.0, 1);
+        var jitter = Math.Round(desired.Jitter, 1);
         if (desired.ActuatorFrequency is < 50 or > 300)
             throw new ArgumentException("Frequency must be 50-300 Hz", nameof(desired));
         if (timeOnMs is < 10 or > 1000)
@@ -341,33 +345,43 @@ public class GloveControlService : IGloveControlService
             throw new ArgumentException("Session duration must be 1-240 minutes", nameof(desired));
         if (desired.AmplitudeMin is < 0 or > 100 || desired.AmplitudeMax is < 0 or > 100)
             throw new ArgumentException("Amplitude must be 0-100%", nameof(desired));
-        if (desired.Jitter is < 0 or > 100)
+        if (desired.AmplitudeMin > desired.AmplitudeMax)
+            throw new ArgumentException("Minimum amplitude cannot exceed maximum amplitude", nameof(desired));
+        if (jitter is < 0 or > 100)
             throw new ArgumentException("Jitter must be 0-100%", nameof(desired));
+        if (desired.PatternType.ToUpperInvariant() is not ("RNDP" or "SEQ" or "SEQUENTIAL" or "MIRRORED"))
+            throw new ArgumentException($"Unknown pattern type '{desired.PatternType}' (expected RNDP, SEQ, or MIRRORED)", nameof(desired));
 
         var desiredParams = ToProtocolParameters(desired);
-        var baselineParams = baseline != null ? ToProtocolParameters(baseline) : null;
+        if (baseline == null)
+        {
+            return desiredParams;
+        }
 
+        var baselineParams = ToProtocolParameters(baseline).ToDictionary(p => p.Key, p => p.Value);
         return desiredParams
-            .Where(p => baselineParams == null ||
-                        !baselineParams.TryGetValue(p.Key, out var old) || old != p.Value)
+            .Where(p => !baselineParams.TryGetValue(p.Key, out var old) || old != p.Value)
             .ToList();
     }
 
-    private static Dictionary<string, string> ToProtocolParameters(TherapyProfile profile)
+    // Ordered list (not Dictionary) so chunk membership across the 8-pair
+    // PROFILE_CUSTOM boundary is deterministic by contract, not by the CLR's
+    // incidental dictionary insertion-order behavior.
+    private static List<KeyValuePair<string, string>> ToProtocolParameters(TherapyProfile profile)
     {
         var inv = System.Globalization.CultureInfo.InvariantCulture;
-        return new Dictionary<string, string>
+        return new List<KeyValuePair<string, string>>
         {
-            ["TYPE"] = profile.ActuatorType.Equals("ERM", StringComparison.OrdinalIgnoreCase) ? "ERM" : "LRA",
-            ["FREQ"] = profile.ActuatorFrequency.ToString(inv),
-            ["ON"] = (profile.TimeOn * 1000.0).ToString("0.#", inv),   // protocol uses ms
-            ["OFF"] = (profile.TimeOff * 1000.0).ToString("0.#", inv), // protocol uses ms
-            ["SESSION"] = profile.TimeSession.ToString(inv),
-            ["AMPMIN"] = profile.AmplitudeMin.ToString(inv),
-            ["AMPMAX"] = profile.AmplitudeMax.ToString(inv),
-            ["PATTERN"] = ToProtocolPattern(profile.PatternType),
-            ["MIRROR"] = profile.Mirror ? "1" : "0",
-            ["JITTER"] = profile.Jitter.ToString("0.#", inv),
+            new("TYPE", profile.ActuatorType.Equals("ERM", StringComparison.OrdinalIgnoreCase) ? "ERM" : "LRA"),
+            new("FREQ", profile.ActuatorFrequency.ToString(inv)),
+            new("ON", (profile.TimeOn * 1000.0).ToString("0.#", inv)),   // protocol uses ms
+            new("OFF", (profile.TimeOff * 1000.0).ToString("0.#", inv)), // protocol uses ms
+            new("SESSION", profile.TimeSession.ToString(inv)),
+            new("AMPMIN", profile.AmplitudeMin.ToString(inv)),
+            new("AMPMAX", profile.AmplitudeMax.ToString(inv)),
+            new("PATTERN", ToProtocolPattern(profile.PatternType)),
+            new("MIRROR", profile.Mirror ? "1" : "0"),
+            new("JITTER", profile.Jitter.ToString("0.#", inv)),
         };
     }
 

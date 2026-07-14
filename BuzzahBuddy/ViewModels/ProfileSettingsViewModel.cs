@@ -23,9 +23,6 @@ public partial class ProfileSettingsViewModel : BaseViewModel
     /// </summary>
     public IConnectionStateService ConnectionInfo { get; }
 
-    /// <summary>Device values as of the last load; used to send only changed parameters.</summary>
-    private TherapyProfile? _baseline;
-
     public IReadOnlyList<string> ActuatorTypeOptions { get; } = new[] { "LRA", "ERM" };
     public IReadOnlyList<string> PatternOptions { get; } = new[] { "Random", "Sequential", "Mirrored" };
 
@@ -80,6 +77,9 @@ public partial class ProfileSettingsViewModel : BaseViewModel
     [RelayCommand]
     private async Task LoadAsync()
     {
+        if (IsBusy)
+            return;
+
         if (!ConnectionInfo.IsConnected)
         {
             IsLoaded = false;
@@ -91,7 +91,6 @@ public partial class ProfileSettingsViewModel : BaseViewModel
         {
             var profile = await _gloveControlService.GetCurrentProfileAsync();
             PopulateFrom(profile);
-            _baseline = profile;
             IsLoaded = true;
         }
         catch (BlueBuzzahCommandException ex)
@@ -115,6 +114,9 @@ public partial class ProfileSettingsViewModel : BaseViewModel
     [RelayCommand]
     private async Task ApplyAsync()
     {
+        if (IsBusy)
+            return;
+
         if (!IsLoaded || !ConnectionInfo.IsConnected)
         {
             await Shell.Current.DisplayAlert(
@@ -139,14 +141,20 @@ public partial class ProfileSettingsViewModel : BaseViewModel
         }
 
         IsBusy = true;
+        var applyStarted = false;
         try
         {
-            await _gloveControlService.ApplyCustomProfileAsync(desired, _baseline);
+            // Read the baseline fresh so the diff isn't computed against stale
+            // values (another profile may have been loaded, or the device
+            // rebooted, while this page was open).
+            var baseline = await _gloveControlService.GetCurrentProfileAsync();
 
-            // Re-read from the device so the form (and baseline) reflect what it accepted.
+            applyStarted = true;
+            await _gloveControlService.ApplyCustomProfileAsync(desired, baseline);
+
+            // Re-read from the device so the form reflects what it accepted.
             var confirmed = await _gloveControlService.GetCurrentProfileAsync();
             PopulateFrom(confirmed);
-            _baseline = confirmed;
 
             await Shell.Current.DisplayAlert(
                 "Settings Applied",
@@ -156,20 +164,44 @@ public partial class ProfileSettingsViewModel : BaseViewModel
         }
         catch (ArgumentException ex)
         {
+            // Validation happens before anything is sent, so no resync is needed.
             await Shell.Current.DisplayAlert("Invalid Value", ex.Message, "OK");
         }
         catch (BlueBuzzahCommandException ex)
         {
             var (title, message) = GetFriendlyError(ex.Message);
-            await Shell.Current.DisplayAlert(title, message, "OK");
+            await Shell.Current.DisplayAlert(title, await AppendResyncNoteAsync(message, applyStarted), "OK");
         }
         catch (Exception ex)
         {
-            await Shell.Current.DisplayAlert(GetErrorTitle(ex), GetErrorMessage(ex), "OK");
+            await Shell.Current.DisplayAlert(
+                GetErrorTitle(ex), await AppendResyncNoteAsync(GetErrorMessage(ex), applyStarted), "OK");
         }
         finally
         {
             IsBusy = false;
+        }
+    }
+
+    /// <summary>
+    /// After a failed apply, some parameters may already be on the device (chunked
+    /// sends aren't atomic). Best-effort re-read so the form shows the gloves'
+    /// actual state, and extend the error message accordingly.
+    /// </summary>
+    private async Task<string> AppendResyncNoteAsync(string message, bool applyStarted)
+    {
+        if (!applyStarted)
+            return message;
+
+        try
+        {
+            var current = await _gloveControlService.GetCurrentProfileAsync();
+            PopulateFrom(current);
+            return message + "\n\nSome changes may have been applied. The form now shows the gloves' current settings.";
+        }
+        catch
+        {
+            return message + "\n\nSome changes may have been applied. Reload from the gloves to see their current settings.";
         }
     }
 

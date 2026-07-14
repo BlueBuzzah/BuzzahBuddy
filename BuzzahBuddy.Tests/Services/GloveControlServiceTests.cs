@@ -128,13 +128,17 @@ public class GloveControlServiceTests
 
         await service.ApplyCustomProfileAsync(MakeProfile(), baseline: null);
 
-        // 10 parameters, firmware max 8 KEY:VAL pairs per command
+        // 10 parameters, firmware max 8 KEY:VAL pairs per command → exactly 8 + 2
         Assert.Equal(2, fake.SentCommands.Count);
-        var combined = string.Join(":", fake.SentCommands);
-        foreach (var key in new[] { "TYPE", "FREQ", "ON", "OFF", "SESSION", "AMPMIN", "AMPMAX", "PATTERN", "MIRROR", "JITTER" })
-        {
-            Assert.Contains($":{key}:", combined);
-        }
+        static string[] Keys(string command) =>
+            command.Split(':').Skip(1).Where((_, i) => i % 2 == 0).ToArray();
+        var firstKeys = Keys(fake.SentCommands[0]);
+        var secondKeys = Keys(fake.SentCommands[1]);
+        Assert.Equal(8, firstKeys.Length);
+        Assert.Equal(2, secondKeys.Length);
+        Assert.Equal(
+            new[] { "TYPE", "FREQ", "ON", "OFF", "SESSION", "AMPMIN", "AMPMAX", "PATTERN", "MIRROR", "JITTER" },
+            firstKeys.Concat(secondKeys));
     }
 
     [Fact]
@@ -157,17 +161,100 @@ public class GloveControlServiceTests
         Assert.Contains("MIRROR:1", command);
     }
 
-    [Fact]
-    public async Task ApplyCustomProfileAsync_OutOfFirmwareRange_ThrowsWithoutSending()
+    // One case per validation branch in BuildCustomProfileParameters
+    // (mirroring firmware profile_manager.cpp setParameter ranges).
+    public static TheoryData<string> InvalidProfileFields => new()
+    {
+        "FreqLow", "FreqHigh", "OnLow", "OnHigh", "OffLow", "OffHigh",
+        "SessionLow", "SessionHigh", "AmpLow", "AmpHigh", "AmpMinAboveMax",
+        "JitterHigh", "UnknownPattern",
+    };
+
+    [Theory]
+    [MemberData(nameof(InvalidProfileFields))]
+    public async Task ApplyCustomProfileAsync_OutOfFirmwareRange_ThrowsWithoutSending(string field)
     {
         var fake = new FakeBluetoothService();
         var service = new GloveControlService(fake);
 
         var desired = MakeProfile();
-        desired.ActuatorFrequency = 400; // firmware setParameter rejects >300
+        switch (field)
+        {
+            case "FreqLow": desired.ActuatorFrequency = 49; break;
+            case "FreqHigh": desired.ActuatorFrequency = 301; break;
+            case "OnLow": desired.TimeOn = 0.009; break;
+            case "OnHigh": desired.TimeOn = 1.001; break;
+            case "OffLow": desired.TimeOff = 0.009; break;
+            case "OffHigh": desired.TimeOff = 1.001; break;
+            case "SessionLow": desired.TimeSession = 0; break;
+            case "SessionHigh": desired.TimeSession = 241; break;
+            case "AmpLow": desired.AmplitudeMin = -1; break;
+            case "AmpHigh": desired.AmplitudeMax = 101; break;
+            case "AmpMinAboveMax": desired.AmplitudeMin = 90; desired.AmplitudeMax = 10; break;
+            case "JitterHigh": desired.Jitter = 101; break;
+            case "UnknownPattern": desired.PatternType = "WAVES"; break;
+        }
 
         await Assert.ThrowsAsync<ArgumentException>(() => service.ApplyCustomProfileAsync(desired));
         Assert.Empty(fake.SentCommands);
+    }
+
+    [Fact]
+    public async Task ApplyCustomProfileAsync_ValueAtCeilingWithFloatError_IsNotRejected()
+    {
+        var fake = new FakeBluetoothService();
+        fake.CannedResponses["PROFILE_CUSTOM"] = "STATUS:CUSTOM_LOADED\n\x04";
+        var service = new GloveControlService(fake);
+
+        var desired = MakeProfile();
+        desired.TimeOn = 1.0; // 1.0 * 1000.0 may compute as 1000.0000000000002
+
+        await service.ApplyCustomProfileAsync(desired, MakeProfile());
+
+        Assert.Contains("ON:1000", Assert.Single(fake.SentCommands));
+    }
+
+    [Fact]
+    public async Task ApplyCustomProfileAsync_ErmTypeAndRounding_MapCorrectly()
+    {
+        var fake = new FakeBluetoothService();
+        fake.CannedResponses["PROFILE_CUSTOM"] = "STATUS:CUSTOM_LOADED\n\x04";
+        var service = new GloveControlService(fake);
+
+        var desired = MakeProfile();
+        desired.ActuatorType = "erm";  // case-insensitive → "ERM"
+        desired.Jitter = 15.36;        // "0.#" format → "15.4"
+
+        await service.ApplyCustomProfileAsync(desired, MakeProfile());
+
+        var command = Assert.Single(fake.SentCommands);
+        Assert.Contains("TYPE:ERM", command);
+        Assert.Contains("JITTER:15.4", command);
+    }
+
+    [Fact]
+    public async Task ApplyCustomProfileAsync_NoChanges_SendsNothing()
+    {
+        var fake = new FakeBluetoothService();
+        var service = new GloveControlService(fake);
+
+        await service.ApplyCustomProfileAsync(MakeProfile(), MakeProfile());
+
+        Assert.Empty(fake.SentCommands);
+    }
+
+    [Fact]
+    public async Task ApplyCustomProfileAsync_SecondChunkFails_ThrowsAfterFirstChunkApplied()
+    {
+        var fake = new FakeBluetoothService();
+        fake.QueuedResponses.Enqueue("STATUS:CUSTOM_LOADED\n\x04");
+        fake.QueuedResponses.Enqueue("ERROR:Invalid parameter: MIRROR\n\x04");
+        var service = new GloveControlService(fake);
+
+        // Full 10-parameter send → 8-pair chunk succeeds, 2-pair chunk errors.
+        await Assert.ThrowsAsync<BlueBuzzahCommandException>(
+            () => service.ApplyCustomProfileAsync(MakeProfile(), baseline: null));
+        Assert.Equal(2, fake.SentCommands.Count);
     }
 
     [Fact]

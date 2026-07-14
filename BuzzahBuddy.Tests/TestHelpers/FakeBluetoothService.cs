@@ -10,6 +10,14 @@ namespace BuzzahBuddy.Tests.TestHelpers;
 public class FakeBluetoothService : IBluetoothService
 {
     public Dictionary<string, string> CannedResponses { get; } = new();
+
+    /// <summary>
+    /// When non-empty, each send dequeues the next response regardless of command,
+    /// taking precedence over <see cref="CannedResponses"/>. Lets a test script
+    /// per-call outcomes (e.g. first chunk succeeds, second fails).
+    /// </summary>
+    public Queue<string> QueuedResponses { get; } = new();
+
     public List<string> SentCommands { get; } = new();
 
     public ConnectionState CurrentConnectionState { get; set; } = ConnectionState.Connected;
@@ -26,6 +34,10 @@ public class FakeBluetoothService : IBluetoothService
     public Task<CommandResponse> SendCommandAsync(string command, int timeoutMs = 5000, CancellationToken cancellationToken = default)
     {
         SentCommands.Add(command);
+        if (QueuedResponses.Count > 0)
+        {
+            return Task.FromResult(CommandResponse.Parse(QueuedResponses.Dequeue()));
+        }
         var key = CannedResponses.Keys.FirstOrDefault(k => command.StartsWith(k, StringComparison.OrdinalIgnoreCase));
         var text = key != null ? CannedResponses[key] : $"ERROR:Unknown command: {command}\n\x04";
         return Task.FromResult(CommandResponse.Parse(text));
