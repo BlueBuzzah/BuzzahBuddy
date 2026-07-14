@@ -40,11 +40,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     private ObservableCollection<ProfileItemViewModel> _availableProfiles = new();
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasSelectedProfile))]
     private TherapyProfile? _selectedProfile;
-
-    /// <summary>True when a profile is selected; shows the Adjust Settings button.</summary>
-    public bool HasSelectedProfile => SelectedProfile != null;
 
     [ObservableProperty]
     private string? _profileStatusMessage;
@@ -305,12 +301,6 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         {
             _suppressTherapyLedWrite = false;
         }
-    }
-
-    [RelayCommand]
-    private async Task NavigateToProfileSettingsAsync()
-    {
-        await Shell.Current.GoToAsync(Routes.ProfileSettings);
     }
 
     [RelayCommand]

@@ -119,23 +119,6 @@
                         </BindableLayout.ItemTemplate>
                     </VerticalStackLayout>
 
-                    <Button Text="Adjust Settings"
-                            Command="{Binding Settings.NavigateToProfileSettingsCommand}"
-                            IsVisible="{Binding Settings.HasSelectedProfile}"
-                            HeightRequest="48"
-                            FontSize="16"
-                            CornerRadius="8"
-                            Margin="0,8,0,0"
-                            SemanticProperties.Description="View and adjust the current profile's timing, amplitude, and pattern settings"
-                            SemanticProperties.Hint="Double tap to open profile settings"
-                            AutomationId="AdjustProfileSettingsButton">
-                        <Button.IsEnabled>
-                            <MultiBinding Converter="{StaticResource AllTrueConverter}">
-                                <Binding Path="ConnectionInfo.IsConnected" />
-                                <Binding Path="Settings.IsSessionInactive" />
-                            </MultiBinding>
-                        </Button.IsEnabled>
-                    </Button>
                 </VerticalStackLayout>
 
                 <!-- Device Options -->
