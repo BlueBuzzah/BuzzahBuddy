@@ -80,6 +80,18 @@
         <Setter Property="CornerRadius" Value="8" />
     </Style>
 
+    <!-- Finger test buttons on CalibrationPage: large tremor-friendly targets.
+         MinimumHeightRequest (not HeightRequest) so 200% text scaling grows instead of clipping. -->
+    <Style x:Key="FingerTestButton" TargetType="Button">
+        <Setter Property="TextColor" Value="{StaticResource PrimaryDarkText}" />
+        <Setter Property="MinimumHeightRequest" Value="64" />
+        <Setter Property="WidthRequest" Value="150" />
+        <Setter Property="Margin" Value="5" />
+        <Setter Property="FontSize" Value="18" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="CornerRadius" Value="12" />
+    </Style>
+
     <Style TargetType="CheckBox">
         <Setter Property="Color" Value="{StaticResource Primary}" />
         <Setter Property="MinimumHeightRequest" Value="44"/>

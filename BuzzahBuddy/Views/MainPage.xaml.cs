@@ -1,6 +1,6 @@
 using BuzzahBuddy.ViewModels;
 
-namespace BuzzahBuddy;
+namespace BuzzahBuddy.Views;
 
 public partial class MainPage : ContentPage
 {
@@ -11,9 +11,6 @@ public partial class MainPage : ContentPage
         InitializeComponent();
         _viewModel = viewModel;
         BindingContext = viewModel;
-
-        // Subscribe to Unloaded event for cleanup
-        Unloaded += OnPageUnloaded;
     }
 
     protected override void OnAppearing()
@@ -23,9 +20,4 @@ public partial class MainPage : ContentPage
         _viewModel.RefreshConnectionState();
     }
 
-    private void OnPageUnloaded(object? sender, EventArgs e)
-    {
-        // Dispose ViewModel to unsubscribe from events
-        _viewModel.Dispose();
-    }
 }

@@ -3,7 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:BuzzahBuddy.ViewModels"
              xmlns:models="clr-namespace:BuzzahBuddy.Models"
-             x:Class="BuzzahBuddy.MainPage"
+             x:Class="BuzzahBuddy.Views.MainPage"
              x:DataType="vm:MainPageViewModel"
              Title="{Binding Title}">
 
@@ -187,7 +187,7 @@
                                SemanticProperties.HeadingLevel="Level3" />
 
                         <!-- Progress Bar -->
-                        <ProgressBar Progress="{Binding SessionProgressDecimal}"
+                        <ProgressBar Progress="{Binding SessionStatus.ProgressFraction}"
                                      HeightRequest="12"
                                      ProgressColor="{StaticResource Primary}"
                                      SemanticProperties.Description="Therapy session progress"
@@ -272,8 +272,7 @@
                                IsVisible="{Binding ConnectionInfo.IsConnected, Converter={StaticResource InvertedBoolConverter}}"
                                Style="{StaticResource BodyText}"
                                TextColor="{StaticResource TextMuted}"
-                               HorizontalTextAlignment="Center"
-                               SemanticProperties.Description="Connect to view battery status" />
+                               HorizontalTextAlignment="Center" />
 
                         <!-- Battery Status -->
                         <HorizontalStackLayout HorizontalOptions="Center"
@@ -343,9 +342,7 @@
                 <!-- Secondary CTA (Stop Session / Change Profile) -->
                 <Button Text="{Binding SecondaryCTAText}"
                         Command="{Binding ExecuteSecondaryCTACommand}"
-                        HeightRequest="56"
-                        FontSize="18"
-                        CornerRadius="12"
+                        Style="{StaticResource SecondaryButton}"
                         IsVisible="{Binding HasSecondaryCTA}"
                         BackgroundColor="{Binding SecondaryCTABackgroundColor}"
                         TextColor="{Binding SecondaryCTATextColor}"

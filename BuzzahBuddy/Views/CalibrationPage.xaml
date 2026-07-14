@@ -34,8 +34,7 @@
                            Style="{StaticResource BodyText}"
                            TextColor="{StaticResource TextMuted}"
                            LineBreakMode="WordWrap"
-                           VerticalOptions="Center"
-                           SemanticProperties.Description="Connect to a BlueBuzzah device to begin calibration" />
+                           VerticalOptions="Center" />
                 </HorizontalStackLayout>
             </Border>
 
@@ -100,7 +99,8 @@
                 <VerticalStackLayout Spacing="20">
                     <!-- Step Title & Description -->
                     <VerticalStackLayout Spacing="8">
-                        <Label Text="{Binding StepTitle}"
+                        <Label x:Name="StepTitleLabel"
+                               Text="{Binding StepTitle}"
                                Style="{StaticResource Heading2}"
                                HorizontalOptions="Center"
                                SemanticProperties.HeadingLevel="Level2" />
@@ -112,7 +112,7 @@
                     </VerticalStackLayout>
 
                     <!-- Step 1: Intensity Selection (Stepped Buttons) -->
-                    <VerticalStackLayout Spacing="12" IsVisible="{Binding CurrentStep, Converter={StaticResource EqualConverter}, ConverterParameter=1}">
+                    <VerticalStackLayout Spacing="12" IsVisible="{Binding IsStep1}">
                         <Label Text="Select Intensity Level"
                                Style="{StaticResource Heading3}"
                                HorizontalOptions="Center"
@@ -129,10 +129,7 @@
                                     SemanticProperties.Description="Set intensity to 20 percent, gentle"
                                     AutomationId="Intensity20Button">
                                 <Button.IsEnabled>
-                                    <MultiBinding Converter="{StaticResource AllTrueConverter}">
-                                        <Binding Path="ConnectionInfo.IsConnected" />
-                                        <Binding Path="IsInCalibrationMode" />
-                                    </MultiBinding>
+                                    <Binding Path="CanCalibrate" />
                                 </Button.IsEnabled>
                             </Button>
 
@@ -146,10 +143,7 @@
                                     SemanticProperties.Description="Set intensity to 40 percent, light"
                                     AutomationId="Intensity40Button">
                                 <Button.IsEnabled>
-                                    <MultiBinding Converter="{StaticResource AllTrueConverter}">
-                                        <Binding Path="ConnectionInfo.IsConnected" />
-                                        <Binding Path="IsInCalibrationMode" />
-                                    </MultiBinding>
+                                    <Binding Path="CanCalibrate" />
                                 </Button.IsEnabled>
                             </Button>
 
@@ -163,10 +157,7 @@
                                     SemanticProperties.Description="Set intensity to 60 percent, moderate"
                                     AutomationId="Intensity60Button">
                                 <Button.IsEnabled>
-                                    <MultiBinding Converter="{StaticResource AllTrueConverter}">
-                                        <Binding Path="ConnectionInfo.IsConnected" />
-                                        <Binding Path="IsInCalibrationMode" />
-                                    </MultiBinding>
+                                    <Binding Path="CanCalibrate" />
                                 </Button.IsEnabled>
                             </Button>
 
@@ -180,10 +171,7 @@
                                     SemanticProperties.Description="Set intensity to 80 percent, strong"
                                     AutomationId="Intensity80Button">
                                 <Button.IsEnabled>
-                                    <MultiBinding Converter="{StaticResource AllTrueConverter}">
-                                        <Binding Path="ConnectionInfo.IsConnected" />
-                                        <Binding Path="IsInCalibrationMode" />
-                                    </MultiBinding>
+                                    <Binding Path="CanCalibrate" />
                                 </Button.IsEnabled>
                             </Button>
 
@@ -197,10 +185,7 @@
                                     SemanticProperties.Description="Set intensity to 100 percent, maximum"
                                     AutomationId="Intensity100Button">
                                 <Button.IsEnabled>
-                                    <MultiBinding Converter="{StaticResource AllTrueConverter}">
-                                        <Binding Path="ConnectionInfo.IsConnected" />
-                                        <Binding Path="IsInCalibrationMode" />
-                                    </MultiBinding>
+                                    <Binding Path="CanCalibrate" />
                                 </Button.IsEnabled>
                             </Button>
                         </Grid>
@@ -213,7 +198,7 @@
                     </VerticalStackLayout>
 
                     <!-- Step 2: Duration Selection (Stepped Buttons) -->
-                    <VerticalStackLayout Spacing="12" IsVisible="{Binding CurrentStep, Converter={StaticResource EqualConverter}, ConverterParameter=2}">
+                    <VerticalStackLayout Spacing="12" IsVisible="{Binding IsStep2}">
                         <Label Text="Select Pulse Duration"
                                Style="{StaticResource Heading3}"
                                HorizontalOptions="Center"
@@ -230,10 +215,7 @@
                                     SemanticProperties.Description="Set duration to 100 milliseconds, very brief"
                                     AutomationId="Duration100Button">
                                 <Button.IsEnabled>
-                                    <MultiBinding Converter="{StaticResource AllTrueConverter}">
-                                        <Binding Path="ConnectionInfo.IsConnected" />
-                                        <Binding Path="IsInCalibrationMode" />
-                                    </MultiBinding>
+                                    <Binding Path="CanCalibrate" />
                                 </Button.IsEnabled>
                             </Button>
 
@@ -247,10 +229,7 @@
                                     SemanticProperties.Description="Set duration to 500 milliseconds, brief"
                                     AutomationId="Duration500Button">
                                 <Button.IsEnabled>
-                                    <MultiBinding Converter="{StaticResource AllTrueConverter}">
-                                        <Binding Path="ConnectionInfo.IsConnected" />
-                                        <Binding Path="IsInCalibrationMode" />
-                                    </MultiBinding>
+                                    <Binding Path="CanCalibrate" />
                                 </Button.IsEnabled>
                             </Button>
 
@@ -264,10 +243,7 @@
                                     SemanticProperties.Description="Set duration to 1000 milliseconds, 1 second"
                                     AutomationId="Duration1000Button">
                                 <Button.IsEnabled>
-                                    <MultiBinding Converter="{StaticResource AllTrueConverter}">
-                                        <Binding Path="ConnectionInfo.IsConnected" />
-                                        <Binding Path="IsInCalibrationMode" />
-                                    </MultiBinding>
+                                    <Binding Path="CanCalibrate" />
                                 </Button.IsEnabled>
                             </Button>
 
@@ -281,10 +257,7 @@
                                     SemanticProperties.Description="Set duration to 2000 milliseconds, 2 seconds"
                                     AutomationId="Duration2000Button">
                                 <Button.IsEnabled>
-                                    <MultiBinding Converter="{StaticResource AllTrueConverter}">
-                                        <Binding Path="ConnectionInfo.IsConnected" />
-                                        <Binding Path="IsInCalibrationMode" />
-                                    </MultiBinding>
+                                    <Binding Path="CanCalibrate" />
                                 </Button.IsEnabled>
                             </Button>
                         </Grid>
@@ -297,7 +270,7 @@
                     </VerticalStackLayout>
 
                     <!-- Step 3: Test Fingers -->
-                    <VerticalStackLayout Spacing="15" IsVisible="{Binding CurrentStep, Converter={StaticResource EqualConverter}, ConverterParameter=3}">
+                    <VerticalStackLayout Spacing="15" IsVisible="{Binding IsStep3}">
                         <!-- Selected Finger Display -->
                         <Border Padding="10"
                                 BackgroundColor="{StaticResource Primary}"
@@ -311,7 +284,7 @@
                             <Label Text="{Binding SelectedFingerName, StringFormat='Testing: {0}'}"
                                    FontSize="16"
                                    FontAttributes="Bold"
-                                   TextColor="White"
+                                   TextColor="{StaticResource PrimaryDarkText}"
                                    HorizontalOptions="Center"
                                    AutomationProperties.IsInAccessibleTree="False" />
                         </Border>
@@ -328,25 +301,16 @@
                                         BindableLayout.ItemsSource="{Binding PrimaryFingers}">
                                 <BindableLayout.ItemTemplate>
                                     <DataTemplate x:DataType="vm:FingerButtonItem">
-                                        <Button Text="{Binding Label}"
+                                        <Button Text="{Binding DisplayLabel}"
                                                 Command="{Binding BindingContext.BuzzFingerCommand, Source={x:Reference CalibrationPageRoot}}"
                                                 CommandParameter="{Binding Index}"
-                                                HeightRequest="64"
-                                                WidthRequest="150"
-                                                Margin="5"
-                                                FontSize="18"
-                                                FontAttributes="Bold"
-                                                CornerRadius="12"
+                                                Style="{StaticResource FingerTestButton}"
                                                 BackgroundColor="{StaticResource Primary}"
-                                                TextColor="{StaticResource PrimaryDarkText}"
                                                 SemanticProperties.Description="{Binding Label, StringFormat='Primary glove {0}'}"
                                                 SemanticProperties.Hint="Tests this finger's motor"
                                                 AutomationId="{Binding AutomationId}">
                                             <Button.IsEnabled>
-                                                <MultiBinding Converter="{StaticResource AllTrueConverter}">
-                                                    <Binding Path="BindingContext.ConnectionInfo.IsConnected" Source="{x:Reference CalibrationPageRoot}" />
-                                                    <Binding Path="BindingContext.IsInCalibrationMode" Source="{x:Reference CalibrationPageRoot}" />
-                                                </MultiBinding>
+                                                <Binding Path="BindingContext.CanBuzzFingers" Source="{x:Reference CalibrationPageRoot}" x:DataType="{x:Null}" />
                                             </Button.IsEnabled>
                                         </Button>
                                     </DataTemplate>
@@ -366,24 +330,17 @@
                                         BindableLayout.ItemsSource="{Binding SecondaryFingers}">
                                 <BindableLayout.ItemTemplate>
                                     <DataTemplate x:DataType="vm:FingerButtonItem">
-                                        <Button Text="{Binding Label}"
+                                        <Button Text="{Binding DisplayLabel}"
                                                 Command="{Binding BindingContext.BuzzFingerCommand, Source={x:Reference CalibrationPageRoot}}"
                                                 CommandParameter="{Binding Index}"
-                                                HeightRequest="64"
-                                                WidthRequest="150"
-                                                Margin="5"
-                                                FontSize="18"
-                                                FontAttributes="Bold"
-                                                CornerRadius="12"
+                                                Style="{StaticResource FingerTestButton}"
                                                 BackgroundColor="{StaticResource Secondary}"
+                                                TextColor="{StaticResource TextPrimary}"
                                                 SemanticProperties.Description="{Binding Label, StringFormat='Secondary glove {0}'}"
                                                 SemanticProperties.Hint="Tests this finger's motor"
                                                 AutomationId="{Binding AutomationId}">
                                             <Button.IsEnabled>
-                                                <MultiBinding Converter="{StaticResource AllTrueConverter}">
-                                                    <Binding Path="BindingContext.ConnectionInfo.IsConnected" Source="{x:Reference CalibrationPageRoot}" />
-                                                    <Binding Path="BindingContext.IsInCalibrationMode" Source="{x:Reference CalibrationPageRoot}" />
-                                                </MultiBinding>
+                                                <Binding Path="BindingContext.CanBuzzFingers" Source="{x:Reference CalibrationPageRoot}" x:DataType="{x:Null}" />
                                             </Button.IsEnabled>
                                         </Button>
                                     </DataTemplate>
@@ -397,7 +354,7 @@
                         <Button Grid.Column="0"
                                 Text="← Previous"
                                 Command="{Binding PreviousStepCommand}"
-                                IsEnabled="{Binding CurrentStep, Converter={StaticResource GreaterThanConverter}, ConverterParameter=1}"
+                                IsEnabled="{Binding CanGoPrevious}"
                                 Style="{StaticResource TertiaryButton}"
                                 BackgroundColor="{StaticResource Secondary}"
                                 SemanticProperties.Description="Go to previous calibration step"
@@ -407,7 +364,7 @@
                         <Button Grid.Column="1"
                                 Text="Next →"
                                 Command="{Binding NextStepCommand}"
-                                IsEnabled="{Binding CurrentStep, Converter={StaticResource LessThanConverter}, ConverterParameter=3}"
+                                IsEnabled="{Binding CanGoNext}"
                                 Style="{StaticResource TertiaryButton}"
                                 BackgroundColor="{StaticResource Primary}"
                                 SemanticProperties.Description="Go to next calibration step"
@@ -438,8 +395,7 @@
 
                 <Label Style="{StaticResource SecondaryText}"
                        LineBreakMode="WordWrap"
-                       Text="Follow the guided steps to calibrate your gloves: (1) Select intensity, (2) Select duration, (3) Test each finger motor. Or skip to use safe defaults."
-                       SemanticProperties.Description="Calibration instructions" />
+                       Text="Follow the guided steps to calibrate your gloves: (1) Select intensity, (2) Select duration, (3) Test each finger motor. Or skip to use safe defaults." />
             </Border>
 
         </VerticalStackLayout>

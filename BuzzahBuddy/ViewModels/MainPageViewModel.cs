@@ -1,5 +1,6 @@
 using BuzzahBuddy.Helpers;
 using BuzzahBuddy.Models;
+using BuzzahBuddy.Services.AppLifecycle;
 using BuzzahBuddy.Services.Bluetooth;
 using BuzzahBuddy.Services.ConnectionStateManagement;
 using BuzzahBuddy.Services.Glove;
@@ -26,20 +27,38 @@ public partial class MainPageViewModel : BaseViewModel
     #region Observable Properties
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PrimaryCTAText))]
+    [NotifyPropertyChangedFor(nameof(PrimaryCTADescription))]
+    [NotifyPropertyChangedFor(nameof(IsPrimaryCTAEnabled))]
+    [NotifyPropertyChangedFor(nameof(IsConnecting))]
+    [NotifyPropertyChangedFor(nameof(SecondaryCTAText))]
+    [NotifyPropertyChangedFor(nameof(HasSecondaryCTA))]
+    [NotifyPropertyChangedFor(nameof(SecondaryCTABackgroundColor))]
+    [NotifyPropertyChangedFor(nameof(SecondaryCTATextColor))]
+    [NotifyPropertyChangedFor(nameof(ShowSessionProgress))]
+    [NotifyPropertyChangedFor(nameof(ShowBatteryStatus))]
+    [NotifyPropertyChangedFor(nameof(ShowSelectedProfile))]
+    [NotifyPropertyChangedFor(nameof(StatusMessage))]
     private DashboardState _dashboardState = DashboardState.Disconnected;
 
     // Battery status (simplified - percentage only)
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(BatteryPrimaryColor))]
+    [NotifyPropertyChangedFor(nameof(BatteryStatusDescription))]
     private int _batteryPrimaryPercentage;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(BatterySecondaryColor))]
+    [NotifyPropertyChangedFor(nameof(BatteryStatusDescription))]
     private int _batterySecondaryPercentage;
 
     // Session status
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RemainingTimeText))]
     private SessionStatus _sessionStatus = SessionStatus.CreateIdle();
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowSelectedProfile))]
     private string? _selectedProfileName;
 
     #endregion
@@ -148,11 +167,6 @@ public partial class MainPageViewModel : BaseViewModel
     };
 
     /// <summary>
-    /// Session progress as a decimal (0.0 - 1.0) for ProgressBar.
-    /// </summary>
-    public double SessionProgressDecimal => SessionStatus.Progress / 100.0;
-
-    /// <summary>
     /// Formatted remaining time for display.
     /// </summary>
     public string RemainingTimeText => $"{SessionStatus.RemainingTimeFormatted} remaining";
@@ -175,11 +189,14 @@ public partial class MainPageViewModel : BaseViewModel
 
     #endregion
 
+    private readonly IAppLifecycleService _appLifecycle;
+
     public MainPageViewModel(
         IBluetoothService bluetoothService,
         IGloveControlService gloveControlService,
         IReconnectionService reconnectionService,
-        IConnectionStateService connectionStateService)
+        IConnectionStateService connectionStateService,
+        IAppLifecycleService appLifecycleService)
     {
         _bluetoothService = bluetoothService;
         _gloveControlService = gloveControlService;
@@ -192,6 +209,10 @@ public partial class MainPageViewModel : BaseViewModel
         _bluetoothService.ConnectionStateChanged += OnConnectionStateChanged;
         _gloveControlService.SessionStateChanged += OnSessionStateChanged;
         ConnectionInfo.PropertyChanged += OnConnectionInfoPropertyChanged;
+
+        // Refresh the dashboard when the app returns to the foreground
+        _appLifecycle = appLifecycleService;
+        _appLifecycle.Resumed += OnAppResumed;
 
         System.Diagnostics.Debug.WriteLine("[MAINPAGE] ViewModel created, subscribed to events");
 
@@ -208,12 +229,12 @@ public partial class MainPageViewModel : BaseViewModel
         {
             case DashboardState.Disconnected:
             case DashboardState.Error:
-                await Shell.Current.GoToAsync("//devices");
+                await Shell.Current.GoToAsync(Routes.Devices);
                 break;
 
             case DashboardState.Idle:
                 // Navigate to control page to start session
-                await Shell.Current.GoToAsync("//control");
+                await Shell.Current.GoToAsync(Routes.Control);
                 break;
 
             case DashboardState.SessionActive:
@@ -233,7 +254,7 @@ public partial class MainPageViewModel : BaseViewModel
         {
             case DashboardState.Idle:
                 // Navigate to control page to change profile
-                await Shell.Current.GoToAsync("//control");
+                await Shell.Current.GoToAsync(Routes.Control);
                 break;
 
             case DashboardState.SessionActive:
@@ -246,7 +267,7 @@ public partial class MainPageViewModel : BaseViewModel
     [RelayCommand]
     private async Task NavigateToDevicesAsync()
     {
-        await Shell.Current.GoToAsync("//devices");
+        await Shell.Current.GoToAsync(Routes.Devices);
     }
 
     [RelayCommand]
@@ -387,8 +408,6 @@ public partial class MainPageViewModel : BaseViewModel
             };
         }
 
-        // Notify all computed properties
-        NotifyComputedPropertiesChanged();
     }
 
     private async Task RefreshBatteryAsync()
@@ -398,38 +417,12 @@ public partial class MainPageViewModel : BaseViewModel
             var (primaryVoltage, secondaryVoltage) = await _gloveControlService.GetBatteryAsync();
             BatteryPrimaryPercentage = BatteryHelper.VoltageToPercentage(primaryVoltage);
             BatterySecondaryPercentage = BatteryHelper.VoltageToPercentage(secondaryVoltage);
-
-            OnPropertyChanged(nameof(BatteryPrimaryColor));
-            OnPropertyChanged(nameof(BatterySecondaryColor));
-            OnPropertyChanged(nameof(BatteryStatusDescription));
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[MAINPAGE] Battery fetch error: {ex.Message}");
         }
     }
-
-    private void NotifyComputedPropertiesChanged()
-    {
-        OnPropertyChanged(nameof(PrimaryCTAText));
-        OnPropertyChanged(nameof(PrimaryCTADescription));
-        OnPropertyChanged(nameof(IsPrimaryCTAEnabled));
-        OnPropertyChanged(nameof(IsConnecting));
-        OnPropertyChanged(nameof(SecondaryCTAText));
-        OnPropertyChanged(nameof(HasSecondaryCTA));
-        OnPropertyChanged(nameof(SecondaryCTABackgroundColor));
-        OnPropertyChanged(nameof(SecondaryCTATextColor));
-        OnPropertyChanged(nameof(ShowSessionProgress));
-        OnPropertyChanged(nameof(ShowBatteryStatus));
-        OnPropertyChanged(nameof(ShowSelectedProfile));
-        OnPropertyChanged(nameof(StatusMessage));
-        OnPropertyChanged(nameof(SessionProgressDecimal));
-        OnPropertyChanged(nameof(RemainingTimeText));
-        OnPropertyChanged(nameof(BatteryPrimaryColor));
-        OnPropertyChanged(nameof(BatterySecondaryColor));
-        OnPropertyChanged(nameof(BatteryStatusDescription));
-    }
-
     #endregion
 
     #region Event Handlers
@@ -493,8 +486,6 @@ public partial class MainPageViewModel : BaseViewModel
                 };
             }
 
-            NotifyComputedPropertiesChanged();
-
             var announcement = status.Status switch
             {
                 SessionState.RUNNING => "Therapy session started",
@@ -514,6 +505,11 @@ public partial class MainPageViewModel : BaseViewModel
     /// <summary>
     /// Unsubscribes from service events to prevent memory leaks.
     /// </summary>
+    private void OnAppResumed(object? sender, EventArgs e)
+    {
+        MainThread.BeginInvokeOnMainThread(() => RefreshConnectionState());
+    }
+
     protected override void Dispose(bool disposing)
     {
         if (disposing)
@@ -521,6 +517,7 @@ public partial class MainPageViewModel : BaseViewModel
             _bluetoothService.ConnectionStateChanged -= OnConnectionStateChanged;
             _gloveControlService.SessionStateChanged -= OnSessionStateChanged;
             ConnectionInfo.PropertyChanged -= OnConnectionInfoPropertyChanged;
+            _appLifecycle.Resumed -= OnAppResumed;
             System.Diagnostics.Debug.WriteLine("[MAINPAGE] ViewModel disposed, unsubscribed from events");
         }
         base.Dispose(disposing);

@@ -41,11 +41,9 @@
 
                 <Button Text="Disconnect Device"
                         Command="{Binding DisconnectCommand}"
-                        HeightRequest="56"
-                        FontSize="18"
-                        CornerRadius="12"
-                        BackgroundColor="{StaticResource PastelDangerDark}"
-                        TextColor="{StaticResource DangerDark}"
+                        Style="{StaticResource SecondaryButton}"
+                        BackgroundColor="{StaticResource DangerButton}"
+                        TextColor="{StaticResource DangerButtonText}"
                         SemanticProperties.Hint="Disconnect from current device"
                         SemanticProperties.Description="Tap to disconnect from the connected device"
                         AutomationId="DisconnectButton" />
@@ -54,7 +52,7 @@
 
         <!-- Device Scanning View - Show when NOT connected -->
         <Grid Grid.Row="0"
-              RowDefinitions="Auto,Auto,*,Auto"
+              RowDefinitions="Auto,*,Auto,Auto"
               IsVisible="{Binding ConnectionInfo.IsConnected, Converter={StaticResource InvertedBoolConverter}}">
 
             <!-- TOP ZONE: Header Info (Read-Only) -->
@@ -67,174 +65,165 @@
                        FontSize="16"
                        TextColor="{StaticResource Danger}"
                        IsVisible="{Binding BluetoothEnabled, Converter={StaticResource InvertedBoolConverter}}"
-                       LineBreakMode="WordWrap"
-                       SemanticProperties.Description="Bluetooth disabled warning" />
+                       LineBreakMode="WordWrap" />
             </VerticalStackLayout>
 
-            <!-- Device List (Scrollable content) -->
-            <Grid Grid.Row="1" Grid.RowSpan="2">
-                <!-- State 1: Ready to Scan (Before first scan starts) -->
-                <VerticalStackLayout Spacing="16"
-                                    Padding="20"
-                                    VerticalOptions="Center">
-                    <VerticalStackLayout.IsVisible>
-                        <MultiBinding Converter="{StaticResource AllTrueConverter}">
-                            <Binding Path="HasCompletedScan" Converter="{StaticResource InvertedBoolConverter}" />
-                            <Binding Path="IsScanning" Converter="{StaticResource InvertedBoolConverter}" />
-                        </MultiBinding>
-                    </VerticalStackLayout.IsVisible>
-
-                    <!-- Icon -->
-                    <Label Text="📱"
-                           FontSize="64"
-                           HorizontalOptions="Center"
-                           AutomationProperties.IsInAccessibleTree="False" />
-
-                    <!-- Heading -->
-                    <Label Text="Ready to Connect"
-                           Style="{StaticResource Heading2}"
-                           HorizontalTextAlignment="Center"
-                           SemanticProperties.HeadingLevel="Level2" />
-
-                    <!-- Explanation -->
-                    <Label Text="Power on your BlueBuzzah gloves and tap 'Scan for Devices' below to begin searching."
-                           Style="{StaticResource BodyText}"
-                           HorizontalTextAlignment="Center"
-                           LineBreakMode="WordWrap" />
-                </VerticalStackLayout>
-
-                <!-- State 2: Scanning for Devices (While actively scanning) -->
-                <VerticalStackLayout Spacing="20"
-                                    Padding="20"
-                                    VerticalOptions="Center"
-                                    IsVisible="{Binding IsScanning}">
-                    <!-- Spinner -->
-                    <ActivityIndicator IsRunning="{Binding IsScanning}"
-                                       HeightRequest="64"
-                                       WidthRequest="64"
-                                       Color="{StaticResource Primary}"
-                                       HorizontalOptions="Center"
-                                       SemanticProperties.Description="Scanning for nearby Bluetooth devices" />
-
-                    <!-- Heading -->
-                    <Label Text="Scanning for Devices..."
-                           Style="{StaticResource Heading2}"
-                           HorizontalTextAlignment="Center"
-                           SemanticProperties.HeadingLevel="Level2" />
-
-                    <!-- Explanation -->
-                    <Label Text="Looking for nearby BlueBuzzah gloves. This may take a few moments."
-                           Style="{StaticResource BodyText}"
-                           HorizontalTextAlignment="Center"
-                           LineBreakMode="WordWrap"
-                           TextColor="{StaticResource TextMuted}" />
-                </VerticalStackLayout>
-
-                <!-- Empty State: No Devices Found (After scan completes with no results) -->
-                <VerticalStackLayout Spacing="16"
-                                    Padding="20"
-                                    VerticalOptions="Center">
-                    <VerticalStackLayout.IsVisible>
-                        <MultiBinding Converter="{StaticResource AllTrueConverter}">
-                            <Binding Path="HasCompletedScan" />
-                            <Binding Path="IsScanning" Converter="{StaticResource InvertedBoolConverter}" />
-                            <Binding Path="AvailableDevices.Count" Converter="{StaticResource IsZeroConverter}" />
-                        </MultiBinding>
-                    </VerticalStackLayout.IsVisible>
-
-                    <!-- Icon -->
-                    <Label Text="🔍"
-                           FontSize="64"
-                           HorizontalOptions="Center"
-                           AutomationProperties.IsInAccessibleTree="False" />
-
-                    <!-- Heading -->
-                    <Label Text="No Devices Found"
-                           Style="{StaticResource Heading2}"
-                           HorizontalTextAlignment="Center"
-                           SemanticProperties.HeadingLevel="Level2" />
-
-                    <!-- Explanation -->
-                    <Label Text="No BlueBuzzah gloves were detected. Please check the following and try scanning again."
-                           Style="{StaticResource BodyText}"
-                           HorizontalTextAlignment="Center"
-                           LineBreakMode="WordWrap" />
-
-                    <!-- Troubleshooting Tips -->
-                    <Border Padding="12"
-                            BackgroundColor="{StaticResource CardBackground}"
-                            StrokeThickness="0"
-                            Margin="0,8,0,0">
-                        <Border.StrokeShape>
-                            <RoundRectangle CornerRadius="8" />
-                        </Border.StrokeShape>
-                        <VerticalStackLayout Spacing="8">
-                            <Label Text="Troubleshooting:"
-                                   FontSize="14"
-                                   FontAttributes="Bold" />
-                            <Label Text="• Ensure Bluetooth is enabled on your device"
-                                   Style="{StaticResource SecondaryText}" />
-                            <Label Text="• Check that gloves are charged and powered on"
-                                   Style="{StaticResource SecondaryText}" />
-                            <Label Text="• Move closer to the gloves (within 30 feet)"
-                                   Style="{StaticResource SecondaryText}" />
-                        </VerticalStackLayout>
-                    </Border>
-                </VerticalStackLayout>
-
-                <!-- Scan Status Message -->
-                <Label Text="{Binding ScanStatusMessage}"
-                       IsVisible="{Binding ScanStatusMessage, Converter={StaticResource IsNotNullConverter}}"
-                       TextColor="{StaticResource TextMuted}"
-                       FontSize="14"
-                       HorizontalTextAlignment="Center"
-                       Margin="20"
-                       SemanticProperties.Description="{Binding ScanStatusMessage}"
-                       AutomationId="ScanStatusLabel" />
-
-                <!-- Device List -->
+            <!-- Device List with pull-to-refresh; EmptyView carries the ready/scanning/no-results states -->
+            <RefreshView Grid.Row="1"
+                         IsRefreshing="{Binding IsRefreshing}"
+                         Command="{Binding RefreshDevicesCommand}"
+                         RefreshColor="{StaticResource Primary}">
                 <CollectionView ItemsSource="{Binding AvailableDevices}"
                                 SelectionMode="None"
                                 ItemSizingStrategy="MeasureFirstItem">
-            <CollectionView.ItemTemplate>
-                <DataTemplate x:DataType="models:GloveDevice">
-                    <Border Padding="15"
-                            Margin="0,0,0,10"
-                            BackgroundColor="{StaticResource CardBackground}"
-                            StrokeThickness="0">
-                        <Border.StrokeShape>
-                            <RoundRectangle CornerRadius="12" />
-                        </Border.StrokeShape>
+                    <CollectionView.EmptyView>
+                        <Grid>
+                            <!-- State 1: Ready to Scan (before first scan) -->
+                            <VerticalStackLayout Spacing="16"
+                                                 Padding="20"
+                                                 VerticalOptions="Center"
+                                                 IsVisible="{Binding ShowReadyState}">
+                                <Label Text="📱"
+                                       FontSize="64"
+                                       HorizontalOptions="Center"
+                                       AutomationProperties.IsInAccessibleTree="False" />
+                                <Label Text="Ready to Connect"
+                                       Style="{StaticResource Heading2}"
+                                       HorizontalTextAlignment="Center"
+                                       SemanticProperties.HeadingLevel="Level2" />
+                                <Label Text="Power on your BlueBuzzah gloves and tap 'Scan for Devices' below to begin searching."
+                                       Style="{StaticResource BodyText}"
+                                       HorizontalTextAlignment="Center"
+                                       LineBreakMode="WordWrap" />
+                            </VerticalStackLayout>
 
-                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
-                            <Label Grid.Row="0" Grid.Column="0"
-                                   Text="{Binding Name}"
-                                   FontSize="18"
-                                   FontAttributes="Bold" />
+                            <!-- State 2: Scanning -->
+                            <VerticalStackLayout Spacing="20"
+                                                 Padding="20"
+                                                 VerticalOptions="Center"
+                                                 IsVisible="{Binding IsScanning}">
+                                <ActivityIndicator IsRunning="{Binding IsScanning}"
+                                                   HeightRequest="64"
+                                                   WidthRequest="64"
+                                                   Color="{StaticResource Primary}"
+                                                   HorizontalOptions="Center"
+                                                   SemanticProperties.Description="Scanning for nearby Bluetooth devices" />
+                                <Label Text="Scanning for Devices..."
+                                       Style="{StaticResource Heading2}"
+                                       HorizontalTextAlignment="Center"
+                                       SemanticProperties.HeadingLevel="Level2" />
+                                <Label Text="Looking for nearby BlueBuzzah gloves. This may take a few moments."
+                                       Style="{StaticResource BodyText}"
+                                       HorizontalTextAlignment="Center"
+                                       LineBreakMode="WordWrap"
+                                       TextColor="{StaticResource TextMuted}" />
+                            </VerticalStackLayout>
 
-                            <Label Grid.Row="1" Grid.Column="0"
-                                   Text="{Binding SignalStrengthDisplay}"
-                                   FontSize="14"
-                                   TextColor="{StaticResource TextMuted}" />
-
-                            <!-- Connect Button -->
-                            <Button Grid.Row="0" Grid.RowSpan="2" Grid.Column="1"
-                                    Text="Connect"
-                                    Clicked="OnConnectClicked"
-                                    HeightRequest="48"
-                                    WidthRequest="100"
-                                    CornerRadius="8"
-                                    VerticalOptions="Center"
-                                    IsEnabled="{Binding BindingContext.IsConnecting, Source={x:Reference page}, Converter={StaticResource InvertedBoolConverter}}"
-                                    SemanticProperties.Description="Connect to this Bluetooth device"
-                                    SemanticProperties.Hint="Double tap to connect"
-                                    AutomationId="ConnectDeviceButton" />
+                            <!-- State 3: No Devices Found (scan completed empty) -->
+                            <VerticalStackLayout Spacing="16"
+                                                 Padding="20"
+                                                 VerticalOptions="Center"
+                                                 IsVisible="{Binding ShowNoResultsState}">
+                                <Label Text="🔍"
+                                       FontSize="64"
+                                       HorizontalOptions="Center"
+                                       AutomationProperties.IsInAccessibleTree="False" />
+                                <Label Text="No Devices Found"
+                                       Style="{StaticResource Heading2}"
+                                       HorizontalTextAlignment="Center"
+                                       SemanticProperties.HeadingLevel="Level2" />
+                                <Label Text="No BlueBuzzah gloves were detected. Please check the following and try scanning again."
+                                       Style="{StaticResource BodyText}"
+                                       HorizontalTextAlignment="Center"
+                                       LineBreakMode="WordWrap" />
+                                <Border Padding="12"
+                                        BackgroundColor="{StaticResource CardBackground}"
+                                        StrokeThickness="0"
+                                        Margin="0,8,0,0">
+                                    <Border.StrokeShape>
+                                        <RoundRectangle CornerRadius="8" />
+                                    </Border.StrokeShape>
+                                    <VerticalStackLayout Spacing="8">
+                                        <Label Text="Troubleshooting:"
+                                               FontSize="14"
+                                               FontAttributes="Bold" />
+                                        <Label Text="• Ensure Bluetooth is enabled on your device"
+                                               Style="{StaticResource SecondaryText}" />
+                                        <Label Text="• Check that gloves are charged and powered on"
+                                               Style="{StaticResource SecondaryText}" />
+                                        <Label Text="• Move closer to the gloves (within 30 feet)"
+                                               Style="{StaticResource SecondaryText}" />
+                                    </VerticalStackLayout>
+                                </Border>
+                                <Label Text="{Binding ScanStatusMessage}"
+                                       IsVisible="{Binding ScanStatusMessage, Converter={StaticResource IsNotNullConverter}}"
+                                       TextColor="{StaticResource TextMuted}"
+                                       FontSize="14"
+                                       HorizontalTextAlignment="Center"
+                                       AutomationId="ScanStatusLabel" />
+                            </VerticalStackLayout>
                         </Grid>
-                    </Border>
-                </DataTemplate>
-            </CollectionView.ItemTemplate>
-            </CollectionView>
-            </Grid>
+                    </CollectionView.EmptyView>
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate x:DataType="models:GloveDevice">
+                            <Border Padding="15"
+                                    Margin="0,0,0,10"
+                                    BackgroundColor="{StaticResource CardBackground}"
+                                    StrokeThickness="0">
+                                <Border.StrokeShape>
+                                    <RoundRectangle CornerRadius="12" />
+                                </Border.StrokeShape>
+
+                                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+                                    <Label Grid.Row="0" Grid.Column="0"
+                                           Text="{Binding Name}"
+                                           FontSize="18"
+                                           FontAttributes="Bold" />
+
+                                    <Label Grid.Row="1" Grid.Column="0"
+                                           Text="{Binding SignalStrengthDisplay}"
+                                           FontSize="14"
+                                           TextColor="{StaticResource TextMuted}" />
+
+                                    <!-- Connect Button. x:DataType cleared: compiled bindings cannot
+                                         resolve members through BindingContext (typed object) on an
+                                         x:Reference source (same pattern as GloveControlPage). -->
+                                    <Button Grid.Row="0" Grid.RowSpan="2" Grid.Column="1"
+                                            x:DataType="{x:Null}"
+                                            Text="Connect"
+                                            Command="{Binding BindingContext.ConnectCommand, Source={x:Reference page}}"
+                                            CommandParameter="{Binding}"
+                                            HeightRequest="48"
+                                            WidthRequest="100"
+                                            CornerRadius="8"
+                                            VerticalOptions="Center"
+                                            IsEnabled="{Binding BindingContext.IsConnecting, Source={x:Reference page}, Converter={StaticResource InvertedBoolConverter}}"
+                                            SemanticProperties.Description="Connect to this Bluetooth device"
+                                            SemanticProperties.Hint="Double tap to connect"
+                                            AutomationId="ConnectDeviceButton" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </RefreshView>
+
+            <!-- Still-scanning strip: EmptyView hides once a device is listed, but the scan
+                 keeps running — keep telling the user more devices may still appear -->
+            <HorizontalStackLayout Grid.Row="2"
+                                   Spacing="8"
+                                   HorizontalOptions="Center"
+                                   Margin="0,8,0,0"
+                                   IsVisible="{Binding ShowScanningWithResults}">
+                <ActivityIndicator IsRunning="{Binding ShowScanningWithResults}"
+                                   HeightRequest="20"
+                                   WidthRequest="20"
+                                   Color="{StaticResource Primary}" />
+                <Label Text="Still scanning for more devices..."
+                       Style="{StaticResource SecondaryText}"
+                       VerticalOptions="Center"
+                       AutomationId="StillScanningLabel" />
+            </HorizontalStackLayout>
 
             <!-- BOTTOM ZONE (Easy Reach): Primary Action with Glow -->
             <Button Grid.Row="3"
@@ -249,7 +238,7 @@
 
         <!-- Connection Progress Overlay -->
         <Border Grid.Row="0" Grid.RowSpan="2"
-                BackgroundColor="#80000000"
+                BackgroundColor="{StaticResource OverlayBackground}"
                 IsVisible="{Binding IsConnecting}"
                 InputTransparent="False">
             <VerticalStackLayout Spacing="15"
@@ -257,12 +246,12 @@
                                 VerticalOptions="Center"
                                 SemanticProperties.Description="Connecting to device, please wait">
                 <ActivityIndicator IsRunning="{Binding IsConnecting}"
-                                 Color="White"
+                                 Color="{StaticResource White}"
                                  HeightRequest="50"
                                  WidthRequest="50"
                                  SemanticProperties.Description="Connection in progress" />
                 <Label Text="Connecting to device..."
-                       TextColor="White"
+                       TextColor="{StaticResource TextPrimary}"
                        FontSize="18"
                        FontAttributes="Bold"
                        HorizontalTextAlignment="Center"

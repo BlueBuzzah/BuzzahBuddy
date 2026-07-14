@@ -1,8 +1,8 @@
 <svg version="1.2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" width="1000" height="1000">
 	<style>
-		.s0 { fill: #33b6f1 } 
-		.s1 { opacity: 1;fill: #05222e } 
-		.s2 { opacity: 1;fill: #34b7f1 } 
+		.s0 { fill: #35b6f2 } 
+		.s1 { opacity: 1;fill: #05212d } 
+		.s2 { opacity: 1;fill: #35b6f2 } 
 	</style>
 	<path id="Path 0" class="s0" d="m0 500v500h1000v-1000h-1000z"/>
 	<g id="Glove">

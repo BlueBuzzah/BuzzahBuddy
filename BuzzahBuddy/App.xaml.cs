@@ -1,10 +1,15 @@
-﻿namespace BuzzahBuddy;
+﻿using BuzzahBuddy.Services.AppLifecycle;
+
+namespace BuzzahBuddy;
 
 public partial class App : Application
 {
-	public App()
+	private readonly IAppLifecycleService _lifecycle;
+
+	public App(IAppLifecycleService lifecycle)
 	{
 		InitializeComponent();
+		_lifecycle = lifecycle;
 
 		// Force dark theme - BuzzahBuddy is dark-mode only (BlueBuzzah.com design)
 		UserAppTheme = AppTheme.Dark;
@@ -12,6 +17,9 @@ public partial class App : Application
 
 	protected override Window CreateWindow(IActivationState? activationState)
 	{
-		return new Window(new AppShell());
+		var window = new Window(new AppShell());
+		window.Stopped += (_, _) => _lifecycle.NotifyStopped();
+		window.Resumed += (_, _) => _lifecycle.NotifyResumed();
+		return window;
 	}
 }

@@ -12,10 +12,31 @@ namespace BuzzahBuddy.ViewModels;
 /// <summary>
 /// One calibration finger button.
 /// </summary>
-/// <param name="Index">Protocol finger index sent to <see cref="IGloveControlService.BuzzFingerAsync"/>.</param>
-/// <param name="Label">Finger-only display label used as the button's visible text (e.g. "Index").</param>
-/// <param name="AutomationId">AutomationId for UI testing (e.g. "PrimaryIndexButton").</param>
-public record FingerButtonItem(int Index, string Label, string AutomationId);
+public partial class FingerButtonItem : ObservableObject
+{
+    /// <summary>Protocol finger index sent to <see cref="IGloveControlService.BuzzFingerAsync"/>.</summary>
+    public int Index { get; }
+
+    /// <summary>Finger-only display label (e.g. "Index").</summary>
+    public string Label { get; }
+
+    /// <summary>AutomationId for UI testing (e.g. "PrimaryIndexButton").</summary>
+    public string AutomationId { get; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DisplayLabel))]
+    private bool _isTested;
+
+    /// <summary>Button text — prefixed with a checkmark once the finger has been tested.</summary>
+    public string DisplayLabel => IsTested ? $"✓ {Label}" : Label;
+
+    public FingerButtonItem(int index, string label, string automationId)
+    {
+        Index = index;
+        Label = label;
+        AutomationId = automationId;
+    }
+}
 
 /// <summary>
 /// ViewModel for the calibration page.
@@ -32,6 +53,8 @@ public partial class CalibrationViewModel : BaseViewModel
     public IConnectionStateService ConnectionInfo { get; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanCalibrate))]
+    [NotifyPropertyChangedFor(nameof(CanBuzzFingers))]
     private bool _isInCalibrationMode;
 
     [ObservableProperty]
@@ -47,10 +70,16 @@ public partial class CalibrationViewModel : BaseViewModel
     private string _selectedFingerName = "None";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanBuzzFingers))]
     private bool _isBuzzing;
 
     // Wizard step tracking (1 = Intensity, 2 = Duration, 3 = Test Fingers)
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsStep1))]
+    [NotifyPropertyChangedFor(nameof(IsStep2))]
+    [NotifyPropertyChangedFor(nameof(IsStep3))]
+    [NotifyPropertyChangedFor(nameof(CanGoPrevious))]
+    [NotifyPropertyChangedFor(nameof(CanGoNext))]
     private int _currentStep = 1;
 
     [ObservableProperty]
@@ -59,10 +88,17 @@ public partial class CalibrationViewModel : BaseViewModel
     [ObservableProperty]
     private string _stepDescription = "Choose the vibration intensity level for testing.";
 
-    // Track which fingers have been tested
-    private readonly HashSet<int> _testedFingers = new();
+    public bool IsStep1 => CurrentStep == 1;
+    public bool IsStep2 => CurrentStep == 2;
+    public bool IsStep3 => CurrentStep == 3;
+    public bool CanGoPrevious => CurrentStep > 1;
+    public bool CanGoNext => CurrentStep < 3;
 
-    public bool IsFingerTested(int fingerIndex) => _testedFingers.Contains(fingerIndex);
+    /// <summary>Connected and in calibration mode — gates intensity/duration buttons.</summary>
+    public bool CanCalibrate => ConnectionInfo.IsConnected && IsInCalibrationMode;
+
+    /// <summary>Like CanCalibrate, but also blocks taps while a buzz command is in flight.</summary>
+    public bool CanBuzzFingers => CanCalibrate && !IsBuzzing;
 
     /// <summary>
     /// Finger-test buttons for the primary glove, sized to the connected device's actuator count.
@@ -292,7 +328,10 @@ public partial class CalibrationViewModel : BaseViewModel
             await _gloveControlService.BuzzFingerAsync(fingerIndex, Intensity, Duration);
 
             // Mark finger as tested
-            _testedFingers.Add(fingerIndex);
+            // Mark finger as tested (drives the ✓ prefix on the button)
+            var tested = PrimaryFingers.Concat(SecondaryFingers).FirstOrDefault(f => f.Index == fingerIndex);
+            if (tested != null)
+                tested.IsTested = true;
 
             // Brief delay to show visual feedback
             await Task.Delay(Duration + 100);
@@ -357,6 +396,8 @@ public partial class CalibrationViewModel : BaseViewModel
         MainThread.BeginInvokeOnMainThread(() =>
         {
             UpdateConnectionState();
+            OnPropertyChanged(nameof(CanCalibrate));
+            OnPropertyChanged(nameof(CanBuzzFingers));
 
             // A different device (4- vs 5-motor) may have connected; actuator count
             // is refreshed by the post-connect INFO sync, and EnterCalibrationModeAsync
@@ -404,14 +445,16 @@ public partial class CalibrationViewModel : BaseViewModel
             // Reset wizard to step 1
             CurrentStep = 1;
             UpdateStepInfo();
-            _testedFingers.Clear();
+            foreach (var finger in PrimaryFingers.Concat(SecondaryFingers))
+                finger.IsTested = false;
         }
         else
         {
             // Reset state when exiting calibration
             CurrentStep = 1;
             UpdateStepInfo();
-            _testedFingers.Clear();
+            foreach (var finger in PrimaryFingers.Concat(SecondaryFingers))
+                finger.IsTested = false;
         }
     }
 

@@ -29,6 +29,9 @@ public partial class DeviceListViewModel : BaseViewModel
     private ObservableCollection<GloveDevice> _availableDevices = new();
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowReadyState))]
+    [NotifyPropertyChangedFor(nameof(ShowNoResultsState))]
+    [NotifyPropertyChangedFor(nameof(ShowScanningWithResults))]
     private bool _isScanning;
 
     [ObservableProperty]
@@ -50,6 +53,8 @@ public partial class DeviceListViewModel : BaseViewModel
     private string _scanButtonDescription = "Start scanning for BlueBuzzah gloves";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowReadyState))]
+    [NotifyPropertyChangedFor(nameof(ShowNoResultsState))]
     private bool _hasCompletedScan;
 
     [ObservableProperty]
@@ -68,11 +73,11 @@ public partial class DeviceListViewModel : BaseViewModel
 
         Title = "Devices";
 
-        // Cancel any in-progress reconnection when user navigates to device list
-        _reconnectionService.CancelReconnect();
-
         // Subscribe to device discovery
         _bluetoothService.DeviceDiscovered += OnDeviceDiscovered;
+
+        // ShowScanningWithResults depends on the collection's emptiness
+        AvailableDevices.CollectionChanged += (_, _) => OnPropertyChanged(nameof(ShowScanningWithResults));
 
         // Subscribe to connection state changes
         _bluetoothService.ConnectionStateChanged += OnConnectionStateChanged;
@@ -97,8 +102,51 @@ public partial class DeviceListViewModel : BaseViewModel
         }
     }
 
+    /// <summary>
+    /// Called from DeviceListPage.OnAppearing. Cancels any in-progress reconnection
+    /// (the user is choosing a device manually) and refreshes Bluetooth state.
+    /// </summary>
+    public void OnPageAppearing()
+    {
+        _reconnectionService.CancelReconnect();
+        CheckBluetoothStatusAsync().SafeFireAndForget("[DEVICELIST]");
+        UpdateConnectionState();
+    }
+
+    /// <summary>Empty-state variant: before the first scan has run.</summary>
+    public bool ShowReadyState => !HasCompletedScan && !IsScanning;
+
+    /// <summary>Empty-state variant: a scan finished and found nothing.</summary>
+    public bool ShowNoResultsState => HasCompletedScan && !IsScanning;
+
+    /// <summary>Scan still running with devices already listed — the EmptyView scanning
+    /// indicator is hidden once the collection is non-empty, so a slim strip covers it.</summary>
+    public bool ShowScanningWithResults => IsScanning && AvailableDevices.Count > 0;
+
+    [RelayCommand]
+    private async Task RefreshDevicesAsync()
+    {
+        // Pull-to-refresh: rescan unless a scan is already running.
+        if (IsScanning)
+        {
+            IsRefreshing = false;
+            return;
+        }
+        try
+        {
+            await StartScanningAsync();
+        }
+        finally
+        {
+            IsRefreshing = false;
+        }
+    }
+
     private async Task StartScanningAsync()
     {
+        if (!await EnsureBlePermissionsAsync())
+            return;
+
         System.Diagnostics.Debug.WriteLine("[VM] StartScanningAsync called");
         AvailableDevices.Clear();
         IsScanning = true;
@@ -197,6 +245,54 @@ public partial class DeviceListViewModel : BaseViewModel
         // to avoid race conditions. We don't set state here.
     }
 
+    /// <summary>
+    /// Ensures BLE runtime permissions are granted before scanning.
+    /// Android 12+ needs Bluetooth (SCAN/CONNECT); Android ≤ 11 needs location for BLE scans.
+    /// iOS prompts automatically via CoreBluetooth, so non-Android platforms always return true.
+    /// </summary>
+    private async Task<bool> EnsureBlePermissionsAsync()
+    {
+#if ANDROID
+        var status = OperatingSystem.IsAndroidVersionAtLeast(31)
+            ? await Permissions.CheckStatusAsync<Permissions.Bluetooth>()
+            : await Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>();
+
+        if (status == PermissionStatus.Granted)
+            return true;
+
+        var showRationale = OperatingSystem.IsAndroidVersionAtLeast(31)
+            ? Permissions.ShouldShowRationale<Permissions.Bluetooth>()
+            : Permissions.ShouldShowRationale<Permissions.LocationWhenInUse>();
+
+        if (showRationale)
+        {
+            await Shell.Current.DisplayAlert(
+                "Bluetooth Permission Needed",
+                "BuzzahBuddy needs Bluetooth permission to find and connect to your BlueBuzzah gloves.",
+                "OK");
+        }
+
+        status = OperatingSystem.IsAndroidVersionAtLeast(31)
+            ? await Permissions.RequestAsync<Permissions.Bluetooth>()
+            : await Permissions.RequestAsync<Permissions.LocationWhenInUse>();
+
+        if (status == PermissionStatus.Granted)
+            return true;
+
+        var openSettings = await Shell.Current.DisplayAlert(
+            "Permission Denied",
+            "Bluetooth permission is required to scan for gloves. You can grant it in the app settings.",
+            "Open Settings",
+            "Not Now");
+        if (openSettings)
+            AppInfo.Current.ShowSettingsUI();
+
+        return false;
+#else
+        return await Task.FromResult(true);
+#endif
+    }
+
     private void UpdateScanButtonState()
     {
         if (IsScanning)
@@ -253,7 +349,7 @@ public partial class DeviceListViewModel : BaseViewModel
     [RelayCommand]
     private async Task NavigateToControlAsync()
     {
-        await Shell.Current.GoToAsync("//control");
+        await Shell.Current.GoToAsync(Routes.Control);
     }
 
     [RelayCommand]
@@ -287,7 +383,7 @@ public partial class DeviceListViewModel : BaseViewModel
                     "OK");
 
                 // Navigate immediately to control page
-                await Shell.Current.GoToAsync("//control");
+                await Shell.Current.GoToAsync(Routes.Control);
             }
             else
             {

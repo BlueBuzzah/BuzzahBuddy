@@ -11,9 +11,6 @@ public partial class SettingsPage : ContentPage
         InitializeComponent();
         _viewModel = viewModel;
         BindingContext = viewModel;
-
-        // Subscribe to Unloaded event for cleanup
-        Unloaded += OnPageUnloaded;
     }
 
     protected override void OnAppearing()
@@ -22,9 +19,4 @@ public partial class SettingsPage : ContentPage
         _viewModel.LoadDeviceSettingsCommand.Execute(null);
     }
 
-    private void OnPageUnloaded(object? sender, EventArgs e)
-    {
-        // Dispose ViewModel to unsubscribe from events
-        _viewModel.Dispose();
-    }
 }

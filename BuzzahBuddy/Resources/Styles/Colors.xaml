@@ -32,6 +32,7 @@
     <Color x:Key="TextPrimary">#fafafa</Color>
     <Color x:Key="TextMuted">#a3a3a3</Color>
     <Color x:Key="GlowColor">#35B6F2</Color>
+    <Color x:Key="OverlayBackground">#80000000</Color>
 
     <!-- Blue-Tinted Neutral Grays (Dark Mode Optimized) -->
     <Color x:Key="Gray100">#e8f4f8</Color>
@@ -96,6 +97,7 @@
     <SolidColorBrush x:Key="Gray400Brush" Color="{StaticResource Gray400}"/>
     <SolidColorBrush x:Key="Gray500Brush" Color="{StaticResource Gray500}"/>
     <SolidColorBrush x:Key="Gray600Brush" Color="{StaticResource Gray600}"/>
+    <SolidColorBrush x:Key="Gray700Brush" Color="{StaticResource Gray700}"/>
     <SolidColorBrush x:Key="Gray900Brush" Color="{StaticResource Gray900}"/>
     <SolidColorBrush x:Key="Gray950Brush" Color="{StaticResource Gray950}"/>
 

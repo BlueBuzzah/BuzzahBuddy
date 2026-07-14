@@ -11,14 +11,14 @@ public partial class GloveControlPage : ContentPage
         InitializeComponent();
         _viewModel = viewModel;
         BindingContext = viewModel;
-
-        // Subscribe to Unloaded event for cleanup
-        Unloaded += OnPageUnloaded;
     }
 
-    private void OnPageUnloaded(object? sender, EventArgs e)
+    private async void OnProfileCardTapped(object? sender, TappedEventArgs e)
     {
-        // Dispose ViewModel to unsubscribe from events and stop timers
-        _viewModel.Dispose();
+        // Micro-feedback: tremor users need visible tap acknowledgment. Pure visual, no logic.
+        if (sender is not VisualElement card)
+            return;
+        await card.ScaleTo(0.97, 70, Easing.CubicOut);
+        await card.ScaleTo(1.0, 70, Easing.CubicOut);
     }
 }

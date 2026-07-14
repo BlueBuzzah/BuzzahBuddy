@@ -11,7 +11,7 @@
         <ShellContent
             Title="Home"
             Icon="home"
-            ContentTemplate="{DataTemplate local:MainPage}"
+            ContentTemplate="{DataTemplate views:MainPage}"
             Route="home"
             AutomationId="HomeTab" />
 

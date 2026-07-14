@@ -62,7 +62,7 @@
                                VerticalOptions="Center" />
                     </HorizontalStackLayout>
 
-                    <ProgressBar Progress="{Binding SessionStatus.Progress}"
+                    <ProgressBar Progress="{Binding SessionStatus.ProgressFraction}"
                                  HeightRequest="8"
                                  ProgressColor="{StaticResource Primary}"
                                  SemanticProperties.Description="Session progress"
@@ -165,9 +165,7 @@
                                            SemanticProperties.Description="Refreshing battery status" />
                         <Button Text="🔄 Refresh"
                                 Command="{Binding RefreshBatteryCommand}"
-                                HeightRequest="48"
-                                FontSize="14"
-                                CornerRadius="8"
+                                Style="{StaticResource TertiaryButton}"
                                 HorizontalOptions="Center"
                                 Padding="20,0"
                                 SemanticProperties.Hint="Refresh battery levels"
@@ -194,8 +192,7 @@
                            Style="{StaticResource BodyText}"
                            TextColor="{StaticResource TextMuted}"
                            HorizontalTextAlignment="Center"
-                           Margin="0,8,0,0"
-                           SemanticProperties.Description="Connect to a device to view battery status" />
+                           Margin="0,8,0,0" />
                 </VerticalStackLayout>
             </Border>
 
@@ -242,7 +239,8 @@
                                          x:Reference source. Without this, the command silently fails to bind. -->
                                     <TapGestureRecognizer x:DataType="{x:Null}"
                                                           Command="{Binding Source={x:Reference page}, Path=BindingContext.SelectProfileCommand}"
-                                                          CommandParameter="{Binding}" />
+                                                          CommandParameter="{Binding}"
+                                                          Tapped="OnProfileCardTapped" />
                                 </Border.GestureRecognizers>
 
                                 <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" ColumnSpacing="16" RowSpacing="8">
@@ -263,7 +261,7 @@
                                         <Label Text="✓"
                                                FontSize="32"
                                                FontAttributes="Bold"
-                                               TextColor="White"
+                                               TextColor="{StaticResource PrimaryDarkText}"
                                                HorizontalOptions="Center"
                                                VerticalOptions="Center" />
                                     </Border>
@@ -288,28 +286,6 @@
                         </DataTemplate>
                     </BindableLayout.ItemTemplate>
                 </VerticalStackLayout>
-
-                <!-- Empty State: No Profile Selected -->
-                <Border Padding="16"
-                        Margin="0,8,0,0"
-                        BackgroundColor="{StaticResource CardBackground}"
-                        StrokeThickness="0"
-                        IsVisible="{Binding SelectedProfile, Converter={StaticResource InvertedBoolConverter}}">
-                    <Border.StrokeShape>
-                        <RoundRectangle CornerRadius="8" />
-                    </Border.StrokeShape>
-                    <HorizontalStackLayout Spacing="12">
-                        <Label Text="ℹ️"
-                               FontSize="24"
-                               VerticalOptions="Center"
-                               AutomationProperties.IsInAccessibleTree="False" />
-                        <Label Text="Please select a therapy profile above to begin."
-                               Style="{StaticResource BodyText}"
-                               LineBreakMode="WordWrap"
-                               VerticalOptions="Center"
-                               SemanticProperties.Description="Please select a therapy profile above to begin" />
-                    </HorizontalStackLayout>
-                </Border>
             </VerticalStackLayout>
 
             <!-- Profile Details (Top Zone - Info only, collapsed during session) -->
@@ -402,9 +378,7 @@
                                    SemanticProperties.Description="Testing connection" />
                 <Button Text="Test Connection"
                         Command="{Binding TestConnectionCommand}"
-                        HeightRequest="48"
-                        FontSize="16"
-                        CornerRadius="12"
+                        Style="{StaticResource TertiaryButton}"
                         BackgroundColor="{StaticResource Primary}"
                         SemanticProperties.Hint="Send a brief test pulse to the device"
                         SemanticProperties.Description="Test connection with brief vibration pulse"
@@ -428,11 +402,7 @@
                 <!-- Primary Session Control Button (Start/Pause/Resume) -->
                 <Button Text="{Binding SessionButtonText}"
                         Command="{Binding ToggleSessionCommand}"
-                        HeightRequest="72"
-                        FontSize="20"
-                        FontAttributes="Bold"
-                        CornerRadius="16"
-                        BackgroundColor="{StaticResource Primary}"
+                        Style="{StaticResource PrimaryButton}"
                         SemanticProperties.Hint="Double tap to activate"
                         SemanticProperties.Description="{Binding SessionButtonDescription}"
                         AutomationId="SessionControlButton">
@@ -447,10 +417,7 @@
                 <!-- Stop Session Button (only visible when session is active) -->
                 <Button Text="Stop Session"
                         Command="{Binding StopSessionCommand}"
-                        HeightRequest="56"
-                        FontSize="18"
-                        FontAttributes="Bold"
-                        CornerRadius="12"
+                        Style="{StaticResource SecondaryButton}"
                         IsVisible="{Binding IsSessionActive}"
                         BackgroundColor="{StaticResource PastelDanger}"
                         SemanticProperties.Hint="Double tap to stop the current session"
@@ -489,8 +456,7 @@
                            LineBreakMode="WordWrap"
                            Text="Select a therapy profile above to begin."
                            TextColor="{StaticResource TextMuted}"
-                           VerticalOptions="Center"
-                           SemanticProperties.Description="Select a therapy profile above to begin" />
+                           VerticalOptions="Center" />
                 </HorizontalStackLayout>
             </Border>
 
