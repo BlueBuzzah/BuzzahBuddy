@@ -529,7 +529,7 @@
 
     <Style TargetType="Switch">
         <Setter Property="OnColor" Value="{StaticResource Primary}" />
-        <Setter Property="ThumbColor" Value="{StaticResource White}" />
+        <Setter Property="ThumbColor" Value="{StaticResource Black}" />
         <Setter Property="MinimumHeightRequest" Value="48"/>
         <Setter Property="MinimumWidthRequest" Value="48"/>
         <Setter Property="VisualStateManager.VisualStateGroups">
@@ -545,7 +545,7 @@
                     <VisualState x:Name="On">
                         <VisualState.Setters>
                             <Setter Property="OnColor" Value="{StaticResource Primary}" />
-                            <Setter Property="ThumbColor" Value="{StaticResource White}" />
+                            <Setter Property="ThumbColor" Value="{StaticResource Black}" />
                         </VisualState.Setters>
                     </VisualState>
                     <VisualState x:Name="Off">
