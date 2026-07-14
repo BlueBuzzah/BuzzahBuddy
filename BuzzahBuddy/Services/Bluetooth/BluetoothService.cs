@@ -527,7 +527,12 @@ public class BluetoothService : IBluetoothService
         {
             ConnectedDevice.ConnectionState = ConnectionState.Connected;
         }
-        UpdateConnectionState(ConnectionState.Connected);
+        // Deliberately NOT raising Connected here: this adapter event fires when the
+        // GATT link comes up, BEFORE service/characteristic discovery has run, so
+        // commands sent in response to it fail. Worse, the premature raise made
+        // UpdateConnectionState dedupe the real one after discovery completed, so
+        // "ready for commands" was never signaled. ConnectToDeviceAsync and the
+        // reconnect path raise Connected once the UART characteristics are live.
     }
 
     private void OnDeviceDisconnected(object? sender, DeviceEventArgs e)
