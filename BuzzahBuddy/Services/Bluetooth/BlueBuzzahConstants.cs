@@ -51,18 +51,22 @@ public static class BlueBuzzahConstants
     public const int CommandDelayMs = 100;
 
     /// <summary>
-    /// Battery voltage threshold for good status (green).
+    /// Battery voltage threshold for good status (Primary blue).
     /// </summary>
     public const double BatteryGoodThreshold = 3.6;
 
     /// <summary>
-    /// Battery voltage threshold for medium status (yellow).
+    /// Lower bound of the medium-status display band (Warning amber shows from here
+    /// up to <see cref="BatteryGoodThreshold"/>).
     /// </summary>
     public const double BatteryMediumThreshold = 3.3;
 
     /// <summary>
-    /// Battery voltage threshold for low battery warning (red).
-    /// Below this voltage, user should be warned to charge.
+    /// Battery voltage threshold for the low-battery user warning (DangerDark display).
+    /// Intentionally equal to <see cref="BatteryMediumThreshold"/> today: the display
+    /// turns DangerDark at exactly the voltage where the charge warning fires. Kept as
+    /// a separate constant so the warning trigger can diverge from the display band
+    /// if the firmware battery spec changes.
     /// </summary>
     public const double BatteryLowThreshold = 3.3;
 

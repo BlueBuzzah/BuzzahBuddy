@@ -96,9 +96,4 @@ All glows are the primary blue at varying alpha — never gray/black shadows.
 
 ## Current implementation gaps (`Colors.xaml`)
 
-- `Success` is teal `#14b8a6` — violates the blue-for-success brand rule; should be `#35B6F2`.
-- `Info #2ab2ed` exists as a near-duplicate of Primary; this spec merges Info into Primary.
-- `Danger #e11d48` is used for text in places where `#fb7185` is required for AA.
-- `CardBorder` is `#0d3a4d` (the elevation-2 surface color); website border is `#0A3143`
-  (hsl 199,74%,15%) — one step darker, so borders read as edges rather than fills.
-- Blue-tinted `Gray100–950` ramp has no website counterpart; prefer the named tokens above.
+All gaps above were remediated on 2026-07-14 (see docs/superpowers/plans/2026-07-14-design-system-remediation.md).

@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:BuzzahBuddy.ViewModels"
              xmlns:controls="clr-namespace:BuzzahBuddy.Views.Controls"
+             xmlns:behaviors="clr-namespace:BuzzahBuddy.Behaviors"
              x:Class="BuzzahBuddy.Views.ProfileSettingsPage"
              x:DataType="vm:ProfileSettingsViewModel"
              Title="{Binding Title}">
@@ -52,83 +53,119 @@
                           ColumnSpacing="15" RowSpacing="12">
 
                         <Label Grid.Row="0" Grid.Column="0" Text="Actuator Type" FontSize="16" VerticalOptions="Center" />
-                        <Picker Grid.Row="0" Grid.Column="1"
-                                ItemsSource="{Binding ActuatorTypeOptions}"
-                                SelectedItem="{Binding ActuatorType}"
-                                MinimumHeightRequest="48"
-                                SemanticProperties.Description="Actuator type, LRA or ERM"
-                                AutomationId="ActuatorTypePicker" />
+                        <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource InputBorder}">
+                            <Border.Behaviors>
+                                <behaviors:InputFocusBehavior />
+                            </Border.Behaviors>
+                            <Picker ItemsSource="{Binding ActuatorTypeOptions}"
+                                    SelectedItem="{Binding ActuatorType}"
+                                    MinimumHeightRequest="48"
+                                    SemanticProperties.Description="Actuator type, LRA or ERM"
+                                    AutomationId="ActuatorTypePicker" />
+                        </Border>
 
                         <Label Grid.Row="1" Grid.Column="0" Text="Frequency (Hz, 50-300)" FontSize="16" VerticalOptions="Center" LineBreakMode="WordWrap" />
-                        <Entry Grid.Row="1" Grid.Column="1"
-                               Text="{Binding FrequencyText}"
-                               Keyboard="Numeric"
-                               MinimumHeightRequest="48"
-                               HorizontalTextAlignment="End"
-                               SemanticProperties.Description="Actuator frequency in hertz, 50 to 300"
-                               AutomationId="FrequencyEntry" />
+                        <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource InputBorder}">
+                            <Border.Behaviors>
+                                <behaviors:InputFocusBehavior />
+                            </Border.Behaviors>
+                            <Entry Text="{Binding FrequencyText}"
+                                   Keyboard="Numeric"
+                                   MinimumHeightRequest="48"
+                                   HorizontalTextAlignment="End"
+                                   SemanticProperties.Description="Actuator frequency in hertz, 50 to 300"
+                                   AutomationId="FrequencyEntry" />
+                        </Border>
 
                         <Label Grid.Row="2" Grid.Column="0" Text="Time On (ms, 10-1000)" FontSize="16" VerticalOptions="Center" LineBreakMode="WordWrap" />
-                        <Entry Grid.Row="2" Grid.Column="1"
-                               Text="{Binding TimeOnMsText}"
-                               Keyboard="Numeric"
-                               MinimumHeightRequest="48"
-                               HorizontalTextAlignment="End"
-                               SemanticProperties.Description="Vibration on time in milliseconds, 10 to 1000"
-                               AutomationId="TimeOnEntry" />
+                        <Border Grid.Row="2" Grid.Column="1" Style="{StaticResource InputBorder}">
+                            <Border.Behaviors>
+                                <behaviors:InputFocusBehavior />
+                            </Border.Behaviors>
+                            <Entry Text="{Binding TimeOnMsText}"
+                                   Keyboard="Numeric"
+                                   MinimumHeightRequest="48"
+                                   HorizontalTextAlignment="End"
+                                   SemanticProperties.Description="Vibration on time in milliseconds, 10 to 1000"
+                                   AutomationId="TimeOnEntry" />
+                        </Border>
 
                         <Label Grid.Row="3" Grid.Column="0" Text="Time Off (ms, 10-1000)" FontSize="16" VerticalOptions="Center" LineBreakMode="WordWrap" />
-                        <Entry Grid.Row="3" Grid.Column="1"
-                               Text="{Binding TimeOffMsText}"
-                               Keyboard="Numeric"
-                               MinimumHeightRequest="48"
-                               HorizontalTextAlignment="End"
-                               SemanticProperties.Description="Vibration off time in milliseconds, 10 to 1000"
-                               AutomationId="TimeOffEntry" />
+                        <Border Grid.Row="3" Grid.Column="1" Style="{StaticResource InputBorder}">
+                            <Border.Behaviors>
+                                <behaviors:InputFocusBehavior />
+                            </Border.Behaviors>
+                            <Entry Text="{Binding TimeOffMsText}"
+                                   Keyboard="Numeric"
+                                   MinimumHeightRequest="48"
+                                   HorizontalTextAlignment="End"
+                                   SemanticProperties.Description="Vibration off time in milliseconds, 10 to 1000"
+                                   AutomationId="TimeOffEntry" />
+                        </Border>
 
                         <Label Grid.Row="4" Grid.Column="0" Text="Session (min, 1-240)" FontSize="16" VerticalOptions="Center" LineBreakMode="WordWrap" />
-                        <Entry Grid.Row="4" Grid.Column="1"
-                               Text="{Binding SessionMinutesText}"
-                               Keyboard="Numeric"
-                               MinimumHeightRequest="48"
-                               HorizontalTextAlignment="End"
-                               SemanticProperties.Description="Session duration in minutes, 1 to 240"
-                               AutomationId="SessionEntry" />
+                        <Border Grid.Row="4" Grid.Column="1" Style="{StaticResource InputBorder}">
+                            <Border.Behaviors>
+                                <behaviors:InputFocusBehavior />
+                            </Border.Behaviors>
+                            <Entry Text="{Binding SessionMinutesText}"
+                                   Keyboard="Numeric"
+                                   MinimumHeightRequest="48"
+                                   HorizontalTextAlignment="End"
+                                   SemanticProperties.Description="Session duration in minutes, 1 to 240"
+                                   AutomationId="SessionEntry" />
+                        </Border>
 
                         <Label Grid.Row="5" Grid.Column="0" Text="Amplitude Min (%, 0-100)" FontSize="16" VerticalOptions="Center" LineBreakMode="WordWrap" />
-                        <Entry Grid.Row="5" Grid.Column="1"
-                               Text="{Binding AmplitudeMinText}"
-                               Keyboard="Numeric"
-                               MinimumHeightRequest="48"
-                               HorizontalTextAlignment="End"
-                               SemanticProperties.Description="Minimum amplitude percentage, 0 to 100"
-                               AutomationId="AmplitudeMinEntry" />
+                        <Border Grid.Row="5" Grid.Column="1" Style="{StaticResource InputBorder}">
+                            <Border.Behaviors>
+                                <behaviors:InputFocusBehavior />
+                            </Border.Behaviors>
+                            <Entry Text="{Binding AmplitudeMinText}"
+                                   Keyboard="Numeric"
+                                   MinimumHeightRequest="48"
+                                   HorizontalTextAlignment="End"
+                                   SemanticProperties.Description="Minimum amplitude percentage, 0 to 100"
+                                   AutomationId="AmplitudeMinEntry" />
+                        </Border>
 
                         <Label Grid.Row="6" Grid.Column="0" Text="Amplitude Max (%, 0-100)" FontSize="16" VerticalOptions="Center" LineBreakMode="WordWrap" />
-                        <Entry Grid.Row="6" Grid.Column="1"
-                               Text="{Binding AmplitudeMaxText}"
-                               Keyboard="Numeric"
-                               MinimumHeightRequest="48"
-                               HorizontalTextAlignment="End"
-                               SemanticProperties.Description="Maximum amplitude percentage, 0 to 100"
-                               AutomationId="AmplitudeMaxEntry" />
+                        <Border Grid.Row="6" Grid.Column="1" Style="{StaticResource InputBorder}">
+                            <Border.Behaviors>
+                                <behaviors:InputFocusBehavior />
+                            </Border.Behaviors>
+                            <Entry Text="{Binding AmplitudeMaxText}"
+                                   Keyboard="Numeric"
+                                   MinimumHeightRequest="48"
+                                   HorizontalTextAlignment="End"
+                                   SemanticProperties.Description="Maximum amplitude percentage, 0 to 100"
+                                   AutomationId="AmplitudeMaxEntry" />
+                        </Border>
 
                         <Label Grid.Row="7" Grid.Column="0" Text="Jitter (%, 0-100)" FontSize="16" VerticalOptions="Center" LineBreakMode="WordWrap" />
-                        <Entry Grid.Row="7" Grid.Column="1"
-                               Text="{Binding JitterText}"
-                               Keyboard="Numeric"
-                               MinimumHeightRequest="48"
-                               HorizontalTextAlignment="End"
-                               SemanticProperties.Description="Timing jitter percentage, 0 to 100"
-                               AutomationId="JitterEntry" />
+                        <Border Grid.Row="7" Grid.Column="1" Style="{StaticResource InputBorder}">
+                            <Border.Behaviors>
+                                <behaviors:InputFocusBehavior />
+                            </Border.Behaviors>
+                            <Entry Text="{Binding JitterText}"
+                                   Keyboard="Numeric"
+                                   MinimumHeightRequest="48"
+                                   HorizontalTextAlignment="End"
+                                   SemanticProperties.Description="Timing jitter percentage, 0 to 100"
+                                   AutomationId="JitterEntry" />
+                        </Border>
 
                         <Label Grid.Row="8" Grid.Column="0" Text="Pattern" FontSize="16" VerticalOptions="Center" />
-                        <Picker Grid.Row="8" Grid.Column="1"
-                                ItemsSource="{Binding PatternOptions}"
-                                SelectedItem="{Binding Pattern}"
-                                MinimumHeightRequest="48"
-                                SemanticProperties.Description="Vibration pattern: random, sequential, or mirrored"
-                                AutomationId="PatternPicker" />
+                        <Border Grid.Row="8" Grid.Column="1" Style="{StaticResource InputBorder}">
+                            <Border.Behaviors>
+                                <behaviors:InputFocusBehavior />
+                            </Border.Behaviors>
+                            <Picker ItemsSource="{Binding PatternOptions}"
+                                    SelectedItem="{Binding Pattern}"
+                                    MinimumHeightRequest="48"
+                                    SemanticProperties.Description="Vibration pattern: random, sequential, or mirrored"
+                                    AutomationId="PatternPicker" />
+                        </Border>
 
                         <Label Grid.Row="9" Grid.Column="0" Text="Mirror Pattern" FontSize="16" VerticalOptions="Center" />
                         <Switch Grid.Row="9" Grid.Column="1"
@@ -143,10 +180,7 @@
                     <Button Text="Apply to Gloves"
                             Command="{Binding ApplyCommand}"
                             IsEnabled="{Binding IsBusy, Converter={StaticResource InvertedBoolConverter}}"
-                            HeightRequest="56"
-                            FontSize="18"
-                            CornerRadius="12"
-                            BackgroundColor="{StaticResource Primary}"
+                            Style="{StaticResource PrimaryButton}"
                             SemanticProperties.Description="Apply the edited profile settings to the connected gloves"
                             SemanticProperties.Hint="Double tap to send the settings to the gloves"
                             AutomationId="ApplyProfileSettingsButton" />
@@ -154,9 +188,7 @@
                     <Button Text="Reload from Gloves"
                             Command="{Binding LoadCommand}"
                             IsEnabled="{Binding IsBusy, Converter={StaticResource InvertedBoolConverter}}"
-                            HeightRequest="48"
-                            FontSize="16"
-                            CornerRadius="8"
+                            Style="{StaticResource SecondaryButton}"
                             SemanticProperties.Description="Discard edits and reload the current settings from the gloves"
                             SemanticProperties.Hint="Double tap to reload settings from the gloves"
                             AutomationId="ReloadProfileSettingsButton" />

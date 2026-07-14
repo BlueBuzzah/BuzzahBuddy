@@ -60,8 +60,7 @@
                                 Text="Enter Calibration"
                                 Command="{Binding EnterCalibrationModeCommand}"
                                 IsEnabled="{Binding ConnectionInfo.IsConnected}"
-                                Style="{StaticResource SecondaryButton}"
-                                BackgroundColor="{StaticResource Primary}"
+                                Style="{StaticResource PrimaryButton}"
                                 SemanticProperties.Description="Enter calibration mode to test and adjust finger motors"
                                 SemanticProperties.Hint="Double tap to enter calibration mode"
                                 AutomationId="EnterCalibrationButton" />
@@ -126,6 +125,7 @@
                                     CommandParameter="20"
                                     Style="{StaticResource TertiaryButton}"
                                     BackgroundColor="{Binding Intensity, Converter={StaticResource IntToColorConverter}, ConverterParameter=20}"
+                                    TextColor="{Binding Intensity, Converter={StaticResource IntToTextColorConverter}, ConverterParameter=20}"
                                     SemanticProperties.Description="Set intensity to 20 percent, gentle"
                                     AutomationId="Intensity20Button">
                                 <Button.IsEnabled>
@@ -140,6 +140,7 @@
                                     CommandParameter="40"
                                     Style="{StaticResource TertiaryButton}"
                                     BackgroundColor="{Binding Intensity, Converter={StaticResource IntToColorConverter}, ConverterParameter=40}"
+                                    TextColor="{Binding Intensity, Converter={StaticResource IntToTextColorConverter}, ConverterParameter=40}"
                                     SemanticProperties.Description="Set intensity to 40 percent, light"
                                     AutomationId="Intensity40Button">
                                 <Button.IsEnabled>
@@ -154,6 +155,7 @@
                                     CommandParameter="60"
                                     Style="{StaticResource TertiaryButton}"
                                     BackgroundColor="{Binding Intensity, Converter={StaticResource IntToColorConverter}, ConverterParameter=60}"
+                                    TextColor="{Binding Intensity, Converter={StaticResource IntToTextColorConverter}, ConverterParameter=60}"
                                     SemanticProperties.Description="Set intensity to 60 percent, moderate"
                                     AutomationId="Intensity60Button">
                                 <Button.IsEnabled>
@@ -168,6 +170,7 @@
                                     CommandParameter="80"
                                     Style="{StaticResource TertiaryButton}"
                                     BackgroundColor="{Binding Intensity, Converter={StaticResource IntToColorConverter}, ConverterParameter=80}"
+                                    TextColor="{Binding Intensity, Converter={StaticResource IntToTextColorConverter}, ConverterParameter=80}"
                                     SemanticProperties.Description="Set intensity to 80 percent, strong"
                                     AutomationId="Intensity80Button">
                                 <Button.IsEnabled>
@@ -182,6 +185,7 @@
                                     CommandParameter="100"
                                     Style="{StaticResource TertiaryButton}"
                                     BackgroundColor="{Binding Intensity, Converter={StaticResource IntToColorConverter}, ConverterParameter=100}"
+                                    TextColor="{Binding Intensity, Converter={StaticResource IntToTextColorConverter}, ConverterParameter=100}"
                                     SemanticProperties.Description="Set intensity to 100 percent, maximum"
                                     AutomationId="Intensity100Button">
                                 <Button.IsEnabled>
@@ -212,6 +216,7 @@
                                     CommandParameter="100"
                                     Style="{StaticResource TertiaryButton}"
                                     BackgroundColor="{Binding Duration, Converter={StaticResource IntToColorConverter}, ConverterParameter=100}"
+                                    TextColor="{Binding Duration, Converter={StaticResource IntToTextColorConverter}, ConverterParameter=100}"
                                     SemanticProperties.Description="Set duration to 100 milliseconds, very brief"
                                     AutomationId="Duration100Button">
                                 <Button.IsEnabled>
@@ -226,6 +231,7 @@
                                     CommandParameter="500"
                                     Style="{StaticResource TertiaryButton}"
                                     BackgroundColor="{Binding Duration, Converter={StaticResource IntToColorConverter}, ConverterParameter=500}"
+                                    TextColor="{Binding Duration, Converter={StaticResource IntToTextColorConverter}, ConverterParameter=500}"
                                     SemanticProperties.Description="Set duration to 500 milliseconds, brief"
                                     AutomationId="Duration500Button">
                                 <Button.IsEnabled>
@@ -240,6 +246,7 @@
                                     CommandParameter="1000"
                                     Style="{StaticResource TertiaryButton}"
                                     BackgroundColor="{Binding Duration, Converter={StaticResource IntToColorConverter}, ConverterParameter=1000}"
+                                    TextColor="{Binding Duration, Converter={StaticResource IntToTextColorConverter}, ConverterParameter=1000}"
                                     SemanticProperties.Description="Set duration to 1000 milliseconds, 1 second"
                                     AutomationId="Duration1000Button">
                                 <Button.IsEnabled>
@@ -254,6 +261,7 @@
                                     CommandParameter="2000"
                                     Style="{StaticResource TertiaryButton}"
                                     BackgroundColor="{Binding Duration, Converter={StaticResource IntToColorConverter}, ConverterParameter=2000}"
+                                    TextColor="{Binding Duration, Converter={StaticResource IntToTextColorConverter}, ConverterParameter=2000}"
                                     SemanticProperties.Description="Set duration to 2000 milliseconds, 2 seconds"
                                     AutomationId="Duration2000Button">
                                 <Button.IsEnabled>
@@ -305,7 +313,6 @@
                                                 Command="{Binding BindingContext.BuzzFingerCommand, Source={x:Reference CalibrationPageRoot}}"
                                                 CommandParameter="{Binding Index}"
                                                 Style="{StaticResource FingerTestButton}"
-                                                BackgroundColor="{StaticResource Primary}"
                                                 SemanticProperties.Description="{Binding Label, StringFormat='Primary glove {0}'}"
                                                 SemanticProperties.Hint="Tests this finger's motor"
                                                 AutomationId="{Binding AutomationId}">
@@ -365,8 +372,7 @@
                                 Text="Next →"
                                 Command="{Binding NextStepCommand}"
                                 IsEnabled="{Binding CanGoNext}"
-                                Style="{StaticResource TertiaryButton}"
-                                BackgroundColor="{StaticResource Primary}"
+                                Style="{StaticResource PrimaryButton}"
                                 SemanticProperties.Description="Go to next calibration step"
                                 SemanticProperties.Hint="Double tap to advance"
                                 AutomationId="NextStepButton" />
@@ -380,7 +386,6 @@
                     IsVisible="{Binding IsInCalibrationMode}"
                     IsEnabled="{Binding ConnectionInfo.IsConnected}"
                     Style="{StaticResource TertiaryButton}"
-                    BackgroundColor="{StaticResource Gray700}"
                     SemanticProperties.Description="Skip calibration and use safe default settings"
                     SemanticProperties.Hint="Bypasses testing and uses 50% intensity, 200ms duration"
                     AutomationId="SkipCalibrationButton" />

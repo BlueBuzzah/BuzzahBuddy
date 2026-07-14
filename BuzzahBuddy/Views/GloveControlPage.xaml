@@ -284,7 +284,7 @@
 
             <!-- Profile Details (Top Zone - Info only, collapsed during session) -->
             <Border Padding="20"
-                    BackgroundColor="{StaticResource Gray950}"
+                    BackgroundColor="{StaticResource CardBackground}"
                     StrokeThickness="1"
                     Stroke="{StaticResource CardBorder}"
                     IsVisible="{Binding IsSessionActive, Converter={StaticResource InvertedBoolConverter}}">
@@ -373,7 +373,6 @@
                 <Button Text="Test Connection"
                         Command="{Binding TestConnectionCommand}"
                         Style="{StaticResource TertiaryButton}"
-                        BackgroundColor="{StaticResource Primary}"
                         SemanticProperties.Hint="Send a brief test pulse to the device"
                         SemanticProperties.Description="Test connection with brief vibration pulse"
                         AutomationId="TestConnectionButton">
@@ -411,9 +410,8 @@
                 <!-- Stop Session Button (only visible when session is active) -->
                 <Button Text="Stop Session"
                         Command="{Binding StopSessionCommand}"
-                        Style="{StaticResource SecondaryButton}"
+                        Style="{StaticResource DangerActionButton}"
                         IsVisible="{Binding IsSessionActive}"
-                        BackgroundColor="{StaticResource PastelDanger}"
                         SemanticProperties.Hint="Double tap to stop the current session"
                         SemanticProperties.Description="Stops the active therapy session"
                         AutomationId="StopSessionButton">
