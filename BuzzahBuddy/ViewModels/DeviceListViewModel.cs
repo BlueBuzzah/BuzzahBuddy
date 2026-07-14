@@ -99,6 +99,9 @@ public partial class DeviceListViewModel : BaseViewModel
 
     private async Task StartScanningAsync()
     {
+        if (!await EnsureBlePermissionsAsync())
+            return;
+
         System.Diagnostics.Debug.WriteLine("[VM] StartScanningAsync called");
         AvailableDevices.Clear();
         IsScanning = true;
@@ -195,6 +198,54 @@ public partial class DeviceListViewModel : BaseViewModel
 
         // Note: State cleanup happens in StartScanningAsync's finally block
         // to avoid race conditions. We don't set state here.
+    }
+
+    /// <summary>
+    /// Ensures BLE runtime permissions are granted before scanning.
+    /// Android 12+ needs Bluetooth (SCAN/CONNECT); Android ≤ 11 needs location for BLE scans.
+    /// iOS prompts automatically via CoreBluetooth, so non-Android platforms always return true.
+    /// </summary>
+    private async Task<bool> EnsureBlePermissionsAsync()
+    {
+#if ANDROID
+        var status = OperatingSystem.IsAndroidVersionAtLeast(31)
+            ? await Permissions.CheckStatusAsync<Permissions.Bluetooth>()
+            : await Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>();
+
+        if (status == PermissionStatus.Granted)
+            return true;
+
+        var showRationale = OperatingSystem.IsAndroidVersionAtLeast(31)
+            ? Permissions.ShouldShowRationale<Permissions.Bluetooth>()
+            : Permissions.ShouldShowRationale<Permissions.LocationWhenInUse>();
+
+        if (showRationale)
+        {
+            await Shell.Current.DisplayAlert(
+                "Bluetooth Permission Needed",
+                "BuzzahBuddy needs Bluetooth permission to find and connect to your BlueBuzzah gloves.",
+                "OK");
+        }
+
+        status = OperatingSystem.IsAndroidVersionAtLeast(31)
+            ? await Permissions.RequestAsync<Permissions.Bluetooth>()
+            : await Permissions.RequestAsync<Permissions.LocationWhenInUse>();
+
+        if (status == PermissionStatus.Granted)
+            return true;
+
+        var openSettings = await Shell.Current.DisplayAlert(
+            "Permission Denied",
+            "Bluetooth permission is required to scan for gloves. You can grant it in the app settings.",
+            "Open Settings",
+            "Not Now");
+        if (openSettings)
+            AppInfo.Current.ShowSettingsUI();
+
+        return false;
+#else
+        return await Task.FromResult(true);
+#endif
     }
 
     private void UpdateScanButtonState()
