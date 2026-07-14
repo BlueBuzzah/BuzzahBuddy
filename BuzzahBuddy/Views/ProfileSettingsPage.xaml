@@ -180,8 +180,7 @@
                     <Button Text="Apply to Gloves"
                             Command="{Binding ApplyCommand}"
                             IsEnabled="{Binding IsBusy, Converter={StaticResource InvertedBoolConverter}}"
-                            HeightRequest="56"
-                            FontSize="18"
+                            Style="{StaticResource PrimaryButton}"
                             SemanticProperties.Description="Apply the edited profile settings to the connected gloves"
                             SemanticProperties.Hint="Double tap to send the settings to the gloves"
                             AutomationId="ApplyProfileSettingsButton" />
@@ -189,9 +188,7 @@
                     <Button Text="Reload from Gloves"
                             Command="{Binding LoadCommand}"
                             IsEnabled="{Binding IsBusy, Converter={StaticResource InvertedBoolConverter}}"
-                            HeightRequest="48"
-                            FontSize="16"
-                            CornerRadius="8"
+                            Style="{StaticResource SecondaryButton}"
                             SemanticProperties.Description="Discard edits and reload the current settings from the gloves"
                             SemanticProperties.Hint="Double tap to reload settings from the gloves"
                             AutomationId="ReloadProfileSettingsButton" />
