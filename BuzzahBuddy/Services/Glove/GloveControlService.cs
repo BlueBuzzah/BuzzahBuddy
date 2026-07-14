@@ -245,19 +245,24 @@ public class GloveControlService : IGloveControlService
         }
 
         // Note: Per BLE protocol v2.0.0, PROFILE_LOAD triggers a device reboot.
-        // The device will disconnect after sending the response.
+        // Set the flag BEFORE sending: the link can drop at any point after the
+        // write, and ReconnectionService reads ExpectingReboot at disconnect time
+        // to pick the reboot-aware loop (initial delay so both gloves finish
+        // booting and pairing with each other before the phone reattaches).
+        _expectingReboot = true;
+
         CommandResponse response;
         try
         {
             response = await _bluetoothService.SendCommandAsync($"PROFILE_LOAD:{profileId}");
         }
-        catch (Exception ex) when (ex is not BlueBuzzahCommandException)
+        catch (Exception ex)
         {
             // The reboot can drop the link before the response arrives (or even
             // mid-write). If we're no longer connected, that IS the expected
             // outcome — the profile was applied and the gloves are restarting.
-            // The write exception can surface a moment before the disconnect
-            // event flips the state, so give it one short grace re-check.
+            // The exception can surface a moment before the disconnect event
+            // flips the state, so give it one short grace re-check.
             if (_bluetoothService.CurrentConnectionState == ConnectionState.Connected)
             {
                 await Task.Delay(250);
@@ -265,22 +270,25 @@ public class GloveControlService : IGloveControlService
 
             if (_bluetoothService.CurrentConnectionState != ConnectionState.Connected)
             {
-                _expectingReboot = true;
                 System.Diagnostics.Debug.WriteLine(
                     $"[GLOVE_SERVICE] Link dropped during PROFILE_LOAD — treating as reboot: {ex.Message}");
                 return;
             }
+
+            // Still connected: a genuine failure, not a reboot.
+            _expectingReboot = false;
             throw;
         }
 
         // Check if the device is rebooting before throwing on error
         if (response.GetString("STATUS") == "REBOOTING")
         {
-            _expectingReboot = true;
             System.Diagnostics.Debug.WriteLine("[GLOVE_SERVICE] Device is rebooting after profile load");
             return;
         }
 
+        // Responded without rebooting — not a reboot after all.
+        _expectingReboot = false;
         response.ThrowIfError();
 
         // Track the loaded profile

@@ -384,6 +384,19 @@ public class BluetoothService : IBluetoothService
 
             await SubscribeToNotificationsAsync();
 
+            // Identify ourselves immediately (parity with ConnectToDeviceAsync):
+            // without this, the firmware types this connection UNKNOWN for up to
+            // 1s and drops responses to any command sent in that window.
+            try
+            {
+                var identify = Encoding.UTF8.GetBytes("IDENTIFY:PHONE" + BlueBuzzahConstants.CommandTerminator);
+                await _txCharacteristic!.WriteAsync(identify);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[BLE RECONNECT] IDENTIFY:PHONE write failed (non-fatal): {ex.Message}");
+            }
+
             var gloveDevice = new GloveDevice
             {
                 Id = bleDevice.Id.ToString(),
