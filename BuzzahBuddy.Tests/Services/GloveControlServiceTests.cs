@@ -58,6 +58,37 @@ public class GloveControlServiceTests
     }
 
     [Fact]
+    public async Task SetCustomProfileAsync_WithinFirmwareLimits_Sends()
+    {
+        var fake = new FakeBluetoothService();
+        fake.CannedResponses["PROFILE_CUSTOM"] = "STATUS:CUSTOM_LOADED\n\x04";
+        var service = new GloveControlService(fake);
+
+        await service.SetCustomProfileAsync(new Dictionary<string, string> { ["FREQ"] = "250", ["ON"] = "100" });
+
+        Assert.Contains("PROFILE_CUSTOM:FREQ:250:ON:100", fake.SentCommands);
+    }
+
+    [Fact]
+    public async Task SetCustomProfileAsync_OverFirmwareLimits_ThrowsInsteadOfSilentTruncation()
+    {
+        var service = new GloveControlService(new FakeBluetoothService());
+
+        // >8 pairs: firmware parseCommand drops tokens past MAX_COMMAND_PARAMS=16
+        // but still replies CUSTOM_LOADED
+        var ninePairs = Enumerable.Range(1, 9).ToDictionary(i => $"KEY{i}", i => "1");
+        await Assert.ThrowsAsync<ArgumentException>(() => service.SetCustomProfileAsync(ninePairs));
+
+        // ':' in a value would shift the firmware's token parsing
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.SetCustomProfileAsync(new Dictionary<string, string> { ["FREQ"] = "2:50" }));
+
+        // token longer than the firmware's 64-char PARAM_BUFFER_SIZE
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.SetCustomProfileAsync(new Dictionary<string, string> { ["FREQ"] = new string('9', 64) }));
+    }
+
+    [Fact]
     public async Task ListProfilesAsync_ReturnsAllSixDeviceProfiles()
     {
         var fake = new FakeBluetoothService();

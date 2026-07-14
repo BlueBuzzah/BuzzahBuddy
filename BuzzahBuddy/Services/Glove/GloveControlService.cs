@@ -261,15 +261,46 @@ public class GloveControlService : IGloveControlService
             throw new ArgumentException("Parameters dictionary cannot be null or empty", nameof(parameters));
         }
 
+        // Firmware parseCommand limits (menu_controller.h/.cpp): MAX_COMMAND_PARAMS=16
+        // tokens (8 KEY:VAL pairs), PARAM_BUFFER_SIZE=64 per token, 256-char command
+        // buffer, ':' as the token delimiter. The firmware SILENTLY drops anything
+        // over these limits and still replies CUSTOM_LOADED, so reject here instead.
+        const int maxPairs = 8;
+        const int maxTokenLength = 63;
+        const int maxCommandLength = 255;
+
+        if (parameters.Count > maxPairs)
+        {
+            throw new ArgumentException(
+                $"At most {maxPairs} parameters per PROFILE_CUSTOM command; the firmware silently drops extras",
+                nameof(parameters));
+        }
+
         // Build command: PROFILE_CUSTOM:KEY:VAL:KEY:VAL...
         var commandParts = new List<string> { "PROFILE_CUSTOM" };
         foreach (var kvp in parameters)
         {
+            foreach (var token in new[] { kvp.Key, kvp.Value })
+            {
+                if (string.IsNullOrEmpty(token) || token.Length > maxTokenLength ||
+                    token.Contains(':') || token.Contains('\n') || token.Contains(BlueBuzzahConstants.CommandTerminator))
+                {
+                    throw new ArgumentException(
+                        $"Invalid parameter token '{token}': must be 1-{maxTokenLength} chars with no ':' or control characters",
+                        nameof(parameters));
+                }
+            }
             commandParts.Add(kvp.Key);
             commandParts.Add(kvp.Value);
         }
 
         var command = string.Join(":", commandParts);
+        if (command.Length > maxCommandLength)
+        {
+            throw new ArgumentException(
+                $"PROFILE_CUSTOM command is {command.Length} chars; the firmware truncates past {maxCommandLength}",
+                nameof(parameters));
+        }
         var response = await _bluetoothService.SendCommandAsync(command);
         response.ThrowIfError();
     }
