@@ -248,33 +248,49 @@
                     </Grid>
                 </Border>
 
-                <!-- Compact Battery Line -->
-                <HorizontalStackLayout HorizontalOptions="Center" Spacing="20">
-                    <HorizontalStackLayout Spacing="8"
-                                           SemanticProperties.Description="{Binding BatteryPrimaryDescription}">
-                        <Label Text="●"
-                               FontSize="16"
-                               TextColor="{Binding BatteryPrimaryColor}"
-                               VerticalOptions="Center"
-                               AutomationProperties.IsInAccessibleTree="False" />
-                        <Label Text="{Binding BatteryPrimaryText, StringFormat='Primary: {0}'}"
-                               FontSize="14"
-                               VerticalOptions="Center"
-                               AutomationProperties.IsInAccessibleTree="False" />
-                    </HorizontalStackLayout>
-                    <HorizontalStackLayout Spacing="8"
-                                           SemanticProperties.Description="{Binding BatterySecondaryDescription}">
-                        <Label Text="●"
-                               FontSize="16"
-                               TextColor="{Binding BatterySecondaryColor}"
-                               VerticalOptions="Center"
-                               AutomationProperties.IsInAccessibleTree="False" />
-                        <Label Text="{Binding BatterySecondaryText, StringFormat='Secondary: {0}'}"
-                               FontSize="14"
-                               VerticalOptions="Center"
-                               AutomationProperties.IsInAccessibleTree="False" />
-                    </HorizontalStackLayout>
-                </HorizontalStackLayout>
+                <!-- Battery: one row per glove (dot | name | value), columns aligned -->
+                <Grid ColumnDefinitions="Auto,Auto,*"
+                      RowDefinitions="Auto,Auto"
+                      ColumnSpacing="8"
+                      RowSpacing="10">
+                    <Label Grid.Row="0" Grid.Column="0"
+                           Text="●"
+                           FontSize="16"
+                           TextColor="{Binding BatteryPrimaryColor}"
+                           VerticalOptions="Center"
+                           AutomationProperties.IsInAccessibleTree="False" />
+                    <Label Grid.Row="0" Grid.Column="1"
+                           Text="Primary:"
+                           FontSize="14"
+                           VerticalOptions="Center"
+                           AutomationProperties.IsInAccessibleTree="False" />
+                    <Label Grid.Row="0" Grid.Column="2"
+                           Text="{Binding BatteryPrimaryText}"
+                           FontSize="16"
+                           FontAttributes="Bold"
+                           HorizontalOptions="End"
+                           VerticalOptions="Center"
+                           SemanticProperties.Description="{Binding BatteryPrimaryDescription}" />
+
+                    <Label Grid.Row="1" Grid.Column="0"
+                           Text="●"
+                           FontSize="16"
+                           TextColor="{Binding BatterySecondaryColor}"
+                           VerticalOptions="Center"
+                           AutomationProperties.IsInAccessibleTree="False" />
+                    <Label Grid.Row="1" Grid.Column="1"
+                           Text="Secondary:"
+                           FontSize="14"
+                           VerticalOptions="Center"
+                           AutomationProperties.IsInAccessibleTree="False" />
+                    <Label Grid.Row="1" Grid.Column="2"
+                           Text="{Binding BatterySecondaryText}"
+                           FontSize="16"
+                           FontAttributes="Bold"
+                           HorizontalOptions="End"
+                           VerticalOptions="Center"
+                           SemanticProperties.Description="{Binding BatterySecondaryDescription}" />
+                </Grid>
 
                 <!-- Primary Session Control Button (Start/Pause/Resume) -->
                 <Button Text="{Binding SessionButtonText}"

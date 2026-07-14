@@ -180,6 +180,14 @@ public partial class GloveControlViewModel : BaseViewModel
         {
             LoadSelectedProfileAsync().SafeFireAndForget("[GLOVECONTROL]");
         }
+
+        // The connect happens on the Devices page; refresh here so this page always
+        // shows battery values when visited, even if the on-connect refresh raced
+        // the connection-state update. No low-battery alert on mere tab visits.
+        if (ConnectionInfo.IsConnected)
+        {
+            RefreshBatteryAsync(warnIfLow: false).SafeFireAndForget("[GLOVECONTROL]");
+        }
     }
 
     [RelayCommand]
@@ -340,7 +348,7 @@ public partial class GloveControlViewModel : BaseViewModel
         await Shell.Current.GoToAsync(Routes.Devices);
     }
 
-    private async Task RefreshBatteryAsync()
+    private async Task RefreshBatteryAsync(bool warnIfLow = true)
     {
         if (!ConnectionInfo.IsConnected)
             return;
@@ -358,8 +366,11 @@ public partial class GloveControlViewModel : BaseViewModel
             BatterySecondaryColor = secondaryVoltage is { } sv
                 ? BatteryReading.GetBatteryColorFromVoltage(sv) : Colors.Gray;
 
-            // Check for low battery warnings
-            await CheckBatteryWarningAsync();
+            // Check for low battery warnings (on connect, not on every tab visit)
+            if (warnIfLow)
+            {
+                await CheckBatteryWarningAsync();
+            }
         }
         catch (Exception ex)
         {
