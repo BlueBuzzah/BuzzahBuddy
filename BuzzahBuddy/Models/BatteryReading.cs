@@ -42,13 +42,13 @@ public static class BatteryReading
             : "—";
 
     /// <summary>
-    /// Gets display color for a battery percentage. Green >= 60%, Orange >= 20%, Red below.
+    /// Gets display color for a battery percentage. Primary (blue) >= 60%, Warning >= 20%, DangerDark below.
     /// </summary>
     public static Color GetBatteryColor(int percentage) => percentage switch
     {
-        >= 60 => Colors.Green,
-        >= 20 => Colors.Orange,
-        _ => Colors.Red
+        >= 60 => Color.FromArgb("#35B6F2"), // Primary - brand rule: blue signals success
+        >= 20 => Color.FromArgb("#f59e0b"), // Warning
+        _ => Color.FromArgb("#fb7185")      // DangerDark - text/icon on dark surfaces
     };
 
     /// <summary>
@@ -56,9 +56,9 @@ public static class BatteryReading
     /// </summary>
     public static Color GetBatteryColorFromVoltage(double voltage)
     {
-        if (voltage > BlueBuzzahConstants.BatteryGoodThreshold) return Colors.Green;
-        if (voltage >= BlueBuzzahConstants.BatteryMediumThreshold) return Colors.Orange;
-        return Colors.Red;
+        if (voltage > BlueBuzzahConstants.BatteryGoodThreshold) return Color.FromArgb("#35B6F2"); // Primary
+        if (voltage >= BlueBuzzahConstants.BatteryMediumThreshold) return Color.FromArgb("#f59e0b"); // Warning
+        return Color.FromArgb("#fb7185"); // DangerDark
     }
 
     /// <summary>

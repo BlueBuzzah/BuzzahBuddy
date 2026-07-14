@@ -51,7 +51,7 @@ public static class BlueBuzzahConstants
     public const int CommandDelayMs = 100;
 
     /// <summary>
-    /// Battery voltage threshold for good status (green).
+    /// Battery voltage threshold for good status (Primary blue).
     /// </summary>
     public const double BatteryGoodThreshold = 3.6;
 

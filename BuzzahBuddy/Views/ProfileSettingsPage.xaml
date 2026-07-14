@@ -182,8 +182,6 @@
                             IsEnabled="{Binding IsBusy, Converter={StaticResource InvertedBoolConverter}}"
                             HeightRequest="56"
                             FontSize="18"
-                            CornerRadius="12"
-                            BackgroundColor="{StaticResource Primary}"
                             SemanticProperties.Description="Apply the edited profile settings to the connected gloves"
                             SemanticProperties.Hint="Double tap to send the settings to the gloves"
                             AutomationId="ApplyProfileSettingsButton" />

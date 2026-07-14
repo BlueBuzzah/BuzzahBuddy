@@ -61,7 +61,7 @@
 
                 <Label Text="Bluetooth is disabled. Please enable Bluetooth to scan for devices."
                        FontSize="16"
-                       TextColor="{StaticResource Danger}"
+                       TextColor="{StaticResource DangerDark}"
                        IsVisible="{Binding BluetoothEnabled, Converter={StaticResource InvertedBoolConverter}}"
                        LineBreakMode="WordWrap" />
             </VerticalStackLayout>

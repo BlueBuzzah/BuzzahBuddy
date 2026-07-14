@@ -120,9 +120,4 @@ border `#0A3143`, radius 12). Destructive confirm uses DangerButton + SecondaryB
 
 ## Current implementation gaps (`Styles.xaml`)
 
-- Named styles (`PrimaryButton`, `SecondaryButton`, `TertiaryButton`, heading/body styles,
-  glow variants) already exist and views use them consistently — audit their values against
-  this spec rather than restyling views.
-- `Entry`/`Editor` implicit styles exist but lack the `Border` wrapper pattern (no border,
-  no focus ring, no error state).
-- Status colors in styles inherit the teal-success gap from `Colors.xaml` (see colors.md).
+All gaps above were remediated on 2026-07-14 (see docs/superpowers/plans/2026-07-14-design-system-remediation.md).

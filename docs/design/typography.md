@@ -48,6 +48,4 @@ headings), size and color contrast carry the hierarchy — do not fake weights w
 
 ## Current implementation gaps
 
-- `MauiProgram.cs` registers **OpenSans** Regular/Semibold and `Styles.xaml` applies
-  `FontFamily="OpenSansRegular"` to most controls. Per this spec, `FontFamily` should be removed
-  (system default) and the font assets dropped.
+All gaps above were remediated on 2026-07-14 (see docs/superpowers/plans/2026-07-14-design-system-remediation.md).

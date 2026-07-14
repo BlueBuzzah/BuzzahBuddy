@@ -304,7 +304,6 @@
                                                 Command="{Binding BindingContext.BuzzFingerCommand, Source={x:Reference CalibrationPageRoot}}"
                                                 CommandParameter="{Binding Index}"
                                                 Style="{StaticResource FingerTestButton}"
-                                                BackgroundColor="{StaticResource Primary}"
                                                 SemanticProperties.Description="{Binding Label, StringFormat='Primary glove {0}'}"
                                                 SemanticProperties.Hint="Tests this finger's motor"
                                                 AutomationId="{Binding AutomationId}">
