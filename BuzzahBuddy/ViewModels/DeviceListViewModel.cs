@@ -29,6 +29,8 @@ public partial class DeviceListViewModel : BaseViewModel
     private ObservableCollection<GloveDevice> _availableDevices = new();
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowReadyState))]
+    [NotifyPropertyChangedFor(nameof(ShowNoResultsState))]
     private bool _isScanning;
 
     [ObservableProperty]
@@ -50,6 +52,8 @@ public partial class DeviceListViewModel : BaseViewModel
     private string _scanButtonDescription = "Start scanning for BlueBuzzah gloves";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowReadyState))]
+    [NotifyPropertyChangedFor(nameof(ShowNoResultsState))]
     private bool _hasCompletedScan;
 
     [ObservableProperty]
@@ -103,6 +107,31 @@ public partial class DeviceListViewModel : BaseViewModel
         _reconnectionService.CancelReconnect();
         CheckBluetoothStatusAsync().SafeFireAndForget("[DEVICELIST]");
         UpdateConnectionState();
+    }
+
+    /// <summary>Empty-state variant: before the first scan has run.</summary>
+    public bool ShowReadyState => !HasCompletedScan && !IsScanning;
+
+    /// <summary>Empty-state variant: a scan finished and found nothing.</summary>
+    public bool ShowNoResultsState => HasCompletedScan && !IsScanning;
+
+    [RelayCommand]
+    private async Task RefreshDevicesAsync()
+    {
+        // Pull-to-refresh: rescan unless a scan is already running.
+        if (IsScanning)
+        {
+            IsRefreshing = false;
+            return;
+        }
+        try
+        {
+            await StartScanningAsync();
+        }
+        finally
+        {
+            IsRefreshing = false;
+        }
     }
 
     private async Task StartScanningAsync()
