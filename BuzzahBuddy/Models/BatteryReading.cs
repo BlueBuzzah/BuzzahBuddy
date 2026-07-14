@@ -1,4 +1,5 @@
 using System.Globalization;
+using BuzzahBuddy.Helpers;
 using BuzzahBuddy.Services.Bluetooth;
 // Explicit for the plain net9.0 test build, which lacks MAUI implicit usings
 using Microsoft.Maui.Graphics;
@@ -46,9 +47,9 @@ public static class BatteryReading
     /// </summary>
     public static Color GetBatteryColor(int percentage) => percentage switch
     {
-        >= 60 => Color.FromArgb("#35B6F2"), // Primary - brand rule: blue signals success
-        >= 20 => Color.FromArgb("#f59e0b"), // Warning
-        _ => Color.FromArgb("#fb7185")      // DangerDark - text/icon on dark surfaces
+        >= 60 => DesignColors.Primary,    // brand rule: blue signals success
+        >= 20 => DesignColors.Warning,
+        _ => DesignColors.DangerDark      // text/icon on dark surfaces
     };
 
     /// <summary>
@@ -56,9 +57,9 @@ public static class BatteryReading
     /// </summary>
     public static Color GetBatteryColorFromVoltage(double voltage)
     {
-        if (voltage > BlueBuzzahConstants.BatteryGoodThreshold) return Color.FromArgb("#35B6F2"); // Primary
-        if (voltage >= BlueBuzzahConstants.BatteryMediumThreshold) return Color.FromArgb("#f59e0b"); // Warning
-        return Color.FromArgb("#fb7185"); // DangerDark
+        if (voltage > BlueBuzzahConstants.BatteryGoodThreshold) return DesignColors.Primary;
+        if (voltage >= BlueBuzzahConstants.BatteryMediumThreshold) return DesignColors.Warning;
+        return DesignColors.DangerDark;
     }
 
     /// <summary>

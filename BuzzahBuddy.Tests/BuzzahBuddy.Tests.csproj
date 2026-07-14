@@ -35,6 +35,9 @@
   -->
   <ItemGroup>
     <Compile Include="../BuzzahBuddy/Models/**/*.cs" LinkBase="AppModels" />
+    <!-- Controls-free helpers referenced by Models (DesignColors) and covered by unit tests (IntMatch) -->
+    <Compile Include="../BuzzahBuddy/Helpers/DesignColors.cs" LinkBase="AppHelpers" />
+    <Compile Include="../BuzzahBuddy/Helpers/IntMatch.cs" LinkBase="AppHelpers" />
     <Compile Include="../BuzzahBuddy/Services/Bluetooth/RxFrameAssembler.cs" LinkBase="AppServicesBluetooth" />
     <Compile Include="../BuzzahBuddy/Services/Bluetooth/BlueBuzzahConstants.cs" LinkBase="AppServicesBluetooth" />
     <Compile Include="../BuzzahBuddy/Services/Bluetooth/IBluetoothService.cs" LinkBase="AppServicesBluetooth" />

@@ -47,8 +47,10 @@
 
     <!-- Saturated Button Colors (WCAG AA Compliant) -->
     <Color x:Key="DangerButton">#dc2626</Color>
+    <Color x:Key="DangerButtonPressed">#b91c1c</Color>
     <Color x:Key="DangerButtonText">#fafafa</Color>
     <Color x:Key="WarningButton">#f59e0b</Color>
+    <Color x:Key="WarningButtonPressed">#d97706</Color>
     <Color x:Key="WarningButtonText">#0a0a0a</Color>
 
     <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource Primary}"/>

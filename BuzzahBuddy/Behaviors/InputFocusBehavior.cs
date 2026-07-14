@@ -1,3 +1,5 @@
+using BuzzahBuddy.Helpers;
+
 namespace BuzzahBuddy.Behaviors;
 
 /// <summary>
@@ -38,7 +40,7 @@ public class InputFocusBehavior : Behavior<Border>
     {
         if (sender is VisualElement { Parent: Border border })
         {
-            border.Stroke = ResolveBrush("Primary", "#35B6F2");
+            border.Stroke = new SolidColorBrush(ColorResources.Get("Primary", DesignColors.Primary));
         }
     }
 
@@ -46,18 +48,7 @@ public class InputFocusBehavior : Behavior<Border>
     {
         if (sender is VisualElement { Parent: Border border })
         {
-            border.Stroke = ResolveBrush("CardBorder", "#0A3143");
+            border.Stroke = new SolidColorBrush(ColorResources.Get("CardBorder", DesignColors.CardBorder));
         }
-    }
-
-    private static Brush ResolveBrush(string resourceKey, string fallbackHex)
-    {
-        if (Application.Current?.Resources.TryGetValue(resourceKey, out var resource) == true
-            && resource is Color color)
-        {
-            return new SolidColorBrush(color);
-        }
-
-        return new SolidColorBrush(Color.FromArgb(fallbackHex));
     }
 }
