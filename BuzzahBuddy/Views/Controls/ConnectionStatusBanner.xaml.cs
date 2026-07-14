@@ -139,16 +139,16 @@ public partial class ConnectionStatusBanner : ContentView
     {
         if (!IsBluetoothEnabled)
         {
-            return GetColorResource("WarningLightDark");
+            return GetColorResource("WarningChipBackground");
         }
 
         return ConnectionState switch
         {
-            ConnectionState.Connected => GetColorResource("SuccessLightDark"),
-            ConnectionState.Connecting => GetColorResource("InfoLightDark"),
-            ConnectionState.Disconnected => GetColorResource("Gray600"),
-            ConnectionState.Error => GetColorResource("DangerLightDark"),
-            _ => GetColorResource("Gray600")
+            ConnectionState.Connected => GetColorResource("PrimaryChipBackground"),
+            ConnectionState.Connecting => GetColorResource("PrimaryChipBackground"),
+            ConnectionState.Disconnected => GetColorResource("CardBackgroundLight"),
+            ConnectionState.Error => GetColorResource("DangerChipBackground"),
+            _ => GetColorResource("CardBackgroundLight")
         };
     }
 
@@ -207,16 +207,16 @@ public partial class ConnectionStatusBanner : ContentView
     {
         if (!IsBluetoothEnabled)
         {
-            return GetColorResource("WarningDark");
+            return GetColorResource("Warning");
         }
 
         return ConnectionState switch
         {
-            ConnectionState.Connected => GetColorResource("SuccessDark"),
-            ConnectionState.Connecting => GetColorResource("InfoDark"),
-            ConnectionState.Disconnected => GetColorResource("Gray400"),
+            ConnectionState.Connected => GetColorResource("Primary"),
+            ConnectionState.Connecting => GetColorResource("Primary"),
+            ConnectionState.Disconnected => GetColorResource("TextMuted"),
             ConnectionState.Error => GetColorResource("DangerDark"),
-            _ => GetColorResource("Gray400")
+            _ => GetColorResource("TextMuted")
         };
     }
 
@@ -233,7 +233,7 @@ public partial class ConnectionStatusBanner : ContentView
     private Color GetDetailTextColor()
     {
         // Slightly muted version of status text color
-        return GetColorResource("Gray400");
+        return GetColorResource("TextMuted");
     }
 
     private string GetActionText()

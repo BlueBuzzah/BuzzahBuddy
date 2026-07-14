@@ -28,7 +28,7 @@
     <Color x:Key="PageBackground">#0a0a0a</Color>
     <Color x:Key="CardBackground">#05212D</Color>
     <Color x:Key="CardBackgroundLight">#0d3a4d</Color>
-    <Color x:Key="CardBorder">#0d3a4d</Color>
+    <Color x:Key="CardBorder">#0A3143</Color>
     <Color x:Key="TextPrimary">#fafafa</Color>
     <Color x:Key="TextMuted">#a3a3a3</Color>
     <Color x:Key="GlowColor">#35B6F2</Color>
@@ -46,35 +46,20 @@
     <Color x:Key="Gray950">#0a0a0a</Color>
 
     <!-- Blue-Tinted Status Colors (WCAG AA Compliant) -->
-    <Color x:Key="Success">#14b8a6</Color>
-    <Color x:Key="SuccessDark">#5eead4</Color>
-    <Color x:Key="SuccessLight">#d1faf5</Color>
-    <Color x:Key="SuccessLightDark">#134e4a</Color>
+    <Color x:Key="Success">#35B6F2</Color>
     <Color x:Key="Warning">#f59e0b</Color>
-    <Color x:Key="WarningDark">#fbbf24</Color>
-    <Color x:Key="WarningLight">#fef3cd</Color>
-    <Color x:Key="WarningLightDark">#451a03</Color>
     <Color x:Key="Danger">#e11d48</Color>
     <Color x:Key="DangerDark">#fb7185</Color>
-    <Color x:Key="DangerLight">#fce8ec</Color>
-    <Color x:Key="DangerLightDark">#4c0519</Color>
-    <Color x:Key="Info">#2ab2ed</Color>
-    <Color x:Key="InfoDark">#7dd3fc</Color>
-    <Color x:Key="InfoLight">#e0f4fc</Color>
-    <Color x:Key="InfoLightDark">#0c4a6e</Color>
 
-    <!-- Softer Pastel Variants for Friendly UI (WCAG AA Large Text) -->
-    <Color x:Key="PastelWarning">#d4985a</Color>
-    <Color x:Key="PastelWarningDark">#e8b583</Color>
-    <Color x:Key="PastelDanger">#c75b7b</Color>
-    <Color x:Key="PastelDangerDark">#e89bb0</Color>
-    <Color x:Key="PastelInfo">#6bb3d4</Color>
-    <Color x:Key="PastelInfoDark">#96cde5</Color>
+    <!-- Translucent Chip Backgrounds -->
+    <Color x:Key="PrimaryChipBackground">#1A35B6F2</Color>
+    <Color x:Key="WarningChipBackground">#1AF59E0B</Color>
+    <Color x:Key="DangerChipBackground">#1AE11D48</Color>
 
     <!-- Saturated Button Colors (WCAG AA Compliant) -->
     <Color x:Key="DangerButton">#dc2626</Color>
     <Color x:Key="DangerButtonText">#fafafa</Color>
-    <Color x:Key="WarningButton">#d97706</Color>
+    <Color x:Key="WarningButton">#f59e0b</Color>
     <Color x:Key="WarningButtonText">#0a0a0a</Color>
 
     <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource Primary}"/>
@@ -104,5 +89,4 @@
     <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource Success}"/>
     <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource Warning}"/>
     <SolidColorBrush x:Key="DangerBrush" Color="{StaticResource Danger}"/>
-    <SolidColorBrush x:Key="InfoBrush" Color="{StaticResource Info}"/>
 </ResourceDictionary>
