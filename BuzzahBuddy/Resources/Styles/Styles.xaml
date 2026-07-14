@@ -11,8 +11,8 @@
     </Style>
 
     <Style TargetType="IndicatorView">
-        <Setter Property="IndicatorColor" Value="{StaticResource Gray500}"/>
-        <Setter Property="SelectedIndicatorColor" Value="{StaticResource Gray100}"/>
+        <Setter Property="IndicatorColor" Value="{StaticResource CardBackgroundLight}"/>
+        <Setter Property="SelectedIndicatorColor" Value="{StaticResource TextPrimary}"/>
     </Style>
 
     <Style TargetType="Border">
@@ -33,7 +33,7 @@
     </Style>
 
     <Style TargetType="BoxView">
-        <Setter Property="BackgroundColor" Value="{StaticResource Gray200}" />
+        <Setter Property="BackgroundColor" Value="{StaticResource CardBorder}" />
     </Style>
 
     <Style TargetType="Button">
@@ -232,7 +232,7 @@
                     <VisualState x:Name="Normal" />
                     <VisualState x:Name="Disabled">
                         <VisualState.Setters>
-                            <Setter Property="Color" Value="{StaticResource Gray600}" />
+                            <Setter Property="Color" Value="{StaticResource CardBackgroundLight}" />
                         </VisualState.Setters>
                     </VisualState>
                 </VisualStateGroup>
@@ -252,7 +252,7 @@
                     <VisualState x:Name="Normal" />
                     <VisualState x:Name="Disabled">
                         <VisualState.Setters>
-                            <Setter Property="TextColor" Value="{StaticResource Gray500}" />
+                            <Setter Property="TextColor" Value="{StaticResource TextMuted}" />
                         </VisualState.Setters>
                     </VisualState>
                 </VisualStateGroup>
@@ -273,7 +273,7 @@
                     <VisualState x:Name="Normal" />
                     <VisualState x:Name="Disabled">
                         <VisualState.Setters>
-                            <Setter Property="TextColor" Value="{StaticResource Gray600}" />
+                            <Setter Property="TextColor" Value="{StaticResource TextMuted}" />
                         </VisualState.Setters>
                     </VisualState>
                 </VisualStateGroup>
@@ -294,7 +294,7 @@
                     <VisualState x:Name="Normal" />
                     <VisualState x:Name="Disabled">
                         <VisualState.Setters>
-                            <Setter Property="TextColor" Value="{StaticResource Gray600}" />
+                            <Setter Property="TextColor" Value="{StaticResource TextMuted}" />
                         </VisualState.Setters>
                     </VisualState>
                 </VisualStateGroup>
@@ -334,7 +334,7 @@
                     <VisualState x:Name="Normal" />
                     <VisualState x:Name="Disabled">
                         <VisualState.Setters>
-                            <Setter Property="TextColor" Value="{StaticResource Gray600}" />
+                            <Setter Property="TextColor" Value="{StaticResource TextMuted}" />
                         </VisualState.Setters>
                     </VisualState>
                 </VisualStateGroup>
@@ -404,8 +404,8 @@
                     <VisualState x:Name="Normal" />
                     <VisualState x:Name="Disabled">
                         <VisualState.Setters>
-                            <Setter Property="TextColor" Value="{StaticResource Gray600}" />
-                            <Setter Property="TitleColor" Value="{StaticResource Gray600}" />
+                            <Setter Property="TextColor" Value="{StaticResource TextMuted}" />
+                            <Setter Property="TitleColor" Value="{StaticResource TextMuted}" />
                         </VisualState.Setters>
                     </VisualState>
                 </VisualStateGroup>
@@ -421,7 +421,7 @@
                     <VisualState x:Name="Normal" />
                     <VisualState x:Name="Disabled">
                         <VisualState.Setters>
-                            <Setter Property="ProgressColor" Value="{StaticResource Gray600}" />
+                            <Setter Property="ProgressColor" Value="{StaticResource CardBackgroundLight}" />
                         </VisualState.Setters>
                     </VisualState>
                 </VisualStateGroup>
@@ -441,7 +441,7 @@
                     <VisualState x:Name="Normal" />
                     <VisualState x:Name="Disabled">
                         <VisualState.Setters>
-                            <Setter Property="TextColor" Value="{StaticResource Gray600}" />
+                            <Setter Property="TextColor" Value="{StaticResource TextMuted}" />
                         </VisualState.Setters>
                     </VisualState>
                 </VisualStateGroup>
@@ -455,8 +455,8 @@
 
     <Style TargetType="SearchBar">
         <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
-        <Setter Property="PlaceholderColor" Value="{StaticResource Gray500}" />
-        <Setter Property="CancelButtonColor" Value="{StaticResource Gray500}" />
+        <Setter Property="PlaceholderColor" Value="{StaticResource TextMuted}" />
+        <Setter Property="CancelButtonColor" Value="{StaticResource TextMuted}" />
         <Setter Property="BackgroundColor" Value="Transparent" />
         <Setter Property="FontSize" Value="14" />
         <Setter Property="MinimumHeightRequest" Value="44"/>
@@ -467,8 +467,8 @@
                     <VisualState x:Name="Normal" />
                     <VisualState x:Name="Disabled">
                         <VisualState.Setters>
-                            <Setter Property="TextColor" Value="{StaticResource Gray600}" />
-                            <Setter Property="PlaceholderColor" Value="{StaticResource Gray600}" />
+                            <Setter Property="TextColor" Value="{StaticResource TextMuted}" />
+                            <Setter Property="PlaceholderColor" Value="{StaticResource TextMuted}" />
                         </VisualState.Setters>
                     </VisualState>
                 </VisualStateGroup>
@@ -478,7 +478,7 @@
 
     <Style TargetType="SearchHandler">
         <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
-        <Setter Property="PlaceholderColor" Value="{StaticResource Gray500}" />
+        <Setter Property="PlaceholderColor" Value="{StaticResource TextMuted}" />
         <Setter Property="BackgroundColor" Value="Transparent" />
         <Setter Property="FontSize" Value="14" />
         <Setter Property="VisualStateManager.VisualStateGroups">
@@ -487,8 +487,8 @@
                     <VisualState x:Name="Normal" />
                     <VisualState x:Name="Disabled">
                         <VisualState.Setters>
-                            <Setter Property="TextColor" Value="{StaticResource Gray600}" />
-                            <Setter Property="PlaceholderColor" Value="{StaticResource Gray600}" />
+                            <Setter Property="TextColor" Value="{StaticResource TextMuted}" />
+                            <Setter Property="PlaceholderColor" Value="{StaticResource TextMuted}" />
                         </VisualState.Setters>
                     </VisualState>
                 </VisualStateGroup>
@@ -505,7 +505,7 @@
 
     <Style TargetType="Slider">
         <Setter Property="MinimumTrackColor" Value="{StaticResource Primary}" />
-        <Setter Property="MaximumTrackColor" Value="{StaticResource Gray600}" />
+        <Setter Property="MaximumTrackColor" Value="{StaticResource CardBackgroundLight}" />
         <Setter Property="ThumbColor" Value="{StaticResource Primary}" />
         <Setter Property="VisualStateManager.VisualStateGroups">
             <VisualStateGroupList>
@@ -513,9 +513,9 @@
                     <VisualState x:Name="Normal" />
                     <VisualState x:Name="Disabled">
                         <VisualState.Setters>
-                            <Setter Property="MinimumTrackColor" Value="{StaticResource Gray600}"/>
-                            <Setter Property="MaximumTrackColor" Value="{StaticResource Gray600}"/>
-                            <Setter Property="ThumbColor" Value="{StaticResource Gray600}"/>
+                            <Setter Property="MinimumTrackColor" Value="{StaticResource CardBackgroundLight}"/>
+                            <Setter Property="MaximumTrackColor" Value="{StaticResource CardBackgroundLight}"/>
+                            <Setter Property="ThumbColor" Value="{StaticResource CardBackgroundLight}"/>
                         </VisualState.Setters>
                     </VisualState>
                 </VisualStateGroup>
@@ -538,8 +538,8 @@
                     <VisualState x:Name="Normal" />
                     <VisualState x:Name="Disabled">
                         <VisualState.Setters>
-                            <Setter Property="OnColor" Value="{StaticResource Gray600}" />
-                            <Setter Property="ThumbColor" Value="{StaticResource Gray600}" />
+                            <Setter Property="OnColor" Value="{StaticResource CardBackgroundLight}" />
+                            <Setter Property="ThumbColor" Value="{StaticResource CardBackgroundLight}" />
                         </VisualState.Setters>
                     </VisualState>
                     <VisualState x:Name="On">
@@ -550,7 +550,7 @@
                     </VisualState>
                     <VisualState x:Name="Off">
                         <VisualState.Setters>
-                            <Setter Property="ThumbColor" Value="{StaticResource Gray500}" />
+                            <Setter Property="ThumbColor" Value="{StaticResource TextMuted}" />
                         </VisualState.Setters>
                     </VisualState>
                 </VisualStateGroup>
@@ -570,7 +570,7 @@
                     <VisualState x:Name="Normal" />
                     <VisualState x:Name="Disabled">
                         <VisualState.Setters>
-                            <Setter Property="TextColor" Value="{StaticResource Gray600}" />
+                            <Setter Property="TextColor" Value="{StaticResource TextMuted}" />
                         </VisualState.Setters>
                     </VisualState>
                 </VisualStateGroup>
@@ -593,7 +593,7 @@
                     <VisualState x:Name="TitleBarTitleInactive">
                         <VisualState.Setters>
                             <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource Black}}" />
-                            <Setter Property="ForegroundColor" Value="{AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray500}}" />
+                            <Setter Property="ForegroundColor" Value="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMuted}}" />
                         </VisualState.Setters>
                     </VisualState>
                 </VisualStateGroup>
@@ -611,7 +611,7 @@
         <Setter Property="Shell.BackgroundColor" Value="{StaticResource PageBackground}" />
         <Setter Property="Shell.ForegroundColor" Value="{StaticResource TextPrimary}" />
         <Setter Property="Shell.TitleColor" Value="{StaticResource TextPrimary}" />
-        <Setter Property="Shell.DisabledColor" Value="{StaticResource Gray950}" />
+        <Setter Property="Shell.DisabledColor" Value="{StaticResource PageBackground}" />
         <Setter Property="Shell.UnselectedColor" Value="{StaticResource TextMuted}" />
         <Setter Property="Shell.NavBarHasShadow" Value="False" />
         <Setter Property="Shell.TabBarBackgroundColor" Value="{StaticResource CardBackground}" />
@@ -629,7 +629,7 @@
     <Style TargetType="TabbedPage">
         <Setter Property="BarBackgroundColor" Value="{StaticResource CardBackground}" />
         <Setter Property="BarTextColor" Value="{StaticResource Primary}" />
-        <Setter Property="UnselectedTabColor" Value="{StaticResource Gray950}" />
+        <Setter Property="UnselectedTabColor" Value="{StaticResource PageBackground}" />
         <Setter Property="SelectedTabColor" Value="{StaticResource Primary}" />
     </Style>
 

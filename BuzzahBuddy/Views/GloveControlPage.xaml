@@ -284,7 +284,7 @@
 
             <!-- Profile Details (Top Zone - Info only, collapsed during session) -->
             <Border Padding="20"
-                    BackgroundColor="{StaticResource Gray950}"
+                    BackgroundColor="{StaticResource CardBackground}"
                     StrokeThickness="1"
                     Stroke="{StaticResource CardBorder}"
                     IsVisible="{Binding IsSessionActive, Converter={StaticResource InvertedBoolConverter}}">

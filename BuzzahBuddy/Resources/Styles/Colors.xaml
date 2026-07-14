@@ -34,17 +34,6 @@
     <Color x:Key="GlowColor">#35B6F2</Color>
     <Color x:Key="OverlayBackground">#80000000</Color>
 
-    <!-- Blue-Tinted Neutral Grays (Dark Mode Optimized) -->
-    <Color x:Key="Gray100">#e8f4f8</Color>
-    <Color x:Key="Gray200">#1f3a47</Color>
-    <Color x:Key="Gray300">#1a3340</Color>
-    <Color x:Key="Gray400">#a3a3a3</Color>
-    <Color x:Key="Gray500">#5a94a8</Color>
-    <Color x:Key="Gray600">#0d3a4d</Color>
-    <Color x:Key="Gray700">#0a2d3a</Color>
-    <Color x:Key="Gray900">#05212D</Color>
-    <Color x:Key="Gray950">#0a0a0a</Color>
-
     <!-- Blue-Tinted Status Colors (WCAG AA Compliant) -->
     <Color x:Key="Success">#35B6F2</Color>
     <Color x:Key="Warning">#f59e0b</Color>
@@ -75,16 +64,6 @@
     <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimary}"/>
     <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextMuted}"/>
     <SolidColorBrush x:Key="GlowBrush" Color="{StaticResource GlowColor}"/>
-
-    <SolidColorBrush x:Key="Gray100Brush" Color="{StaticResource Gray100}"/>
-    <SolidColorBrush x:Key="Gray200Brush" Color="{StaticResource Gray200}"/>
-    <SolidColorBrush x:Key="Gray300Brush" Color="{StaticResource Gray300}"/>
-    <SolidColorBrush x:Key="Gray400Brush" Color="{StaticResource Gray400}"/>
-    <SolidColorBrush x:Key="Gray500Brush" Color="{StaticResource Gray500}"/>
-    <SolidColorBrush x:Key="Gray600Brush" Color="{StaticResource Gray600}"/>
-    <SolidColorBrush x:Key="Gray700Brush" Color="{StaticResource Gray700}"/>
-    <SolidColorBrush x:Key="Gray900Brush" Color="{StaticResource Gray900}"/>
-    <SolidColorBrush x:Key="Gray950Brush" Color="{StaticResource Gray950}"/>
 
     <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource Success}"/>
     <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource Warning}"/>
