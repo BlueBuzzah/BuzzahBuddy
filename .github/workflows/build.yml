@@ -37,6 +37,11 @@ jobs:
       # workload packs don't exist on Linux, so a full multi-TFM restore fails
       - name: Build Android
         run: dotnet build BuzzahBuddy/BuzzahBuddy.csproj -f net9.0-android -c Debug -p:TargetFrameworks=net9.0-android
+      # Compile check for the plain net9.0 TFM — the only build that covers
+      # BluetoothService, which the test project can't compile (Plugin.BLE
+      # throws off-device). Runs here because it needs the MAUI workload.
+      - name: Build net9.0 compile check
+        run: dotnet build BuzzahBuddy/BuzzahBuddy.csproj -f net9.0 -c Debug -p:TargetFrameworks=net9.0
 
   build-ios:
     runs-on: macos-latest

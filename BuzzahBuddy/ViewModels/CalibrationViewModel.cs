@@ -357,6 +357,14 @@ public partial class CalibrationViewModel : BaseViewModel
         MainThread.BeginInvokeOnMainThread(() =>
         {
             UpdateConnectionState();
+
+            // A different device (4- vs 5-motor) may have connected; actuator count
+            // is refreshed by the post-connect INFO sync, and EnterCalibrationModeAsync
+            // rebuilds again as a backstop before the buttons become usable.
+            if (state == ConnectionState.Connected)
+            {
+                RebuildFingerButtons();
+            }
         });
     }
 

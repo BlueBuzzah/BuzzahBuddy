@@ -50,13 +50,13 @@ public class CalibrationSettings
     /// </summary>
     public static string GetFingerLabel(int fingerIndex, int actuatorsPerGlove)
     {
-        var glove = fingerIndex < actuatorsPerGlove ? "Primary" : "Secondary";
-        var local = fingerIndex % actuatorsPerGlove;
-        if (fingerIndex < 0 || fingerIndex >= 2 * actuatorsPerGlove || local >= FingerNames.Length)
+        if (actuatorsPerGlove < 1 || fingerIndex < 0 || fingerIndex >= 2 * actuatorsPerGlove ||
+            fingerIndex % actuatorsPerGlove >= FingerNames.Length)
         {
             return $"Finger {fingerIndex}";
         }
-        return $"{glove} {FingerNames[local]}";
+        var glove = fingerIndex < actuatorsPerGlove ? "Primary" : "Secondary";
+        return $"{glove} {FingerNames[fingerIndex % actuatorsPerGlove]}";
     }
 
     /// <summary>

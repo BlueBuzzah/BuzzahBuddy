@@ -182,7 +182,10 @@ public class BluetoothService : IBluetoothService
             System.Diagnostics.Debug.WriteLine($"✅ Subscribed to notifications");
 
             // Identify ourselves so the firmware types this connection as PHONE
-            // without waiting out its identification window
+            // without waiting out its identification window. Best-effort: if this
+            // write fails or the firmware predates IDENTIFY, the firmware's
+            // IDENTIFY_TIMEOUT_MS (1s) window expires and classifies the connection
+            // as PHONE anyway; a late IDENTIFY is silently consumed.
             try
             {
                 var identify = Encoding.UTF8.GetBytes("IDENTIFY:PHONE" + BlueBuzzahConstants.CommandTerminator);
@@ -461,7 +464,8 @@ public class BluetoothService : IBluetoothService
     /// Delivers one CommandResponse per EOT-terminated frame reassembled by
     /// <see cref="_rxAssembler"/> from incoming RX text. Responses may span multiple
     /// BLE notification packets; a packet may also carry the tail of one frame and
-    /// the head of the next.
+    /// the head of the next. Firmware-internal glove↔glove messages are filtered
+    /// inside <see cref="RxFrameAssembler.Append"/>.
     /// </summary>
     internal void ProcessIncomingRxText(string text)
     {

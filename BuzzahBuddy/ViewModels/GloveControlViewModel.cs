@@ -31,6 +31,7 @@ public partial class GloveControlViewModel : BaseViewModel
     private const int PollFailureWarningThreshold = 2;
     private const int PollFailureReconnectThreshold = 3;
     private const string ConnectionUnstableWarning = "Connection unstable — trying to recover…";
+    private const string ProfileRebootWarning = "Gloves are restarting to apply the new profile…";
 
     [ObservableProperty]
     private ObservableCollection<ProfileItemViewModel> _availableProfiles = new();
@@ -396,7 +397,7 @@ public partial class GloveControlViewModel : BaseViewModel
             try
             {
                 await _gloveControlService.LoadProfileAsync(profileItem.Profile.ProfileId);
-                SessionWarningMessage = "Gloves are restarting to apply the new profile…";
+                SessionWarningMessage = ProfileRebootWarning;
             }
             catch (BlueBuzzahCommandException ex)
             {
@@ -863,9 +864,13 @@ public partial class GloveControlViewModel : BaseViewModel
         {
             await _gloveControlService.GetDeviceInfoAsync();
 
-            // Clear on any successful INFO fetch so a stuck "restarting" banner from a
-            // profile-change reboot is cleared even if the device profile can't be resolved.
-            SessionWarningMessage = null;
+            // Clear a stuck "restarting" banner from a profile-change reboot on any
+            // successful INFO fetch — but only that banner, so warnings owned by other
+            // paths (low battery, unstable connection) aren't wiped here.
+            if (SessionWarningMessage == ProfileRebootWarning)
+            {
+                SessionWarningMessage = null;
+            }
 
             var deviceProfileId = _gloveControlService.DeviceProfileId;
             if (deviceProfileId <= 0)

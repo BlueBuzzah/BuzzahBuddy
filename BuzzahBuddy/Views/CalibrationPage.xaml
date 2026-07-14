@@ -339,7 +339,7 @@
                                                 CornerRadius="12"
                                                 BackgroundColor="{StaticResource Primary}"
                                                 TextColor="{StaticResource PrimaryDarkText}"
-                                                SemanticProperties.Description="{Binding Label, StringFormat='Primary glove {0} finger'}"
+                                                SemanticProperties.Description="{Binding Label, StringFormat='Primary glove {0}'}"
                                                 SemanticProperties.Hint="Tests this finger's motor"
                                                 AutomationId="{Binding AutomationId}">
                                             <Button.IsEnabled>
@@ -376,7 +376,7 @@
                                                 FontAttributes="Bold"
                                                 CornerRadius="12"
                                                 BackgroundColor="{StaticResource Secondary}"
-                                                SemanticProperties.Description="{Binding Label, StringFormat='Secondary glove {0} finger'}"
+                                                SemanticProperties.Description="{Binding Label, StringFormat='Secondary glove {0}'}"
                                                 SemanticProperties.Hint="Tests this finger's motor"
                                                 AutomationId="{Binding AutomationId}">
                                             <Button.IsEnabled>

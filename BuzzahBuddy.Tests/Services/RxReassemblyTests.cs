@@ -66,6 +66,34 @@ public class RxReassemblyTests
     }
 
     [Fact]
+    public void InternalGloveMessage_NoEot_IsDroppedNotBuffered()
+    {
+        var assembler = new RxFrameAssembler();
+
+        // Glove↔glove sync traffic (no EOT) must not be glued onto the next frame
+        Assert.Empty(assembler.Append("EXECUTE_BUZZ:1:80:500"));
+        Assert.Empty(assembler.Append("SYNC_ADJ:12345"));
+
+        var frames = assembler.Append("PONG:\n\x04");
+        Assert.Single(frames);
+        Assert.Equal("PONG:\n\x04", frames[0]);
+    }
+
+    [Fact]
+    public void InternalPrefix_MidFrame_IsNotDropped()
+    {
+        var assembler = new RxFrameAssembler();
+
+        // A continuation chunk that happens to start with an internal prefix must
+        // still be buffered — the filter only applies at frame start.
+        Assert.Empty(assembler.Append("SESSION_STATUS:RUNNING\nREASON:"));
+        var frames = assembler.Append("PING_LOST\n\x04");
+
+        Assert.Single(frames);
+        Assert.Equal("SESSION_STATUS:RUNNING\nREASON:PING_LOST\n\x04", frames[0]);
+    }
+
+    [Fact]
     public void ReassembledFrame_ParsesToMergedCommandResponse()
     {
         var assembler = new RxFrameAssembler();
