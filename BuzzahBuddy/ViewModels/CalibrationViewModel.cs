@@ -12,10 +12,31 @@ namespace BuzzahBuddy.ViewModels;
 /// <summary>
 /// One calibration finger button.
 /// </summary>
-/// <param name="Index">Protocol finger index sent to <see cref="IGloveControlService.BuzzFingerAsync"/>.</param>
-/// <param name="Label">Finger-only display label used as the button's visible text (e.g. "Index").</param>
-/// <param name="AutomationId">AutomationId for UI testing (e.g. "PrimaryIndexButton").</param>
-public record FingerButtonItem(int Index, string Label, string AutomationId);
+public partial class FingerButtonItem : ObservableObject
+{
+    /// <summary>Protocol finger index sent to <see cref="IGloveControlService.BuzzFingerAsync"/>.</summary>
+    public int Index { get; }
+
+    /// <summary>Finger-only display label (e.g. "Index").</summary>
+    public string Label { get; }
+
+    /// <summary>AutomationId for UI testing (e.g. "PrimaryIndexButton").</summary>
+    public string AutomationId { get; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DisplayLabel))]
+    private bool _isTested;
+
+    /// <summary>Button text — prefixed with a checkmark once the finger has been tested.</summary>
+    public string DisplayLabel => IsTested ? $"✓ {Label}" : Label;
+
+    public FingerButtonItem(int index, string label, string automationId)
+    {
+        Index = index;
+        Label = label;
+        AutomationId = automationId;
+    }
+}
 
 /// <summary>
 /// ViewModel for the calibration page.
@@ -66,11 +87,6 @@ public partial class CalibrationViewModel : BaseViewModel
 
     [ObservableProperty]
     private string _stepDescription = "Choose the vibration intensity level for testing.";
-
-    // Track which fingers have been tested
-    private readonly HashSet<int> _testedFingers = new();
-
-    public bool IsFingerTested(int fingerIndex) => _testedFingers.Contains(fingerIndex);
 
     public bool IsStep1 => CurrentStep == 1;
     public bool IsStep2 => CurrentStep == 2;
@@ -312,7 +328,10 @@ public partial class CalibrationViewModel : BaseViewModel
             await _gloveControlService.BuzzFingerAsync(fingerIndex, Intensity, Duration);
 
             // Mark finger as tested
-            _testedFingers.Add(fingerIndex);
+            // Mark finger as tested (drives the ✓ prefix on the button)
+            var tested = PrimaryFingers.Concat(SecondaryFingers).FirstOrDefault(f => f.Index == fingerIndex);
+            if (tested != null)
+                tested.IsTested = true;
 
             // Brief delay to show visual feedback
             await Task.Delay(Duration + 100);
@@ -426,14 +445,16 @@ public partial class CalibrationViewModel : BaseViewModel
             // Reset wizard to step 1
             CurrentStep = 1;
             UpdateStepInfo();
-            _testedFingers.Clear();
+            foreach (var finger in PrimaryFingers.Concat(SecondaryFingers))
+                finger.IsTested = false;
         }
         else
         {
             // Reset state when exiting calibration
             CurrentStep = 1;
             UpdateStepInfo();
-            _testedFingers.Clear();
+            foreach (var finger in PrimaryFingers.Concat(SecondaryFingers))
+                finger.IsTested = false;
         }
     }
 

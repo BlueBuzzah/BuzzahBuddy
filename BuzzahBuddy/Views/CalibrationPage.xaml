@@ -302,7 +302,7 @@
                                         BindableLayout.ItemsSource="{Binding PrimaryFingers}">
                                 <BindableLayout.ItemTemplate>
                                     <DataTemplate x:DataType="vm:FingerButtonItem">
-                                        <Button Text="{Binding Label}"
+                                        <Button Text="{Binding DisplayLabel}"
                                                 Command="{Binding BindingContext.BuzzFingerCommand, Source={x:Reference CalibrationPageRoot}}"
                                                 CommandParameter="{Binding Index}"
                                                 HeightRequest="64"
@@ -337,7 +337,7 @@
                                         BindableLayout.ItemsSource="{Binding SecondaryFingers}">
                                 <BindableLayout.ItemTemplate>
                                     <DataTemplate x:DataType="vm:FingerButtonItem">
-                                        <Button Text="{Binding Label}"
+                                        <Button Text="{Binding DisplayLabel}"
                                                 Command="{Binding BindingContext.BuzzFingerCommand, Source={x:Reference CalibrationPageRoot}}"
                                                 CommandParameter="{Binding Index}"
                                                 HeightRequest="64"
