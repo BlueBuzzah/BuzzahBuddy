@@ -53,4 +53,15 @@ public class SessionStatusTests
         var status = SessionStatus.FromCommandResponse(response);
         Assert.Equal(SessionState.RUNNING, status.Status);
     }
+
+    [Theory]
+    [InlineData(0, 0.0)]
+    [InlineData(1, 0.01)]
+    [InlineData(50, 0.5)]
+    [InlineData(100, 1.0)]
+    public void ProgressFraction_PercentValue_ReturnsZeroToOneFraction(int progress, double expected)
+    {
+        var status = new SessionStatus { Progress = progress };
+        Assert.Equal(expected, status.ProgressFraction, precision: 5);
+    }
 }

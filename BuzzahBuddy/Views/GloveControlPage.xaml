@@ -62,7 +62,7 @@
                                VerticalOptions="Center" />
                     </HorizontalStackLayout>
 
-                    <ProgressBar Progress="{Binding SessionStatus.Progress}"
+                    <ProgressBar Progress="{Binding SessionStatus.ProgressFraction}"
                                  HeightRequest="8"
                                  ProgressColor="{StaticResource Primary}"
                                  SemanticProperties.Description="Session progress"

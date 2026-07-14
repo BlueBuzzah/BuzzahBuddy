@@ -96,6 +96,12 @@ public class SessionStatus
     public int Progress { get; set; }
 
     /// <summary>
+    /// Session progress as a 0.0–1.0 fraction for ProgressBar binding.
+    /// <see cref="Progress"/> is a 0–100 integer percent from the device.
+    /// </summary>
+    public double ProgressFraction => Progress / 100.0;
+
+    /// <summary>
     /// Gets whether a session is currently active (mirrors firmware isActiveState:
     /// RUNNING, PAUSED, or LOW_BATTERY — a low battery does not stop the session).
     /// </summary>

@@ -187,7 +187,7 @@
                                SemanticProperties.HeadingLevel="Level3" />
 
                         <!-- Progress Bar -->
-                        <ProgressBar Progress="{Binding SessionProgressDecimal}"
+                        <ProgressBar Progress="{Binding SessionStatus.ProgressFraction}"
                                      HeightRequest="12"
                                      ProgressColor="{StaticResource Primary}"
                                      SemanticProperties.Description="Therapy session progress"

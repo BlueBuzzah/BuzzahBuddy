@@ -148,11 +148,6 @@ public partial class MainPageViewModel : BaseViewModel
     };
 
     /// <summary>
-    /// Session progress as a decimal (0.0 - 1.0) for ProgressBar.
-    /// </summary>
-    public double SessionProgressDecimal => SessionStatus.Progress / 100.0;
-
-    /// <summary>
     /// Formatted remaining time for display.
     /// </summary>
     public string RemainingTimeText => $"{SessionStatus.RemainingTimeFormatted} remaining";
@@ -423,7 +418,6 @@ public partial class MainPageViewModel : BaseViewModel
         OnPropertyChanged(nameof(ShowBatteryStatus));
         OnPropertyChanged(nameof(ShowSelectedProfile));
         OnPropertyChanged(nameof(StatusMessage));
-        OnPropertyChanged(nameof(SessionProgressDecimal));
         OnPropertyChanged(nameof(RemainingTimeText));
         OnPropertyChanged(nameof(BatteryPrimaryColor));
         OnPropertyChanged(nameof(BatterySecondaryColor));
