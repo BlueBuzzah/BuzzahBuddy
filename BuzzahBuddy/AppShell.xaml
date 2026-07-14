@@ -16,7 +16,7 @@
             AutomationId="ControlTab" />
 
         <ShellContent
-            Title="Device"
+            Title="Devices"
             Icon="bluetooth"
             ContentTemplate="{DataTemplate views:DeviceListPage}"
             Route="devices"

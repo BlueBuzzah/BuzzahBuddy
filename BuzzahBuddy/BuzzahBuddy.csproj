@@ -41,7 +41,10 @@
 		<!-- Suppress false-positive binding warnings -->
 		<!-- XC0022: ItemDisplayBinding on Picker cannot use compiled bindings (no DataTemplate) -->
 		<!-- XC0045: RelativeSource bindings intentionally access parent ViewModel -->
-		<NoWarn>$(NoWarn);XC0022;XC0045</NoWarn>
+		<!-- XC0023: x:DataType={x:Null} bindings in item templates are deliberate — the
+		     "compiled" RelativeSource AncestorType alternative silently fails to resolve
+		     in CollectionView item containers on device (dead Connect button) -->
+		<NoWarn>$(NoWarn);XC0022;XC0045;XC0023</NoWarn>
 	</PropertyGroup>
 
 	<!-- Android Debug Configuration -->

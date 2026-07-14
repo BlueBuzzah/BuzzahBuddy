@@ -65,10 +65,12 @@
                                         <RoundRectangle CornerRadius="12" />
                                     </Border.StrokeShape>
 
-                                    <!-- Tap to select this profile. AncestorType binding reaches the page
-                                         ViewModel with compiled bindings (x:Reference BindingContext.* cannot compile). -->
+                                    <!-- Tap to select this profile. x:DataType cleared + x:Reference on purpose:
+                                         RelativeSource AncestorType bindings silently fail to resolve in item
+                                         templates on device (see Connect button). -->
                                     <Border.GestureRecognizers>
-                                        <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type vm:DeviceListViewModel}}, Path=Settings.SelectProfileCommand}"
+                                        <TapGestureRecognizer x:DataType="{x:Null}"
+                                                              Command="{Binding Source={x:Reference page}, Path=BindingContext.Settings.SelectProfileCommand}"
                                                               CommandParameter="{Binding}"
                                                               Tapped="OnProfileCardTapped" />
                                     </Border.GestureRecognizers>
@@ -439,17 +441,19 @@
                                            FontSize="14"
                                            TextColor="{StaticResource TextMuted}" />
 
-                                    <!-- Connect Button: AncestorType binding reaches the page ViewModel
-                                         with compiled bindings (x:Reference BindingContext.* cannot compile). -->
+                                    <!-- Connect Button: x:DataType must be cleared and x:Reference used here.
+                                         RelativeSource AncestorType compiles (no XC0023) but silently fails to
+                                         resolve inside CollectionView's recycled item containers on device,
+                                         leaving the button dead. Do not convert back to silence the warning. -->
                                     <Button Grid.Row="0" Grid.RowSpan="2" Grid.Column="1"
+                                            x:DataType="{x:Null}"
                                             Text="Connect"
-                                            Command="{Binding Source={RelativeSource AncestorType={x:Type vm:DeviceListViewModel}}, Path=ConnectCommand}"
+                                            Command="{Binding Source={x:Reference page}, Path=BindingContext.ConnectCommand}"
                                             CommandParameter="{Binding}"
                                             HeightRequest="48"
-                                            WidthRequest="100"
                                             CornerRadius="8"
                                             VerticalOptions="Center"
-                                            IsEnabled="{Binding Source={RelativeSource AncestorType={x:Type vm:DeviceListViewModel}}, Path=IsConnecting, Converter={StaticResource InvertedBoolConverter}}"
+                                            IsEnabled="{Binding Source={x:Reference page}, Path=BindingContext.IsConnecting, Converter={StaticResource InvertedBoolConverter}}"
                                             SemanticProperties.Description="Connect to this Bluetooth device"
                                             SemanticProperties.Hint="Double tap to connect"
                                             AutomationId="ConnectDeviceButton" />
