@@ -56,12 +56,12 @@ public static class BlueBuzzahConstants
     public const double BatteryGoodThreshold = 3.6;
 
     /// <summary>
-    /// Battery voltage threshold for medium status (yellow).
+    /// Battery voltage threshold for medium status (Warning amber).
     /// </summary>
     public const double BatteryMediumThreshold = 3.3;
 
     /// <summary>
-    /// Battery voltage threshold for low battery warning (red).
+    /// Battery voltage threshold for low battery warning (DangerDark).
     /// Below this voltage, user should be warned to charge.
     /// </summary>
     public const double BatteryLowThreshold = 3.3;

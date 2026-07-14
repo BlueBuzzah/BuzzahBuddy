@@ -16,6 +16,7 @@
             <converters:IsNotNullConverter x:Key="IsNotNullConverter" />
             <converters:ContinuousModeConverter x:Key="ContinuousModeConverter" />
             <converters:IntToColorConverter x:Key="IntToColorConverter" />
+            <converters:IntToTextColorConverter x:Key="IntToTextColorConverter" />
             <converters:AllTrueConverter x:Key="AllTrueConverter" />
             <converters:EnumToBoolConverter x:Key="EnumToBoolConverter" />
         </ResourceDictionary>
