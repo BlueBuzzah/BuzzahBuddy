@@ -74,8 +74,7 @@
                                        Text="Turn LED Off During Therapy"
                                        FontSize="16"
                                        VerticalOptions="Center"
-                                       LineBreakMode="WordWrap"
-                                       SemanticProperties.Description="Turn LED off during therapy toggle" />
+                                       LineBreakMode="WordWrap" />
                                 <Switch Grid.Column="1"
                                         IsToggled="{Binding TherapyLedOff}"
                                         IsEnabled="{Binding TherapyLedBusy, Converter={StaticResource InvertedBoolConverter}}"
@@ -91,8 +90,7 @@
                                IsVisible="{Binding ConnectionInfo.IsConnected, Converter={StaticResource InvertedBoolConverter}}"
                                Style="{StaticResource BodyText}"
                                TextColor="{StaticResource TextMuted}"
-                               Margin="0,8,0,0"
-                               SemanticProperties.Description="Connect to a device to access calibration and device settings" />
+                               Margin="0,8,0,0" />
                     </VerticalStackLayout>
                 </Border>
             </VerticalStackLayout>
@@ -116,8 +114,7 @@
                             <Label Grid.Column="0"
                                    Text="Enable Notifications"
                                    FontSize="16"
-                                   VerticalOptions="Center"
-                                   SemanticProperties.Description="Enable notifications toggle" />
+                                   VerticalOptions="Center" />
                             <Switch Grid.Column="1"
                                     IsToggled="{Binding EnableNotifications}"
                                     VerticalOptions="Center"
@@ -131,8 +128,7 @@
                                    Text="Auto-Connect to Last Device"
                                    FontSize="16"
                                    VerticalOptions="Center"
-                                   LineBreakMode="WordWrap"
-                                   SemanticProperties.Description="Auto-connect toggle" />
+                                   LineBreakMode="WordWrap" />
                             <Switch Grid.Column="1"
                                     IsToggled="{Binding AutoConnect}"
                                     VerticalOptions="Center"

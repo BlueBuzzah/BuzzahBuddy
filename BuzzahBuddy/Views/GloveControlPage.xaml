@@ -192,8 +192,7 @@
                            Style="{StaticResource BodyText}"
                            TextColor="{StaticResource TextMuted}"
                            HorizontalTextAlignment="Center"
-                           Margin="0,8,0,0"
-                           SemanticProperties.Description="Connect to a device to view battery status" />
+                           Margin="0,8,0,0" />
                 </VerticalStackLayout>
             </Border>
 
@@ -457,8 +456,7 @@
                            LineBreakMode="WordWrap"
                            Text="Select a therapy profile above to begin."
                            TextColor="{StaticResource TextMuted}"
-                           VerticalOptions="Center"
-                           SemanticProperties.Description="Select a therapy profile above to begin" />
+                           VerticalOptions="Center" />
                 </HorizontalStackLayout>
             </Border>
 

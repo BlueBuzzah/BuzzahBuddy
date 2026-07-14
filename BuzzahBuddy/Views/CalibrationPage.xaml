@@ -34,8 +34,7 @@
                            Style="{StaticResource BodyText}"
                            TextColor="{StaticResource TextMuted}"
                            LineBreakMode="WordWrap"
-                           VerticalOptions="Center"
-                           SemanticProperties.Description="Connect to a BlueBuzzah device to begin calibration" />
+                           VerticalOptions="Center" />
                 </HorizontalStackLayout>
             </Border>
 
@@ -396,8 +395,7 @@
 
                 <Label Style="{StaticResource SecondaryText}"
                        LineBreakMode="WordWrap"
-                       Text="Follow the guided steps to calibrate your gloves: (1) Select intensity, (2) Select duration, (3) Test each finger motor. Or skip to use safe defaults."
-                       SemanticProperties.Description="Calibration instructions" />
+                       Text="Follow the guided steps to calibrate your gloves: (1) Select intensity, (2) Select duration, (3) Test each finger motor. Or skip to use safe defaults." />
             </Border>
 
         </VerticalStackLayout>

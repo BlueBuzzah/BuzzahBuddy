@@ -272,8 +272,7 @@
                                IsVisible="{Binding ConnectionInfo.IsConnected, Converter={StaticResource InvertedBoolConverter}}"
                                Style="{StaticResource BodyText}"
                                TextColor="{StaticResource TextMuted}"
-                               HorizontalTextAlignment="Center"
-                               SemanticProperties.Description="Connect to view battery status" />
+                               HorizontalTextAlignment="Center" />
 
                         <!-- Battery Status -->
                         <HorizontalStackLayout HorizontalOptions="Center"
