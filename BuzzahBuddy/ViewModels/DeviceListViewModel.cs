@@ -31,6 +31,7 @@ public partial class DeviceListViewModel : BaseViewModel
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowReadyState))]
     [NotifyPropertyChangedFor(nameof(ShowNoResultsState))]
+    [NotifyPropertyChangedFor(nameof(ShowScanningWithResults))]
     private bool _isScanning;
 
     [ObservableProperty]
@@ -75,6 +76,9 @@ public partial class DeviceListViewModel : BaseViewModel
         // Subscribe to device discovery
         _bluetoothService.DeviceDiscovered += OnDeviceDiscovered;
 
+        // ShowScanningWithResults depends on the collection's emptiness
+        AvailableDevices.CollectionChanged += (_, _) => OnPropertyChanged(nameof(ShowScanningWithResults));
+
         // Subscribe to connection state changes
         _bluetoothService.ConnectionStateChanged += OnConnectionStateChanged;
 
@@ -114,6 +118,10 @@ public partial class DeviceListViewModel : BaseViewModel
 
     /// <summary>Empty-state variant: a scan finished and found nothing.</summary>
     public bool ShowNoResultsState => HasCompletedScan && !IsScanning;
+
+    /// <summary>Scan still running with devices already listed — the EmptyView scanning
+    /// indicator is hidden once the collection is non-empty, so a slim strip covers it.</summary>
+    public bool ShowScanningWithResults => IsScanning && AvailableDevices.Count > 0;
 
     [RelayCommand]
     private async Task RefreshDevicesAsync()

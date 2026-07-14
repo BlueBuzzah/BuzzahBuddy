@@ -52,7 +52,7 @@
 
         <!-- Device Scanning View - Show when NOT connected -->
         <Grid Grid.Row="0"
-              RowDefinitions="Auto,*,Auto"
+              RowDefinitions="Auto,*,Auto,Auto"
               IsVisible="{Binding ConnectionInfo.IsConnected, Converter={StaticResource InvertedBoolConverter}}">
 
             <!-- TOP ZONE: Header Info (Read-Only) -->
@@ -208,8 +208,25 @@
                 </CollectionView>
             </RefreshView>
 
+            <!-- Still-scanning strip: EmptyView hides once a device is listed, but the scan
+                 keeps running — keep telling the user more devices may still appear -->
+            <HorizontalStackLayout Grid.Row="2"
+                                   Spacing="8"
+                                   HorizontalOptions="Center"
+                                   Margin="0,8,0,0"
+                                   IsVisible="{Binding ShowScanningWithResults}">
+                <ActivityIndicator IsRunning="{Binding ShowScanningWithResults}"
+                                   HeightRequest="20"
+                                   WidthRequest="20"
+                                   Color="{StaticResource Primary}" />
+                <Label Text="Still scanning for more devices..."
+                       Style="{StaticResource SecondaryText}"
+                       VerticalOptions="Center"
+                       AutomationId="StillScanningLabel" />
+            </HorizontalStackLayout>
+
             <!-- BOTTOM ZONE (Easy Reach): Primary Action with Glow -->
-            <Button Grid.Row="2"
+            <Button Grid.Row="3"
                     Text="{Binding ScanButtonText}"
                     Command="{Binding ToggleScanCommand}"
                     Style="{StaticResource SecondaryButtonGlow}"
