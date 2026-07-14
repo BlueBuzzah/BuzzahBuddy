@@ -240,7 +240,8 @@
                                          x:Reference source. Without this, the command silently fails to bind. -->
                                     <TapGestureRecognizer x:DataType="{x:Null}"
                                                           Command="{Binding Source={x:Reference page}, Path=BindingContext.SelectProfileCommand}"
-                                                          CommandParameter="{Binding}" />
+                                                          CommandParameter="{Binding}"
+                                                          Tapped="OnProfileCardTapped" />
                                 </Border.GestureRecognizers>
 
                                 <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" ColumnSpacing="16" RowSpacing="8">
@@ -286,28 +287,6 @@
                         </DataTemplate>
                     </BindableLayout.ItemTemplate>
                 </VerticalStackLayout>
-
-                <!-- Empty State: No Profile Selected -->
-                <Border Padding="16"
-                        Margin="0,8,0,0"
-                        BackgroundColor="{StaticResource CardBackground}"
-                        StrokeThickness="0"
-                        IsVisible="{Binding SelectedProfile, Converter={StaticResource InvertedBoolConverter}}">
-                    <Border.StrokeShape>
-                        <RoundRectangle CornerRadius="8" />
-                    </Border.StrokeShape>
-                    <HorizontalStackLayout Spacing="12">
-                        <Label Text="ℹ️"
-                               FontSize="24"
-                               VerticalOptions="Center"
-                               AutomationProperties.IsInAccessibleTree="False" />
-                        <Label Text="Please select a therapy profile above to begin."
-                               Style="{StaticResource BodyText}"
-                               LineBreakMode="WordWrap"
-                               VerticalOptions="Center"
-                               SemanticProperties.Description="Please select a therapy profile above to begin" />
-                    </HorizontalStackLayout>
-                </Border>
             </VerticalStackLayout>
 
             <!-- Profile Details (Top Zone - Info only, collapsed during session) -->
