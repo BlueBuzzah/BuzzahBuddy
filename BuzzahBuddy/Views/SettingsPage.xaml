@@ -40,7 +40,6 @@
                                 Command="{Binding NavigateToCalibrationCommand}"
                                 IsVisible="{Binding ConnectionInfo.IsConnected}"
                                 Style="{StaticResource TertiaryButton}"
-                                BackgroundColor="{StaticResource Primary}"
                                 SemanticProperties.Description="Open motor calibration for testing individual finger motors"
                                 SemanticProperties.Hint="Double tap to navigate to calibration"
                                 AutomationId="CalibrateMotorsButton" />

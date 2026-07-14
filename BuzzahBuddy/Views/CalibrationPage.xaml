@@ -60,8 +60,7 @@
                                 Text="Enter Calibration"
                                 Command="{Binding EnterCalibrationModeCommand}"
                                 IsEnabled="{Binding ConnectionInfo.IsConnected}"
-                                Style="{StaticResource SecondaryButton}"
-                                BackgroundColor="{StaticResource Primary}"
+                                Style="{StaticResource PrimaryButton}"
                                 SemanticProperties.Description="Enter calibration mode to test and adjust finger motors"
                                 SemanticProperties.Hint="Double tap to enter calibration mode"
                                 AutomationId="EnterCalibrationButton" />
@@ -365,8 +364,7 @@
                                 Text="Next →"
                                 Command="{Binding NextStepCommand}"
                                 IsEnabled="{Binding CanGoNext}"
-                                Style="{StaticResource TertiaryButton}"
-                                BackgroundColor="{StaticResource Primary}"
+                                Style="{StaticResource PrimaryButton}"
                                 SemanticProperties.Description="Go to next calibration step"
                                 SemanticProperties.Hint="Double tap to advance"
                                 AutomationId="NextStepButton" />

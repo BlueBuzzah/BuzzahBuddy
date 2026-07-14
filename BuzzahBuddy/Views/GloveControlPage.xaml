@@ -373,7 +373,6 @@
                 <Button Text="Test Connection"
                         Command="{Binding TestConnectionCommand}"
                         Style="{StaticResource TertiaryButton}"
-                        BackgroundColor="{StaticResource Primary}"
                         SemanticProperties.Hint="Send a brief test pulse to the device"
                         SemanticProperties.Description="Test connection with brief vibration pulse"
                         AutomationId="TestConnectionButton">
