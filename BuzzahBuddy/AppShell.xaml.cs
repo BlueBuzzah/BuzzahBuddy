@@ -1,4 +1,5 @@
-﻿using BuzzahBuddy.Views;
+﻿using BuzzahBuddy.Helpers;
+using BuzzahBuddy.Views;
 
 namespace BuzzahBuddy;
 
@@ -9,7 +10,7 @@ public partial class AppShell : Shell
 		InitializeComponent();
 
 		// Register routes for navigation
-		Routing.RegisterRoute("calibration", typeof(CalibrationPage));
-		Routing.RegisterRoute("profilesettings", typeof(ProfileSettingsPage));
+		Routing.RegisterRoute(Routes.Calibration, typeof(CalibrationPage));
+		Routing.RegisterRoute(Routes.ProfileSettings, typeof(ProfileSettingsPage));
 	}
 }

@@ -1,3 +1,4 @@
+using BuzzahBuddy.Helpers;
 using BuzzahBuddy.Models;
 
 namespace BuzzahBuddy.Views.Controls;
@@ -294,12 +295,12 @@ public partial class ConnectionStatusBanner : ContentView
         else if (ConnectionState == ConnectionState.Disconnected)
         {
             // Navigate to Devices tab
-            await Shell.Current.GoToAsync("//devices");
+            await Shell.Current.GoToAsync(Routes.Devices);
         }
         else if (ConnectionState == ConnectionState.Error)
         {
             // Navigate to Devices tab for reconnection
-            await Shell.Current.GoToAsync("//devices");
+            await Shell.Current.GoToAsync(Routes.Devices);
         }
     }
 

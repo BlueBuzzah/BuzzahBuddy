@@ -434,13 +434,13 @@ public partial class GloveControlViewModel : BaseViewModel
     [RelayCommand]
     private async Task NavigateToDevicesAsync()
     {
-        await Shell.Current.GoToAsync("//devices");
+        await Shell.Current.GoToAsync(Routes.Devices);
     }
 
     [RelayCommand]
     private async Task NavigateToProfileSettingsAsync()
     {
-        await Shell.Current.GoToAsync("profilesettings");
+        await Shell.Current.GoToAsync(Routes.ProfileSettings);
     }
 
     [RelayCommand]

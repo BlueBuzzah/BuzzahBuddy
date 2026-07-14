@@ -229,12 +229,12 @@ public partial class MainPageViewModel : BaseViewModel
         {
             case DashboardState.Disconnected:
             case DashboardState.Error:
-                await Shell.Current.GoToAsync("//devices");
+                await Shell.Current.GoToAsync(Routes.Devices);
                 break;
 
             case DashboardState.Idle:
                 // Navigate to control page to start session
-                await Shell.Current.GoToAsync("//control");
+                await Shell.Current.GoToAsync(Routes.Control);
                 break;
 
             case DashboardState.SessionActive:
@@ -254,7 +254,7 @@ public partial class MainPageViewModel : BaseViewModel
         {
             case DashboardState.Idle:
                 // Navigate to control page to change profile
-                await Shell.Current.GoToAsync("//control");
+                await Shell.Current.GoToAsync(Routes.Control);
                 break;
 
             case DashboardState.SessionActive:
@@ -267,7 +267,7 @@ public partial class MainPageViewModel : BaseViewModel
     [RelayCommand]
     private async Task NavigateToDevicesAsync()
     {
-        await Shell.Current.GoToAsync("//devices");
+        await Shell.Current.GoToAsync(Routes.Devices);
     }
 
     [RelayCommand]

@@ -1,3 +1,4 @@
+using BuzzahBuddy.Helpers;
 using BuzzahBuddy.Services.Bluetooth;
 using BuzzahBuddy.Services.ConnectionStateManagement;
 using BuzzahBuddy.Services.Glove;
@@ -133,13 +134,13 @@ public partial class SettingsViewModel : BaseViewModel
 	[RelayCommand]
 	private async Task NavigateToDevicesAsync()
 	{
-		await Shell.Current.GoToAsync("//devices");
+		await Shell.Current.GoToAsync(Routes.Devices);
 	}
 
 	[RelayCommand]
 	private async Task NavigateToCalibrationAsync()
 	{
-		await Shell.Current.GoToAsync("calibration");
+		await Shell.Current.GoToAsync(Routes.Calibration);
 	}
 
 	/// <summary>

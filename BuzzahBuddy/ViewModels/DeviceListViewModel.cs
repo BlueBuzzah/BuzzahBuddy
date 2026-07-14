@@ -341,7 +341,7 @@ public partial class DeviceListViewModel : BaseViewModel
     [RelayCommand]
     private async Task NavigateToControlAsync()
     {
-        await Shell.Current.GoToAsync("//control");
+        await Shell.Current.GoToAsync(Routes.Control);
     }
 
     [RelayCommand]
@@ -375,7 +375,7 @@ public partial class DeviceListViewModel : BaseViewModel
                     "OK");
 
                 // Navigate immediately to control page
-                await Shell.Current.GoToAsync("//control");
+                await Shell.Current.GoToAsync(Routes.Control);
             }
             else
             {
