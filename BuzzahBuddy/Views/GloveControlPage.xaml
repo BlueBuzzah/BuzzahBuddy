@@ -18,6 +18,12 @@
                    SemanticProperties.Description="BuzzahBuddy Logo"
                    Aspect="AspectFit" />
 
+            <!-- Page Heading -->
+            <Label Text="Therapy Control"
+                   Style="{StaticResource Headline}"
+                   HorizontalOptions="Center"
+                   SemanticProperties.HeadingLevel="Level1" />
+
             <!-- Reconnection Banner -->
             <Border IsVisible="{Binding ShowReconnectionBanner}"
                     BackgroundColor="{StaticResource Warning}"
@@ -288,9 +294,8 @@
                 <!-- Stop Session Button (only visible when session is active) -->
                 <Button Text="Stop Session"
                         Command="{Binding StopSessionCommand}"
-                        Style="{StaticResource SecondaryButton}"
+                        Style="{StaticResource DangerActionButton}"
                         IsVisible="{Binding IsSessionActive}"
-                        BackgroundColor="{StaticResource PastelDanger}"
                         SemanticProperties.Hint="Double tap to stop the current session"
                         SemanticProperties.Description="Stops the active therapy session"
                         AutomationId="StopSessionButton">
@@ -301,34 +306,6 @@
                         </MultiBinding>
                     </Button.IsEnabled>
                 </Button>
-
-                <!-- Info Card (only show when NO profile selected AND not in session) -->
-                <Border Padding="12"
-                        BackgroundColor="{StaticResource CardBackground}"
-                        Margin="0,12,0,0"
-                        StrokeThickness="0">
-                    <Border.IsVisible>
-                        <MultiBinding Converter="{StaticResource AllTrueConverter}">
-                            <Binding Path="IsSessionInactive" />
-                            <Binding Path="HasNoSelectedProfile" />
-                        </MultiBinding>
-                    </Border.IsVisible>
-                    <Border.StrokeShape>
-                        <RoundRectangle CornerRadius="8" />
-                    </Border.StrokeShape>
-
-                    <HorizontalStackLayout Spacing="10">
-                        <Label Text="ℹ️"
-                               FontSize="20"
-                               VerticalOptions="Center"
-                               AutomationProperties.IsInAccessibleTree="False" />
-                        <Label FontSize="14"
-                               LineBreakMode="WordWrap"
-                               Text="Choose a therapy profile on the Device page to begin."
-                               TextColor="{StaticResource TextMuted}"
-                               VerticalOptions="Center" />
-                    </HorizontalStackLayout>
-                </Border>
 
             </VerticalStackLayout>
 

@@ -7,7 +7,6 @@ using BuzzahBuddy.Services.ConnectionStateManagement;
 using BuzzahBuddy.Services.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using System.Collections.ObjectModel;
 using static BuzzahBuddy.Services.Glove.ErrorMessageHelper;
 
 namespace BuzzahBuddy.ViewModels;
@@ -41,7 +40,6 @@ public partial class GloveControlViewModel : BaseViewModel
     private readonly List<TherapyProfile> _profiles = TherapyProfile.GetPresetProfiles();
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasNoSelectedProfile))]
     [NotifyPropertyChangedFor(nameof(SelectedProfileName))]
     [NotifyPropertyChangedFor(nameof(ProfileSummary))]
     private TherapyProfile? _selectedProfile;
@@ -62,7 +60,6 @@ public partial class GloveControlViewModel : BaseViewModel
     private SessionStatus _sessionStatus = SessionStatus.CreateIdle();
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsSessionInactive))]
     private bool _isSessionActive;
 
     [ObservableProperty]
@@ -140,16 +137,6 @@ public partial class GloveControlViewModel : BaseViewModel
     /// </summary>
     public bool ShowReconnectionBanner =>
         ConnectionInfo.IsReconnecting || !string.IsNullOrEmpty(ConnectionInfo.ReconnectionMessage);
-
-    /// <summary>
-    /// True when no session is active. For XAML MultiBinding use.
-    /// </summary>
-    public bool IsSessionInactive => !IsSessionActive;
-
-    /// <summary>
-    /// True when no therapy profile is selected. For XAML MultiBinding use.
-    /// </summary>
-    public bool HasNoSelectedProfile => SelectedProfile == null;
 
     public GloveControlViewModel(
         IGloveControlService gloveControlService,
@@ -384,8 +371,10 @@ public partial class GloveControlViewModel : BaseViewModel
     {
         try
         {
-            // Prefer the profile actually on the device; fall back to the saved selection.
-            var profileId = _gloveControlService.DeviceProfileId > 0
+            // Prefer the profile actually on the device, but only while connected —
+            // DeviceProfileId is never reset on disconnect, so when disconnected it's a
+            // stale snapshot and the saved selection (Device page picks) must win.
+            var profileId = ConnectionInfo.IsConnected && _gloveControlService.DeviceProfileId > 0
                 ? _gloveControlService.DeviceProfileId
                 : await _storageService.GetLastProfileAsync();
 

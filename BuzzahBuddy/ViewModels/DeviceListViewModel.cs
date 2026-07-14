@@ -115,12 +115,9 @@ public partial class DeviceListViewModel : BaseViewModel
     /// </summary>
     public void OnPageAppearing()
     {
-        // Only cancel auto-reconnect when the scan UI is showing — when connected,
-        // the user is here for device settings, not to pick a new device.
-        if (!ConnectionInfo.IsConnected)
-        {
-            _reconnectionService.CancelReconnect();
-        }
+        // Don't cancel auto-reconnect just because this page appeared: a profile change
+        // reboots the gloves and relies on the reconnect loop, and tab switches during
+        // that window must not kill it. Manual connect (ConnectAsync) cancels it instead.
         CheckBluetoothStatusAsync().SafeFireAndForget("[DEVICELIST]");
         UpdateConnectionState();
         Settings.OnPageAppearing();
@@ -370,6 +367,9 @@ public partial class DeviceListViewModel : BaseViewModel
     {
         if (device == null || IsConnecting)
             return;
+
+        // A manual pick supersedes any in-progress auto-reconnect.
+        _reconnectionService.CancelReconnect();
 
         // Stop scanning if active
         if (IsScanning)

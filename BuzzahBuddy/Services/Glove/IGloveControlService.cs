@@ -12,7 +12,7 @@ public interface IGloveControlService
 
     /// <summary>
     /// Event fired when session state changes (IDLE, RUNNING, PAUSED).
-    /// Use this to observe session state from other parts of the app (e.g., MainPage dashboard).
+    /// Use this to observe session state from other parts of the app (e.g., the Device page's settings section).
     /// </summary>
     event EventHandler<SessionStatus>? SessionStateChanged;
 
