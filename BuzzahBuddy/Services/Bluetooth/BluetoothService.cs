@@ -271,6 +271,7 @@ public class BluetoothService : IBluetoothService
             _pendingResponseTcs = new TaskCompletionSource<CommandResponse>();
 
             // Send command (add \n terminator)
+            System.Diagnostics.Debug.WriteLine($"[BLE CMD] >>> {command}");
             var commandBytes = Encoding.UTF8.GetBytes(command + BlueBuzzahConstants.CommandTerminator);
             await _txCharacteristic.WriteAsync(commandBytes);
 
@@ -484,6 +485,8 @@ public class BluetoothService : IBluetoothService
     {
         foreach (var frame in _rxAssembler.Append(text))
         {
+            System.Diagnostics.Debug.WriteLine(
+                $"[BLE RSP] <<< {frame.Replace("\n", "|")} (pending={_pendingResponseTcs != null})");
             var response = CommandResponse.Parse(frame);
             ResponseReceived?.Invoke(this, response);
             _pendingResponseTcs?.TrySetResult(response);
