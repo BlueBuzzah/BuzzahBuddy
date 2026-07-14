@@ -7,18 +7,7 @@ namespace BuzzahBuddy.Helpers;
 /// </summary>
 public static class BatteryHelper
 {
-    public const double MinVoltage = 3.0;
-    public const double MaxVoltage = 4.2;
-
-    /// <summary>
-    /// Converts battery voltage to percentage (0-100) via linear interpolation.
-    /// </summary>
-    public static int VoltageToPercentage(double voltage)
-    {
-        if (voltage <= MinVoltage) return 0;
-        if (voltage >= MaxVoltage) return 100;
-        return (int)((voltage - MinVoltage) / (MaxVoltage - MinVoltage) * 100);
-    }
+    // Voltage-to-percentage conversion lives in Models.BatteryReading (unit tested).
 
     /// <summary>
     /// Gets display color for a battery percentage. Green >= 60%, Orange >= 20%, Red below.

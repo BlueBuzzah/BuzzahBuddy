@@ -68,8 +68,10 @@ public interface IGloveControlService
     /// Gets battery voltage levels for both devices.
     /// Command: BATTERY
     /// Note: May take up to 1 second as Primary queries Secondary via BLE.
+    /// A null voltage means no reading was available (missing key or the
+    /// firmware's 0.00 "no reading" sentinel).
     /// </summary>
-    Task<(double primaryVoltage, double secondaryVoltage)> GetBatteryAsync();
+    Task<(double? primaryVoltage, double? secondaryVoltage)> GetBatteryAsync();
 
     /// <summary>
     /// Pings the device to test connection health.

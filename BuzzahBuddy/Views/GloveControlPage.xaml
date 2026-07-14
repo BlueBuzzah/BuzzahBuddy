@@ -104,7 +104,7 @@
                                            IsVisible="{Binding ConnectionInfo.IsConnected}">
                         <!-- Primary Glove -->
                         <HorizontalStackLayout Spacing="8"
-                                               SemanticProperties.Description="{Binding BatteryPrimaryPercentage, StringFormat='Primary battery: {0} percent'}">
+                                               SemanticProperties.Description="{Binding BatteryPrimaryDescription}">
                             <Label Text="●"
                                    FontSize="16"
                                    TextColor="{Binding BatteryPrimaryColor}"
@@ -115,12 +115,9 @@
                                 <Label.FormattedText>
                                     <FormattedString>
                                         <Span Text="Primary: " FontSize="14" />
-                                        <Span Text="{Binding BatteryPrimaryPercentage, StringFormat='{0}%'}"
+                                        <Span Text="{Binding BatteryPrimaryText}"
                                               FontSize="16"
                                               FontAttributes="Bold" />
-                                        <Span Text="{Binding BatteryPrimaryVoltage, StringFormat=' ({0:F2}V)'}"
-                                              FontSize="12"
-                                              TextColor="{StaticResource TextMuted}" />
                                     </FormattedString>
                                 </Label.FormattedText>
                             </Label>
@@ -128,7 +125,7 @@
 
                         <!-- Secondary Glove -->
                         <HorizontalStackLayout Spacing="8"
-                                               SemanticProperties.Description="{Binding BatterySecondaryPercentage, StringFormat='Secondary battery: {0} percent'}">
+                                               SemanticProperties.Description="{Binding BatterySecondaryDescription}">
                             <Label Text="●"
                                    FontSize="16"
                                    TextColor="{Binding BatterySecondaryColor}"
@@ -139,12 +136,9 @@
                                 <Label.FormattedText>
                                     <FormattedString>
                                         <Span Text="Secondary: " FontSize="14" />
-                                        <Span Text="{Binding BatterySecondaryPercentage, StringFormat='{0}%'}"
+                                        <Span Text="{Binding BatterySecondaryText}"
                                               FontSize="16"
                                               FontAttributes="Bold" />
-                                        <Span Text="{Binding BatterySecondaryVoltage, StringFormat=' ({0:F2}V)'}"
-                                              FontSize="12"
-                                              TextColor="{StaticResource TextMuted}" />
                                     </FormattedString>
                                 </Label.FormattedText>
                             </Label>

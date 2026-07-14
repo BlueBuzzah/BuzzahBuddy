@@ -215,10 +215,10 @@
                                          Color="{Binding BatteryPrimaryColor}"
                                          VerticalOptions="Center"
                                          AutomationProperties.IsInAccessibleTree="False" />
-                                <Label Text="{Binding BatteryPrimaryPercentage, StringFormat='Primary: {0}%'}"
+                                <Label Text="{Binding BatteryPrimaryPercentText, StringFormat='Primary: {0}'}"
                                        FontSize="14"
                                        VerticalOptions="Center"
-                                       SemanticProperties.Description="{Binding BatteryPrimaryPercentage, StringFormat='Primary battery: {0} percent'}" />
+                                       SemanticProperties.Description="{Binding BatteryPrimaryPercentText, StringFormat='Primary battery: {0}'}" />
                             </HorizontalStackLayout>
                             <HorizontalStackLayout Spacing="6">
                                 <BoxView WidthRequest="12"
@@ -227,10 +227,10 @@
                                          Color="{Binding BatterySecondaryColor}"
                                          VerticalOptions="Center"
                                          AutomationProperties.IsInAccessibleTree="False" />
-                                <Label Text="{Binding BatterySecondaryPercentage, StringFormat='Secondary: {0}%'}"
+                                <Label Text="{Binding BatterySecondaryPercentText, StringFormat='Secondary: {0}'}"
                                        FontSize="14"
                                        VerticalOptions="Center"
-                                       SemanticProperties.Description="{Binding BatterySecondaryPercentage, StringFormat='Secondary battery: {0} percent'}" />
+                                       SemanticProperties.Description="{Binding BatterySecondaryPercentText, StringFormat='Secondary battery: {0}'}" />
                             </HorizontalStackLayout>
                         </HorizontalStackLayout>
                     </VerticalStackLayout>
@@ -279,7 +279,7 @@
                                                Spacing="20"
                                                IsVisible="{Binding ConnectionInfo.IsConnected}">
                             <VerticalStackLayout Spacing="4" HorizontalOptions="Center"
-                                                 SemanticProperties.Description="{Binding BatteryPrimaryPercentage, StringFormat='Primary battery: {0} percent'}">
+                                                 SemanticProperties.Description="{Binding BatteryPrimaryPercentText, StringFormat='Primary battery: {0}'}">
                                 <Label Text="Primary"
                                        FontSize="12"
                                        TextColor="{StaticResource TextMuted}"
@@ -292,7 +292,7 @@
                                              Color="{Binding BatteryPrimaryColor}"
                                              VerticalOptions="Center"
                                              AutomationProperties.IsInAccessibleTree="False" />
-                                    <Label Text="{Binding BatteryPrimaryPercentage, StringFormat='{0}%'}"
+                                    <Label Text="{Binding BatteryPrimaryPercentText}"
                                            FontSize="20"
                                            FontAttributes="Bold"
                                            VerticalOptions="Center"
@@ -306,7 +306,7 @@
                                      AutomationProperties.IsInAccessibleTree="False" />
 
                             <VerticalStackLayout Spacing="4" HorizontalOptions="Center"
-                                                 SemanticProperties.Description="{Binding BatterySecondaryPercentage, StringFormat='Secondary battery: {0} percent'}">
+                                                 SemanticProperties.Description="{Binding BatterySecondaryPercentText, StringFormat='Secondary battery: {0}'}">
                                 <Label Text="Secondary"
                                        FontSize="12"
                                        TextColor="{StaticResource TextMuted}"
@@ -319,7 +319,7 @@
                                              Color="{Binding BatterySecondaryColor}"
                                              VerticalOptions="Center"
                                              AutomationProperties.IsInAccessibleTree="False" />
-                                    <Label Text="{Binding BatterySecondaryPercentage, StringFormat='{0}%'}"
+                                    <Label Text="{Binding BatterySecondaryPercentText}"
                                            FontSize="20"
                                            FontAttributes="Bold"
                                            VerticalOptions="Center"
