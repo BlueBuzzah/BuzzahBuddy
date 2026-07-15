@@ -22,6 +22,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     private readonly IGloveControlService _gloveControlService;
     private readonly IBluetoothService _bluetoothService;
     private readonly IDataStorageService _storageService;
+    private readonly IReconnectionService _reconnectionService;
 
     private const string ProfileRebootWarning = "Gloves are restarting to apply the new profile…";
 
@@ -143,20 +144,42 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     [ObservableProperty]
     private bool _therapyLedBusy;
 
+    /// <summary>
+    /// True from a profile-applying reboot until the gloves reconnect (or reconnection
+    /// fails). The Devices page shows an "Applying Settings" card instead of the scan
+    /// UI during this window.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowDisconnectedView))]
+    private bool _isApplyingSettings;
+
+    /// <summary>
+    /// Gates the scan/connect UI: shown only when disconnected AND not mid-apply.
+    /// </summary>
+    public bool ShowDisconnectedView => !ConnectionInfo.IsConnected && !IsApplyingSettings;
+
+    /// <summary>Backstop for the apply-reconnect watch, in case no terminal reconnection event arrives.</summary>
+    private const int ApplyReconnectBackstopMs = 120_000;
+
+    private CancellationTokenSource? _applyWatchCts;
+
     public DeviceSettingsViewModel(
         IGloveControlService gloveControlService,
         IBluetoothService bluetoothService,
         IDataStorageService storageService,
-        IConnectionStateService connectionStateService)
+        IConnectionStateService connectionStateService,
+        IReconnectionService reconnectionService)
     {
         _gloveControlService = gloveControlService;
         _bluetoothService = bluetoothService;
         _storageService = storageService;
         ConnectionInfo = connectionStateService;
+        _reconnectionService = reconnectionService;
 
         _bluetoothService.ConnectionStateChanged += OnConnectionStateChanged;
         _gloveControlService.SessionStateChanged += OnSessionStateChanged;
         _gloveControlService.DeviceProfileChanged += OnDeviceProfileChanged;
+        _reconnectionService.ReconnectionStateChanged += OnReconnectionStateChanged;
 
         LoadProfilesAsync().SafeFireAndForget("[DEVICESETTINGS]");
     }
@@ -259,6 +282,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
             {
                 await _gloveControlService.LoadProfileAsync(SelectedProfile!.ProfileId);
                 ProfileStatusMessage = ProfileRebootWarning;
+                BeginApplyReconnectWatch();
             }
 
             SemanticScreenReader.Announce("Device settings applied");
@@ -495,12 +519,75 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         });
     }
 
+    /// <summary>
+    /// Shows the "Applying Settings" card in place of the scan UI while the gloves
+    /// reboot and auto-reconnect. Ends on reconnect, on a terminal reconnection
+    /// event, or via a backstop timeout.
+    /// </summary>
+    private void BeginApplyReconnectWatch()
+    {
+        IsApplyingSettings = true;
+        _applyWatchCts?.Cancel();
+        _applyWatchCts?.Dispose();
+        _applyWatchCts = new CancellationTokenSource();
+        var ct = _applyWatchCts.Token;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(ApplyReconnectBackstopMs, ct);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+            await MainThread.InvokeOnMainThreadAsync(() => EndApplyReconnectWatch(succeeded: false));
+        });
+    }
+
+    /// <summary>Must be called on the main thread.</summary>
+    private void EndApplyReconnectWatch(bool succeeded)
+    {
+        if (!IsApplyingSettings)
+            return;
+
+        IsApplyingSettings = false;
+        _applyWatchCts?.Cancel();
+
+        if (succeeded)
+        {
+            SemanticScreenReader.Announce("Gloves reconnected. Settings applied.");
+        }
+        else
+        {
+            ProfileStatusMessage = null;
+            MainThread.BeginInvokeOnMainThread(async () =>
+            {
+                await Shell.Current.DisplayAlert(
+                    "Reconnect Failed",
+                    "The settings were sent, but the gloves haven't reconnected. " +
+                    "Make sure they're powered on, then connect again below.",
+                    "OK");
+            });
+        }
+    }
+
+    private void OnReconnectionStateChanged(object? sender, ReconnectionStateEventArgs e)
+    {
+        if (e.State is ReconnectionState.Failed or ReconnectionState.Cancelled)
+        {
+            MainThread.BeginInvokeOnMainThread(() => EndApplyReconnectWatch(succeeded: false));
+        }
+    }
+
     private void OnConnectionStateChanged(object? sender, ConnectionState state)
     {
         MainThread.BeginInvokeOnMainThread(() =>
         {
             if (state == ConnectionState.Connected)
             {
+                EndApplyReconnectWatch(succeeded: true);
                 LoadDeviceSettingsAsync().SafeFireAndForget("[DEVICESETTINGS]");
                 RefreshBatteryAsync().SafeFireAndForget("[DEVICESETTINGS]");
             }
@@ -508,6 +595,8 @@ public partial class DeviceSettingsViewModel : BaseViewModel
             {
                 TherapyLedLoaded = false;
             }
+
+            OnPropertyChanged(nameof(ShowDisconnectedView));
         });
     }
 
@@ -529,6 +618,9 @@ public partial class DeviceSettingsViewModel : BaseViewModel
             _bluetoothService.ConnectionStateChanged -= OnConnectionStateChanged;
             _gloveControlService.SessionStateChanged -= OnSessionStateChanged;
             _gloveControlService.DeviceProfileChanged -= OnDeviceProfileChanged;
+            _reconnectionService.ReconnectionStateChanged -= OnReconnectionStateChanged;
+            _applyWatchCts?.Cancel();
+            _applyWatchCts?.Dispose();
         }
         base.Dispose(disposing);
     }

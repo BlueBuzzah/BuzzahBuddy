@@ -307,10 +307,34 @@
             </VerticalStackLayout>
         </ScrollView>
 
-        <!-- Device Scanning View - Show when NOT connected -->
+        <!-- Applying Settings View - shown while the gloves reboot and auto-reconnect
+             after Apply Settings, instead of dropping the user into the scan UI -->
+        <VerticalStackLayout Grid.Row="0"
+                             Spacing="24"
+                             VerticalOptions="Center"
+                             Padding="20"
+                             IsVisible="{Binding Settings.IsApplyingSettings}">
+            <ActivityIndicator IsRunning="{Binding Settings.IsApplyingSettings}"
+                               HeightRequest="48"
+                               WidthRequest="48"
+                               Color="{StaticResource Primary}"
+                               SemanticProperties.Description="Applying settings" />
+            <Label Text="Applying Settings…"
+                   Style="{StaticResource Headline}"
+                   HorizontalOptions="Center"
+                   SemanticProperties.HeadingLevel="Level1" />
+            <Label Text="Your gloves are restarting with the new settings and will reconnect automatically."
+                   FontSize="16"
+                   TextColor="{StaticResource TextMuted}"
+                   HorizontalTextAlignment="Center"
+                   LineBreakMode="WordWrap"
+                   AutomationId="ApplyingSettingsLabel" />
+        </VerticalStackLayout>
+
+        <!-- Device Scanning View - Show when NOT connected and not mid-apply -->
         <Grid Grid.Row="0"
               RowDefinitions="Auto,*,Auto,Auto"
-              IsVisible="{Binding ConnectionInfo.IsConnected, Converter={StaticResource InvertedBoolConverter}}">
+              IsVisible="{Binding Settings.ShowDisconnectedView}">
 
             <!-- TOP ZONE: Header Info (Read-Only) -->
             <VerticalStackLayout Grid.Row="0" Spacing="10" Margin="0,0,0,16">
