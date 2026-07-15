@@ -527,6 +527,21 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     private void BeginApplyReconnectWatch()
     {
         IsApplyingSettings = true;
+
+        // Blocking modal: covers the tab bar so the user can't wander off into
+        // half-alive screens while the gloves reboot and reconnect.
+        MainThread.BeginInvokeOnMainThread(async () =>
+        {
+            try
+            {
+                await Shell.Current.Navigation.PushModalAsync(new Views.ApplyingSettingsPage(this));
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[DEVICESETTINGS] Apply modal push failed: {ex.Message}");
+            }
+        });
+
         _applyWatchCts?.Cancel();
         _applyWatchCts?.Dispose();
         _applyWatchCts = new CancellationTokenSource();
@@ -555,22 +570,35 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         IsApplyingSettings = false;
         _applyWatchCts?.Cancel();
 
-        if (succeeded)
+        MainThread.BeginInvokeOnMainThread(async () =>
         {
-            SemanticScreenReader.Announce("Gloves reconnected. Settings applied.");
-        }
-        else
-        {
-            ProfileStatusMessage = null;
-            MainThread.BeginInvokeOnMainThread(async () =>
+            // Dismiss the blocking modal if it's still up.
+            try
             {
+                if (Shell.Current.Navigation.ModalStack.LastOrDefault() is Views.ApplyingSettingsPage)
+                {
+                    await Shell.Current.Navigation.PopModalAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[DEVICESETTINGS] Apply modal pop failed: {ex.Message}");
+            }
+
+            if (succeeded)
+            {
+                SemanticScreenReader.Announce("Gloves reconnected. Settings applied.");
+            }
+            else
+            {
+                ProfileStatusMessage = null;
                 await Shell.Current.DisplayAlert(
                     "Reconnect Failed",
                     "The settings were sent, but the gloves haven't reconnected. " +
                     "Make sure they're powered on, then connect again below.",
                     "OK");
-            });
-        }
+            }
+        });
     }
 
     private void OnReconnectionStateChanged(object? sender, ReconnectionStateEventArgs e)
