@@ -27,6 +27,9 @@ public class BluetoothService : IBluetoothService
     private readonly RxFrameAssembler _rxAssembler = new();
     private readonly SemaphoreSlim _responseLock = new(1, 1);
     private TaskCompletionSource<CommandResponse>? _pendingResponseTcs;
+    // Key the pending command's response must contain; stale frames missing it are
+    // filtered at delivery so they never complete the TCS (see ProcessIncomingRxText).
+    private string? _pendingExpectedKey;
 
     // Reconnection state
     private string? _lastConnectedDeviceId;
@@ -290,7 +293,9 @@ public class BluetoothService : IBluetoothService
             // Clear any previous response buffer
             _rxAssembler.Reset();
 
-            // Create task completion source for this command
+            // Publish the expected key BEFORE the TCS so the RX producer filters stale
+            // frames against it (a stray frame missing the key never completes the TCS).
+            ExpectedResponseKeys.TryGetValue(command.Split(':')[0], out _pendingExpectedKey);
             _pendingResponseTcs = new TaskCompletionSource<CommandResponse>();
 
             // Send command (add \n terminator)
@@ -303,29 +308,14 @@ public class BluetoothService : IBluetoothService
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
                 cancellationToken, timeoutCts.Token);
 
-            ExpectedResponseKeys.TryGetValue(command.Split(':')[0], out var expectedKey);
-
             try
             {
-                while (true)
-                {
-                    var response = await _pendingResponseTcs.Task.WaitAsync(linkedCts.Token);
+                var response = await _pendingResponseTcs.Task.WaitAsync(linkedCts.Token);
 
-                    if (expectedKey != null && !response.IsError && response.GetString(expectedKey) == null)
-                    {
-                        // Stale frame from an earlier timed-out command — drop it and
-                        // keep waiting for this command's real response.
-                        System.Diagnostics.Debug.WriteLine(
-                            $"[BLE] Discarded stale response for '{command}' (missing {expectedKey})");
-                        _pendingResponseTcs = new TaskCompletionSource<CommandResponse>();
-                        continue;
-                    }
+                // Add recommended delay between commands (100ms per spec)
+                await Task.Delay(BlueBuzzahConstants.CommandDelayMs, cancellationToken);
 
-                    // Add recommended delay between commands (100ms per spec)
-                    await Task.Delay(BlueBuzzahConstants.CommandDelayMs, cancellationToken);
-
-                    return response;
-                }
+                return response;
             }
             catch (OperationCanceledException)
             {
@@ -339,6 +329,7 @@ public class BluetoothService : IBluetoothService
         finally
         {
             _pendingResponseTcs = null;
+            _pendingExpectedKey = null;
             _responseLock.Release();
         }
     }
@@ -527,6 +518,19 @@ public class BluetoothService : IBluetoothService
                 $"[BLE RSP] <<< {frame.Replace("\n", "|")} (pending={_pendingResponseTcs != null})");
             var response = CommandResponse.Parse(frame);
             ResponseReceived?.Invoke(this, response);
+
+            // Filter stale frames here (not in the awaiter): the protocol has no
+            // correlation IDs, so a late frame from a timed-out command would
+            // otherwise complete the current command's TCS with the wrong response.
+            // Doing it at the single delivery point means only a matching frame ever
+            // completes the TCS — no re-arm race when two frames arrive together.
+            var expectedKey = _pendingExpectedKey;
+            if (expectedKey != null && !response.IsError && response.GetString(expectedKey) == null)
+            {
+                System.Diagnostics.Debug.WriteLine($"[BLE] Discarded stale frame (missing {expectedKey})");
+                continue;
+            }
+
             _pendingResponseTcs?.TrySetResult(response);
         }
     }

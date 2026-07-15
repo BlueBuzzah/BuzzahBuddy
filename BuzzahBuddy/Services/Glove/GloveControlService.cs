@@ -13,6 +13,20 @@ public class GloveControlService : IGloveControlService
     private SessionStatus _currentSessionStatus = SessionStatus.CreateIdle();
     private TherapyProfile? _currentProfile;
     private bool _expectingReboot;
+    private DateTime _expectingRebootSetAt;
+
+    /// <summary>
+    /// How long the "expecting reboot" expectation stays valid. If the device says
+    /// REBOOTING but never actually drops the link, this bounds the flag so a much
+    /// later, unrelated disconnect isn't misread as an expected reboot.
+    /// </summary>
+    private static readonly TimeSpan ExpectingRebootTtl = TimeSpan.FromSeconds(30);
+
+    private void SetExpectingReboot()
+    {
+        _expectingReboot = true;
+        _expectingRebootSetAt = DateTime.UtcNow;
+    }
 
     /// <inheritdoc />
     public event EventHandler<SessionStatus>? SessionStateChanged;
@@ -33,7 +47,8 @@ public class GloveControlService : IGloveControlService
     public int DeviceProfileId { get; private set; }
 
     /// <inheritdoc />
-    public bool ExpectingReboot => _expectingReboot;
+    public bool ExpectingReboot =>
+        _expectingReboot && (DateTime.UtcNow - _expectingRebootSetAt) < ExpectingRebootTtl;
 
     /// <inheritdoc />
     public void ClearExpectingReboot()
@@ -260,21 +275,29 @@ public class GloveControlService : IGloveControlService
         // write, and ReconnectionService reads ExpectingReboot at disconnect time
         // to pick the reboot-aware loop (initial delay so both gloves finish
         // booting and pairing with each other before the phone reattaches).
-        _expectingReboot = true;
+        SetExpectingReboot();
 
         CommandResponse response;
         try
         {
             response = await _bluetoothService.SendCommandAsync($"PROFILE_LOAD:{profileId}");
         }
+        catch (TimeoutException ex)
+        {
+            // A timeout right after PROFILE_LOAD almost always means the gloves
+            // rebooted and dropped the link before (or instead of) responding —
+            // the OS may not have surfaced the disconnect event yet. Trust the
+            // reboot expectation rather than the not-yet-updated connection state.
+            System.Diagnostics.Debug.WriteLine(
+                $"[GLOVE_SERVICE] PROFILE_LOAD timed out — treating as reboot: {ex.Message}");
+            return;
+        }
         catch (Exception ex)
         {
-            // The reboot can drop the link before the response arrives (or even
-            // mid-write). If we're no longer connected, that IS the expected
-            // outcome — the profile was applied and the gloves are restarting.
-            // The exception can surface a moment before the disconnect event
-            // flips the state, so give it one short grace re-check.
-            if (_bluetoothService.CurrentConnectionState == ConnectionState.Connected)
+            // Non-timeout failure. The reboot can still drop the link before the
+            // error surfaces, and the exception can beat the disconnect event, so
+            // give the connection state a grace window to catch up.
+            for (var i = 0; i < 4 && _bluetoothService.CurrentConnectionState == ConnectionState.Connected; i++)
             {
                 await Task.Delay(250);
             }
@@ -286,7 +309,7 @@ public class GloveControlService : IGloveControlService
                 return;
             }
 
-            // Still connected: a genuine failure, not a reboot.
+            // Still connected after the grace window: a genuine failure, not a reboot.
             _expectingReboot = false;
             throw;
         }
@@ -640,7 +663,7 @@ public class GloveControlService : IGloveControlService
     {
         EnsureConnected();
         // RESTART command causes immediate disconnection
-        _expectingReboot = true;
+        SetExpectingReboot();
         try
         {
             await _bluetoothService.SendCommandAsync("RESTART", timeoutMs: 2000);

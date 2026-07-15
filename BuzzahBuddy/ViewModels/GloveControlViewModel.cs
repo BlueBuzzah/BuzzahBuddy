@@ -635,6 +635,15 @@ public partial class GloveControlViewModel : BaseViewModel
     {
         MainThread.BeginInvokeOnMainThread(() =>
         {
+            // The poll (UpdateSessionStatusAsync) owns completion/"ended unexpectedly"
+            // detection and calls GetSessionStatusAsync, which fires this event with
+            // the very status it then assigns to SessionStatus. Ignore that echo — by
+            // the time this queued callback runs the poll has already assigned it — so
+            // only out-of-band updates from Start/Pause/Resume/Stop flip the UI here,
+            // and the poll's edge detection is never bypassed or double-run.
+            if (ReferenceEquals(status, SessionStatus))
+                return;
+
             SessionStatus = status;
             UpdateSessionState();
         });

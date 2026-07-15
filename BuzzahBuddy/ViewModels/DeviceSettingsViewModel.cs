@@ -242,6 +242,12 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     [RelayCommand]
     private async Task ApplySettingsAsync()
     {
+        // Synchronous re-entrancy guard: a tremor double-tap can fire this twice
+        // before IsBusy is set below (the button's IsEnabled binding is async).
+        // Without this, two overlapping applies could stack two blocking modals.
+        if (IsBusy || IsApplyingSettings)
+            return;
+
         if (!ConnectionInfo.IsConnected || !HasPendingChanges)
             return;
 
@@ -502,14 +508,22 @@ public partial class DeviceSettingsViewModel : BaseViewModel
                 ProfileStatusMessage = null;
             }
 
-            var match = AvailableProfiles.FirstOrDefault(p => p.Profile?.ProfileId == profileId);
-            if (match != null)
+            // Don't clobber an unsaved local selection. If the user picked a profile
+            // and hasn't pressed Apply, a reconnect's INFO would otherwise silently
+            // revert their choice. IsProfileDirty compares the selection to the
+            // device's just-updated DeviceProfileId, so this only skips the sync
+            // when the user has a genuinely different pending pick (Apply stays lit).
+            if (!IsProfileDirty)
             {
-                foreach (var item in AvailableProfiles)
+                var match = AvailableProfiles.FirstOrDefault(p => p.Profile?.ProfileId == profileId);
+                if (match != null)
                 {
-                    item.IsSelected = item == match;
+                    foreach (var item in AvailableProfiles)
+                    {
+                        item.IsSelected = item == match;
+                    }
+                    SelectedProfile = match.Profile;
                 }
-                SelectedProfile = match.Profile;
             }
 
             // The profile baseline changed even if the local selection didn't.
@@ -524,6 +538,10 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     /// </summary>
     private void BeginApplyReconnectWatch()
     {
+        // Idempotent: never stack a second modal / watch.
+        if (IsApplyingSettings)
+            return;
+
         IsApplyingSettings = true;
 
         // Blocking modal: covers the tab bar so the user can't wander off into
@@ -610,6 +628,13 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         {
             MainThread.BeginInvokeOnMainThread(() => EndApplyReconnectWatch(succeeded: false));
         }
+        else if (e.State == ReconnectionState.Reconnecting && IsApplyingSettings)
+        {
+            // The apply modal blocks back navigation, so proactively voice each
+            // attempt for screen-reader users parked on it (they can't re-explore).
+            MainThread.BeginInvokeOnMainThread(() =>
+                SemanticScreenReader.Announce($"Reconnecting, attempt {e.Attempt} of {e.MaxAttempts}"));
+        }
     }
 
     private void OnConnectionStateChanged(object? sender, ConnectionState state)
@@ -628,6 +653,9 @@ public partial class DeviceSettingsViewModel : BaseViewModel
             }
 
             OnPropertyChanged(nameof(ShowDisconnectedView));
+            // IsProfileDirty reads IsConnected, so pending-change state can shift
+            // with the connection even though no setting changed.
+            OnPropertyChanged(nameof(HasPendingChanges));
         });
     }
 
