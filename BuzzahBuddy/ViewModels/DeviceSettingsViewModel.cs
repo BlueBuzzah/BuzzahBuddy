@@ -274,6 +274,18 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         }
 
         IsBusy = true;
+
+        // Show the blocking modal BEFORE any write when a profile change is part of
+        // the batch: LoadProfileAsync sends PROFILE_LOAD, which reboots the gloves
+        // during its await — so pushing the modal afterward meant the user saw (and
+        // heard) the reboot before the indicator ever appeared. Awaited so it's up
+        // before the reboot-triggering command goes out.
+        if (applyProfile)
+        {
+            ProfileStatusMessage = ProfileRebootWarning;
+            await BeginApplyReconnectWatchAsync();
+        }
+
         try
         {
             if (IsLedDirty)
@@ -284,21 +296,24 @@ public partial class DeviceSettingsViewModel : BaseViewModel
 
             if (applyProfile)
             {
+                // Returns normally when the reboot is expected; the running watch
+                // ends when the gloves reconnect. Only throws on a genuine, still-
+                // connected failure (handled below — no reboot happened).
                 await _gloveControlService.LoadProfileAsync(SelectedProfile!.ProfileId);
-                ProfileStatusMessage = ProfileRebootWarning;
-                BeginApplyReconnectWatch();
             }
 
             SemanticScreenReader.Announce("Device settings applied");
         }
         catch (BlueBuzzahCommandException ex)
         {
+            AbortApplyReconnectWatch();
             var (title, message) = ErrorMessageHelper.GetFriendlyError(ex.Message);
             await Shell.Current.DisplayAlert(title, message, "OK");
             await ResyncTherapyLedAsync();
         }
         catch (Exception ex)
         {
+            AbortApplyReconnectWatch();
             await Shell.Current.DisplayAlert(GetErrorTitle(ex), GetErrorMessage(ex), "OK");
             await ResyncTherapyLedAsync();
         }
@@ -532,11 +547,11 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     }
 
     /// <summary>
-    /// Shows the "Applying Settings" card in place of the scan UI while the gloves
-    /// reboot and auto-reconnect. Ends on reconnect, on a terminal reconnection
-    /// event, or via a backstop timeout.
+    /// Shows the blocking "Applying Settings" modal and starts the reconnect watch.
+    /// Awaited so the modal is on screen before the caller sends the reboot-triggering
+    /// PROFILE_LOAD. Ends on reconnect, a terminal reconnection event, or a backstop.
     /// </summary>
-    private void BeginApplyReconnectWatch()
+    private async Task BeginApplyReconnectWatchAsync()
     {
         // Idempotent: never stack a second modal / watch.
         if (IsApplyingSettings)
@@ -546,17 +561,14 @@ public partial class DeviceSettingsViewModel : BaseViewModel
 
         // Blocking modal: covers the tab bar so the user can't wander off into
         // half-alive screens while the gloves reboot and reconnect.
-        MainThread.BeginInvokeOnMainThread(async () =>
+        try
         {
-            try
-            {
-                await Shell.Current.Navigation.PushModalAsync(new Views.ApplyingSettingsPage(this));
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[DEVICESETTINGS] Apply modal push failed: {ex.Message}");
-            }
-        });
+            await Shell.Current.Navigation.PushModalAsync(new Views.ApplyingSettingsPage(this));
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[DEVICESETTINGS] Apply modal push failed: {ex.Message}");
+        }
 
         _applyWatchCts?.Cancel();
         _applyWatchCts?.Dispose();
@@ -577,6 +589,37 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         });
     }
 
+    /// <summary>
+    /// Dismisses the apply modal without a reconnect-failed alert. Used when a write
+    /// fails before any reboot happened — the caller shows its own error dialog.
+    /// Must be called on the main thread.
+    /// </summary>
+    private void AbortApplyReconnectWatch()
+    {
+        if (!IsApplyingSettings)
+            return;
+
+        IsApplyingSettings = false;
+        _applyWatchCts?.Cancel();
+        ProfileStatusMessage = null;
+        MainThread.BeginInvokeOnMainThread(async () => await PopApplyModalAsync());
+    }
+
+    private static async Task PopApplyModalAsync()
+    {
+        try
+        {
+            if (Shell.Current.Navigation.ModalStack.LastOrDefault() is Views.ApplyingSettingsPage)
+            {
+                await Shell.Current.Navigation.PopModalAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[DEVICESETTINGS] Apply modal pop failed: {ex.Message}");
+        }
+    }
+
     /// <summary>Must be called on the main thread.</summary>
     private void EndApplyReconnectWatch(bool succeeded)
     {
@@ -588,18 +631,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
 
         MainThread.BeginInvokeOnMainThread(async () =>
         {
-            // Dismiss the blocking modal if it's still up.
-            try
-            {
-                if (Shell.Current.Navigation.ModalStack.LastOrDefault() is Views.ApplyingSettingsPage)
-                {
-                    await Shell.Current.Navigation.PopModalAsync();
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[DEVICESETTINGS] Apply modal pop failed: {ex.Message}");
-            }
+            await PopApplyModalAsync();
 
             if (succeeded)
             {
