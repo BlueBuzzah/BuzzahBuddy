@@ -646,6 +646,14 @@ public partial class GloveControlViewModel : BaseViewModel
 
             SessionStatus = status;
             UpdateSessionState();
+
+            // A session we didn't start (e.g. the gloves auto-started one before the
+            // app connected, surfaced by the post-connect sync) needs polling so its
+            // progress advances; start it if it isn't already running.
+            if (IsSessionActive && _statusPollTimer == null)
+            {
+                StartStatusPolling();
+            }
         });
     }
 

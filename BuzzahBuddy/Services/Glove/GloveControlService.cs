@@ -81,11 +81,12 @@ public class GloveControlService : IGloveControlService
     }
 
     /// <summary>
-    /// Fetches device INFO once per (re)connect so DeviceProfileId is populated and
-    /// DeviceProfileChanged fires without every page having to ask the device itself.
-    /// Uses the transport's own state (no race with the UI-facing connection service),
-    /// with one retry because the first command right after connect can fail while
-    /// the link settles.
+    /// Once per (re)connect, syncs device state so observers don't have to ask per page:
+    /// INFO (populates DeviceProfileId, raises DeviceProfileChanged) and SESSION_STATUS
+    /// (raises SessionStateChanged — so a session the gloves auto-started before the app
+    /// connected shows up instead of the UI looking idle). Uses the transport's own state
+    /// (no race with the UI-facing connection service), with a growing backoff because
+    /// the first commands after connect can be starved while the link/glove-sync settles.
     /// </summary>
     private void OnTransportConnectionStateChanged(object? sender, ConnectionState state)
     {
@@ -111,12 +112,15 @@ public class GloveControlService : IGloveControlService
                 try
                 {
                     await GetDeviceInfoAsync();
+                    // Sync session state too: the gloves auto-start a session ~30s
+                    // after power-on, which can be before the app ever connects.
+                    await GetSessionStatusAsync();
                     return;
                 }
                 catch (Exception ex)
                 {
                     System.Diagnostics.Debug.WriteLine(
-                        $"[GLOVE_SERVICE] Post-connect INFO failed (attempt {attempt + 1}/{delaysMs.Length}): {ex.Message}");
+                        $"[GLOVE_SERVICE] Post-connect sync failed (attempt {attempt + 1}/{delaysMs.Length}): {ex.Message}");
                 }
             }
         });
