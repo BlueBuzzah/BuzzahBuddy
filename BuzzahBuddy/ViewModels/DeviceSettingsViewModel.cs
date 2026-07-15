@@ -200,12 +200,10 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         LoadDeviceSettingsAsync().SafeFireAndForget("[DEVICESETTINGS]");
         RefreshBatteryAsync().SafeFireAndForget("[DEVICESETTINGS]");
 
-        // The service normally fetches INFO on connect; this is just a fallback for
-        // the rare case where both post-connect attempts failed.
-        if (_gloveControlService.DeviceProfileId <= 0)
-        {
-            _gloveControlService.GetDeviceInfoAsync().SafeFireAndForget("[DEVICESETTINGS]");
-        }
+        // Re-fetch INFO on every visit: DeviceProfileId persists across connections,
+        // so a "still set" value can be stale from the previous connection if the
+        // post-connect fetch failed. One cheap round-trip keeps this page truthful.
+        _gloveControlService.GetDeviceInfoAsync().SafeFireAndForget("[DEVICESETTINGS]");
     }
 
     /// <summary>
@@ -587,6 +585,11 @@ public partial class DeviceSettingsViewModel : BaseViewModel
 
             if (succeeded)
             {
+                // The reboot is over — the "gloves are restarting" notice is done.
+                if (ProfileStatusMessage == ProfileRebootWarning)
+                {
+                    ProfileStatusMessage = null;
+                }
                 SemanticScreenReader.Announce("Gloves reconnected. Settings applied.");
             }
             else

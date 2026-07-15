@@ -79,8 +79,20 @@ public class GloveControlService : IGloveControlService
 
         _ = Task.Run(async () =>
         {
-            for (var attempt = 1; attempt <= 2; attempt++)
+            // Growing backoff: right after a profile-reboot reconnect the primary is
+            // busy re-establishing clock sync with the secondary (~5s cold start) and
+            // can starve early commands, so short retries all land in the busy window.
+            int[] delaysMs = { 0, 2000, 5000, 10000 };
+            for (var attempt = 0; attempt < delaysMs.Length; attempt++)
             {
+                if (delaysMs[attempt] > 0)
+                {
+                    await Task.Delay(delaysMs[attempt]);
+                }
+
+                if (_bluetoothService.CurrentConnectionState != ConnectionState.Connected)
+                    return;
+
                 try
                 {
                     await GetDeviceInfoAsync();
@@ -89,8 +101,7 @@ public class GloveControlService : IGloveControlService
                 catch (Exception ex)
                 {
                     System.Diagnostics.Debug.WriteLine(
-                        $"[GLOVE_SERVICE] Post-connect INFO failed (attempt {attempt}): {ex.Message}");
-                    await Task.Delay(500);
+                        $"[GLOVE_SERVICE] Post-connect INFO failed (attempt {attempt + 1}/{delaysMs.Length}): {ex.Message}");
                 }
             }
         });
