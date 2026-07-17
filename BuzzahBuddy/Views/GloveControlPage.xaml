@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:BuzzahBuddy.ViewModels"
              xmlns:models="clr-namespace:BuzzahBuddy.Models"
+             xmlns:controls="clr-namespace:BuzzahBuddy.Views.Controls"
              x:Class="BuzzahBuddy.Views.GloveControlPage"
              x:DataType="vm:GloveControlViewModel"
              Title="{Binding Title}">
@@ -185,18 +186,20 @@
                                    VerticalOptions="Center" />
                         </HorizontalStackLayout>
 
-                        <ProgressBar Progress="{Binding SessionStatus.ProgressFraction}"
-                                     HeightRequest="12"
-                                     ProgressColor="{StaticResource Primary}"
-                                     SemanticProperties.Description="Therapy session progress"
-                                     AutomationId="SessionProgressBar" />
+                        <controls:SessionTimerView Progress="{Binding TimerProgressFraction}"
+                                                   TimeText="{Binding TimerRemainingText}"
+                                                   Caption="{Binding TimerCaption}"
+                                                   IsPaused="{Binding IsSessionPaused}"
+                                                   HeightRequest="270"
+                                                   SemanticProperties.Description="{Binding TimerSemanticDescription}"
+                                                   AutomationId="SessionTimerRing" />
 
-                        <HorizontalStackLayout Spacing="20" HorizontalOptions="Center">
-                            <Label Text="{Binding SessionStatus.ElapsedTimeFormatted, StringFormat='Elapsed: {0}'}"
-                                   FontSize="14" />
-                            <Label Text="{Binding SessionStatus.RemainingTimeFormatted, StringFormat='Remaining: {0}'}"
-                                   FontSize="14" />
-                        </HorizontalStackLayout>
+                        <Label Text="{Binding TimerElapsedText}"
+                               FontSize="14"
+                               TextColor="{StaticResource TextMuted}"
+                               HorizontalTextAlignment="Center"
+                               IsVisible="{Binding TimerElapsedText, Converter={StaticResource IsNotNullConverter}}"
+                               AutomationProperties.IsInAccessibleTree="False" />
                     </VerticalStackLayout>
                 </Border>
 

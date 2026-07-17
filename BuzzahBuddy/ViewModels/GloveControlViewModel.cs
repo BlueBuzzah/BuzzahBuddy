@@ -24,6 +24,8 @@ public partial class GloveControlViewModel : BaseViewModel
     private TherapySession? _currentSession;
     private System.Timers.Timer? _statusPollTimer;
     private System.Timers.Timer? _healthCheckTimer;
+    private readonly SessionClock _sessionClock = new();
+    private IDispatcherTimer? _displayTickTimer;
     private readonly IAppLifecycleService _appLifecycle;
     private bool _pollingPausedByLifecycle;
     private bool _isBackgrounded;
@@ -66,6 +68,21 @@ public partial class GloveControlViewModel : BaseViewModel
 
     [ObservableProperty]
     private bool _isSessionPaused;
+
+    [ObservableProperty]
+    private double _timerProgressFraction;
+
+    [ObservableProperty]
+    private string _timerRemainingText = "00:00";
+
+    [ObservableProperty]
+    private string? _timerElapsedText;
+
+    [ObservableProperty]
+    private string _timerCaption = string.Empty;
+
+    [ObservableProperty]
+    private string _timerSemanticDescription = string.Empty;
 
     // Null voltage = no reading available (missing key or firmware 0.00 sentinel)
     [ObservableProperty]
@@ -513,6 +530,8 @@ public partial class GloveControlViewModel : BaseViewModel
 
     private void UpdateSessionState()
     {
+        _sessionClock.Anchor(SessionStatus, DateTime.UtcNow);
+
         IsSessionActive = SessionStatus.IsActive;
         IsSessionRunning = SessionStatus.IsRunning;
         IsSessionPaused = SessionStatus.IsPaused;
@@ -533,6 +552,13 @@ public partial class GloveControlViewModel : BaseViewModel
             SessionButtonText = "Resume Session";
             SessionButtonDescription = "Resumes the paused therapy session";
         }
+
+        UpdateTimerDisplay(updateSemantics: true);
+
+        if (IsSessionActive && !_isBackgrounded)
+            StartDisplayTick();
+        else
+            StopDisplayTick();
     }
 
     private void StartStatusPolling()
@@ -550,6 +576,58 @@ public partial class GloveControlViewModel : BaseViewModel
         _statusPollTimer?.Stop();
         _statusPollTimer?.Dispose();
         _statusPollTimer = null;
+    }
+
+    /// <summary>
+    /// Starts the local 500ms display tick that animates the session timer between
+    /// 5s BLE status polls. Purely local — no BLE traffic.
+    /// </summary>
+    private void StartDisplayTick()
+    {
+        if (_displayTickTimer != null)
+            return;
+        var timer = Application.Current?.Dispatcher.CreateTimer();
+        if (timer == null)
+            return;
+        timer.Interval = TimeSpan.FromMilliseconds(500);
+        timer.Tick += (s, e) => UpdateTimerDisplay(updateSemantics: false);
+        timer.Start();
+        _displayTickTimer = timer;
+    }
+
+    private void StopDisplayTick()
+    {
+        _displayTickTimer?.Stop();
+        _displayTickTimer = null;
+    }
+
+    private void UpdateTimerDisplay(bool updateSemantics)
+    {
+        var reading = _sessionClock.TickTo(DateTime.UtcNow);
+        TimerProgressFraction = reading.HasKnownTotal ? reading.Fraction : 0;
+        TimerRemainingText = reading.HasKnownTotal ? reading.RemainingFormatted : reading.ElapsedFormatted;
+        TimerCaption = IsSessionPaused ? "Paused" : (reading.HasKnownTotal ? "remaining" : "elapsed");
+        TimerElapsedText = reading.HasKnownTotal
+            ? $"{reading.ElapsedFormatted} elapsed • {SessionStatus.TotalTimeFormatted} total"
+            : null;
+
+        // Screen-reader description updates only on re-anchor (~5s), not every tick,
+        // to avoid VoiceOver/TalkBack spam.
+        if (updateSemantics)
+        {
+            var state = IsSessionPaused ? "session paused" : "session running";
+            if (reading.HasKnownTotal)
+            {
+                var remaining = TimeSpan.FromSeconds(Math.Ceiling(reading.Remaining.TotalSeconds));
+                TimerSemanticDescription =
+                    $"{(int)remaining.TotalMinutes} minutes {remaining.Seconds} seconds remaining, {state}";
+            }
+            else
+            {
+                TimerSemanticDescription =
+                    $"{(int)reading.Elapsed.TotalMinutes} minutes {reading.Elapsed.Seconds} seconds elapsed, {state}";
+            }
+        }
     }
 
     private void StartConnectionHealthCheck()
@@ -698,6 +776,7 @@ public partial class GloveControlViewModel : BaseViewModel
         _pollingPausedByLifecycle = _statusPollTimer != null;
         StopStatusPolling();
         StopConnectionHealthCheck();
+        StopDisplayTick();
     }
 
     private void OnAppResumed(object? sender, EventArgs e)
@@ -900,6 +979,7 @@ public partial class GloveControlViewModel : BaseViewModel
             _appLifecycle.Resumed -= OnAppResumed;
             StopStatusPolling();
             StopConnectionHealthCheck();
+            StopDisplayTick();
             System.Diagnostics.Debug.WriteLine("[GLOVECONTROL] ViewModel disposed, unsubscribed from events");
         }
         base.Dispose(disposing);
