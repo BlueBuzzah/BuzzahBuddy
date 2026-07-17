@@ -388,11 +388,11 @@ public partial class DeviceListViewModel : BaseViewModel
             if (success)
             {
                 await _storageService.SaveLastDeviceAsync(device);
-                SemanticScreenReader.Announce($"Connected to {device.Name}");
+                SemanticScreenReader.Announce($"Connected to {device.DisplayName}");
 
                 await Shell.Current.DisplayAlert(
                     "Connected",
-                    $"Successfully connected to {device.Name}",
+                    $"Successfully connected to {device.DisplayName}",
                     "OK");
 
                 // Navigate immediately to control page
@@ -403,7 +403,7 @@ public partial class DeviceListViewModel : BaseViewModel
                 // Only show alert for failures
                 await Shell.Current.DisplayAlert(
                     "Connection Failed",
-                    $"Could not connect to {device.Name}. Please try again.",
+                    $"Could not connect to {device.DisplayName}. Please try again.",
                     "OK");
             }
         }

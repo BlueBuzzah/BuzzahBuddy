@@ -31,6 +31,19 @@ public class GloveDevice
     public string? FirmwareVersion { get; set; }
 
     /// <summary>
+    /// Hardware generation ("v2" or "v3"), parsed from the BLE advertisement's
+    /// manufacturer data. Null when the firmware predates hardware-version
+    /// advertising.
+    /// </summary>
+    public string? HardwareVersion { get; set; }
+
+    /// <summary>
+    /// Name with the hardware generation appended (e.g. "BlueBuzzah v3"),
+    /// or the plain name when the generation is unknown.
+    /// </summary>
+    public string DisplayName => HardwareVersion == null ? Name : $"{Name} {HardwareVersion}";
+
+    /// <summary>
     /// Gets or sets the signal strength (RSSI) of the Bluetooth connection.
     /// </summary>
     public int SignalStrength { get; set; }
