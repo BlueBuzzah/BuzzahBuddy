@@ -14,8 +14,9 @@ namespace BuzzahBuddy.ViewModels;
 /// <summary>
 /// ViewModel for the device-settings section of the Device page.
 /// Owns settings that live on the connected glove: therapy profile, therapy LED,
-/// battery status, and connection diagnostics. Device settings are written to the
-/// glove at the moment they are changed and are unavailable when disconnected.
+/// battery status, and connection diagnostics. Changes are staged locally and
+/// written to the glove in one batch when the user presses Apply Settings;
+/// device settings are unavailable when disconnected.
 /// </summary>
 public partial class DeviceSettingsViewModel : BaseViewModel
 {
@@ -568,6 +569,15 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[DEVICESETTINGS] Apply modal push failed: {ex.Message}");
+
+            // Without the modal, keeping IsApplyingSettings set would hide BOTH the
+            // connected view and the scan view once the reboot drops the link,
+            // leaving a blank Device page until the backstop fired. Fall back to the
+            // normal disconnected UI instead: the reconnection service's banner
+            // covers the reboot, and the profile sync on reconnect clears the
+            // reboot notice.
+            IsApplyingSettings = false;
+            return;
         }
 
         _applyWatchCts?.Cancel();
