@@ -488,8 +488,21 @@ public partial class GloveControlViewModel : BaseViewModel
 
             if (_consecutivePollFailures >= PollFailureReconnectThreshold)
             {
+                // During a session the health-check ping is suspended (see
+                // CheckConnectionHealthAsync), so the status poll owns reconnect
+                // recovery. 3 failed 5s polls (~15s) forces a reconnect — faster than
+                // the health check's 2x30s — and reset so it fires once per episode.
                 SessionWarningMessage = null;
                 IsConnectionHealthy = false;
+                _consecutivePollFailures = 0;
+                try
+                {
+                    await _bluetoothService.DisconnectForReconnectAsync();
+                }
+                catch (Exception disconnectEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Status-poll reconnect failed: {disconnectEx.Message}");
+                }
             }
             else if (_consecutivePollFailures >= PollFailureWarningThreshold)
             {
@@ -562,6 +575,15 @@ public partial class GloveControlViewModel : BaseViewModel
         if (!ConnectionInfo.IsConnected)
         {
             IsConnectionHealthy = false;
+            return;
+        }
+
+        // During an active session, skip the health-check ping: the 5s session-status
+        // poll already probes liveness (faster) and now drives reconnect recovery. This
+        // removes redundant phone->PRIMARY commands that would otherwise compete with
+        // PRIMARY<->SECONDARY sync traffic for the shared radio during therapy.
+        if (IsSessionActive)
+        {
             return;
         }
 
