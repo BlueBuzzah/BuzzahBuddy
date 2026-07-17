@@ -23,6 +23,12 @@ public class GloveDeviceInfo
     public string FirmwareVersion { get; set; } = string.Empty;
 
     /// <summary>
+    /// Hardware generation ("v2" or "v3") from the INFO HW key; null when the
+    /// firmware predates hardware-version reporting.
+    /// </summary>
+    public string? HardwareVersion { get; set; }
+
+    /// <summary>
     /// Primary device battery voltage; null when no reading is available.
     /// </summary>
     public double? BatteryPrimaryVoltage { get; set; }
@@ -65,6 +71,7 @@ public class GloveDeviceInfo
             Role = response.GetString("ROLE") ?? "UNKNOWN",
             Name = response.GetString("NAME") ?? "UNKNOWN",
             FirmwareVersion = response.GetString("FW") ?? "0.0.0",
+            HardwareVersion = response.GetString("HW"),
             // Per BLE protocol v2.0.0: Battery keys are BATP and BATS.
             // Missing keys and the firmware's 0.00 sentinel both mean "no reading".
             BatteryPrimaryVoltage = BatteryReading.FromRaw(response.GetDouble("BATP")),

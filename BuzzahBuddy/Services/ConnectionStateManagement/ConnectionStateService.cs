@@ -99,7 +99,7 @@ public class ConnectionStateService : IConnectionStateService, IDisposable
         // PropertyChanged is NOT fired here (no UI subscribers exist yet during DI resolution).
         _connectionState = _bluetoothService.CurrentConnectionState;
         _isConnected = _connectionState == Models.ConnectionState.Connected;
-        _connectedDeviceName = _bluetoothService.ConnectedDevice?.Name;
+        _connectedDeviceName = _bluetoothService.ConnectedDevice?.DisplayName;
 
         _bluetoothService.ConnectionStateChanged += OnConnectionStateChanged;
         _reconnectionService.ReconnectionStateChanged += OnReconnectionStateChanged;
@@ -111,7 +111,7 @@ public class ConnectionStateService : IConnectionStateService, IDisposable
         {
             ConnectionState = state;
             IsConnected = state == Models.ConnectionState.Connected;
-            ConnectedDeviceName = _bluetoothService.ConnectedDevice?.Name;
+            ConnectedDeviceName = _bluetoothService.ConnectedDevice?.DisplayName;
         });
     }
 
@@ -123,7 +123,8 @@ public class ConnectionStateService : IConnectionStateService, IDisposable
             ReconnectionMessage = e.State switch
             {
                 ReconnectionState.Reconnecting => $"Reconnecting... (attempt {e.Attempt}/{e.MaxAttempts})",
-                ReconnectionState.Succeeded => "Reconnected to BlueBuzzah gloves",
+                // Succeeded intentionally maps to null: recovery needs no lingering
+                // warning banner (screen readers get "Device connected" already).
                 ReconnectionState.Failed => "Could not reconnect. Please reconnect manually.",
                 _ => null
             };

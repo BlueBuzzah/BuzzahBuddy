@@ -2,7 +2,6 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:BuzzahBuddy.ViewModels"
-             xmlns:controls="clr-namespace:BuzzahBuddy.Views.Controls"
              x:Class="BuzzahBuddy.Views.SettingsPage"
              x:DataType="vm:SettingsViewModel"
              Title="{Binding Title}">
@@ -15,82 +14,6 @@
                    Style="{StaticResource Headline}"
                    SemanticProperties.HeadingLevel="Level1"
                    HorizontalOptions="Center" />
-
-            <!-- Connection Status Banner -->
-            <controls:ConnectionStatusBanner
-                ConnectionState="{Binding ConnectionInfo.ConnectionState}"
-                DeviceName="{Binding ConnectionInfo.ConnectedDeviceName}" />
-
-            <!-- Device Actions Section -->
-            <VerticalStackLayout Spacing="15">
-                <Label Text="Device Actions"
-                       FontSize="18"
-                       FontAttributes="Bold"
-                       SemanticProperties.HeadingLevel="Level2" />
-
-                <Border Padding="15"
-                        BackgroundColor="{StaticResource CardBackground}"
-                        StrokeThickness="0">
-                    <Border.StrokeShape>
-                        <RoundRectangle CornerRadius="12" />
-                    </Border.StrokeShape>
-
-                    <VerticalStackLayout Spacing="10">
-                        <Button Text="Calibrate Motors"
-                                Command="{Binding NavigateToCalibrationCommand}"
-                                IsVisible="{Binding ConnectionInfo.IsConnected}"
-                                Style="{StaticResource TertiaryButton}"
-                                SemanticProperties.Description="Open motor calibration for testing individual finger motors"
-                                SemanticProperties.Hint="Double tap to navigate to calibration"
-                                AutomationId="CalibrateMotorsButton" />
-
-                        <Button Text="Disconnect"
-                                Command="{Binding DisconnectDeviceCommand}"
-                                IsVisible="{Binding ConnectionInfo.IsConnected}"
-                                Style="{StaticResource DangerActionButton}"
-                                SemanticProperties.Description="Disconnect from the currently connected glove device"
-                                SemanticProperties.Hint="Double tap to disconnect"
-                                AutomationId="DisconnectButton" />
-
-                        <Button Text="Find Devices"
-                                Command="{Binding NavigateToDevicesCommand}"
-                                Style="{StaticResource TertiaryButton}"
-                                SemanticProperties.Description="Scan for and connect to BlueBuzzah glove devices"
-                                SemanticProperties.Hint="Double tap to navigate to device scanning"
-                                AutomationId="FindDevicesButton" />
-
-                        <!-- Device setting: therapy LED off (THERAPY_LED_OFF).
-                             Nested IsVisible bindings AND the two conditions: the row hides
-                             immediately on disconnect (like the buttons above) and also stays
-                             hidden until the setting has been read from the device. -->
-                        <VerticalStackLayout IsVisible="{Binding ConnectionInfo.IsConnected}">
-                            <Grid ColumnDefinitions="*,Auto"
-                                  MinimumHeightRequest="48"
-                                  IsVisible="{Binding TherapyLedLoaded}">
-                                <Label Grid.Column="0"
-                                       Text="Turn LED Off During Therapy"
-                                       FontSize="16"
-                                       VerticalOptions="Center"
-                                       LineBreakMode="WordWrap" />
-                                <Switch Grid.Column="1"
-                                        IsToggled="{Binding TherapyLedOff}"
-                                        IsEnabled="{Binding TherapyLedBusy, Converter={StaticResource InvertedBoolConverter}}"
-                                        VerticalOptions="Center"
-                                        SemanticProperties.Description="Turn the glove's status light off during therapy sessions to avoid visual distraction"
-                                        SemanticProperties.Hint="Double tap to toggle the therapy LED setting"
-                                        AutomationId="TherapyLedOffSwitch" />
-                            </Grid>
-                        </VerticalStackLayout>
-
-                        <!-- Instructional text when disconnected -->
-                        <Label Text="Connect to a device to access calibration and device settings."
-                               IsVisible="{Binding ConnectionInfo.IsConnected, Converter={StaticResource InvertedBoolConverter}}"
-                               Style="{StaticResource BodyText}"
-                               TextColor="{StaticResource TextMuted}"
-                               Margin="0,8,0,0" />
-                    </VerticalStackLayout>
-                </Border>
-            </VerticalStackLayout>
 
             <!-- Preferences Section -->
             <VerticalStackLayout Spacing="15">

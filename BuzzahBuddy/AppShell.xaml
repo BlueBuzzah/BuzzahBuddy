@@ -9,13 +9,6 @@
 
     <TabBar>
         <ShellContent
-            Title="Home"
-            Icon="home"
-            ContentTemplate="{DataTemplate views:MainPage}"
-            Route="home"
-            AutomationId="HomeTab" />
-
-        <ShellContent
             Title="Control"
             Icon="glove"
             ContentTemplate="{DataTemplate views:GloveControlPage}"

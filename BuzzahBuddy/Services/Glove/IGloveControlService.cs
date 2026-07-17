@@ -12,7 +12,7 @@ public interface IGloveControlService
 
     /// <summary>
     /// Event fired when session state changes (IDLE, RUNNING, PAUSED).
-    /// Use this to observe session state from other parts of the app (e.g., MainPage dashboard).
+    /// Use this to observe session state from other parts of the app (e.g., the Device page's settings section).
     /// </summary>
     event EventHandler<SessionStatus>? SessionStateChanged;
 
@@ -37,6 +37,14 @@ public interface IGloveControlService
     /// Profile ID currently loaded on the device (1-6), 0 if unknown.
     /// </summary>
     int DeviceProfileId { get; }
+
+    /// <summary>
+    /// Event fired whenever the device reports its loaded profile (INFO response),
+    /// including right after (re)connect. Payload is the profile ID. Subscribe to
+    /// this instead of fetching INFO per page — the service fetches it once per
+    /// connection.
+    /// </summary>
+    event EventHandler<int>? DeviceProfileChanged;
 
     // ========== Reboot Handling ==========
 

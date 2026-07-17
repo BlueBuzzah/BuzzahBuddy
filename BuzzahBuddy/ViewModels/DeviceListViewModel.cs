@@ -25,6 +25,11 @@ public partial class DeviceListViewModel : BaseViewModel
     /// </summary>
     public IConnectionStateService ConnectionInfo { get; }
 
+    /// <summary>
+    /// Device settings (therapy profile, LED, battery, diagnostics) shown when connected.
+    /// </summary>
+    public DeviceSettingsViewModel Settings { get; }
+
     [ObservableProperty]
     private ObservableCollection<GloveDevice> _availableDevices = new();
 
@@ -64,12 +69,14 @@ public partial class DeviceListViewModel : BaseViewModel
         IBluetoothService bluetoothService,
         IDataStorageService storageService,
         IReconnectionService reconnectionService,
-        IConnectionStateService connectionStateService)
+        IConnectionStateService connectionStateService,
+        DeviceSettingsViewModel deviceSettingsViewModel)
     {
         _bluetoothService = bluetoothService;
         _storageService = storageService;
         _reconnectionService = reconnectionService;
         ConnectionInfo = connectionStateService;
+        Settings = deviceSettingsViewModel;
 
         Title = "Devices";
 
@@ -108,9 +115,12 @@ public partial class DeviceListViewModel : BaseViewModel
     /// </summary>
     public void OnPageAppearing()
     {
-        _reconnectionService.CancelReconnect();
+        // Don't cancel auto-reconnect just because this page appeared: a profile change
+        // reboots the gloves and relies on the reconnect loop, and tab switches during
+        // that window must not kill it. Manual connect (ConnectAsync) cancels it instead.
         CheckBluetoothStatusAsync().SafeFireAndForget("[DEVICELIST]");
         UpdateConnectionState();
+        Settings.OnPageAppearing();
     }
 
     /// <summary>Empty-state variant: before the first scan has run.</summary>
@@ -358,6 +368,9 @@ public partial class DeviceListViewModel : BaseViewModel
         if (device == null || IsConnecting)
             return;
 
+        // A manual pick supersedes any in-progress auto-reconnect.
+        _reconnectionService.CancelReconnect();
+
         // Stop scanning if active
         if (IsScanning)
         {
@@ -375,11 +388,11 @@ public partial class DeviceListViewModel : BaseViewModel
             if (success)
             {
                 await _storageService.SaveLastDeviceAsync(device);
-                SemanticScreenReader.Announce($"Connected to {device.Name}");
+                SemanticScreenReader.Announce($"Connected to {device.DisplayName}");
 
                 await Shell.Current.DisplayAlert(
                     "Connected",
-                    $"Successfully connected to {device.Name}",
+                    $"Successfully connected to {device.DisplayName}",
                     "OK");
 
                 // Navigate immediately to control page
@@ -390,7 +403,7 @@ public partial class DeviceListViewModel : BaseViewModel
                 // Only show alert for failures
                 await Shell.Current.DisplayAlert(
                     "Connection Failed",
-                    $"Could not connect to {device.Name}. Please try again.",
+                    $"Could not connect to {device.DisplayName}. Please try again.",
                     "OK");
             }
         }

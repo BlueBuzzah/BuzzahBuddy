@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="BuzzahBuddy.Views.Controls.SessionTimerView">
+    <!-- Children are excluded from the accessibility tree: the page hosting this
+         control exposes one combined semantic description on the control itself. -->
+    <Grid>
+        <GraphicsView x:Name="RingCanvas"
+                      HeightRequest="260"
+                      WidthRequest="260"
+                      HorizontalOptions="Center"
+                      VerticalOptions="Center"
+                      AutomationProperties.IsInAccessibleTree="False" />
+        <VerticalStackLayout HorizontalOptions="Center"
+                             VerticalOptions="Center"
+                             Spacing="2"
+                             InputTransparent="True"
+                             AutomationProperties.IsInAccessibleTree="False">
+            <Label x:Name="TimeLabel"
+                   FontSize="52"
+                   FontAttributes="Bold"
+                   TextColor="{StaticResource TextPrimary}"
+                   HorizontalTextAlignment="Center" />
+            <Label x:Name="CaptionLabel"
+                   FontSize="14"
+                   TextColor="{StaticResource TextMuted}"
+                   HorizontalTextAlignment="Center" />
+        </VerticalStackLayout>
+    </Grid>
+</ContentView>

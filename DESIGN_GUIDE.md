@@ -818,11 +818,10 @@ Use bottom tab navigation for main app sections. Bottom placement is easier to r
 - **56pt minimum height** for entire tab bar
 - **Active state:** High contrast color + underline/indicator
 
-**Suggested tabs:**
-1. **Home/Dashboard** - Overview, quick start
-2. **Control** - Active glove control during session
-3. **History** - Past sessions, statistics
-4. (Optional) **Settings** - App configuration, help
+**Current tabs:**
+1. **Control** - Home tab: session start/pause/stop, current profile, battery at a glance
+2. **Device** - Scan/connect plus device settings (therapy profile, LED, calibration)
+3. **Settings** - App-level configuration only
 
 ### Page Structure
 

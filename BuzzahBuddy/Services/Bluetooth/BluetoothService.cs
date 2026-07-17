@@ -27,6 +27,9 @@ public class BluetoothService : IBluetoothService
     private readonly RxFrameAssembler _rxAssembler = new();
     private readonly SemaphoreSlim _responseLock = new(1, 1);
     private TaskCompletionSource<CommandResponse>? _pendingResponseTcs;
+    // Key the pending command's response must contain; stale frames missing it are
+    // filtered at delivery so they never complete the TCS (see ProcessIncomingRxText).
+    private string? _pendingExpectedKey;
 
     // Reconnection state
     private string? _lastConnectedDeviceId;
@@ -251,6 +254,29 @@ public class BluetoothService : IBluetoothService
         }
     }
 
+    /// <summary>
+    /// Key each command's response must contain. The protocol has no correlation IDs,
+    /// so a late/stray frame would otherwise resolve the wrong command and shift every
+    /// subsequent response by one (permanent desync). A resolved frame missing its
+    /// command's expected key is discarded as stale and the wait continues.
+    /// Commands absent from this map accept any frame. Error frames always match.
+    /// </summary>
+    private static readonly Dictionary<string, string> ExpectedResponseKeys = new()
+    {
+        ["INFO"] = "ROLE",
+        ["BATTERY"] = "BATP",
+        ["PING"] = "PONG",
+        ["PROFILE_LIST"] = "PROFILE",
+        ["PROFILE_GET"] = "TYPE",
+        ["PROFILE_LOAD"] = "STATUS",
+        ["SESSION_START"] = "SESSION_STATUS",
+        ["SESSION_PAUSE"] = "SESSION_STATUS",
+        ["SESSION_RESUME"] = "SESSION_STATUS",
+        ["SESSION_STOP"] = "SESSION_STATUS",
+        ["SESSION_STATUS"] = "SESSION_STATUS",
+        ["THERAPY_LED_OFF"] = "THERAPY_LED_OFF",
+    };
+
     public async Task<CommandResponse> SendCommandAsync(
         string command,
         int timeoutMs = 5000,
@@ -267,10 +293,13 @@ public class BluetoothService : IBluetoothService
             // Clear any previous response buffer
             _rxAssembler.Reset();
 
-            // Create task completion source for this command
+            // Publish the expected key BEFORE the TCS so the RX producer filters stale
+            // frames against it (a stray frame missing the key never completes the TCS).
+            ExpectedResponseKeys.TryGetValue(command.Split(':')[0], out _pendingExpectedKey);
             _pendingResponseTcs = new TaskCompletionSource<CommandResponse>();
 
             // Send command (add \n terminator)
+            System.Diagnostics.Debug.WriteLine($"[BLE CMD] >>> {command}");
             var commandBytes = Encoding.UTF8.GetBytes(command + BlueBuzzahConstants.CommandTerminator);
             await _txCharacteristic.WriteAsync(commandBytes);
 
@@ -300,6 +329,7 @@ public class BluetoothService : IBluetoothService
         finally
         {
             _pendingResponseTcs = null;
+            _pendingExpectedKey = null;
             _responseLock.Release();
         }
     }
@@ -384,10 +414,24 @@ public class BluetoothService : IBluetoothService
 
             await SubscribeToNotificationsAsync();
 
+            // Identify ourselves immediately (parity with ConnectToDeviceAsync):
+            // without this, the firmware types this connection UNKNOWN for up to
+            // 1s and drops responses to any command sent in that window.
+            try
+            {
+                var identify = Encoding.UTF8.GetBytes("IDENTIFY:PHONE" + BlueBuzzahConstants.CommandTerminator);
+                await _txCharacteristic!.WriteAsync(identify);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[BLE RECONNECT] IDENTIFY:PHONE write failed (non-fatal): {ex.Message}");
+            }
+
             var gloveDevice = new GloveDevice
             {
                 Id = bleDevice.Id.ToString(),
                 Name = bleDevice.Name ?? BlueBuzzahConstants.DeviceName,
+                HardwareVersion = ParseHardwareVersion(bleDevice),
                 ConnectionState = ConnectionState.Connected,
                 LastConnected = DateTime.Now
             };
@@ -471,10 +515,43 @@ public class BluetoothService : IBluetoothService
     {
         foreach (var frame in _rxAssembler.Append(text))
         {
+            System.Diagnostics.Debug.WriteLine(
+                $"[BLE RSP] <<< {frame.Replace("\n", "|")} (pending={_pendingResponseTcs != null})");
             var response = CommandResponse.Parse(frame);
             ResponseReceived?.Invoke(this, response);
+
+            // Filter stale frames here (not in the awaiter): the protocol has no
+            // correlation IDs, so a late frame from a timed-out command would
+            // otherwise complete the current command's TCS with the wrong response.
+            // Doing it at the single delivery point means only a matching frame ever
+            // completes the TCS — no re-arm race when two frames arrive together.
+            var expectedKey = _pendingExpectedKey;
+            if (expectedKey != null && !response.IsError && response.GetString(expectedKey) == null)
+            {
+                System.Diagnostics.Debug.WriteLine($"[BLE] Discarded stale frame (missing {expectedKey})");
+                continue;
+            }
+
             _pendingResponseTcs?.TrySetResult(response);
         }
+    }
+
+    /// <summary>
+    /// Parses the hardware generation ("v2"/"v3") from the advertisement's
+    /// manufacturer data: company ID 0xFFFF (little-endian) + 'B' magic + version
+    /// byte (see firmware BLE_MFG_DATA_INIT). Null when absent (older firmware).
+    /// </summary>
+    private static string? ParseHardwareVersion(IDevice device)
+    {
+        foreach (var record in device.AdvertisementRecords ?? Enumerable.Empty<AdvertisementRecord>())
+        {
+            if (record.Type != AdvertisementRecordType.ManufacturerSpecificData)
+                continue;
+            var d = record.Data;
+            if (d is { Length: >= 4 } && d[0] == 0xFF && d[1] == 0xFF && d[2] == (byte)'B')
+                return $"v{d[3]}";
+        }
+        return null;
     }
 
     private void OnDeviceDiscovered(object? sender, DeviceEventArgs e)
@@ -503,6 +580,7 @@ public class BluetoothService : IBluetoothService
         {
             Id = deviceId,
             Name = e.Device.Name,
+            HardwareVersion = ParseHardwareVersion(e.Device),
             SignalStrength = e.Device.Rssi,
             ConnectionState = ConnectionState.Disconnected
         };
@@ -527,7 +605,12 @@ public class BluetoothService : IBluetoothService
         {
             ConnectedDevice.ConnectionState = ConnectionState.Connected;
         }
-        UpdateConnectionState(ConnectionState.Connected);
+        // Deliberately NOT raising Connected here: this adapter event fires when the
+        // GATT link comes up, BEFORE service/characteristic discovery has run, so
+        // commands sent in response to it fail. Worse, the premature raise made
+        // UpdateConnectionState dedupe the real one after discovery completed, so
+        // "ready for commands" was never signaled. ConnectToDeviceAsync and the
+        // reconnect path raise Connected once the UART characteristics are live.
     }
 
     private void OnDeviceDisconnected(object? sender, DeviceEventArgs e)
