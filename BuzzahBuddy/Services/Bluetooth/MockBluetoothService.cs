@@ -320,6 +320,7 @@ public class MockBluetoothService : IBluetoothService
                "PATTERN:rndp\n" +
                "MIRROR:1\n" +
                "JITTER:23.5\n" +
+               "FINGERS:4\n" +
                "\x04";
     }
 
