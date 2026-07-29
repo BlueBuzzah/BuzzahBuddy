@@ -261,6 +261,18 @@ public partial class DeviceSettingsViewModel : BaseViewModel
             return;
         }
 
+        // The editor reads and writes whichever profile the gloves currently have
+        // loaded. If Custom is only selected locally, editing here would show
+        // another profile's values and save them into the Custom slot.
+        if (_gloveControlService.DeviceProfileId != TherapyProfile.CustomProfileId)
+        {
+            await Shell.Current.DisplayAlert(
+                "Apply Custom First",
+                "Press Apply Settings to load the Custom profile onto the gloves, then edit its parameters.",
+                "OK");
+            return;
+        }
+
         await Shell.Current.GoToAsync(Routes.ProfileSettings);
     }
 
