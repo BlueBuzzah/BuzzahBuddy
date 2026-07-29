@@ -212,6 +212,36 @@ public class GloveControlServiceTests
         Assert.Equal(new[] { "AMPMAX", "AMPMIN" }, Keys(Assert.Single(fake.SentCommands)));
     }
 
+    // FINGERS in PROFILE_GET marks firmware that also persists Custom edits. If it
+    // is absent, the app must not promise the settings survive a restart.
+    [Fact]
+    public async Task GetCurrentProfile_WithoutFingersKey_ReportsNoCustomPersistence()
+    {
+        var fake = new FakeBluetoothService();
+        fake.CannedResponses["PROFILE_GET"] =
+            "TYPE:LRA\nFREQ:250\nON:100.0\nOFF:67.0\nSESSION:120\n" +
+            "AMPMIN:100\nAMPMAX:100\nPATTERN:rndp\nMIRROR:1\nJITTER:23.5\n\x04";
+        var service = new GloveControlService(fake);
+
+        await service.GetCurrentProfileAsync();
+
+        Assert.False(service.PersistsCustomProfile);
+    }
+
+    [Fact]
+    public async Task GetCurrentProfile_WithFingersKey_ReportsCustomPersistence()
+    {
+        var fake = new FakeBluetoothService();
+        fake.CannedResponses["PROFILE_GET"] =
+            "TYPE:LRA\nFREQ:250\nON:100.0\nOFF:67.0\nSESSION:120\n" +
+            "AMPMIN:100\nAMPMAX:100\nPATTERN:rndp\nMIRROR:1\nJITTER:23.5\nFINGERS:4\n\x04";
+        var service = new GloveControlService(fake);
+
+        await service.GetCurrentProfileAsync();
+
+        Assert.True(service.PersistsCustomProfile);
+    }
+
     // At the tie the ordering branch is unobservable: an unchanged AMPMAX is
     // filtered out by the baseline diff, so only AMPMIN is ever sent. Pinned
     // because the branch condition looks like it should matter here and doesn't.

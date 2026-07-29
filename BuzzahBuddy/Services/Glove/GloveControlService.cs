@@ -46,6 +46,8 @@ public class GloveControlService : IGloveControlService
     /// <inheritdoc />
     public int DeviceProfileId { get; private set; }
 
+    public bool PersistsCustomProfile { get; private set; }
+
     /// <inheritdoc />
     public bool ExpectingReboot =>
         _expectingReboot && (DateTime.UtcNow - _expectingRebootSetAt) < ExpectingRebootTtl;
@@ -345,6 +347,12 @@ public class GloveControlService : IGloveControlService
         var onMs = response.GetDouble("ON") ?? 100.0;
         var offMs = response.GetDouble("OFF") ?? 67.0;
 
+        // FINGERS was added to PROFILE_GET by the same firmware work that made
+        // Custom-profile edits survive a restart, so its presence is an exact
+        // marker for whether this device persists them.
+        var fingers = response.GetInt("FINGERS");
+        PersistsCustomProfile = fingers.HasValue;
+
         return new TherapyProfile
         {
             ActuatorType = response.GetString("TYPE") ?? "LRA",
@@ -358,9 +366,11 @@ public class GloveControlService : IGloveControlService
             Jitter = response.GetDouble("JITTER") ?? 0,
             Mirror = response.GetBool("MIRROR") ?? false,
             PatternType = response.GetString("PATTERN")?.ToUpperInvariant() ?? "RNDP",
-            // Firmware older than the FINGERS response key omits it; 4 matches the
-            // profile table's default and every v2 device.
-            Fingers = response.GetInt("FINGERS") ?? 4
+            // Firmware older than the FINGERS response key omits it. Fall back to
+            // the device's motor count rather than a literal 4: those builds drive
+            // every motor present, so on v3 hardware 4 would understate the CR
+            // period. DeviceActuatorCount is itself 4 until INFO reports otherwise.
+            Fingers = fingers ?? DeviceActuatorCount
         };
     }
 

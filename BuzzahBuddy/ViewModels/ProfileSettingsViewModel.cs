@@ -169,7 +169,21 @@ public partial class ProfileSettingsViewModel : BaseViewModel
     /// nothing reaches the gloves until Apply.
     /// </summary>
     [RelayCommand]
-    private void ResetToDefaults() => PopulateFrom(ResearchDefaults.For(MotorCount));
+    private async Task ResetToDefaultsAsync()
+    {
+        // Discards whatever the user has tuned. CLAUDE.md requires a confirmation
+        // for destructive actions because an accidental tap is a real hazard for
+        // tremor-prone users, and there is no undo once the fields are replaced.
+        var confirmed = await Shell.Current.DisplayAlert(
+            "Use Research Defaults?",
+            "This replaces the values in the form with the settings used in the published "
+            + "vibrotactile therapy study. Nothing is sent to the gloves until you save.",
+            "Use Defaults",
+            "Cancel");
+
+        if (confirmed)
+            PopulateFrom(ResearchDefaults.For(MotorCount));
+    }
 
     /// <summary>
     /// Validates the form and sends the changed parameters to the device.
@@ -227,9 +241,13 @@ public partial class ProfileSettingsViewModel : BaseViewModel
             var confirmed = await _gloveControlService.GetCurrentProfileAsync();
             PopulateFromDevice(confirmed);
 
+            // Only promise persistence when the firmware actually provides it.
             await Shell.Current.DisplayAlert(
                 "Settings Saved",
-                "The gloves are now using these settings, and will keep them after a restart.",
+                _gloveControlService.PersistsCustomProfile
+                    ? "The gloves are now using these settings, and will keep them after a restart."
+                    : "The gloves are now using these settings. This firmware does not store them, "
+                      + "so they will return to the previous values when the gloves restart.",
                 "OK");
         }
         catch (ArgumentException ex)
