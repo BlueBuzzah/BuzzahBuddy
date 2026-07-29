@@ -261,6 +261,17 @@ public partial class DeviceSettingsViewModel : BaseViewModel
             return;
         }
 
+        // The firmware refuses parameter edits while therapy is running, so catch
+        // it here rather than letting the user fill in the whole form first.
+        if (IsSessionActive)
+        {
+            await Shell.Current.DisplayAlert(
+                "Session Active",
+                "Stop the current session before changing the Custom profile parameters.",
+                "OK");
+            return;
+        }
+
         // The editor reads and writes whichever profile the gloves currently have
         // loaded. If Custom is only selected locally, editing here would show
         // another profile's values and save them into the Custom slot.
