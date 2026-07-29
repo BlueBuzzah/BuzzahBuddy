@@ -47,4 +47,16 @@ public partial class ProfileItemViewModel : ObservableObject
     /// Advanced: Hybrid, Custom, Gentle
     /// </summary>
     public bool IsAdvancedProfile => !IsPrimaryProfile;
+
+    /// <summary>
+    /// Whether this is the user-editable Custom profile.
+    /// </summary>
+    public bool IsCustom => Profile.IsCustom;
+
+    /// <summary>
+    /// Whether the "Edit Parameters" affordance should be shown on this card.
+    /// Only the Custom profile accepts parameter edits; the firmware rejects
+    /// PROFILE_CUSTOM writes against any preset.
+    /// </summary>
+    public bool CanEditParameters => IsCustom;
 }

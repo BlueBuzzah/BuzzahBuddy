@@ -7,7 +7,13 @@ namespace BuzzahBuddy.Models;
 public class TherapyProfile
 {
     /// <summary>
-    /// Profile ID (1-6 for preset profiles, 0 for custom).
+    /// Profile ID of the user-editable Custom slot (custom_vcr) in the firmware's
+    /// profile table. The only profile whose parameters may be edited.
+    /// </summary>
+    public const int CustomProfileId = 4;
+
+    /// <summary>
+    /// Profile ID (1-6 for preset profiles).
     /// Per BLE protocol v2.0.0:
     /// 1 = regular_vcr, 2 = noisy_vcr (default), 3 = hybrid_vcr,
     /// 4 = custom_vcr, 5 = gentle, 6 = quick_test
@@ -89,9 +95,9 @@ public class TherapyProfile
     public string Description { get; set; } = string.Empty;
 
     /// <summary>
-    /// Whether this is a custom (user-modified) profile.
+    /// Whether this is the user-editable Custom profile.
     /// </summary>
-    public bool IsCustom => ProfileId == 0;
+    public bool IsCustom => ProfileId == CustomProfileId;
 
     /// <summary>
     /// Creates the three predefined therapy profiles.
@@ -231,7 +237,7 @@ public class TherapyProfile
     {
         return new TherapyProfile
         {
-            ProfileId = 0,
+            ProfileId = CustomProfileId,
             Name = $"Custom ({Name})",
             Description = "User-customized therapy profile",
             ActuatorType = ActuatorType,
