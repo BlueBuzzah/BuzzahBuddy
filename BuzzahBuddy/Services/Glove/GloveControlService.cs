@@ -436,8 +436,10 @@ public class GloveControlService : IGloveControlService
         }
 
         // Firmware accepts at most 8 KEY:VAL pairs per PROFILE_CUSTOM command
-        // (MAX_COMMAND_PARAMS=16 tokens), so a full 10-parameter profile is
-        // split across sequential commands.
+        // (MAX_COMMAND_PARAMS=16 tokens). The Custom profile's eight persisted
+        // parameters land exactly on that ceiling, so a full send is one command;
+        // the loop remains because a future ninth parameter must not silently
+        // overflow it.
         for (int i = 0; i < parameters.Count; i += 8)
         {
             await SetCustomProfileAsync(

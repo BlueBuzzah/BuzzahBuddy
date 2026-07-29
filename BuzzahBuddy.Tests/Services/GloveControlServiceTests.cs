@@ -212,6 +212,28 @@ public class GloveControlServiceTests
         Assert.Equal(new[] { "AMPMAX", "AMPMIN" }, Keys(Assert.Single(fake.SentCommands)));
     }
 
+    // At the tie the ordering branch is unobservable: an unchanged AMPMAX is
+    // filtered out by the baseline diff, so only AMPMIN is ever sent. Pinned
+    // because the branch condition looks like it should matter here and doesn't.
+    [Fact]
+    public async Task ApplyCustomProfileAsync_UnchangedCeiling_SendsOnlyAmpMin()
+    {
+        var fake = new FakeBluetoothService();
+        fake.CannedResponses["PROFILE_CUSTOM"] = "STATUS:CUSTOM_LOADED\n\x04";
+        var service = new GloveControlService(fake);
+
+        var baseline = MakeProfile();
+        baseline.AmplitudeMin = 30;
+        baseline.AmplitudeMax = 70;
+        var desired = MakeProfile();
+        desired.AmplitudeMin = 50;
+        desired.AmplitudeMax = 70;   // unchanged
+
+        await service.ApplyCustomProfileAsync(desired, baseline);
+
+        Assert.Equal("PROFILE_CUSTOM:AMPMIN:50", Assert.Single(fake.SentCommands));
+    }
+
     [Fact]
     public async Task ApplyCustomProfileAsync_LoweringTheWindow_SendsAmpMinFirst()
     {

@@ -80,55 +80,33 @@ public partial class ProfileSettingsViewModel : BaseViewModel
     /// Coordinated-reset period and frequency implied by the current field values,
     /// e.g. "CR period 668 ms · 1.50 Hz". The studied protocol runs at 1.50 Hz.
     /// </summary>
-    public string DerivedTimingText =>
-        TryParseTiming(out var onMs, out var offMs)
-            ? TherapyTiming.OnOffRatioLabel(_deviceFingers, onMs, offMs)
-            : "CR period unavailable";
+    public string DerivedTimingText => CurrentForm().DerivedTimingText;
 
     /// <summary>
     /// Note shown when the requested jitter exceeds what the current burst timing
     /// can actually accommodate — above the cap, raising jitter changes nothing.
     /// Null when there is nothing to warn about (the page binds visibility to it).
     /// </summary>
-    public string? EffectiveJitterCapText
-    {
-        get
-        {
-            if (!TryParseTiming(out var onMs, out var offMs) ||
-                !double.TryParse(JitterText, NumberStyles.Float, CultureInfo.InvariantCulture, out var jitter))
-                return null;
-
-            var cap = TherapyParameterBounds.EffectiveJitterCap(onMs, offMs);
-            if (jitter <= cap)
-                return null;
-
-            return $"At this timing the gloves cap jitter near {cap.ToString("0.#", CultureInfo.InvariantCulture)}% " +
-                   "so bursts don't run together.";
-        }
-    }
+    public string? EffectiveJitterCapText => CurrentForm().EffectiveJitterCapText;
 
     /// <summary>Whether any field departs from the validated research configuration.</summary>
-    public bool DeviatesFromResearchDefaults => DeviatingFields.Count > 0;
+    public bool DeviatesFromResearchDefaults => CurrentForm().DeviatingFields(MotorCount).Count > 0;
 
-    private IReadOnlySet<string> DeviatingFields
+    /// <summary>
+    /// Snapshots the entries into the pure form model that owns the parsing,
+    /// unit conversion, and deviation logic.
+    /// </summary>
+    private CustomProfileForm CurrentForm() => new()
     {
-        get
-        {
-            try
-            {
-                return ResearchDefaults.DeviatingFields(BuildProfileFromFields(), MotorCount);
-            }
-            catch (FormatException)
-            {
-                // Mid-edit the fields may not parse; nothing meaningful to compare.
-                return new HashSet<string>();
-            }
-            catch (OverflowException)
-            {
-                return new HashSet<string>();
-            }
-        }
-    }
+        TimeOnMsText = TimeOnMsText,
+        TimeOffMsText = TimeOffMsText,
+        SessionMinutesText = SessionMinutesText,
+        AmplitudeMinText = AmplitudeMinText,
+        AmplitudeMaxText = AmplitudeMaxText,
+        JitterText = JitterText,
+        Mirror = Mirror,
+        Fingers = _deviceFingers,
+    };
 
     partial void OnTimeOnMsTextChanged(string value) => RaiseDerived();
     partial void OnTimeOffMsTextChanged(string value) => RaiseDerived();
@@ -211,12 +189,7 @@ public partial class ProfileSettingsViewModel : BaseViewModel
             return;
         }
 
-        TherapyProfile desired;
-        try
-        {
-            desired = BuildProfileFromFields();
-        }
-        catch (Exception ex) when (ex is FormatException or OverflowException)
+        if (!CurrentForm().TryBuildProfile(out var desired))
         {
             await Shell.Current.DisplayAlert(
                 "Invalid Value",
@@ -234,6 +207,19 @@ public partial class ProfileSettingsViewModel : BaseViewModel
             // rebooted, while this page was open).
             var baseline = await _gloveControlService.GetCurrentProfileAsync();
 
+            // Re-sync the finger count from the device we are about to write to.
+            // Without this, a silent reconnect to different hardware while this page
+            // stayed on screen would send the previous glove's count — on a 5-motor
+            // device that silently drops it to 4 active fingers.
+            _deviceFingers = baseline.Fingers;
+
+            // Range-check before flagging the send. This is pure string building
+            // that touches no hardware, so an out-of-range value throws here with
+            // applyStarted still false — which is what lets the catch blocks tell
+            // "nothing was written" apart from "a batch was interrupted".
+            GloveControlService.BuildCustomProfileParameters(
+                desired, baseline, _gloveControlService.DeviceActuatorCount);
+
             applyStarted = true;
             await _gloveControlService.ApplyCustomProfileAsync(desired, baseline);
 
@@ -248,8 +234,15 @@ public partial class ProfileSettingsViewModel : BaseViewModel
         }
         catch (ArgumentException ex)
         {
-            // Validation happens before anything is sent, so no resync is needed.
-            await Shell.Current.DisplayAlert("Invalid Value", ex.Message, "OK");
+            // Parameter validation runs before the first send, so in the reachable
+            // case nothing has been written and the form is still accurate. Resync
+            // anyway when a send had already begun: the command-length guard also
+            // throws ArgumentException, and it fires mid-batch. That guard is
+            // unreachable at present (worst-case command is ~98 of 255 chars), so
+            // this costs nothing today and stops a future ninth parameter from
+            // turning a partial write into a silently stale form.
+            await Shell.Current.DisplayAlert(
+                "Invalid Value", await AppendResyncNoteAsync(ex.Message, applyStarted), "OK");
         }
         catch (BlueBuzzahCommandException ex)
         {
@@ -291,14 +284,16 @@ public partial class ProfileSettingsViewModel : BaseViewModel
 
     private void PopulateFrom(TherapyProfile profile)
     {
-        var inv = CultureInfo.InvariantCulture;
-        TimeOnMsText = (profile.TimeOn * 1000.0).ToString("0.#", inv);
-        TimeOffMsText = (profile.TimeOff * 1000.0).ToString("0.#", inv);
-        SessionMinutesText = profile.TimeSession.ToString(inv);
-        AmplitudeMinText = profile.AmplitudeMin.ToString(inv);
-        AmplitudeMaxText = profile.AmplitudeMax.ToString(inv);
-        JitterText = profile.Jitter.ToString("0.#", inv);
-        Mirror = profile.Mirror;
+        var form = new CustomProfileForm();
+        form.PopulateFrom(profile);
+
+        TimeOnMsText = form.TimeOnMsText;
+        TimeOffMsText = form.TimeOffMsText;
+        SessionMinutesText = form.SessionMinutesText;
+        AmplitudeMinText = form.AmplitudeMinText;
+        AmplitudeMaxText = form.AmplitudeMaxText;
+        JitterText = form.JitterText;
+        Mirror = form.Mirror;
     }
 
     /// <summary>
@@ -311,30 +306,13 @@ public partial class ProfileSettingsViewModel : BaseViewModel
     {
         _deviceFingers = profile.Fingers;
         PopulateFrom(profile);
+
+        // The derived timing depends on _deviceFingers, which is not observable.
+        // PopulateFrom's property setters usually raise it as a side effect, but
+        // only when a string value actually changes — a re-read that returns
+        // identical text with a different finger count would otherwise leave the
+        // displayed CR period stale.
+        RaiseDerived();
     }
 
-    private TherapyProfile BuildProfileFromFields()
-    {
-        var inv = CultureInfo.InvariantCulture;
-        return new TherapyProfile
-        {
-            ProfileId = TherapyProfile.CustomProfileId,
-            TimeOn = double.Parse(TimeOnMsText, NumberStyles.Float, inv) / 1000.0,
-            TimeOff = double.Parse(TimeOffMsText, NumberStyles.Float, inv) / 1000.0,
-            TimeSession = int.Parse(SessionMinutesText, NumberStyles.Integer, inv),
-            AmplitudeMin = int.Parse(AmplitudeMinText, NumberStyles.Integer, inv),
-            AmplitudeMax = int.Parse(AmplitudeMaxText, NumberStyles.Integer, inv),
-            Jitter = double.Parse(JitterText, NumberStyles.Float, inv),
-            Fingers = _deviceFingers,
-            Mirror = Mirror,
-        };
-    }
-
-    private bool TryParseTiming(out double onMs, out double offMs)
-    {
-        var inv = CultureInfo.InvariantCulture;
-        offMs = 0;
-        return double.TryParse(TimeOnMsText, NumberStyles.Float, inv, out onMs)
-            && double.TryParse(TimeOffMsText, NumberStyles.Float, inv, out offMs);
-    }
 }
