@@ -9,10 +9,14 @@ using static BuzzahBuddy.Services.Glove.ErrorMessageHelper;
 namespace BuzzahBuddy.ViewModels;
 
 /// <summary>
-/// ViewModel for viewing and editing the currently loaded therapy profile's
-/// parameters on the device (PROFILE_GET / PROFILE_CUSTOM).
-/// Edits are applied to the running firmware but are not persisted — they last
-/// until the gloves restart or another profile is loaded.
+/// ViewModel for editing the Custom therapy profile's parameters
+/// (PROFILE_GET / PROFILE_CUSTOM).
+/// <para>
+/// Only the eight parameters the firmware persists for the Custom slot are
+/// editable. Actuator type, drive frequency and pattern type are fixed: the
+/// firmware rejects those keys on the Custom profile because it has nowhere to
+/// store them.
+/// </para>
 /// </summary>
 public partial class ProfileSettingsViewModel : BaseViewModel
 {
@@ -22,18 +26,6 @@ public partial class ProfileSettingsViewModel : BaseViewModel
     /// Centralized connection state service exposed for XAML binding.
     /// </summary>
     public IConnectionStateService ConnectionInfo { get; }
-
-    public IReadOnlyList<string> ActuatorTypeOptions { get; } = new[] { "LRA", "ERM" };
-    public IReadOnlyList<string> PatternOptions { get; } = new[] { "Random", "Sequential", "Mirrored" };
-
-    [ObservableProperty]
-    private string _actuatorType = "LRA";
-
-    [ObservableProperty]
-    private string _pattern = "Random";
-
-    [ObservableProperty]
-    private string _frequencyText = string.Empty;
 
     [ObservableProperty]
     private string _timeOnMsText = string.Empty;
@@ -54,6 +46,9 @@ public partial class ProfileSettingsViewModel : BaseViewModel
     private string _jitterText = string.Empty;
 
     [ObservableProperty]
+    private string _fingersText = string.Empty;
+
+    [ObservableProperty]
     private bool _mirror;
 
     /// <summary>True once the current settings have been read from the device.</summary>
@@ -67,8 +62,85 @@ public partial class ProfileSettingsViewModel : BaseViewModel
         _gloveControlService = gloveControlService;
         ConnectionInfo = connectionStateService;
 
-        Title = "Profile Settings";
+        Title = "Custom Profile";
     }
+
+    /// <summary>Motors per glove on the connected device (4 on v2, 5 on v3).</summary>
+    public int MotorCount => _gloveControlService.DeviceActuatorCount;
+
+    // ========== Derived, read-only guidance ==========
+
+    /// <summary>
+    /// Coordinated-reset period and frequency implied by the current field values,
+    /// e.g. "CR period 668 ms · 1.50 Hz". The studied protocol runs at 1.50 Hz.
+    /// </summary>
+    public string DerivedTimingText =>
+        TryParseFields(out var fingers, out var onMs, out var offMs)
+            ? TherapyTiming.OnOffRatioLabel(fingers, onMs, offMs)
+            : "CR period unavailable";
+
+    /// <summary>
+    /// Note shown when the requested jitter exceeds what the current burst timing
+    /// can actually accommodate — above the cap, raising jitter changes nothing.
+    /// Null when there is nothing to warn about (the page binds visibility to it).
+    /// </summary>
+    public string? EffectiveJitterCapText
+    {
+        get
+        {
+            if (!TryParseFields(out _, out var onMs, out var offMs) ||
+                !double.TryParse(JitterText, NumberStyles.Float, CultureInfo.InvariantCulture, out var jitter))
+                return null;
+
+            var cap = TherapyParameterBounds.EffectiveJitterCap(onMs, offMs);
+            if (jitter <= cap)
+                return null;
+
+            return $"At this timing the gloves cap jitter near {cap.ToString("0.#", CultureInfo.InvariantCulture)}% " +
+                   "so bursts don't run together.";
+        }
+    }
+
+    /// <summary>Whether any field departs from the validated research configuration.</summary>
+    public bool DeviatesFromResearchDefaults => DeviatingFields.Count > 0;
+
+    private IReadOnlySet<string> DeviatingFields
+    {
+        get
+        {
+            try
+            {
+                return ResearchDefaults.DeviatingFields(BuildProfileFromFields(), MotorCount);
+            }
+            catch (FormatException)
+            {
+                // Mid-edit the fields may not parse; nothing meaningful to compare.
+                return new HashSet<string>();
+            }
+            catch (OverflowException)
+            {
+                return new HashSet<string>();
+            }
+        }
+    }
+
+    partial void OnTimeOnMsTextChanged(string value) => RaiseDerived();
+    partial void OnTimeOffMsTextChanged(string value) => RaiseDerived();
+    partial void OnJitterTextChanged(string value) => RaiseDerived();
+    partial void OnFingersTextChanged(string value) => RaiseDerived();
+    partial void OnSessionMinutesTextChanged(string value) => RaiseDerived();
+    partial void OnAmplitudeMinTextChanged(string value) => RaiseDerived();
+    partial void OnAmplitudeMaxTextChanged(string value) => RaiseDerived();
+    partial void OnMirrorChanged(bool value) => RaiseDerived();
+
+    private void RaiseDerived()
+    {
+        OnPropertyChanged(nameof(DerivedTimingText));
+        OnPropertyChanged(nameof(EffectiveJitterCapText));
+        OnPropertyChanged(nameof(DeviatesFromResearchDefaults));
+    }
+
+    // ========== Commands ==========
 
     /// <summary>
     /// Reads the current profile parameters from the device and populates the form.
@@ -92,6 +164,7 @@ public partial class ProfileSettingsViewModel : BaseViewModel
             var profile = await _gloveControlService.GetCurrentProfileAsync();
             PopulateFrom(profile);
             IsLoaded = true;
+            OnPropertyChanged(nameof(MotorCount));
         }
         catch (BlueBuzzahCommandException ex)
         {
@@ -107,6 +180,13 @@ public partial class ProfileSettingsViewModel : BaseViewModel
             IsBusy = false;
         }
     }
+
+    /// <summary>
+    /// Populates the form with the validated research configuration. Local only —
+    /// nothing reaches the gloves until Apply.
+    /// </summary>
+    [RelayCommand]
+    private void ResetToDefaults() => PopulateFrom(ResearchDefaults.For(MotorCount));
 
     /// <summary>
     /// Validates the form and sends the changed parameters to the device.
@@ -129,9 +209,9 @@ public partial class ProfileSettingsViewModel : BaseViewModel
         TherapyProfile desired;
         try
         {
-            desired = BuildDesiredProfile();
+            desired = BuildProfileFromFields();
         }
-        catch (FormatException)
+        catch (Exception ex) when (ex is FormatException or OverflowException)
         {
             await Shell.Current.DisplayAlert(
                 "Invalid Value",
@@ -157,9 +237,8 @@ public partial class ProfileSettingsViewModel : BaseViewModel
             PopulateFrom(confirmed);
 
             await Shell.Current.DisplayAlert(
-                "Settings Applied",
-                "The gloves are now using the updated settings.\n\n" +
-                "These changes last until the gloves restart or another profile is loaded.",
+                "Settings Saved",
+                "The gloves are now using these settings, and will keep them after a restart.",
                 "OK");
         }
         catch (ArgumentException ex)
@@ -208,43 +287,40 @@ public partial class ProfileSettingsViewModel : BaseViewModel
     private void PopulateFrom(TherapyProfile profile)
     {
         var inv = CultureInfo.InvariantCulture;
-        ActuatorType = profile.ActuatorType.Equals("ERM", StringComparison.OrdinalIgnoreCase) ? "ERM" : "LRA";
-        Pattern = profile.PatternType.ToUpperInvariant() switch
-        {
-            "SEQ" or "SEQUENTIAL" => "Sequential",
-            "MIRRORED" => "Mirrored",
-            _ => "Random",
-        };
-        FrequencyText = profile.ActuatorFrequency.ToString(inv);
         TimeOnMsText = (profile.TimeOn * 1000.0).ToString("0.#", inv);
         TimeOffMsText = (profile.TimeOff * 1000.0).ToString("0.#", inv);
         SessionMinutesText = profile.TimeSession.ToString(inv);
         AmplitudeMinText = profile.AmplitudeMin.ToString(inv);
         AmplitudeMaxText = profile.AmplitudeMax.ToString(inv);
         JitterText = profile.Jitter.ToString("0.#", inv);
+        FingersText = profile.Fingers.ToString(inv);
         Mirror = profile.Mirror;
     }
 
-    private TherapyProfile BuildDesiredProfile()
+    private TherapyProfile BuildProfileFromFields()
     {
         var inv = CultureInfo.InvariantCulture;
         return new TherapyProfile
         {
-            ActuatorType = ActuatorType,
-            ActuatorFrequency = int.Parse(FrequencyText, NumberStyles.Integer, inv),
+            ProfileId = TherapyProfile.CustomProfileId,
             TimeOn = double.Parse(TimeOnMsText, NumberStyles.Float, inv) / 1000.0,
             TimeOff = double.Parse(TimeOffMsText, NumberStyles.Float, inv) / 1000.0,
             TimeSession = int.Parse(SessionMinutesText, NumberStyles.Integer, inv),
             AmplitudeMin = int.Parse(AmplitudeMinText, NumberStyles.Integer, inv),
             AmplitudeMax = int.Parse(AmplitudeMaxText, NumberStyles.Integer, inv),
             Jitter = double.Parse(JitterText, NumberStyles.Float, inv),
+            Fingers = int.Parse(FingersText, NumberStyles.Integer, inv),
             Mirror = Mirror,
-            PatternType = Pattern switch
-            {
-                "Sequential" => "SEQUENTIAL",
-                "Mirrored" => "MIRRORED",
-                _ => "RNDP",
-            },
         };
+    }
+
+    private bool TryParseFields(out int fingers, out double onMs, out double offMs)
+    {
+        var inv = CultureInfo.InvariantCulture;
+        onMs = 0;
+        offMs = 0;
+        return int.TryParse(FingersText, NumberStyles.Integer, inv, out fingers)
+            && double.TryParse(TimeOnMsText, NumberStyles.Float, inv, out onMs)
+            && double.TryParse(TimeOffMsText, NumberStyles.Float, inv, out offMs);
     }
 }

@@ -237,6 +237,34 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     }
 
     /// <summary>
+    /// Opens the Custom profile's parameter editor. The Custom profile is the only
+    /// one the firmware accepts parameter edits for.
+    /// </summary>
+    [RelayCommand]
+    private async Task EditCustomParametersAsync()
+    {
+        if (SelectedProfile?.IsCustom != true)
+        {
+            await Shell.Current.DisplayAlert(
+                "Select Custom First",
+                "Tap the Custom profile to select it, then edit its parameters.",
+                "OK");
+            return;
+        }
+
+        if (!ConnectionInfo.IsConnected)
+        {
+            await Shell.Current.DisplayAlert(
+                "Not Connected",
+                "Connect to a BlueBuzzah glove to edit the Custom profile parameters.",
+                "OK");
+            return;
+        }
+
+        await Shell.Current.GoToAsync(Routes.ProfileSettings);
+    }
+
+    /// <summary>
     /// Writes every pending device setting (therapy LED, then profile) to the gloves
     /// in one go. The LED is written first because a profile change reboots the gloves.
     /// </summary>

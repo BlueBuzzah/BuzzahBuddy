@@ -75,7 +75,7 @@
                                                               Tapped="OnProfileCardTapped" />
                                     </Border.GestureRecognizers>
 
-                                    <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" ColumnSpacing="16" RowSpacing="8">
+                                    <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="16" RowSpacing="8">
                                         <!-- Blue circle checkmark - SIMPLE binding to IsSelected -->
                                         <Border Grid.Row="0" Grid.RowSpan="2" Grid.Column="0"
                                                 WidthRequest="56"
@@ -113,6 +113,24 @@
                                                TextColor="{StaticResource TextMuted}"
                                                LineBreakMode="WordWrap"
                                                AutomationProperties.IsInAccessibleTree="False" />
+
+                                        <!-- Custom profile only: its parameters are the point of the slot.
+                                             Same x:DataType="{x:Null}" + x:Reference workaround as the card's
+                                             tap gesture — RelativeSource doesn't resolve in item templates. -->
+                                        <Button Grid.Row="2" Grid.Column="1"
+                                                Text="Edit Parameters"
+                                                IsVisible="{Binding CanEditParameters}"
+                                                Style="{StaticResource TertiaryButton}"
+                                                HorizontalOptions="Start"
+                                                SemanticProperties.Description="Edit the Custom profile's therapy parameters"
+                                                SemanticProperties.Hint="Double tap to open the Custom profile parameter editor"
+                                                AutomationId="EditCustomParametersButton">
+                                            <Button.Command>
+                                                <Binding Source="{x:Reference page}"
+                                                         Path="BindingContext.Settings.EditCustomParametersCommand"
+                                                         x:DataType="{x:Null}" />
+                                            </Button.Command>
+                                        </Button>
                                     </Grid>
                                 </Border>
                             </DataTemplate>
