@@ -7,7 +7,6 @@ using BuzzahBuddy.Services.ConnectionStateManagement;
 using BuzzahBuddy.Services.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using System.Collections.ObjectModel;
 using static BuzzahBuddy.Services.Glove.ErrorMessageHelper;
 
 namespace BuzzahBuddy.ViewModels;
@@ -25,6 +24,8 @@ public partial class GloveControlViewModel : BaseViewModel
     private TherapySession? _currentSession;
     private System.Timers.Timer? _statusPollTimer;
     private System.Timers.Timer? _healthCheckTimer;
+    private readonly SessionClock _sessionClock = new();
+    private IDispatcherTimer? _displayTickTimer;
     private readonly IAppLifecycleService _appLifecycle;
     private bool _pollingPausedByLifecycle;
     private bool _isBackgrounded;
@@ -35,41 +36,31 @@ public partial class GloveControlViewModel : BaseViewModel
     private const int PollFailureWarningThreshold = 2;
     private const int PollFailureReconnectThreshold = 3;
     private const string ConnectionUnstableWarning = "Connection unstable — trying to recover…";
-    private const string ProfileRebootWarning = "Gloves are restarting to apply the new profile…";
+
+    /// <summary>Preset profiles, used to map the device's profile id to a display profile.</summary>
+    private readonly List<TherapyProfile> _profiles = TherapyProfile.GetPresetProfiles();
 
     [ObservableProperty]
-    private ObservableCollection<ProfileItemViewModel> _availableProfiles = new();
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasNoSelectedProfile))]
+    [NotifyPropertyChangedFor(nameof(SelectedProfileName))]
+    [NotifyPropertyChangedFor(nameof(ProfileSummary))]
     private TherapyProfile? _selectedProfile;
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowMoreButtonText))]
-    private bool _isShowingAdvancedProfiles;
+    /// <summary>
+    /// Display name of the current therapy profile, or a prompt when none is selected.
+    /// </summary>
+    public string SelectedProfileName => SelectedProfile?.Name ?? "No profile selected";
 
     /// <summary>
-    /// Primary profiles shown by default (Noisy, Regular, Quick Test).
+    /// One-line summary of the current profile, e.g. "120 min session • 250 Hz".
     /// </summary>
-    public IEnumerable<ProfileItemViewModel> PrimaryProfiles =>
-        AvailableProfiles.Where(p => p.IsPrimaryProfile).OrderBy(p => p.IsRecommended ? 0 : 1);
-
-    /// <summary>
-    /// Advanced profiles shown when "Show More" is expanded (Hybrid, Custom, Gentle).
-    /// </summary>
-    public IEnumerable<ProfileItemViewModel> AdvancedProfiles =>
-        AvailableProfiles.Where(p => p.IsAdvancedProfile);
-
-    /// <summary>
-    /// Text for the Show More/Less toggle button.
-    /// </summary>
-    public string ShowMoreButtonText => IsShowingAdvancedProfiles ? "Show Less" : "Show More Profiles";
+    public string ProfileSummary => SelectedProfile is { } p
+        ? $"{p.TimeSession} min session • {p.ActuatorFrequency} Hz"
+        : string.Empty;
 
     [ObservableProperty]
     private SessionStatus _sessionStatus = SessionStatus.CreateIdle();
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsSessionInactive))]
     private bool _isSessionActive;
 
     [ObservableProperty]
@@ -77,6 +68,21 @@ public partial class GloveControlViewModel : BaseViewModel
 
     [ObservableProperty]
     private bool _isSessionPaused;
+
+    [ObservableProperty]
+    private double _timerProgressFraction;
+
+    [ObservableProperty]
+    private string _timerRemainingText = "00:00";
+
+    [ObservableProperty]
+    private string? _timerElapsedText;
+
+    [ObservableProperty]
+    private string _timerCaption = string.Empty;
+
+    [ObservableProperty]
+    private string _timerSemanticDescription = string.Empty;
 
     // Null voltage = no reading available (missing key or firmware 0.00 sentinel)
     [ObservableProperty]
@@ -123,27 +129,7 @@ public partial class GloveControlViewModel : BaseViewModel
             : "Secondary battery: status unavailable";
 
     [ObservableProperty]
-    private bool _showBatteryRefresh = true;
-
-    [ObservableProperty]
-    private bool _isLoadingProfile;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsNotRefreshingBattery))]
-    private bool _isRefreshingBattery;
-
-    [ObservableProperty]
-    private string? _batteryStatusMessage;
-
-    [ObservableProperty]
     private string? _sessionWarningMessage;
-
-    [ObservableProperty]
-    private string? _profileLoadingMessage;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsNotTestingConnection))]
-    private bool _isTestingConnection;
 
     [ObservableProperty]
     private string _sessionButtonText = "Start Session";
@@ -168,26 +154,6 @@ public partial class GloveControlViewModel : BaseViewModel
     public bool ShowReconnectionBanner =>
         ConnectionInfo.IsReconnecting || !string.IsNullOrEmpty(ConnectionInfo.ReconnectionMessage);
 
-    /// <summary>
-    /// Inverse of IsTestingConnection for XAML MultiBinding (MAUI ignores Converter on child Binding in MultiBinding).
-    /// </summary>
-    public bool IsNotTestingConnection => !IsTestingConnection;
-
-    /// <summary>
-    /// Inverse of IsRefreshingBattery for XAML MultiBinding (MAUI ignores Converter on child Binding in MultiBinding).
-    /// </summary>
-    public bool IsNotRefreshingBattery => !IsRefreshingBattery;
-
-    /// <summary>
-    /// True when no session is active. For XAML MultiBinding use.
-    /// </summary>
-    public bool IsSessionInactive => !IsSessionActive;
-
-    /// <summary>
-    /// True when no therapy profile is selected. For XAML MultiBinding use.
-    /// </summary>
-    public bool HasNoSelectedProfile => SelectedProfile == null;
-
     public GloveControlViewModel(
         IGloveControlService gloveControlService,
         IBluetoothService bluetoothService,
@@ -202,10 +168,17 @@ public partial class GloveControlViewModel : BaseViewModel
         _reconnectionService = reconnectionService;
         ConnectionInfo = connectionStateService;
 
-        Title = "Therapy Control";
+        Title = "Control";
 
         // Subscribe to connection events
         _bluetoothService.ConnectionStateChanged += OnConnectionStateChanged;
+
+        // The service fetches INFO once per (re)connect; mirror its profile here
+        _gloveControlService.DeviceProfileChanged += OnDeviceProfileChanged;
+
+        // Session state from the service (fires on command success and every status
+        // poll) — the UI must not depend on the first SESSION_STATUS poll succeeding
+        _gloveControlService.SessionStateChanged += OnServiceSessionStateChanged;
 
         // Subscribe to centralized connection state changes
         ConnectionInfo.PropertyChanged += OnConnectionInfoPropertyChanged;
@@ -216,8 +189,28 @@ public partial class GloveControlViewModel : BaseViewModel
         _appLifecycle.Resumed += OnAppResumed;
 
         // Initialize
-        LoadProfilesAsync().SafeFireAndForget("[GLOVECONTROL]");
+        LoadSelectedProfileAsync().SafeFireAndForget("[GLOVECONTROL]");
         UpdateConnectionState();
+    }
+
+    /// <summary>
+    /// Called from GloveControlPage.OnAppearing. Re-reads the last selected profile so a
+    /// change made on the Device page (while disconnected) is reflected here.
+    /// </summary>
+    public void OnPageAppearing()
+    {
+        if (!IsSessionActive)
+        {
+            LoadSelectedProfileAsync().SafeFireAndForget("[GLOVECONTROL]");
+        }
+
+        // The connect happens on the Devices page; refresh here so this page always
+        // shows battery values when visited, even if the on-connect refresh raced
+        // the connection-state update. No low-battery alert on mere tab visits.
+        if (ConnectionInfo.IsConnected)
+        {
+            RefreshBatteryAsync(warnIfLow: false).SafeFireAndForget("[GLOVECONTROL]");
+        }
     }
 
     [RelayCommand]
@@ -253,7 +246,7 @@ public partial class GloveControlViewModel : BaseViewModel
                 {
                     await Shell.Current.DisplayAlert(
                         "Profile Not Applied",
-                        $"The gloves are still using a different profile. Tap \"{SelectedProfile.Name}\" again to apply it before starting.",
+                        $"The gloves are still using a different profile. Go to the Devices page and apply \"{SelectedProfile.Name}\" before starting.",
                         "OK");
                     return;
                 }
@@ -373,153 +366,19 @@ public partial class GloveControlViewModel : BaseViewModel
 
 
     [RelayCommand]
-    private void ToggleAdvancedProfiles()
-    {
-        IsShowingAdvancedProfiles = !IsShowingAdvancedProfiles;
-    }
-
-    [RelayCommand]
-    private async Task SelectProfileAsync(ProfileItemViewModel profileItem)
-    {
-        if (profileItem?.Profile == null)
-            return;
-
-        // Selecting the profile already on the device is just a UI highlight
-        var isDeviceCurrent = profileItem.Profile.ProfileId == _gloveControlService.DeviceProfileId;
-
-        if (!isDeviceCurrent && ConnectionInfo.IsConnected)
-        {
-            if (IsSessionActive)
-            {
-                await Shell.Current.DisplayAlert(
-                    "Session Active",
-                    "Stop the current session before changing profiles.",
-                    "OK");
-                return;
-            }
-
-            var confirm = await Shell.Current.DisplayAlert(
-                "Change Profile?",
-                $"Switching to \"{profileItem.Profile.Name}\" will restart your gloves. " +
-                "They will reconnect automatically in a few moments.",
-                "Change Profile",
-                "Cancel");
-            if (!confirm)
-                return;
-
-            IsBusy = true;
-            try
-            {
-                await _gloveControlService.LoadProfileAsync(profileItem.Profile.ProfileId);
-                SessionWarningMessage = ProfileRebootWarning;
-            }
-            catch (BlueBuzzahCommandException ex)
-            {
-                var (title, message) = ErrorMessageHelper.GetFriendlyError(ex.Message);
-                await Shell.Current.DisplayAlert(title, message, "OK");
-                return;
-            }
-            catch (Exception ex)
-            {
-                await Shell.Current.DisplayAlert(ErrorMessageHelper.GetErrorTitle(ex), ErrorMessageHelper.GetErrorMessage(ex), "OK");
-                return;
-            }
-            finally
-            {
-                IsBusy = false;
-            }
-        }
-
-        // Deselect all profiles
-        foreach (var item in AvailableProfiles)
-        {
-            item.IsSelected = false;
-        }
-
-        // Select the tapped profile
-        profileItem.IsSelected = true;
-
-        // Ensure PropertyChanged fires on UI thread for nested bindings
-        MainThread.BeginInvokeOnMainThread(() =>
-        {
-            SelectedProfile = profileItem.Profile;
-        });
-    }
-
-    [RelayCommand]
     private async Task NavigateToDevicesAsync()
     {
         await Shell.Current.GoToAsync(Routes.Devices);
     }
 
-    [RelayCommand]
-    private async Task NavigateToProfileSettingsAsync()
-    {
-        await Shell.Current.GoToAsync(Routes.ProfileSettings);
-    }
-
-    [RelayCommand]
-    private async Task TestConnectionAsync()
+    private async Task RefreshBatteryAsync(bool warnIfLow = true)
     {
         if (!ConnectionInfo.IsConnected)
-        {
-            await Shell.Current.DisplayAlert(
-                "Not Connected",
-                "Please connect to a BlueBuzzah glove first.",
-                "OK");
             return;
-        }
-
-        IsBusy = true;
-        IsTestingConnection = true;
-
-        try
-        {
-            var success = await _gloveControlService.PingAsync();
-
-            if (success)
-            {
-                await Shell.Current.DisplayAlert(
-                    "Test Successful",
-                    "Connection test completed successfully!",
-                    "OK");
-            }
-            else
-            {
-                await Shell.Current.DisplayAlert(
-                    "Test Failed",
-                    "Connection test failed. Please check your connection.",
-                    "OK");
-            }
-        }
-        finally
-        {
-            IsTestingConnection = false;
-            IsBusy = false;
-        }
-    }
-
-    [RelayCommand]
-    private async Task RefreshBatteryAsync()
-    {
-        if (!ConnectionInfo.IsConnected)
-        {
-            await Shell.Current.DisplayAlert(
-                "Not Connected",
-                "Please connect to a BlueBuzzah glove first.",
-                "OK");
-            return;
-        }
-
-        IsBusy = true;
-        IsRefreshingBattery = true;
 
         try
         {
             var (primaryVoltage, secondaryVoltage) = await _gloveControlService.GetBatteryAsync();
-
-            // Debug: Log raw voltage values from device
-            System.Diagnostics.Debug.WriteLine($"[BATTERY] Raw voltages - Primary: {primaryVoltage}V, Secondary: {secondaryVoltage}V");
 
             BatteryPrimaryVoltage = primaryVoltage;
             BatterySecondaryVoltage = secondaryVoltage;
@@ -530,129 +389,37 @@ public partial class GloveControlViewModel : BaseViewModel
             BatterySecondaryColor = secondaryVoltage is { } sv
                 ? BatteryReading.GetBatteryColorFromVoltage(sv) : Colors.Gray;
 
-            // Progressive disclosure: Hide refresh button when battery is good.
-            // A missing reading counts as "not good" so refresh stays available.
-            var minPercentage = Math.Min(
-                primaryVoltage is { } p ? BatteryReading.ToPercentage(p) : 0,
-                secondaryVoltage is { } s ? BatteryReading.ToPercentage(s) : 0);
-            ShowBatteryRefresh = minPercentage <= 50;
-
-            // Check for low battery warnings
-            await CheckBatteryWarningAsync();
-
-            // Primary always has a battery; a null secondary may just mean no
-            // secondary glove (firmware reports both as BATS:0.00), so only
-            // flag the primary.
-            BatteryStatusMessage = primaryVoltage is null
-                ? "Battery status unavailable — try refreshing"
-                : null;
+            // Check for low battery warnings (on connect, not on every tab visit)
+            if (warnIfLow)
+            {
+                await CheckBatteryWarningAsync();
+            }
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Battery refresh error: {ex.Message}");
-            BatteryStatusMessage = "Battery status unavailable";
-        }
-        finally
-        {
-            IsRefreshingBattery = false;
-            IsBusy = false;
         }
     }
 
-    partial void OnSelectedProfileChanged(TherapyProfile? value)
+    private async Task LoadSelectedProfileAsync()
     {
-        if (value == null)
-            return;
-
-        // Cannot change profile during active session
-        if (IsSessionActive)
-        {
-            MainThread.BeginInvokeOnMainThread(async () =>
-            {
-                await Shell.Current.DisplayAlert(
-                    "Session Active",
-                    "Stop the current session to change profiles.",
-                    "OK");
-            });
-            return;
-        }
-
-        // Profile selection only updates local state - device is updated when session starts
-        System.Diagnostics.Debug.WriteLine($"[PROFILE] Selected profile {value.ProfileId}: {value.Name}");
-
-        // Save selection preference for next app launch
-        _ = _storageService.SaveLastProfileAsync(value.ProfileId);
-    }
-
-    private async Task LoadProfilesAsync()
-    {
-        System.Diagnostics.Debug.WriteLine("[PROFILES] LoadProfilesAsync starting...");
-
         try
         {
-            // Load all 6 preset profiles (device connection not required for profile list)
-            var profiles = TherapyProfile.GetPresetProfiles();
-            System.Diagnostics.Debug.WriteLine($"[PROFILES] Loaded {profiles.Count} preset profiles");
+            // Prefer the profile actually on the device, but only while connected —
+            // DeviceProfileId is never reset on disconnect, so when disconnected it's a
+            // stale snapshot and the saved selection (Device page picks) must win.
+            var profileId = ConnectionInfo.IsConnected && _gloveControlService.DeviceProfileId > 0
+                ? _gloveControlService.DeviceProfileId
+                : await _storageService.GetLastProfileAsync();
 
-            AvailableProfiles.Clear();
-            foreach (var profile in profiles)
-            {
-                AvailableProfiles.Add(new ProfileItemViewModel(profile));
-                System.Diagnostics.Debug.WriteLine($"[PROFILES]   - ID={profile.ProfileId}, Name={profile.Name}");
-            }
-
-            // Notify filtered profile properties
-            OnPropertyChanged(nameof(PrimaryProfiles));
-            OnPropertyChanged(nameof(AdvancedProfiles));
-
-            // Load last used profile or default to Noisy (profile 2)
-            var lastProfileId = await _storageService.GetLastProfileAsync();
-            var selectedItem = AvailableProfiles.FirstOrDefault(p => p.ProfileId == lastProfileId)
-                            ?? AvailableProfiles.FirstOrDefault(p => p.ProfileId == 2)
-                            ?? AvailableProfiles.FirstOrDefault();
-
-            if (selectedItem != null)
-            {
-                selectedItem.IsSelected = true;
-                SelectedProfile = selectedItem.Profile;
-                System.Diagnostics.Debug.WriteLine($"[PROFILES] Selected profile: {selectedItem.Name}");
-
-                // If selected profile is advanced, show advanced section
-                if (selectedItem.IsAdvancedProfile)
-                {
-                    IsShowingAdvancedProfiles = true;
-                }
-            }
-
-            ProfileLoadingMessage = null;
+            SelectedProfile = _profiles.FirstOrDefault(p => p.ProfileId == profileId)
+                           ?? _profiles.FirstOrDefault(p => p.ProfileId == 2)
+                           ?? _profiles.FirstOrDefault();
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[PROFILES] Load profiles error: {ex.Message}");
-
-            // Fallback to all preset profiles
-            var presetProfiles = TherapyProfile.GetPresetProfiles();
-            System.Diagnostics.Debug.WriteLine($"[PROFILES] Using fallback with {presetProfiles.Count} preset profiles");
-
-            AvailableProfiles.Clear();
-            foreach (var profile in presetProfiles)
-            {
-                AvailableProfiles.Add(new ProfileItemViewModel(profile));
-            }
-
-            OnPropertyChanged(nameof(PrimaryProfiles));
-            OnPropertyChanged(nameof(AdvancedProfiles));
-
-            var defaultItem = AvailableProfiles.FirstOrDefault(p => p.ProfileId == 2)
-                           ?? AvailableProfiles.FirstOrDefault();
-            if (defaultItem != null)
-            {
-                defaultItem.IsSelected = true;
-                SelectedProfile = defaultItem.Profile;
-                System.Diagnostics.Debug.WriteLine($"[PROFILES] Fallback selected: {defaultItem.Name}");
-            }
-
-            ProfileLoadingMessage = "Showing default profiles — device profiles could not be loaded.";
+            System.Diagnostics.Debug.WriteLine($"[PROFILES] Load selected profile error: {ex.Message}");
+            SelectedProfile = _profiles.FirstOrDefault(p => p.ProfileId == 2) ?? _profiles.FirstOrDefault();
         }
     }
 
@@ -738,8 +505,21 @@ public partial class GloveControlViewModel : BaseViewModel
 
             if (_consecutivePollFailures >= PollFailureReconnectThreshold)
             {
+                // During a session the health-check ping is suspended (see
+                // CheckConnectionHealthAsync), so the status poll owns reconnect
+                // recovery. 3 failed 5s polls (~15s) forces a reconnect — faster than
+                // the health check's 2x30s — and reset so it fires once per episode.
                 SessionWarningMessage = null;
                 IsConnectionHealthy = false;
+                _consecutivePollFailures = 0;
+                try
+                {
+                    await _bluetoothService.DisconnectForReconnectAsync();
+                }
+                catch (Exception disconnectEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Status-poll reconnect failed: {disconnectEx.Message}");
+                }
             }
             else if (_consecutivePollFailures >= PollFailureWarningThreshold)
             {
@@ -750,6 +530,8 @@ public partial class GloveControlViewModel : BaseViewModel
 
     private void UpdateSessionState()
     {
+        _sessionClock.Anchor(SessionStatus, DateTime.UtcNow);
+
         IsSessionActive = SessionStatus.IsActive;
         IsSessionRunning = SessionStatus.IsRunning;
         IsSessionPaused = SessionStatus.IsPaused;
@@ -770,6 +552,13 @@ public partial class GloveControlViewModel : BaseViewModel
             SessionButtonText = "Resume Session";
             SessionButtonDescription = "Resumes the paused therapy session";
         }
+
+        UpdateTimerDisplay(updateSemantics: true);
+
+        if (IsSessionActive && !_isBackgrounded)
+            StartDisplayTick();
+        else
+            StopDisplayTick();
     }
 
     private void StartStatusPolling()
@@ -787,6 +576,58 @@ public partial class GloveControlViewModel : BaseViewModel
         _statusPollTimer?.Stop();
         _statusPollTimer?.Dispose();
         _statusPollTimer = null;
+    }
+
+    /// <summary>
+    /// Starts the local 500ms display tick that animates the session timer between
+    /// 5s BLE status polls. Purely local — no BLE traffic.
+    /// </summary>
+    private void StartDisplayTick()
+    {
+        if (_displayTickTimer != null)
+            return;
+        var timer = Application.Current?.Dispatcher.CreateTimer();
+        if (timer == null)
+            return;
+        timer.Interval = TimeSpan.FromMilliseconds(500);
+        timer.Tick += (s, e) => UpdateTimerDisplay(updateSemantics: false);
+        timer.Start();
+        _displayTickTimer = timer;
+    }
+
+    private void StopDisplayTick()
+    {
+        _displayTickTimer?.Stop();
+        _displayTickTimer = null;
+    }
+
+    private void UpdateTimerDisplay(bool updateSemantics)
+    {
+        var reading = _sessionClock.TickTo(DateTime.UtcNow);
+        TimerProgressFraction = reading.HasKnownTotal ? reading.Fraction : 0;
+        TimerRemainingText = reading.HasKnownTotal ? reading.RemainingFormatted : reading.ElapsedFormatted;
+        TimerCaption = IsSessionPaused ? "Paused" : (reading.HasKnownTotal ? "remaining" : "elapsed");
+        TimerElapsedText = reading.HasKnownTotal
+            ? $"{reading.ElapsedFormatted} elapsed • {SessionStatus.TotalTimeFormatted} total"
+            : null;
+
+        // Screen-reader description updates only on re-anchor (~5s), not every tick,
+        // to avoid VoiceOver/TalkBack spam.
+        if (updateSemantics)
+        {
+            var state = IsSessionPaused ? "session paused" : "session running";
+            if (reading.HasKnownTotal)
+            {
+                var remaining = TimeSpan.FromSeconds(Math.Ceiling(reading.Remaining.TotalSeconds));
+                TimerSemanticDescription =
+                    $"{(int)remaining.TotalMinutes} minutes {remaining.Seconds} seconds remaining, {state}";
+            }
+            else
+            {
+                TimerSemanticDescription =
+                    $"{(int)reading.Elapsed.TotalMinutes} minutes {reading.Elapsed.Seconds} seconds elapsed, {state}";
+            }
+        }
     }
 
     private void StartConnectionHealthCheck()
@@ -812,6 +653,15 @@ public partial class GloveControlViewModel : BaseViewModel
         if (!ConnectionInfo.IsConnected)
         {
             IsConnectionHealthy = false;
+            return;
+        }
+
+        // During an active session, skip the health-check ping: the 5s session-status
+        // poll already probes liveness (faster) and now drives reconnect recovery. This
+        // removes redundant phone->PRIMARY commands that would otherwise compete with
+        // PRIMARY<->SECONDARY sync traffic for the shared radio during therapy.
+        if (IsSessionActive)
+        {
             return;
         }
 
@@ -862,7 +712,6 @@ public partial class GloveControlViewModel : BaseViewModel
         if (ConnectionInfo.IsConnected)
         {
             RefreshBatteryAsync().SafeFireAndForget("[GLOVECONTROL]");
-            SyncSelectedProfileFromDeviceAsync().SafeFireAndForget("[GLOVECONTROL]");
             StartConnectionHealthCheck();
         }
         else
@@ -873,41 +722,51 @@ public partial class GloveControlViewModel : BaseViewModel
     }
 
     /// <summary>
-    /// Queries the device for its currently loaded profile and syncs local selection state
-    /// to match. Called on every (re)connect so the UI never disagrees with the device.
+    /// Keeps the displayed profile in lockstep with the device. GloveControlService
+    /// fetches INFO once per (re)connect and raises this for every INFO response.
     /// </summary>
-    private async Task SyncSelectedProfileFromDeviceAsync()
+    /// <summary>
+    /// Mirrors the service's session state. StartSessionAsync/PauseSessionAsync/etc.
+    /// synthesize a status on command success, so the session UI (progress card,
+    /// button text, Stop button) updates even if the follow-up SESSION_STATUS poll
+    /// fails or is slow while the gloves establish sync.
+    /// </summary>
+    private void OnServiceSessionStateChanged(object? sender, SessionStatus status)
     {
-        try
+        MainThread.BeginInvokeOnMainThread(() =>
         {
-            await _gloveControlService.GetDeviceInfoAsync();
-
-            // Clear a stuck "restarting" banner from a profile-change reboot on any
-            // successful INFO fetch — but only that banner, so warnings owned by other
-            // paths (low battery, unstable connection) aren't wiped here.
-            if (SessionWarningMessage == ProfileRebootWarning)
-            {
-                SessionWarningMessage = null;
-            }
-
-            var deviceProfileId = _gloveControlService.DeviceProfileId;
-            if (deviceProfileId <= 0)
+            // The poll (UpdateSessionStatusAsync) owns completion/"ended unexpectedly"
+            // detection and calls GetSessionStatusAsync, which fires this event with
+            // the very status it then assigns to SessionStatus. Ignore that echo — by
+            // the time this queued callback runs the poll has already assigned it — so
+            // only out-of-band updates from Start/Pause/Resume/Stop flip the UI here,
+            // and the poll's edge detection is never bypassed or double-run.
+            if (ReferenceEquals(status, SessionStatus))
                 return;
 
-            var match = AvailableProfiles.FirstOrDefault(p => p.Profile?.ProfileId == deviceProfileId);
+            SessionStatus = status;
+            UpdateSessionState();
+
+            // A session we didn't start (e.g. the gloves auto-started one before the
+            // app connected, surfaced by the post-connect sync) needs polling so its
+            // progress advances; start it if it isn't already running.
+            if (IsSessionActive && _statusPollTimer == null)
+            {
+                StartStatusPolling();
+            }
+        });
+    }
+
+    private void OnDeviceProfileChanged(object? sender, int profileId)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            var match = _profiles.FirstOrDefault(p => p.ProfileId == profileId);
             if (match != null)
             {
-                foreach (var item in AvailableProfiles)
-                {
-                    item.IsSelected = item == match;
-                }
-                SelectedProfile = match.Profile;
+                SelectedProfile = match;
             }
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[GLOVECONTROL] Profile sync failed: {ex.Message}");
-        }
+        });
     }
 
     private void OnAppStopped(object? sender, EventArgs e)
@@ -917,6 +776,7 @@ public partial class GloveControlViewModel : BaseViewModel
         _pollingPausedByLifecycle = _statusPollTimer != null;
         StopStatusPolling();
         StopConnectionHealthCheck();
+        StopDisplayTick();
     }
 
     private void OnAppResumed(object? sender, EventArgs e)
@@ -950,7 +810,6 @@ public partial class GloveControlViewModel : BaseViewModel
                 if (!_isBackgrounded)
                     StartConnectionHealthCheck();
                 RefreshBatteryAsync().SafeFireAndForget("[GLOVECONTROL]");
-                SyncSelectedProfileFromDeviceAsync().SafeFireAndForget("[GLOVECONTROL]");
             }
             else
             {
@@ -1113,11 +972,14 @@ public partial class GloveControlViewModel : BaseViewModel
         if (disposing)
         {
             _bluetoothService.ConnectionStateChanged -= OnConnectionStateChanged;
+            _gloveControlService.DeviceProfileChanged -= OnDeviceProfileChanged;
+            _gloveControlService.SessionStateChanged -= OnServiceSessionStateChanged;
             ConnectionInfo.PropertyChanged -= OnConnectionInfoPropertyChanged;
             _appLifecycle.Stopped -= OnAppStopped;
             _appLifecycle.Resumed -= OnAppResumed;
             StopStatusPolling();
             StopConnectionHealthCheck();
+            StopDisplayTick();
             System.Diagnostics.Debug.WriteLine("[GLOVECONTROL] ViewModel disposed, unsubscribed from events");
         }
         base.Dispose(disposing);

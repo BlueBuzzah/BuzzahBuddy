@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:BuzzahBuddy.ViewModels"
+             x:Class="BuzzahBuddy.Views.ApplyingSettingsPage"
+             x:DataType="vm:DeviceSettingsViewModel"
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="{StaticResource PageBackground}">
+
+    <VerticalStackLayout Spacing="24"
+                         VerticalOptions="Center"
+                         Padding="32">
+        <ActivityIndicator IsRunning="True"
+                           HeightRequest="56"
+                           WidthRequest="56"
+                           Color="{StaticResource Primary}"
+                           SemanticProperties.Description="Applying settings" />
+
+        <Label Text="Applying Settings…"
+               Style="{StaticResource Headline}"
+               HorizontalOptions="Center"
+               SemanticProperties.HeadingLevel="Level1" />
+
+        <Label Text="Your gloves are restarting with the new settings and will reconnect automatically. This can take a few moments."
+               FontSize="16"
+               TextColor="{StaticResource TextMuted}"
+               HorizontalTextAlignment="Center"
+               LineBreakMode="WordWrap"
+               AutomationId="ApplyingSettingsLabel" />
+
+        <!-- Live reconnection progress, e.g. "Reconnecting... (attempt 2/20)" -->
+        <Label Text="{Binding ConnectionInfo.ReconnectionMessage}"
+               IsVisible="{Binding ConnectionInfo.ReconnectionMessage, Converter={StaticResource IsNotNullConverter}}"
+               FontSize="14"
+               TextColor="{StaticResource TextMuted}"
+               HorizontalTextAlignment="Center"
+               SemanticProperties.Description="{Binding ConnectionInfo.ReconnectionMessage}" />
+    </VerticalStackLayout>
+
+</ContentPage>

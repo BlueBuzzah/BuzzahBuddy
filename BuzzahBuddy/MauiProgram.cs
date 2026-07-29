@@ -46,15 +46,14 @@ public static class MauiProgram
 
 		// Register ViewModels
 		// Tab pages and their ViewModels live for the app's lifetime (Shell caches TabBar content)
-		builder.Services.AddSingleton<MainPageViewModel>();
 		builder.Services.AddSingleton<DeviceListViewModel>();
+		builder.Services.AddSingleton<DeviceSettingsViewModel>();
 		builder.Services.AddSingleton<GloveControlViewModel>();
 		builder.Services.AddSingleton<SettingsViewModel>();
 		builder.Services.AddTransient<CalibrationViewModel>();
 		builder.Services.AddTransient<ProfileSettingsViewModel>();
 
 		// Register Views
-		builder.Services.AddSingleton<MainPage>();
 		builder.Services.AddSingleton<DeviceListPage>();
 		builder.Services.AddSingleton<GloveControlPage>();
 		builder.Services.AddSingleton<SettingsPage>();

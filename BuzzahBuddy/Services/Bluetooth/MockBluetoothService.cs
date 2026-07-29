@@ -44,6 +44,7 @@ public class MockBluetoothService : IBluetoothService
         {
             Id = "MOCK-PRIMARY-001",
             Name = BlueBuzzahConstants.DeviceName, // "BlueBuzzah"
+            HardwareVersion = "v2",
             SignalStrength = -45,
             ConnectionState = ConnectionState.Disconnected,
             FirmwareVersion = "2.0.0"
@@ -119,6 +120,7 @@ public class MockBluetoothService : IBluetoothService
         {
             Id = _lastConnectedDeviceId,
             Name = BlueBuzzahConstants.DeviceName,
+            HardwareVersion = "v2",
             SignalStrength = -45,
             ConnectionState = ConnectionState.Connected,
             LastConnected = DateTime.Now
@@ -238,6 +240,7 @@ public class MockBluetoothService : IBluetoothService
         return "ROLE:PRIMARY\n" +
                "NAME:BlueBuzzah\n" +
                "FW:2.0.0\n" +
+               "HW:v2\n" +
                "MOTORS:4\n" +
                $"PROFILE:{_mockCurrentProfile}:{ProfileNameFor(_mockCurrentProfile)}\n" +
                "BATP:3.72\n" +
