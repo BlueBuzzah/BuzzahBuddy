@@ -49,7 +49,7 @@
                            TextColor="{StaticResource TextMuted}"
                            SemanticProperties.Description="The gloves keep these parameters after a restart" />
 
-                    <Grid ColumnDefinitions="*,140" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                    <Grid ColumnDefinitions="*,140" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto"
                           ColumnSpacing="15" RowSpacing="12">
 
                         <Label Grid.Row="0" Grid.Column="0" Text="Burst Duration (ms, 50-200)" FontSize="16" VerticalOptions="Center" LineBreakMode="WordWrap" />
@@ -78,29 +78,16 @@
                                    AutomationId="TimeOffEntry" />
                         </Border>
 
-                        <Label Grid.Row="2" Grid.Column="0" Text="Active Fingers" FontSize="16" VerticalOptions="Center" LineBreakMode="WordWrap" />
-                        <Border Grid.Row="2" Grid.Column="1" Style="{StaticResource InputBorder}">
-                            <Border.Behaviors>
-                                <behaviors:InputFocusBehavior />
-                            </Border.Behaviors>
-                            <Entry Text="{Binding FingersText}"
-                                   Keyboard="Numeric"
-                                   MinimumHeightRequest="48"
-                                   HorizontalTextAlignment="End"
-                                   SemanticProperties.Description="Number of fingertips stimulated per cycle"
-                                   AutomationId="FingersEntry" />
-                        </Border>
-
                         <!-- Derived coordinated-reset timing, updates as the fields change -->
-                        <Label Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
+                        <Label Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
                                Text="{Binding DerivedTimingText}"
                                Style="{StaticResource BodyText}"
                                TextColor="{StaticResource TextMuted}"
                                SemanticProperties.Description="{Binding DerivedTimingText}"
                                AutomationId="DerivedTimingLabel" />
 
-                        <Label Grid.Row="4" Grid.Column="0" Text="Session (min, 1-240)" FontSize="16" VerticalOptions="Center" LineBreakMode="WordWrap" />
-                        <Border Grid.Row="4" Grid.Column="1" Style="{StaticResource InputBorder}">
+                        <Label Grid.Row="3" Grid.Column="0" Text="Session (min, 1-240)" FontSize="16" VerticalOptions="Center" LineBreakMode="WordWrap" />
+                        <Border Grid.Row="3" Grid.Column="1" Style="{StaticResource InputBorder}">
                             <Border.Behaviors>
                                 <behaviors:InputFocusBehavior />
                             </Border.Behaviors>
@@ -112,8 +99,8 @@
                                    AutomationId="SessionEntry" />
                         </Border>
 
-                        <Label Grid.Row="5" Grid.Column="0" Text="Amplitude Min (%, 20-100)" FontSize="16" VerticalOptions="Center" LineBreakMode="WordWrap" />
-                        <Border Grid.Row="5" Grid.Column="1" Style="{StaticResource InputBorder}">
+                        <Label Grid.Row="4" Grid.Column="0" Text="Amplitude Min (%, 20-100)" FontSize="16" VerticalOptions="Center" LineBreakMode="WordWrap" />
+                        <Border Grid.Row="4" Grid.Column="1" Style="{StaticResource InputBorder}">
                             <Border.Behaviors>
                                 <behaviors:InputFocusBehavior />
                             </Border.Behaviors>
@@ -125,8 +112,8 @@
                                    AutomationId="AmplitudeMinEntry" />
                         </Border>
 
-                        <Label Grid.Row="6" Grid.Column="0" Text="Amplitude Max (%, 20-100)" FontSize="16" VerticalOptions="Center" LineBreakMode="WordWrap" />
-                        <Border Grid.Row="6" Grid.Column="1" Style="{StaticResource InputBorder}">
+                        <Label Grid.Row="5" Grid.Column="0" Text="Amplitude Max (%, 20-100)" FontSize="16" VerticalOptions="Center" LineBreakMode="WordWrap" />
+                        <Border Grid.Row="5" Grid.Column="1" Style="{StaticResource InputBorder}">
                             <Border.Behaviors>
                                 <behaviors:InputFocusBehavior />
                             </Border.Behaviors>
@@ -138,8 +125,8 @@
                                    AutomationId="AmplitudeMaxEntry" />
                         </Border>
 
-                        <Label Grid.Row="7" Grid.Column="0" Text="Jitter (%, 0-50)" FontSize="16" VerticalOptions="Center" LineBreakMode="WordWrap" />
-                        <Border Grid.Row="7" Grid.Column="1" Style="{StaticResource InputBorder}">
+                        <Label Grid.Row="6" Grid.Column="0" Text="Jitter (%, 0-50)" FontSize="16" VerticalOptions="Center" LineBreakMode="WordWrap" />
+                        <Border Grid.Row="6" Grid.Column="1" Style="{StaticResource InputBorder}">
                             <Border.Behaviors>
                                 <behaviors:InputFocusBehavior />
                             </Border.Behaviors>

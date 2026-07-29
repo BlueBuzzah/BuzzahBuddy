@@ -76,8 +76,9 @@ public static class ResearchDefaults
             deviating.Add(nameof(TherapyProfile.AmplitudeMax));
         if (current.TimeSession != reference.TimeSession)
             deviating.Add(nameof(TherapyProfile.TimeSession));
-        if (current.Fingers != reference.Fingers)
-            deviating.Add(nameof(TherapyProfile.Fingers));
+        // Fingers is deliberately not compared. It is a compile-time board constant
+        // the editor doesn't expose, so on five-motor hardware it would raise a
+        // permanent banner the user has no way to clear.
         if (current.Mirror != reference.Mirror)
             deviating.Add(nameof(TherapyProfile.Mirror));
 

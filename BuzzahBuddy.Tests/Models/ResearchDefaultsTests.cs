@@ -56,13 +56,14 @@ public class ResearchDefaultsTests
     }
 
     [Fact]
-    public void DeviatingFields_FlagsTheThumbOnFiveMotorHardware()
+    public void DeviatingFields_IgnoresFingers()
     {
+        // The editor doesn't expose Fingers, so a five-motor device running all
+        // five must not raise a banner the user has no way to clear.
         var profile = ResearchDefaults.For(5);
         profile.Fingers = 5;
 
-        Assert.Contains(nameof(TherapyProfile.Fingers),
-            ResearchDefaults.DeviatingFields(profile, 5));
+        Assert.Empty(ResearchDefaults.DeviatingFields(profile, 5));
     }
 
     [Fact]
@@ -84,9 +85,8 @@ public class ResearchDefaultsTests
         profile.AmplitudeMin = 20;
         profile.AmplitudeMax = 90;
         profile.TimeSession = 30;
-        profile.Fingers = 2;
         profile.Mirror = true;
 
-        Assert.Equal(8, ResearchDefaults.DeviatingFields(profile, 4).Count);
+        Assert.Equal(7, ResearchDefaults.DeviatingFields(profile, 4).Count);
     }
 }

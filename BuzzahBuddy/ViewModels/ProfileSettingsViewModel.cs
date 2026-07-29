@@ -46,10 +46,16 @@ public partial class ProfileSettingsViewModel : BaseViewModel
     private string _jitterText = string.Empty;
 
     [ObservableProperty]
-    private string _fingersText = string.Empty;
-
-    [ObservableProperty]
     private bool _mirror;
+
+    /// <summary>
+    /// Active fingers as reported by the device. Not editable: every glove already
+    /// drives all of its motors, and the count is a compile-time board constant
+    /// (4 on BlueBuzzah, 5 on PentaBuzzer). It is carried here because the derived
+    /// coordinated-reset timing depends on it, and round-tripped unchanged so the
+    /// diff against the baseline never sends it.
+    /// </summary>
+    private int _deviceFingers = ResearchDefaults.Fingers;
 
     /// <summary>True once the current settings have been read from the device.</summary>
     [ObservableProperty]
@@ -75,8 +81,8 @@ public partial class ProfileSettingsViewModel : BaseViewModel
     /// e.g. "CR period 668 ms · 1.50 Hz". The studied protocol runs at 1.50 Hz.
     /// </summary>
     public string DerivedTimingText =>
-        TryParseFields(out var fingers, out var onMs, out var offMs)
-            ? TherapyTiming.OnOffRatioLabel(fingers, onMs, offMs)
+        TryParseTiming(out var onMs, out var offMs)
+            ? TherapyTiming.OnOffRatioLabel(_deviceFingers, onMs, offMs)
             : "CR period unavailable";
 
     /// <summary>
@@ -88,7 +94,7 @@ public partial class ProfileSettingsViewModel : BaseViewModel
     {
         get
         {
-            if (!TryParseFields(out _, out var onMs, out var offMs) ||
+            if (!TryParseTiming(out var onMs, out var offMs) ||
                 !double.TryParse(JitterText, NumberStyles.Float, CultureInfo.InvariantCulture, out var jitter))
                 return null;
 
@@ -127,7 +133,6 @@ public partial class ProfileSettingsViewModel : BaseViewModel
     partial void OnTimeOnMsTextChanged(string value) => RaiseDerived();
     partial void OnTimeOffMsTextChanged(string value) => RaiseDerived();
     partial void OnJitterTextChanged(string value) => RaiseDerived();
-    partial void OnFingersTextChanged(string value) => RaiseDerived();
     partial void OnSessionMinutesTextChanged(string value) => RaiseDerived();
     partial void OnAmplitudeMinTextChanged(string value) => RaiseDerived();
     partial void OnAmplitudeMaxTextChanged(string value) => RaiseDerived();
@@ -162,7 +167,7 @@ public partial class ProfileSettingsViewModel : BaseViewModel
         try
         {
             var profile = await _gloveControlService.GetCurrentProfileAsync();
-            PopulateFrom(profile);
+            PopulateFromDevice(profile);
             IsLoaded = true;
             OnPropertyChanged(nameof(MotorCount));
         }
@@ -234,7 +239,7 @@ public partial class ProfileSettingsViewModel : BaseViewModel
 
             // Re-read from the device so the form reflects what it accepted.
             var confirmed = await _gloveControlService.GetCurrentProfileAsync();
-            PopulateFrom(confirmed);
+            PopulateFromDevice(confirmed);
 
             await Shell.Current.DisplayAlert(
                 "Settings Saved",
@@ -275,7 +280,7 @@ public partial class ProfileSettingsViewModel : BaseViewModel
         try
         {
             var current = await _gloveControlService.GetCurrentProfileAsync();
-            PopulateFrom(current);
+            PopulateFromDevice(current);
             return message + "\n\nSome changes may have been applied. The form now shows the gloves' current settings.";
         }
         catch
@@ -293,8 +298,19 @@ public partial class ProfileSettingsViewModel : BaseViewModel
         AmplitudeMinText = profile.AmplitudeMin.ToString(inv);
         AmplitudeMaxText = profile.AmplitudeMax.ToString(inv);
         JitterText = profile.Jitter.ToString("0.#", inv);
-        FingersText = profile.Fingers.ToString(inv);
         Mirror = profile.Mirror;
+    }
+
+    /// <summary>
+    /// Populates the form from a profile read off the device, including the
+    /// non-editable finger count. Only device reads may change that count —
+    /// "Use Research Defaults" must not silently alter it, since the form shows
+    /// no field the user could see it change in.
+    /// </summary>
+    private void PopulateFromDevice(TherapyProfile profile)
+    {
+        _deviceFingers = profile.Fingers;
+        PopulateFrom(profile);
     }
 
     private TherapyProfile BuildProfileFromFields()
@@ -309,18 +325,16 @@ public partial class ProfileSettingsViewModel : BaseViewModel
             AmplitudeMin = int.Parse(AmplitudeMinText, NumberStyles.Integer, inv),
             AmplitudeMax = int.Parse(AmplitudeMaxText, NumberStyles.Integer, inv),
             Jitter = double.Parse(JitterText, NumberStyles.Float, inv),
-            Fingers = int.Parse(FingersText, NumberStyles.Integer, inv),
+            Fingers = _deviceFingers,
             Mirror = Mirror,
         };
     }
 
-    private bool TryParseFields(out int fingers, out double onMs, out double offMs)
+    private bool TryParseTiming(out double onMs, out double offMs)
     {
         var inv = CultureInfo.InvariantCulture;
-        onMs = 0;
         offMs = 0;
-        return int.TryParse(FingersText, NumberStyles.Integer, inv, out fingers)
-            && double.TryParse(TimeOnMsText, NumberStyles.Float, inv, out onMs)
+        return double.TryParse(TimeOnMsText, NumberStyles.Float, inv, out onMs)
             && double.TryParse(TimeOffMsText, NumberStyles.Float, inv, out offMs);
     }
 }
