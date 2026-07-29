@@ -21,8 +21,10 @@ public static class ResearchDefaults
     public const bool Mirror = false;
 
     /// <summary>
-    /// The study stimulated four fingertips and deliberately excluded the thumb, so
-    /// four remains the default even on five-motor hardware.
+    /// Fingertips the study stimulated — it deliberately excluded the thumb. This is
+    /// the reference for timing comparisons, NOT what a device runs: firmware sets
+    /// its finger count to every motor present (5 on PentaBuzzer), and the user
+    /// cannot change it. See <see cref="For"/>.
     /// </summary>
     public const int Fingers = 4;
 
@@ -30,6 +32,12 @@ public static class ResearchDefaults
     /// Builds the research-default Custom profile for a device with
     /// <paramref name="motorCount"/> motors per glove.
     /// </summary>
+    /// <remarks>
+    /// Carries <paramref name="motorCount"/> as the finger count, not the study's
+    /// four, because this profile is meant to be applied to a device: firmware runs
+    /// every motor present, so applying it must never change that. Use
+    /// <see cref="Fingers"/> when the study's value is what's wanted.
+    /// </remarks>
     public static TherapyProfile For(int motorCount) => new()
     {
         ProfileId = TherapyProfile.CustomProfileId,
@@ -42,7 +50,7 @@ public static class ResearchDefaults
         AmplitudeMax = AmplitudeMax,
         TimeSession = SessionMinutes,
         Mirror = Mirror,
-        Fingers = Math.Min(Fingers, motorCount),
+        Fingers = motorCount,
         PatternType = "RNDP",
         ActuatorType = "LRA",
         ActuatorFrequency = 250,

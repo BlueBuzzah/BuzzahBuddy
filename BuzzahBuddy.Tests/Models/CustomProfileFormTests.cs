@@ -90,11 +90,13 @@ public class CustomProfileFormTests
         // move it, a five-motor glove would silently drop to four active fingers
         // with no field on screen to show it.
         var form = ValidForm();
-        form.Fingers = 5;
+        form.Fingers = 3;
 
-        form.PopulateFrom(ResearchDefaults.For(5));   // For(5) carries Fingers = 4
+        // Deliberately mismatched: For(5) carries Fingers = 5, so if PopulateFrom
+        // copied it this would become 5 rather than staying 3.
+        form.PopulateFrom(ResearchDefaults.For(5));
 
-        Assert.Equal(5, form.Fingers);
+        Assert.Equal(3, form.Fingers);
     }
 
     [Fact]

@@ -19,12 +19,18 @@ public class ResearchDefaultsTests
     public void For_LandsInTheCustomSlot()
         => Assert.True(ResearchDefaults.For(4).IsCustom);
 
+    // The study excluded the thumb, but this profile is built to be APPLIED, and
+    // firmware runs every motor present. Carrying 4 here would make applying the
+    // research defaults silently drop a v3 glove to 4 active fingers.
     [Fact]
-    public void For_ExcludesTheThumbEvenOnFiveMotorHardware()
-        => Assert.Equal(4, ResearchDefaults.For(5).Fingers);
+    public void For_CarriesTheDeviceMotorCountNotTheStudysFingerCount()
+    {
+        Assert.Equal(5, ResearchDefaults.For(5).Fingers);
+        Assert.Equal(4, ResearchDefaults.Fingers);
+    }
 
     [Fact]
-    public void For_NeverExceedsTheDeviceMotorCount()
+    public void For_MatchesTheDeviceMotorCountExactly()
         => Assert.Equal(3, ResearchDefaults.For(3).Fingers);
 
     [Fact]
