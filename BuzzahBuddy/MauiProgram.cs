@@ -15,11 +15,44 @@ public static class MauiProgram
 	/// </summary>
 	private static readonly bool UseMockBluetooth = false;
 
+	/// <summary>
+	/// Removes the platform's own input decoration so the design system's
+	/// <c>InputBorder</c> wrapper is the only border drawn.
+	/// </summary>
+	/// <remarks>
+	/// On Android these controls are backed by <c>AppCompatEditText</c>, which paints
+	/// a Material underline. Inside an <c>InputBorder</c> that reads as two stacked
+	/// borders. iOS needs nothing — <c>UITextField</c> defaults to no border, which is
+	/// why docs/design/components.md originally assumed no platform chrome existed.
+	/// </remarks>
+	private static void StripNativeInputChrome()
+	{
+#if ANDROID
+		static void ClearBackground(Android.Views.View platformView)
+		{
+			platformView.Background = null;
+			platformView.SetBackgroundColor(Android.Graphics.Color.Transparent);
+			// The underline is drawn as padding-inset background; drop the inset too
+			// so text sits centred in the wrapper rather than riding high.
+			platformView.SetPadding(0, 0, 0, 0);
+		}
+
+		Microsoft.Maui.Handlers.EntryHandler.Mapper.AppendToMapping(
+			nameof(StripNativeInputChrome), (h, _) => ClearBackground(h.PlatformView));
+		Microsoft.Maui.Handlers.EditorHandler.Mapper.AppendToMapping(
+			nameof(StripNativeInputChrome), (h, _) => ClearBackground(h.PlatformView));
+		Microsoft.Maui.Handlers.PickerHandler.Mapper.AppendToMapping(
+			nameof(StripNativeInputChrome), (h, _) => ClearBackground(h.PlatformView));
+#endif
+	}
+
 	public static MauiApp CreateMauiApp()
 	{
 		var builder = MauiApp.CreateBuilder();
 		builder
 			.UseMauiApp<App>();
+
+		StripNativeInputChrome();
 
 #if DEBUG
 		builder.Logging.AddDebug();

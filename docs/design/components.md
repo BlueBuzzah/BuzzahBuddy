@@ -76,7 +76,11 @@ Depth = background steps `#0a0a0a → #05212D → #0d3a4d`. Never gray/black dro
 | Error | `#05212D` | 1pt `#fb7185` | `#fafafa` | — + `#fb7185` 12pt helper text below |
 | Disabled | `#0a0a0a` | 1pt `#0A3143` @ 50% | `#a3a3a3` | `#a3a3a3` @ 50% |
 
-Radius 8, min height 44. MAUI `Entry` has no native border — wrap in a `Border` styled as above.
+Radius 8, min height 44. Wrap the control in a `Border` styled as above (`InputBorder`).
+
+Android draws its own Material underline on `Entry`/`Editor`/`Picker`, which reads as a
+second border inside the wrapper. `MauiProgram.StripNativeInputChrome` clears it app-wide,
+so no per-page workaround is needed. iOS has no native chrome to remove.
 
 ## Badges / chips
 
