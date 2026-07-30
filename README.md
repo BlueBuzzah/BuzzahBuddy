@@ -17,27 +17,27 @@ BuzzahBuddy is a cross-platform mobile companion app for the BlueBuzzah tactile 
 - **.NET MAUI** (Multi-platform App UI)
 - **MVVM Architecture** with CommunityToolkit.Mvvm
 - **Bluetooth Low Energy** via Plugin.BLE
-- **Testing:** xUnit with Moq
+- **Testing:** xUnit
 
 ### Target Platforms
 
 - **iOS** 15.0+
-- **Android** API 21+
+- **Android** API 24+ (Android 7.0), targeting API 36 (Android 16)
 
 ### Key Dependencies
 
 - `Microsoft.Maui.Controls` - Cross-platform UI framework
-- `Plugin.BLE` (3.1.0) - Bluetooth Low Energy communication
-- `CommunityToolkit.Mvvm` (8.3.2) - MVVM helpers and source generators
+- `Plugin.BLE` (3.2.1) - Bluetooth Low Energy communication
+- `CommunityToolkit.Mvvm` (8.4.2) - MVVM helpers and source generators
+- `Microsoft.Extensions.Logging.Debug` (10.0.10) - Debug logging
 - `xunit` (2.9.2) - Unit testing framework
-- `Moq` (4.20.72) - Mocking framework for tests
 
 ## Prerequisites
 
 - **.NET 10.0 SDK** or later
 - **Visual Studio 2022** (Windows/Mac) or **VS Code** with C# DevKit
 - **Xcode** (for iOS development on macOS)
-- **Android SDK** (API 21+)
+- **Android SDK** (API 36 to build; API 24+ to run)
 
 ### Development Environment Setup
 

@@ -18,7 +18,7 @@ Create a **highly accessible**, intuitive mobile app optimized for users with Pa
 ### Framework & Runtime
 - **.NET 10.0** with C# 14
 - **.NET MAUI** (Multi-platform App UI)
-- Target Platforms: iOS 15+, Android 24+ (targets API 36), MacCatalyst 15+
+- Target Platforms: iOS 15+, Android 24+ (targets API 36). MacCatalyst is not built.
 
 ### Key Dependencies
 ```xml
@@ -564,10 +564,9 @@ dotnet build -f net10.0-ios -t:Run
 dotnet build -f net10.0-android -t:Run
 ```
 
-**MacCatalyst:**
-```bash
-dotnet build -f net10.0-maccatalyst -t:Run
-```
+MacCatalyst is **not** a build target — `TargetFrameworks` is
+`net10.0;net10.0-android;net10.0-ios`. `Platforms/MacCatalyst/` is an unused
+template stub. A `-f net10.0-maccatalyst` build will fail.
 
 ### Debugging
 - Use Visual Studio 2022 (Windows/Mac) or VS Code with C# DevKit
