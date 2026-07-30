@@ -276,6 +276,20 @@ public class GloveControlService : IGloveControlService
             throw new ArgumentException("Profile ID must be 1-6", nameof(profileId));
         }
 
+        // The app knows the new profile as soon as the gloves accept the command, so
+        // record it here instead of waiting for the post-connect INFO sync — that sync
+        // only runs if the transport surfaces the reboot's disconnect, and when it
+        // doesn't, every page reading DeviceProfileId keeps naming the old profile.
+        // Deliberately does NOT raise DeviceProfileChanged: subscribers treat that as
+        // "the gloves are back" and use it to clear the restarting notice, which is
+        // not true yet. Pages read the cached value when they next appear.
+        void CacheLoadedProfile()
+        {
+            DeviceProfileId = profileId;
+            _currentProfile = TherapyProfile.GetPresetProfiles()
+                .FirstOrDefault(p => p.ProfileId == profileId);
+        }
+
         // Note: Per BLE protocol v2.0.0, PROFILE_LOAD triggers a device reboot.
         // Set the flag BEFORE sending: the link can drop at any point after the
         // write, and ReconnectionService reads ExpectingReboot at disconnect time
@@ -296,6 +310,7 @@ public class GloveControlService : IGloveControlService
             // reboot expectation rather than the not-yet-updated connection state.
             System.Diagnostics.Debug.WriteLine(
                 $"[GLOVE_SERVICE] PROFILE_LOAD timed out — treating as reboot: {ex.Message}");
+            CacheLoadedProfile();
             return;
         }
         catch (Exception ex)
@@ -312,6 +327,7 @@ public class GloveControlService : IGloveControlService
             {
                 System.Diagnostics.Debug.WriteLine(
                     $"[GLOVE_SERVICE] Link dropped during PROFILE_LOAD — treating as reboot: {ex.Message}");
+                CacheLoadedProfile();
                 return;
             }
 
@@ -324,6 +340,7 @@ public class GloveControlService : IGloveControlService
         if (response.GetString("STATUS") == "REBOOTING")
         {
             System.Diagnostics.Debug.WriteLine("[GLOVE_SERVICE] Device is rebooting after profile load");
+            CacheLoadedProfile();
             return;
         }
 
@@ -332,7 +349,7 @@ public class GloveControlService : IGloveControlService
         response.ThrowIfError();
 
         // Track the loaded profile
-        _currentProfile = TherapyProfile.GetPresetProfiles().FirstOrDefault(p => p.ProfileId == profileId);
+        CacheLoadedProfile();
         System.Diagnostics.Debug.WriteLine($"[GLOVE_SERVICE] Profile loaded: {_currentProfile?.Name ?? "Unknown"}");
     }
 

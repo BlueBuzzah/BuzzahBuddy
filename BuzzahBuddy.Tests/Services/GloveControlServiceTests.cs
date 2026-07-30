@@ -212,6 +212,35 @@ public class GloveControlServiceTests
         Assert.Equal(new[] { "AMPMAX", "AMPMIN" }, Keys(Assert.Single(fake.SentCommands)));
     }
 
+    // The gloves reboot on PROFILE_LOAD, and the post-connect INFO sync only runs if
+    // the transport surfaces that disconnect. When it doesn't, the cached id is the
+    // app's only record of the change — every page names the profile from it.
+    [Fact]
+    public async Task LoadProfile_WhenDeviceReboots_UpdatesTheCachedProfileId()
+    {
+        var fake = new FakeBluetoothService();
+        fake.CannedResponses["PROFILE_LOAD"] = "STATUS:REBOOTING\nPROFILE:regular_vcr\n\x04";
+        var service = new GloveControlService(fake);
+
+        await service.LoadProfileAsync(1);
+
+        Assert.Equal(1, service.DeviceProfileId);
+    }
+
+    [Fact]
+    public async Task LoadProfile_WhenTheLinkDropsBeforeResponding_StillUpdatesTheCachedProfileId()
+    {
+        var fake = new FakeBluetoothService();
+        fake.ThrowOnCommand["PROFILE_LOAD"] = new TimeoutException("link dropped");
+        var service = new GloveControlService(fake);
+
+        // A timeout here is treated as the reboot having happened, so the cached id
+        // must move with it — otherwise it stays stale for the rest of the session.
+        await service.LoadProfileAsync(1);
+
+        Assert.Equal(1, service.DeviceProfileId);
+    }
+
     // FINGERS in PROFILE_GET marks firmware that also persists Custom edits. If it
     // is absent, the app must not promise the settings survive a restart.
     [Fact]

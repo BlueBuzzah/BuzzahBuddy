@@ -18,6 +18,13 @@ public class FakeBluetoothService : IBluetoothService
     /// </summary>
     public Queue<string> QueuedResponses { get; } = new();
 
+    /// <summary>
+    /// Exceptions to throw instead of responding, keyed by command prefix. Models a
+    /// link that drops mid-command — the gloves reboot on PROFILE_LOAD, so the send
+    /// can fail even though the device acted on it.
+    /// </summary>
+    public Dictionary<string, Exception> ThrowOnCommand { get; } = new();
+
     public List<string> SentCommands { get; } = new();
 
     public ConnectionState CurrentConnectionState { get; set; } = ConnectionState.Connected;
@@ -34,6 +41,14 @@ public class FakeBluetoothService : IBluetoothService
     public Task<CommandResponse> SendCommandAsync(string command, int timeoutMs = 5000, CancellationToken cancellationToken = default)
     {
         SentCommands.Add(command);
+
+        var throwKey = ThrowOnCommand.Keys.FirstOrDefault(
+            k => command.StartsWith(k, StringComparison.OrdinalIgnoreCase));
+        if (throwKey != null)
+        {
+            return Task.FromException<CommandResponse>(ThrowOnCommand[throwKey]);
+        }
+
         if (QueuedResponses.Count > 0)
         {
             return Task.FromResult(CommandResponse.Parse(QueuedResponses.Dequeue()));
