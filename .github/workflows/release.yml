@@ -195,7 +195,7 @@ jobs:
           CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
         run: |
           set -euo pipefail
-          echo "$CERTIFICATE_P12" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          echo "$CERTIFICATE_P12" | base64 -D > "$RUNNER_TEMP/certificate.p12"
           security create-keychain -p "" build.keychain
           security default-keychain -s build.keychain
           # default-keychain is NOT the search list, and codesign resolves
