@@ -13,38 +13,38 @@ BuzzahBuddy is a cross-platform mobile companion app for the BlueBuzzah tactile 
 
 ## Technology Stack
 
-- **.NET 9.0** with C# 13
+- **.NET 10.0** with C# 14
 - **.NET MAUI** (Multi-platform App UI)
 - **MVVM Architecture** with CommunityToolkit.Mvvm
 - **Bluetooth Low Energy** via Plugin.BLE
-- **Testing:** xUnit with Moq
+- **Testing:** xUnit
 
 ### Target Platforms
 
 - **iOS** 15.0+
-- **Android** API 21+
+- **Android** API 24+ (Android 7.0), targeting API 36 (Android 16)
 
 ### Key Dependencies
 
 - `Microsoft.Maui.Controls` - Cross-platform UI framework
-- `Plugin.BLE` (3.1.0) - Bluetooth Low Energy communication
-- `CommunityToolkit.Mvvm` (8.3.2) - MVVM helpers and source generators
+- `Plugin.BLE` (3.2.1) - Bluetooth Low Energy communication
+- `CommunityToolkit.Mvvm` (8.4.2) - MVVM helpers and source generators
+- `Microsoft.Extensions.Logging.Debug` (10.0.10) - Debug logging
 - `xunit` (2.9.2) - Unit testing framework
-- `Moq` (4.20.72) - Mocking framework for tests
 
 ## Prerequisites
 
-- **.NET 9.0 SDK** or later
+- **.NET 10.0 SDK** or later
 - **Visual Studio 2022** (Windows/Mac) or **VS Code** with C# DevKit
 - **Xcode** (for iOS development on macOS)
-- **Android SDK** (API 21+)
+- **Android SDK** (API 36 to build; API 24+ to run)
 
 ### Development Environment Setup
 
 **macOS:**
 
 ```bash
-# Install .NET 9.0 SDK
+# Install .NET 10.0 SDK
 brew install dotnet
 
 # Ensure Xcode Command Line Tools are installed
@@ -81,13 +81,13 @@ xcode-select --install
 ### iOS
 
 ```bash
-dotnet build -f net9.0-ios
+dotnet build -f net10.0-ios
 ```
 
 ### Android
 
 ```bash
-dotnet build -f net9.0-android
+dotnet build -f net10.0-android
 ```
 
 ### All Platforms
@@ -101,13 +101,13 @@ dotnet build
 ### iOS Simulator
 
 ```bash
-dotnet build -f net9.0-ios -t:Run
+dotnet build -f net10.0-ios -t:Run
 ```
 
 ### Android Emulator
 
 ```bash
-dotnet build -f net9.0-android -t:Run
+dotnet build -f net10.0-android -t:Run
 ```
 
 ### Using Visual Studio

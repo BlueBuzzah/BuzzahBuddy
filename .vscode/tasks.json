@@ -8,7 +8,7 @@
 //             "args": [
 //                 "build",
 //                 "${workspaceFolder}/BuzzahBuddy/BuzzahBuddy.csproj",
-//                 "-f:net9.0-ios",
+//                 "-f:net10.0-ios",
 //                 "-c:Debug"
 //             ],
 //             "problemMatcher": "$msCompile",
@@ -21,7 +21,7 @@
 //             "args": [
 //                 "build",
 //                 "${workspaceFolder}/BuzzahBuddy/BuzzahBuddy.csproj",
-//                 "-f:net9.0-android",
+//                 "-f:net10.0-android",
 //                 "-c:Debug"
 //             ],
 //             "problemMatcher": "$msCompile",
@@ -35,7 +35,7 @@
 //                 "build",
 //                 "${workspaceFolder}/BuzzahBuddy/BuzzahBuddy.csproj",
 //                 "-t:Run",
-//                 "-f:net9.0-ios",
+//                 "-f:net10.0-ios",
 //                 "-c:Debug"
 //             ],
 //             "problemMatcher": "$msCompile",
@@ -57,7 +57,7 @@
 //                 "build",
 //                 "${workspaceFolder}/BuzzahBuddy/BuzzahBuddy.csproj",
 //                 "-t:Run",
-//                 "-f:net9.0-android",
+//                 "-f:net10.0-android",
 //                 "-c:Debug"
 //             ],
 //             "problemMatcher": "$msCompile",

@@ -1,7 +1,7 @@
 using System.Globalization;
 using BuzzahBuddy.Helpers;
 using BuzzahBuddy.Services.Bluetooth;
-// Explicit for the plain net9.0 test build, which lacks MAUI implicit usings
+// Explicit for the plain net10.0 test build, which lacks MAUI implicit usings
 using Microsoft.Maui.Graphics;
 
 namespace BuzzahBuddy.Models;

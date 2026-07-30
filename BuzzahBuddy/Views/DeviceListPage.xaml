@@ -7,7 +7,8 @@
              x:Class="BuzzahBuddy.Views.DeviceListPage"
              x:DataType="vm:DeviceListViewModel"
              x:Name="page"
-             Title="{Binding Title}">
+             Title="{Binding Title}"
+             SafeAreaEdges="Container">
 
     <Grid RowDefinitions="*,Auto" Padding="20">
 

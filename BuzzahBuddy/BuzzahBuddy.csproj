@@ -1,15 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<!-- Only targeting iOS and Android (net9.0 added because a ProjectReference from a plain-TFM
+		<!-- Only targeting iOS and Android (net10.0 added because a ProjectReference from a plain-TFM
 		     test project would force restore to resolve assets for every TFM here, including
 		     android/ios, which fails with NETSDK1147 when those workloads aren't installed; test
-		     projects instead Compile-Include the net9.0-safe sources directly, which needs this TFM) -->
-		<TargetFrameworks>net9.0;net9.0-android;net9.0-ios</TargetFrameworks>
+		     projects instead Compile-Include the net10.0-safe sources directly, which needs this TFM) -->
+		<TargetFrameworks>net10.0;net10.0-android;net10.0-ios</TargetFrameworks>
 
-		<!-- Exe requires a platform-generated Main; plain net9.0 has none, so it builds as a library -->
-		<OutputType Condition="'$(TargetFramework)' != 'net9.0'">Exe</OutputType>
-		<OutputType Condition="'$(TargetFramework)' == 'net9.0'">Library</OutputType>
+		<!-- Exe requires a platform-generated Main; plain net10.0 has none, so it builds as a library -->
+		<OutputType Condition="'$(TargetFramework)' != 'net10.0'">Exe</OutputType>
+		<OutputType Condition="'$(TargetFramework)' == 'net10.0'">Library</OutputType>
 		<RootNamespace>BuzzahBuddy</RootNamespace>
 		<UseMaui>true</UseMaui>
 		<SingleProject>true</SingleProject>
@@ -29,8 +29,11 @@
 		<!-- Platform versions -->
 		<SupportedOSPlatformVersion
 			Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
+		<!-- 24.0 (Android 7.0), not 21: .NET 10 recommends a 24 floor to avoid runtime
+		     crashes from Java default-interface-method desugaring. Raising this drops
+		     Android 5.0/5.1/6.0 users, who stop receiving updates. -->
 		<SupportedOSPlatformVersion
-			Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">21.0</SupportedOSPlatformVersion>
+			Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">24.0</SupportedOSPlatformVersion>
 
 		<!-- Disable Xcode version check due to version numbering mismatch -->
 		<ValidateXcodeVersion>false</ValidateXcodeVersion>
@@ -49,7 +52,7 @@
 
 	<!-- Android Debug Configuration -->
 	<PropertyGroup
-		Condition="'$(TargetFramework)' == 'net9.0-android' and '$(Configuration)' == 'Debug'">
+		Condition="'$(TargetFramework)' == 'net10.0-android' and '$(Configuration)' == 'Debug'">
 		<AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
 		<AndroidUseAapt2>true</AndroidUseAapt2>
 	</PropertyGroup>
@@ -57,6 +60,13 @@
 	<!-- Release Configuration: Trimming and optimization -->
 	<PropertyGroup Condition="'$(Configuration)' == 'Release'">
 		<PublishTrimmed>true</PublishTrimmed>
+		<!-- "partial" is load-bearing, not just a conservatism dial. The Android SDK
+		     sets JsonSerializerIsReflectionEnabledByDefault=true only when TrimMode is
+		     partial (Microsoft.Android.Sdk.DefaultProperties.targets); iOS sets it
+		     unconditionally. PreferencesStorageService uses reflection-based
+		     System.Text.Json with no JsonSerializerContext, so switching to "full"
+		     would make every session/device save throw InvalidOperationException at
+		     runtime on Android. Add source-generated contexts before changing this. -->
 		<TrimMode>partial</TrimMode>
 	</PropertyGroup>
 
@@ -78,10 +88,10 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
+		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
 		<PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
-		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.8" />
-		<PackageReference Include="Plugin.BLE" Version="3.1.0" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.10" />
+		<PackageReference Include="Plugin.BLE" Version="3.2.1" />
 	</ItemGroup>
 
 </Project>

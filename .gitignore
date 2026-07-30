@@ -2,6 +2,9 @@
 bin/
 obj/
 
+# MSBuild SDK resolver scratch files, written next to the csproj
+*.SdkResolver.*.proj.Backup.tmp
+
 # Temp Folder
 tmp/
 temp/

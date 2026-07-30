@@ -1,0 +1,294 @@
+name: Release 🚀
+
+on:
+  release:
+    types: [published]
+
+# Default to no permissions - grant only what's needed per job
+permissions: {}
+
+# A re-published release must not race an in-flight run of itself
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # Build number = github.run_number + BUILD_OFFSET. Both stores permanently
+  # reject a build number <= one already accepted, and run_number restarts at 1
+  # for a new workflow -- so this MUST stay above the highest build number ever
+  # accepted outside CI.
+  #
+  # It is 2, not 0, because the mandatory first manual upload to each store
+  # (see docs/RELEASE.md 0 and 5) ships with the csproj's ApplicationVersion=2.
+  # At 0, the first CI release would compute build 1 and be rejected by both
+  # stores. Raise it again after any further out-of-band upload.
+  BUILD_OFFSET: 2
+
+jobs:
+  # Derive the version once so iOS and Android can never disagree, and fail
+  # fast on a tag shape the stores would reject after a 15-minute build.
+  version:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.derive.outputs.version }}
+      build: ${{ steps.derive.outputs.build }}
+    steps:
+      - name: Derive version from release tag
+        id: derive
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          VERSION="${RELEASE_TAG#v}"
+          # CFBundleShortVersionString allows at most three dot-separated
+          # integers. Anything else (v1.0.0-beta1, v1.0.0.1) is rejected by
+          # App Store Connect on upload, not at build time.
+          if ! [[ "$VERSION" =~ ^[0-9]+(\.[0-9]+){0,2}$ ]]; then
+            echo "::error::Tag '$RELEASE_TAG' yields version '$VERSION', which is not 1-3 dot-separated integers. Retag as e.g. v0.2.0."
+            exit 1
+          fi
+          BUILD=$(( RUN_NUMBER + BUILD_OFFSET ))
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "build=$BUILD" >> "$GITHUB_OUTPUT"
+          echo "Releasing $VERSION (build $BUILD)"
+
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read # checkout; inherited {} works only while the repo is public
+    steps:
+      - uses: actions/checkout@v5
+      - name: Setup dotnet
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "10.0.x"
+      # Test project compiles app sources directly (no ProjectReference),
+      # so no mobile workloads are needed here
+      - name: Test
+        run: dotnet test BuzzahBuddy.Tests -c Release
+
+  android:
+    needs: [version, test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write # attach the .aab to the GitHub Release
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup dotnet
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore Workloads
+        run: dotnet workload install maui-android
+
+      # ponytail: no cleanup step - GitHub-hosted runners are ephemeral and
+      # $RUNNER_TEMP dies with the VM. Add teardown if this moves to self-hosted.
+      - name: Materialize signing keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/upload.keystore"
+          # The env: prefix is NOT supported when $(AndroidPackageFormat) is
+          # aab, and a bare -p:...Pass= puts the password in the build log.
+          # file: is the only option that keeps it out of both.
+          printf '%s' "$KEYSTORE_PASSWORD" > "$RUNNER_TEMP/store.pass"
+          printf '%s' "$KEY_PASSWORD" > "$RUNNER_TEMP/key.pass"
+          chmod 600 "$RUNNER_TEMP"/*.pass "$RUNNER_TEMP/upload.keystore"
+
+      # -p:TargetFrameworks pins restore/build to the android TFM; the iOS
+      # workload packs don't exist on Linux, so a full multi-TFM restore fails
+      - name: Publish signed AAB
+        env:
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          dotnet publish BuzzahBuddy/BuzzahBuddy.csproj \
+            -f net10.0-android -c Release \
+            -p:TargetFrameworks=net10.0-android \
+            -p:ApplicationDisplayVersion=${{ needs.version.outputs.version }} \
+            -p:ApplicationVersion=${{ needs.version.outputs.build }} \
+            -p:AndroidPackageFormats=aab \
+            -p:AndroidKeyStore=true \
+            -p:AndroidSigningKeyStore="$RUNNER_TEMP/upload.keystore" \
+            -p:AndroidSigningKeyAlias="$KEY_ALIAS" \
+            -p:AndroidSigningKeyPass=file:"$RUNNER_TEMP/key.pass" \
+            -p:AndroidSigningStorePass=file:"$RUNNER_TEMP/store.pass"
+
+      # publish emits both an unsigned and a -Signed AAB into the same folder;
+      # uploading the unsigned one fails in the Play Console, not here
+      - name: Locate signed AAB
+        id: aab
+        run: |
+          set -euo pipefail
+          # -iname, not -name: find is case-sensitive on Linux, and the "-Signed"
+          # suffix is an undocumented SDK detail (MS docs write it "-signed").
+          # -print -quit, not `| head -1`: head closing the pipe can SIGPIPE
+          # find, which pipefail then turns into a step failure even though the
+          # file was found.
+          AAB=$(find BuzzahBuddy/bin/Release/net10.0-android/publish -iname '*-signed.aab' -print -quit)
+          if [ -z "$AAB" ]; then
+            echo "::error::No signed AAB produced - check that AndroidKeyStore=true took effect."
+            exit 1
+          fi
+          echo "path=$AAB" >> "$GITHUB_OUTPUT"
+          echo "Signed bundle: $AAB"
+
+      # SHA-pinned, not @v1: this action receives the Play service account
+      # credential, and upstream force-moves the v1 tag (it currently points at
+      # v1.1.5). Bump deliberately after reviewing the diff.
+      - name: Upload to Play Console (internal track)
+        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.rbonestell.buzzahbuddy
+          releaseFiles: ${{ steps.aab.outputs.path }}
+          track: internal
+          status: completed
+
+      - name: Attach AAB to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          AAB_PATH: ${{ steps.aab.outputs.path }}
+        run: gh release upload "$RELEASE_TAG" "$AAB_PATH" --clobber
+
+  ios:
+    needs: [version, test]
+    runs-on: macos-latest
+    # macOS minutes bill at 10x. A hung job would otherwise run to the 6-hour
+    # default; a cold workload install + archive + altool upload fits in well
+    # under an hour.
+    timeout-minutes: 60
+    permissions:
+      contents: write # attach the .ipa to the GitHub Release
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup dotnet
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore Workloads
+        run: dotnet workload install maui-ios
+
+      # ponytail: no keychain teardown - GitHub-hosted runners are ephemeral.
+      # Add `security delete-keychain` on always() if this moves to self-hosted.
+      - name: Import signing certificate
+        env:
+          CERTIFICATE_P12: ${{ secrets.APPLE_CERTIFICATE_P12 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          echo "$CERTIFICATE_P12" | base64 -D > "$RUNNER_TEMP/certificate.p12"
+          security create-keychain -p "" build.keychain
+          security default-keychain -s build.keychain
+          # default-keychain is NOT the search list, and codesign resolves
+          # identities through the search list. Without this, the import
+          # succeeds and the build then fails with "No signing certificate
+          # found". Keep login.keychain so the Apple WWDR intermediate (already
+          # present on the runner) still chains.
+          security list-keychains -d user -s build.keychain \
+            $(security list-keychains -d user | tr -d '"')
+          security unlock-keychain -p "" build.keychain
+          # No -t/-u: a created keychain has no auto-lock, and adding one only
+          # risks locking mid-build if publish + altool runs long.
+          security set-keychain-settings build.keychain
+          security import "$RUNNER_TEMP/certificate.p12" -k build.keychain \
+            -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" build.keychain
+
+      - name: Install provisioning profile
+        env:
+          PROVISIONING_PROFILE_BASE64: ${{ secrets.APPLE_PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          set -euo pipefail
+          PROFILES="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PROFILES"
+          echo "$PROVISIONING_PROFILE_BASE64" | base64 --decode > "$PROFILES/distribution.mobileprovision"
+
+      # -p:TargetFrameworks pins restore/build to the iOS TFM; the android
+      # workload packs aren't installed here, so a full multi-TFM restore fails
+      - name: Publish signed IPA
+        env:
+          CODESIGN_IDENTITY: ${{ vars.APPLE_CODESIGN_IDENTITY }}
+          PROVISIONING_PROFILE_NAME: ${{ vars.APPLE_PROVISIONING_PROFILE_NAME }}
+        run: |
+          set -euo pipefail
+          dotnet publish BuzzahBuddy/BuzzahBuddy.csproj \
+            -f net10.0-ios -c Release \
+            -p:TargetFrameworks=net10.0-ios \
+            -p:ApplicationDisplayVersion=${{ needs.version.outputs.version }} \
+            -p:ApplicationVersion=${{ needs.version.outputs.build }} \
+            -p:ArchiveOnBuild=true \
+            -p:RuntimeIdentifier=ios-arm64 \
+            -p:CodesignKey="$CODESIGN_IDENTITY" \
+            -p:CodesignProvision="$PROVISIONING_PROFILE_NAME"
+
+      - name: Locate IPA
+        id: ipa
+        run: |
+          set -euo pipefail
+          # -print -quit, not `| head -1` -- see "Locate signed AAB" above
+          IPA=$(find BuzzahBuddy/bin/Release/net10.0-ios/ios-arm64/publish -name '*.ipa' -print -quit)
+          if [ -z "$IPA" ]; then
+            echo "::error::No IPA produced - check that ArchiveOnBuild=true took effect."
+            exit 1
+          fi
+          echo "path=$IPA" >> "$GITHUB_OUTPUT"
+          echo "Archive: $IPA"
+
+      # altool discovers the key by convention: ~/.private_keys/AuthKey_<KEY_ID>.p8
+      - name: Install App Store Connect API key
+        env:
+          ASC_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.APPSTORE_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.private_keys"
+          printf '%s' "$ASC_PRIVATE_KEY" > "$HOME/.private_keys/AuthKey_${ASC_KEY_ID}.p8"
+          chmod 600 "$HOME/.private_keys/AuthKey_${ASC_KEY_ID}.p8"
+
+      # Validate first: a rejected upload wastes the App Store Connect
+      # processing round-trip and reports the failure by email, not here.
+      #
+      # --upload-app is the deprecated spelling of --upload-package, but it
+      # still functions and infers bundle id/version from the archive.
+      # --upload-package requires --bundle-id, --bundle-version,
+      # --bundle-short-version-string and the app's numeric --apple-id, which
+      # doesn't exist until the App Store Connect record is created. Migrate
+      # once that record exists, or if Apple removes the alias.
+      # (notarytool is NOT the replacement here - it cannot upload at all.)
+      - name: Validate and upload to TestFlight
+        env:
+          ASC_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+          IPA_PATH: ${{ steps.ipa.outputs.path }}
+        run: |
+          set -euo pipefail
+          xcrun altool --validate-app --type ios --file "$IPA_PATH" \
+            --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
+          xcrun altool --upload-app --type ios --file "$IPA_PATH" \
+            --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
+
+      - name: Attach IPA to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          IPA_PATH: ${{ steps.ipa.outputs.path }}
+        run: gh release upload "$RELEASE_TAG" "$IPA_PATH" --clobber
