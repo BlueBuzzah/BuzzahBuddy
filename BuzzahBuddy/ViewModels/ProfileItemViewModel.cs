@@ -59,4 +59,10 @@ public partial class ProfileItemViewModel : ObservableObject
     /// PROFILE_CUSTOM writes against any preset.
     /// </summary>
     public bool CanEditParameters => IsCustom;
+
+    /// <summary>
+    /// Per-card AutomationId for the "Edit Parameters" button. Hidden cards keep the
+    /// button in the tree, so a shared id would match every profile card.
+    /// </summary>
+    public string EditParametersAutomationId => $"EditParametersButton_{ProfileId}";
 }

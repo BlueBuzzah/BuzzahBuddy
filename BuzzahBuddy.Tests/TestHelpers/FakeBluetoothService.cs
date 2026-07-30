@@ -42,8 +42,11 @@ public class FakeBluetoothService : IBluetoothService
     {
         SentCommands.Add(command);
 
-        var throwKey = ThrowOnCommand.Keys.FirstOrDefault(
-            k => command.StartsWith(k, StringComparison.OrdinalIgnoreCase));
+        // Longest prefix wins, so "PROFILE_LOAD" beats "PROFILE" regardless of insertion order.
+        var throwKey = ThrowOnCommand.Keys
+            .Where(k => command.StartsWith(k, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(k => k.Length)
+            .FirstOrDefault();
         if (throwKey != null)
         {
             return Task.FromException<CommandResponse>(ThrowOnCommand[throwKey]);
@@ -53,7 +56,10 @@ public class FakeBluetoothService : IBluetoothService
         {
             return Task.FromResult(CommandResponse.Parse(QueuedResponses.Dequeue()));
         }
-        var key = CannedResponses.Keys.FirstOrDefault(k => command.StartsWith(k, StringComparison.OrdinalIgnoreCase));
+        var key = CannedResponses.Keys
+            .Where(k => command.StartsWith(k, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(k => k.Length)
+            .FirstOrDefault();
         var text = key != null ? CannedResponses[key] : $"ERROR:Unknown command: {command}\n\x04";
         return Task.FromResult(CommandResponse.Parse(text));
     }

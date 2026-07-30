@@ -29,7 +29,7 @@ public static class TherapyTiming
     /// Human-readable summary of the derived timing, e.g.
     /// <c>"CR period 668 ms · 1.50 Hz"</c>.
     /// </summary>
-    public static string OnOffRatioLabel(int fingers, double onMs, double offMs)
+    public static string CrTimingLabel(int fingers, double onMs, double offMs)
     {
         var periodMs = CrPeriodMs(fingers, onMs, offMs);
         if (periodMs <= 0)

@@ -26,10 +26,10 @@ public class TherapyTimingTests
         => Assert.Equal(0, TherapyTiming.CrFrequencyHz(4, 0, 0));
 
     [Fact]
-    public void OnOffRatioLabel_ReportsPeriodAndFrequency()
-        => Assert.Equal("CR period 668 ms · 1.50 Hz", TherapyTiming.OnOffRatioLabel(4, 100, 67));
+    public void CrTimingLabel_ReportsPeriodAndFrequency()
+        => Assert.Equal("CR period 668 ms · 1.50 Hz", TherapyTiming.CrTimingLabel(4, 100, 67));
 
     [Fact]
-    public void OnOffRatioLabel_WithDegenerateTiming_SaysUnavailable()
-        => Assert.Equal("CR period unavailable", TherapyTiming.OnOffRatioLabel(0, 100, 67));
+    public void CrTimingLabel_WithDegenerateTiming_SaysUnavailable()
+        => Assert.Equal("CR period unavailable", TherapyTiming.CrTimingLabel(0, 100, 67));
 }

@@ -125,7 +125,7 @@
                                                 HorizontalOptions="Start"
                                                 SemanticProperties.Description="Edit the Custom profile's therapy parameters"
                                                 SemanticProperties.Hint="Double tap to open the Custom profile parameter editor"
-                                                AutomationId="EditCustomParametersButton">
+                                                AutomationId="{Binding EditParametersAutomationId}">
                                             <Button.Command>
                                                 <Binding Source="{x:Reference page}"
                                                          Path="BindingContext.Settings.EditCustomParametersCommand"

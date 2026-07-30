@@ -90,7 +90,7 @@ public class CustomProfileForm
     /// </summary>
     public string DerivedTimingText =>
         TryParseTiming(out var onMs, out var offMs)
-            ? TherapyTiming.OnOffRatioLabel(Fingers, onMs, offMs)
+            ? TherapyTiming.CrTimingLabel(Fingers, onMs, offMs)
             : "CR period unavailable";
 
     /// <summary>
