@@ -237,6 +237,57 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     }
 
     /// <summary>
+    /// Opens the Custom profile's parameter editor. The Custom profile is the only
+    /// one the firmware accepts parameter edits for.
+    /// </summary>
+    [RelayCommand]
+    private async Task EditCustomParametersAsync()
+    {
+        if (SelectedProfile?.IsCustom != true)
+        {
+            await Shell.Current.DisplayAlert(
+                "Select Custom First",
+                "Tap the Custom profile to select it, then edit its parameters.",
+                "OK");
+            return;
+        }
+
+        if (!ConnectionInfo.IsConnected)
+        {
+            await Shell.Current.DisplayAlert(
+                "Not Connected",
+                "Connect to a BlueBuzzah glove to edit the Custom profile parameters.",
+                "OK");
+            return;
+        }
+
+        // The firmware refuses parameter edits while therapy is running, so catch
+        // it here rather than letting the user fill in the whole form first.
+        if (IsSessionActive)
+        {
+            await Shell.Current.DisplayAlert(
+                "Session Active",
+                "Stop the current session before changing the Custom profile parameters.",
+                "OK");
+            return;
+        }
+
+        // The editor reads and writes whichever profile the gloves currently have
+        // loaded. If Custom is only selected locally, editing here would show
+        // another profile's values and save them into the Custom slot.
+        if (_gloveControlService.DeviceProfileId != TherapyProfile.CustomProfileId)
+        {
+            await Shell.Current.DisplayAlert(
+                "Apply Custom First",
+                "Press Apply Settings to load the Custom profile onto the gloves, then edit its parameters.",
+                "OK");
+            return;
+        }
+
+        await Shell.Current.GoToAsync(Routes.ProfileSettings);
+    }
+
+    /// <summary>
     /// Writes every pending device setting (therapy LED, then profile) to the gloves
     /// in one go. The LED is written first because a profile change reboots the gloves.
     /// </summary>

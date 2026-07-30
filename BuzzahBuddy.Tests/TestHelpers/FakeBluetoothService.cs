@@ -18,6 +18,13 @@ public class FakeBluetoothService : IBluetoothService
     /// </summary>
     public Queue<string> QueuedResponses { get; } = new();
 
+    /// <summary>
+    /// Exceptions to throw instead of responding, keyed by command prefix. Models a
+    /// link that drops mid-command — the gloves reboot on PROFILE_LOAD, so the send
+    /// can fail even though the device acted on it.
+    /// </summary>
+    public Dictionary<string, Exception> ThrowOnCommand { get; } = new();
+
     public List<string> SentCommands { get; } = new();
 
     public ConnectionState CurrentConnectionState { get; set; } = ConnectionState.Connected;
@@ -34,11 +41,25 @@ public class FakeBluetoothService : IBluetoothService
     public Task<CommandResponse> SendCommandAsync(string command, int timeoutMs = 5000, CancellationToken cancellationToken = default)
     {
         SentCommands.Add(command);
+
+        // Longest prefix wins, so "PROFILE_LOAD" beats "PROFILE" regardless of insertion order.
+        var throwKey = ThrowOnCommand.Keys
+            .Where(k => command.StartsWith(k, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(k => k.Length)
+            .FirstOrDefault();
+        if (throwKey != null)
+        {
+            return Task.FromException<CommandResponse>(ThrowOnCommand[throwKey]);
+        }
+
         if (QueuedResponses.Count > 0)
         {
             return Task.FromResult(CommandResponse.Parse(QueuedResponses.Dequeue()));
         }
-        var key = CannedResponses.Keys.FirstOrDefault(k => command.StartsWith(k, StringComparison.OrdinalIgnoreCase));
+        var key = CannedResponses.Keys
+            .Where(k => command.StartsWith(k, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(k => k.Length)
+            .FirstOrDefault();
         var text = key != null ? CannedResponses[key] : $"ERROR:Unknown command: {command}\n\x04";
         return Task.FromResult(CommandResponse.Parse(text));
     }

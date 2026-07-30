@@ -47,4 +47,22 @@ public partial class ProfileItemViewModel : ObservableObject
     /// Advanced: Hybrid, Custom, Gentle
     /// </summary>
     public bool IsAdvancedProfile => !IsPrimaryProfile;
+
+    /// <summary>
+    /// Whether this is the user-editable Custom profile.
+    /// </summary>
+    public bool IsCustom => Profile.IsCustom;
+
+    /// <summary>
+    /// Whether the "Edit Parameters" affordance should be shown on this card.
+    /// Only the Custom profile accepts parameter edits; the firmware rejects
+    /// PROFILE_CUSTOM writes against any preset.
+    /// </summary>
+    public bool CanEditParameters => IsCustom;
+
+    /// <summary>
+    /// Per-card AutomationId for the "Edit Parameters" button. Hidden cards keep the
+    /// button in the tree, so a shared id would match every profile card.
+    /// </summary>
+    public string EditParametersAutomationId => $"EditParametersButton_{ProfileId}";
 }

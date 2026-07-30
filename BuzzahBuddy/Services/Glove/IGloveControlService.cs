@@ -39,6 +39,14 @@ public interface IGloveControlService
     int DeviceProfileId { get; }
 
     /// <summary>
+    /// Whether this device's firmware stores Custom profile edits across a restart.
+    /// False on firmware predating that support, where edits are RAM-only and are
+    /// lost on power-cycle. Set by <see cref="GetCurrentProfileAsync"/>; false until
+    /// it has run at least once.
+    /// </summary>
+    bool PersistsCustomProfile { get; }
+
+    /// <summary>
     /// Event fired whenever the device reports its loaded profile (INFO response),
     /// including right after (re)connect. Payload is the profile ID. Subscribe to
     /// this instead of fetching INFO per page — the service fetches it once per

@@ -46,6 +46,8 @@ public class GloveControlService : IGloveControlService
     /// <inheritdoc />
     public int DeviceProfileId { get; private set; }
 
+    public bool PersistsCustomProfile { get; private set; }
+
     /// <inheritdoc />
     public bool ExpectingReboot =>
         _expectingReboot && (DateTime.UtcNow - _expectingRebootSetAt) < ExpectingRebootTtl;
@@ -274,6 +276,20 @@ public class GloveControlService : IGloveControlService
             throw new ArgumentException("Profile ID must be 1-6", nameof(profileId));
         }
 
+        // The app knows the new profile as soon as the gloves accept the command, so
+        // record it here instead of waiting for the post-connect INFO sync — that sync
+        // only runs if the transport surfaces the reboot's disconnect, and when it
+        // doesn't, every page reading DeviceProfileId keeps naming the old profile.
+        // Deliberately does NOT raise DeviceProfileChanged: subscribers treat that as
+        // "the gloves are back" and use it to clear the restarting notice, which is
+        // not true yet. Pages read the cached value when they next appear.
+        void CacheLoadedProfile()
+        {
+            DeviceProfileId = profileId;
+            _currentProfile = TherapyProfile.GetPresetProfiles()
+                .FirstOrDefault(p => p.ProfileId == profileId);
+        }
+
         // Note: Per BLE protocol v2.0.0, PROFILE_LOAD triggers a device reboot.
         // Set the flag BEFORE sending: the link can drop at any point after the
         // write, and ReconnectionService reads ExpectingReboot at disconnect time
@@ -294,6 +310,7 @@ public class GloveControlService : IGloveControlService
             // reboot expectation rather than the not-yet-updated connection state.
             System.Diagnostics.Debug.WriteLine(
                 $"[GLOVE_SERVICE] PROFILE_LOAD timed out — treating as reboot: {ex.Message}");
+            CacheLoadedProfile();
             return;
         }
         catch (Exception ex)
@@ -310,6 +327,7 @@ public class GloveControlService : IGloveControlService
             {
                 System.Diagnostics.Debug.WriteLine(
                     $"[GLOVE_SERVICE] Link dropped during PROFILE_LOAD — treating as reboot: {ex.Message}");
+                CacheLoadedProfile();
                 return;
             }
 
@@ -322,6 +340,7 @@ public class GloveControlService : IGloveControlService
         if (response.GetString("STATUS") == "REBOOTING")
         {
             System.Diagnostics.Debug.WriteLine("[GLOVE_SERVICE] Device is rebooting after profile load");
+            CacheLoadedProfile();
             return;
         }
 
@@ -330,7 +349,7 @@ public class GloveControlService : IGloveControlService
         response.ThrowIfError();
 
         // Track the loaded profile
-        _currentProfile = TherapyProfile.GetPresetProfiles().FirstOrDefault(p => p.ProfileId == profileId);
+        CacheLoadedProfile();
         System.Diagnostics.Debug.WriteLine($"[GLOVE_SERVICE] Profile loaded: {_currentProfile?.Name ?? "Unknown"}");
     }
 
@@ -345,6 +364,12 @@ public class GloveControlService : IGloveControlService
         var onMs = response.GetDouble("ON") ?? 100.0;
         var offMs = response.GetDouble("OFF") ?? 67.0;
 
+        // FINGERS was added to PROFILE_GET by the same firmware work that made
+        // Custom-profile edits survive a restart, so its presence is an exact
+        // marker for whether this device persists them.
+        var fingers = response.GetInt("FINGERS");
+        PersistsCustomProfile = fingers.HasValue;
+
         return new TherapyProfile
         {
             ActuatorType = response.GetString("TYPE") ?? "LRA",
@@ -357,7 +382,12 @@ public class GloveControlService : IGloveControlService
             AmplitudeMax = response.GetInt("AMPMAX") ?? 100,
             Jitter = response.GetDouble("JITTER") ?? 0,
             Mirror = response.GetBool("MIRROR") ?? false,
-            PatternType = response.GetString("PATTERN")?.ToUpperInvariant() ?? "RNDP"
+            PatternType = response.GetString("PATTERN")?.ToUpperInvariant() ?? "RNDP",
+            // Firmware older than the FINGERS response key omits it. Fall back to
+            // the device's motor count rather than a literal 4: those builds drive
+            // every motor present, so on v3 hardware 4 would understate the CR
+            // period. DeviceActuatorCount is itself 4 until INFO reports otherwise.
+            Fingers = fingers ?? DeviceActuatorCount
         };
     }
 
@@ -415,11 +445,28 @@ public class GloveControlService : IGloveControlService
 
     public async Task ApplyCustomProfileAsync(TherapyProfile desired, TherapyProfile? baseline = null)
     {
-        var parameters = BuildCustomProfileParameters(desired, baseline);
+        var parameters = BuildCustomProfileParameters(desired, baseline, DeviceActuatorCount);
+        if (parameters.Count == 0)
+            return;
+
+        // With no baseline we can't know which amplitude bound widens the device's
+        // current window, and the firmware rejects a bound that crosses the other.
+        // Dropping the floor to the global minimum first is valid from any state and
+        // makes the ordered pair that follows unconditionally acceptable.
+        if (baseline == null)
+        {
+            await SetCustomProfileAsync(new Dictionary<string, string>
+            {
+                ["AMPMIN"] = TherapyParameterBounds.AmplitudeMin.ToString(
+                    System.Globalization.CultureInfo.InvariantCulture)
+            });
+        }
 
         // Firmware accepts at most 8 KEY:VAL pairs per PROFILE_CUSTOM command
-        // (MAX_COMMAND_PARAMS=16 tokens), so a full 10-parameter profile is
-        // split across sequential commands.
+        // (MAX_COMMAND_PARAMS=16 tokens). The Custom profile's eight persisted
+        // parameters land exactly on that ceiling, so a full send is one command;
+        // the loop remains because a future ninth parameter must not silently
+        // overflow it.
         for (int i = 0; i < parameters.Count; i += 8)
         {
             await SetCustomProfileAsync(
@@ -434,7 +481,7 @@ public class GloveControlService : IGloveControlService
     /// value differs from the baseline are returned.
     /// </summary>
     public static List<KeyValuePair<string, string>> BuildCustomProfileParameters(
-        TherapyProfile desired, TherapyProfile? baseline = null)
+        TherapyProfile desired, TherapyProfile? baseline = null, int motorCount = 4)
     {
         // Firmware validation ranges (profile_manager.cpp setParameter). Round the
         // ms/percent floats to the 1 decimal the protocol carries ("0.#") before
@@ -443,65 +490,97 @@ public class GloveControlService : IGloveControlService
         var timeOnMs = Math.Round(desired.TimeOn * 1000.0, 1);
         var timeOffMs = Math.Round(desired.TimeOff * 1000.0, 1);
         var jitter = Math.Round(desired.Jitter, 1);
-        if (desired.ActuatorFrequency is < 50 or > 300)
-            throw new ArgumentException("Frequency must be 50-300 Hz", nameof(desired));
-        if (timeOnMs is < 10 or > 1000)
-            throw new ArgumentException("Time on must be 10-1000 ms", nameof(desired));
-        if (timeOffMs is < 10 or > 1000)
-            throw new ArgumentException("Time off must be 10-1000 ms", nameof(desired));
-        if (desired.TimeSession is < 1 or > 240)
-            throw new ArgumentException("Session duration must be 1-240 minutes", nameof(desired));
-        if (desired.AmplitudeMin is < 0 or > 100 || desired.AmplitudeMax is < 0 or > 100)
-            throw new ArgumentException("Amplitude must be 0-100%", nameof(desired));
+        if (!TherapyParameterBounds.IsTimeOnValid(timeOnMs))
+            throw new ArgumentException(
+                $"Burst duration must be {TherapyParameterBounds.TimeOnMsMin}-{TherapyParameterBounds.TimeOnMsMax} ms", nameof(desired));
+        if (!TherapyParameterBounds.IsTimeOffValid(timeOffMs))
+            throw new ArgumentException(
+                $"Gap must be {TherapyParameterBounds.TimeOffMsMin}-{TherapyParameterBounds.TimeOffMsMax} ms", nameof(desired));
+        if (!TherapyParameterBounds.IsSessionValid(desired.TimeSession))
+            throw new ArgumentException(
+                $"Session duration must be {TherapyParameterBounds.SessionMinutesMin}-{TherapyParameterBounds.SessionMinutesMax} minutes", nameof(desired));
+        if (!TherapyParameterBounds.IsAmplitudeValid(desired.AmplitudeMin) ||
+            !TherapyParameterBounds.IsAmplitudeValid(desired.AmplitudeMax))
+            throw new ArgumentException(
+                $"Amplitude must be {TherapyParameterBounds.AmplitudeMin}-{TherapyParameterBounds.AmplitudeMax}%", nameof(desired));
         if (desired.AmplitudeMin > desired.AmplitudeMax)
             throw new ArgumentException("Minimum amplitude cannot exceed maximum amplitude", nameof(desired));
-        if (jitter is < 0 or > 100)
-            throw new ArgumentException("Jitter must be 0-100%", nameof(desired));
-        if (desired.PatternType.ToUpperInvariant() is not ("RNDP" or "SEQ" or "SEQUENTIAL" or "MIRRORED"))
-            throw new ArgumentException($"Unknown pattern type '{desired.PatternType}' (expected RNDP, SEQ, or MIRRORED)", nameof(desired));
+        if (!TherapyParameterBounds.IsJitterValid(jitter))
+            throw new ArgumentException(
+                $"Jitter must be {TherapyParameterBounds.JitterMin}-{TherapyParameterBounds.JitterMax}%", nameof(desired));
+        if (!TherapyParameterBounds.IsFingersValid(desired.Fingers, motorCount))
+            throw new ArgumentException(
+                $"Active fingers must be {TherapyParameterBounds.FingersMin}-{motorCount} on this device", nameof(desired));
 
-        var desiredParams = ToProtocolParameters(desired);
+        var desiredParams = ToProtocolParameters(desired, baseline);
         if (baseline == null)
         {
             return desiredParams;
         }
 
-        var baselineParams = ToProtocolParameters(baseline).ToDictionary(p => p.Key, p => p.Value);
+        // Order is irrelevant here — this is only a key→value lookup for the diff.
+        var baselineParams = ToProtocolParameters(baseline, null).ToDictionary(p => p.Key, p => p.Value);
         return desiredParams
             .Where(p => !baselineParams.TryGetValue(p.Key, out var old) || old != p.Value)
             .ToList();
     }
 
-    // Ordered list (not Dictionary) so chunk membership across the 8-pair
-    // PROFILE_CUSTOM boundary is deterministic by contract, not by the CLR's
-    // incidental dictionary insertion-order behavior.
-    private static List<KeyValuePair<string, string>> ToProtocolParameters(TherapyProfile profile)
+    /// <summary>
+    /// The eight parameters the firmware persists for the Custom profile
+    /// (<c>CustomOverrideData</c>). TYPE, FREQ and PATTERN are deliberately absent:
+    /// the firmware rejects them on the Custom profile because it has nowhere to
+    /// store them, so sending them would fail the whole batch.
+    /// </summary>
+    /// <remarks>
+    /// Ordered list (not Dictionary) so chunk membership across the 8-pair
+    /// PROFILE_CUSTOM boundary is deterministic by contract, not by the CLR's
+    /// incidental dictionary insertion-order behavior.
+    /// </remarks>
+    private static List<KeyValuePair<string, string>> ToProtocolParameters(
+        TherapyProfile profile, TherapyProfile? baseline)
     {
         var inv = System.Globalization.CultureInfo.InvariantCulture;
-        return new List<KeyValuePair<string, string>>
+        var parameters = new List<KeyValuePair<string, string>>
         {
-            new("TYPE", profile.ActuatorType.Equals("ERM", StringComparison.OrdinalIgnoreCase) ? "ERM" : "LRA"),
-            new("FREQ", profile.ActuatorFrequency.ToString(inv)),
             new("ON", (profile.TimeOn * 1000.0).ToString("0.#", inv)),   // protocol uses ms
             new("OFF", (profile.TimeOff * 1000.0).ToString("0.#", inv)), // protocol uses ms
             new("SESSION", profile.TimeSession.ToString(inv)),
-            new("AMPMIN", profile.AmplitudeMin.ToString(inv)),
-            new("AMPMAX", profile.AmplitudeMax.ToString(inv)),
-            new("PATTERN", ToProtocolPattern(profile.PatternType)),
             new("MIRROR", profile.Mirror ? "1" : "0"),
             new("JITTER", profile.Jitter.ToString("0.#", inv)),
+            new("FINGERS", profile.Fingers.ToString(inv)),
         };
+        parameters.AddRange(AmplitudeParametersWideningFirst(profile, baseline));
+        return parameters;
     }
 
-    private static string ToProtocolPattern(string patternType) =>
-        patternType.ToUpperInvariant() switch
+    /// <summary>
+    /// The firmware cross-checks each amplitude bound against the one currently on
+    /// the device, and PROFILE_CUSTOM applies keys in the order sent. Writing the
+    /// narrowing key first can therefore be rejected even though the target pair is
+    /// perfectly valid (e.g. 30/70 → 80/100 fails if AMPMIN goes first). Emitting
+    /// the key that widens the window first is always accepted.
+    /// </summary>
+    private static IEnumerable<KeyValuePair<string, string>> AmplitudeParametersWideningFirst(
+        TherapyProfile profile, TherapyProfile? baseline)
+    {
+        var inv = System.Globalization.CultureInfo.InvariantCulture;
+        var min = new KeyValuePair<string, string>("AMPMIN", profile.AmplitudeMin.ToString(inv));
+        var max = new KeyValuePair<string, string>("AMPMAX", profile.AmplitudeMax.ToString(inv));
+
+        // Without a baseline the device's current window is unknown, so neither
+        // order is safe on its own; ApplyCustomProfileAsync drops the floor to the
+        // global minimum first, which makes raising the ceiling always valid.
+        if (baseline == null || profile.AmplitudeMax > baseline.AmplitudeMax)
         {
-            // App/spec names vs. firmware setParameter's accepted values
-            "RNDP" => "rndp",
-            "SEQ" or "SEQUENTIAL" => "sequential",
-            "MIRRORED" => "mirrored",
-            _ => throw new ArgumentException($"Unknown pattern type '{patternType}' (expected RNDP, SEQ, or MIRRORED)"),
-        };
+            yield return max;
+            yield return min;
+        }
+        else
+        {
+            yield return min;
+            yield return max;
+        }
+    }
 
     // ========== Session Control Commands ==========
 
