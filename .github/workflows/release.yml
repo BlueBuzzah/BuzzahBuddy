@@ -158,17 +158,44 @@ jobs:
         run: |
           set -euo pipefail
           SA="$RUNNER_TEMP/play-service-account.json"
-          if [ "$(printf '%s' "$PLAY_SERVICE_ACCOUNT_JSON" | cut -c1)" = "{" ]; then
-            printf '%s' "$PLAY_SERVICE_ACCOUNT_JSON" > "$SA"
-          else
-            printf '%s' "$PLAY_SERVICE_ACCOUNT_JSON" | base64 --decode > "$SA"
-          fi
+          python3 - "$SA" <<'PY'
+          import base64, binascii, json, os, sys
+
+          raw = os.environ["PLAY_SERVICE_ACCOUNT_JSON"].strip()
+          # Diagnostics only -- never print the value itself.
+          print(f"secret length: {len(raw)} chars")
+
+          def parse(b):
+              # A UTF-8 BOM is legal in a file but chokes strict JSON readers.
+              return json.loads(b.decode("utf-8-sig"))
+
+          data = None
+          for label, decode in (
+              ("raw JSON", lambda: parse(raw.encode())),
+              ("base64", lambda: parse(base64.b64decode(raw, validate=False))),
+          ):
+              try:
+                  data = decode()
+                  print(f"parsed as: {label}")
+                  break
+              except (ValueError, binascii.Error) as e:
+                  print(f"not {label}: {type(e).__name__}")
+
+          if data is None:
+              sys.exit("::error::GOOGLE_PLAY_SERVICE_ACCOUNT_JSON is neither raw JSON "
+                       "nor base64-encoded JSON. Re-add it with: base64 < key.json | pbcopy")
+
+          missing = {"type", "client_email", "private_key"} - data.keys()
+          if missing:
+              sys.exit(f"::error::Play credential is valid JSON but missing {sorted(missing)} "
+                       "-- this is probably not a service account key.")
+
+          # Re-serialize: guarantees clean UTF-8 with no BOM for the action.
+          with open(sys.argv[1], "w", encoding="utf-8") as f:
+              json.dump(data, f)
+          print(f"wrote credential for: {data['client_email']}")
+          PY
           chmod 600 "$SA"
-          # Fail here, not 30 lines into the action, if the result isn't JSON
-          if [ "$(cut -c1 "$SA")" != "{" ]; then
-            echo "::error::GOOGLE_PLAY_SERVICE_ACCOUNT_JSON is neither raw JSON nor valid base64 JSON."
-            exit 1
-          fi
 
       # SHA-pinned, not @v1: this action receives the Play service account
       # credential, and upstream force-moves the v1 tag (it currently points at
