@@ -23,8 +23,8 @@
 		<ApplicationId>com.rbonestell.buzzahbuddy</ApplicationId>
 
 		<!-- Versions -->
-		<ApplicationDisplayVersion>0.1.1</ApplicationDisplayVersion>
-		<ApplicationVersion>2</ApplicationVersion>
+		<ApplicationDisplayVersion>0.1.2</ApplicationDisplayVersion>
+		<ApplicationVersion>3</ApplicationVersion>
 
 		<!-- Platform versions -->
 		<SupportedOSPlatformVersion
