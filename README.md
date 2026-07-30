@@ -104,6 +104,16 @@ dotnet build
 dotnet build -f net10.0-ios -t:Run
 ```
 
+### Physical iPhone
+
+```bash
+./run-ios.sh
+```
+
+Builds, installs, and launches on the single connected device (set `IOS_UDID` if
+more than one is attached). Don't use `-t:Run` here — its install step hangs
+indefinitely on iOS 17+ devices, so the script uses `devicectl` instead.
+
 ### Android Emulator
 
 ```bash
