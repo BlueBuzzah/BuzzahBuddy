@@ -148,14 +148,36 @@ jobs:
           echo "path=$AAB" >> "$GITHUB_OUTPUT"
           echo "Signed bundle: $AAB"
 
+      # The secret is stored base64-encoded, but serviceAccountJsonPlainText
+      # needs raw JSON -- feeding it base64 fails inside the action with the
+      # opaque "Unexpected token 'e' ... is not valid JSON". Decode to a file
+      # and use the path input instead, tolerating either stored form.
+      - name: Materialize Play service account
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          set -euo pipefail
+          SA="$RUNNER_TEMP/play-service-account.json"
+          if [ "$(printf '%s' "$PLAY_SERVICE_ACCOUNT_JSON" | cut -c1)" = "{" ]; then
+            printf '%s' "$PLAY_SERVICE_ACCOUNT_JSON" > "$SA"
+          else
+            printf '%s' "$PLAY_SERVICE_ACCOUNT_JSON" | base64 --decode > "$SA"
+          fi
+          chmod 600 "$SA"
+          # Fail here, not 30 lines into the action, if the result isn't JSON
+          if [ "$(cut -c1 "$SA")" != "{" ]; then
+            echo "::error::GOOGLE_PLAY_SERVICE_ACCOUNT_JSON is neither raw JSON nor valid base64 JSON."
+            exit 1
+          fi
+
       # SHA-pinned, not @v1: this action receives the Play service account
       # credential, and upstream force-moves the v1 tag (it currently points at
       # v1.1.5). Bump deliberately after reviewing the diff.
       - name: Upload to Play Console (internal track)
         uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
         with:
-          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
-          packageName: com.rbonestell.buzzahbuddy
+          serviceAccountJson: ${{ runner.temp }}/play-service-account.json
+          packageName: ${{ secrets.ANDROID_PACKAGE_NAME }}
           releaseFiles: ${{ steps.aab.outputs.path }}
           track: internal
           status: completed
@@ -226,10 +248,17 @@ jobs:
       # workload packs aren't installed here, so a full multi-TFM restore fails
       - name: Publish signed IPA
         env:
-          CODESIGN_IDENTITY: ${{ vars.APPLE_CODESIGN_IDENTITY }}
-          PROVISIONING_PROFILE_NAME: ${{ vars.APPLE_PROVISIONING_PROFILE_NAME }}
+          # secrets, not vars: these are stored as repository secrets. An
+          # undefined vars.* silently expands to "", which the iOS SDK reports
+          # as the misleading "No valid iOS code signing keys found in keychain"
+          # rather than a missing-input error.
+          CODESIGN_IDENTITY: ${{ secrets.APPLE_CODESIGN_IDENTITY }}
+          PROVISIONING_PROFILE_NAME: ${{ secrets.APPLE_PROVISIONING_PROFILE_NAME }}
         run: |
           set -euo pipefail
+          # Fail with a useful message instead of the SDK's keychain red herring
+          : "${CODESIGN_IDENTITY:?APPLE_CODESIGN_IDENTITY is empty}"
+          : "${PROVISIONING_PROFILE_NAME:?APPLE_PROVISIONING_PROFILE_NAME is empty}"
           dotnet publish BuzzahBuddy/BuzzahBuddy.csproj \
             -f net10.0-ios -c Release \
             -p:TargetFrameworks=net10.0-ios \
