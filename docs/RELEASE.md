@@ -30,6 +30,25 @@ developer account rather than a personal one, change `<ApplicationId>` **now**.
 Changing it later means a new listing with no reviews, no ratings, and no
 upgrade path for installed users.
 
+### Target API level (Google Play)
+
+Play requires the target API level to stay within one year of the latest Android
+release, and raises the floor every August. The app targets **API 36 (Android
+16)** and has a **minimum of API 24 (Android 7.0)**.
+
+Neither is set in `AndroidManifest.xml`. The target comes from the `net10.0-android`
+TFM (the .NET 10 Android SDK's `AndroidLatestStableApiLevel` is 36); the minimum
+comes from `SupportedOSPlatformVersion` in `BuzzahBuddy.csproj`. To verify what a
+build actually produced, check the merged manifest:
+
+```bash
+grep -o 'android:\(target\|min\)SdkVersion="[0-9]*"' \
+  BuzzahBuddy/obj/Debug/net10.0-android/AndroidManifest.xml
+```
+
+When Play next raises the floor, the fix is a newer `netX.0-android` TFM, not a
+manifest edit.
+
 ### Create the store records and do one manual upload
 
 Both stores require a first release by hand:
@@ -274,9 +293,9 @@ chmod 600 store.pass key.pass
 ```
 
 ```bash
-# Android AAB → bin/Release/net9.0-android/publish/*-Signed.aab
-dotnet publish BuzzahBuddy/BuzzahBuddy.csproj -f net9.0-android -c Release \
-  -p:TargetFrameworks=net9.0-android \
+# Android AAB → bin/Release/net10.0-android/publish/*-Signed.aab
+dotnet publish BuzzahBuddy/BuzzahBuddy.csproj -f net10.0-android -c Release \
+  -p:TargetFrameworks=net10.0-android \
   -p:AndroidPackageFormats=aab \
   -p:AndroidKeyStore=true \
   -p:AndroidSigningKeyStore=$PWD/upload.keystore \
@@ -284,9 +303,9 @@ dotnet publish BuzzahBuddy/BuzzahBuddy.csproj -f net9.0-android -c Release \
   -p:AndroidSigningKeyPass=file:$PWD/key.pass \
   -p:AndroidSigningStorePass=file:$PWD/store.pass
 
-# iOS IPA → bin/Release/net9.0-ios/ios-arm64/publish/*.ipa  (macOS only)
-dotnet publish BuzzahBuddy/BuzzahBuddy.csproj -f net9.0-ios -c Release \
-  -p:TargetFrameworks=net9.0-ios \
+# iOS IPA → bin/Release/net10.0-ios/ios-arm64/publish/*.ipa  (macOS only)
+dotnet publish BuzzahBuddy/BuzzahBuddy.csproj -f net10.0-ios -c Release \
+  -p:TargetFrameworks=net10.0-ios \
   -p:ArchiveOnBuild=true \
   -p:RuntimeIdentifier=ios-arm64 \
   -p:CodesignKey="Apple Distribution: Your Name (TEAMID)" \
@@ -303,7 +322,7 @@ and the `.aab` through the Play Console web UI.
 > upload by hand again later, raise `BUILD_OFFSET` to match. See [§6](#6-cutting-a-release).
 
 `-p:TargetFrameworks=` is not optional. The project multi-targets
-`net9.0;net9.0-android;net9.0-ios`, and restore will try to resolve workload
+`net10.0;net10.0-android;net10.0-ios`, and restore will try to resolve workload
 packs for every target framework unless pinned — failing with `NETSDK1147` on
 whichever platform's workload is not installed.
 

@@ -1,37 +1,37 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
-    <!-- Pinned to 9.x to match the app's net9.0 MAUI target; only needed because
+    <!-- Pinned to 10.x to match the app's net10.0 MAUI target; only needed because
          Models/**/*.cs (incl. BatteryReading's Color helpers) compile directly here -->
-    <PackageReference Include="Microsoft.Maui.Graphics" Version="9.0.120" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="Microsoft.Maui.Graphics" Version="10.0.90" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
-    <PackageReference Include="Plugin.BLE" Version="3.1.0" />
+    <PackageReference Include="Plugin.BLE" Version="3.2.1" />
   </ItemGroup>
   <!--
     Fallback strategy (see .superpowers/sdd/task-6-brief.md): a ProjectReference to
     BuzzahBuddy.csproj forces `dotnet restore` to resolve NuGet/workload assets for
-    ALL of that project's TargetFrameworks (net9.0;net9.0-android;net9.0-ios), not just
-    the net9.0 one this test project needs. The android/ios MAUI workloads are not
+    ALL of that project's TargetFrameworks (net10.0;net10.0-android;net10.0-ios), not just
+    the net10.0 one this test project needs. The android/ios MAUI workloads are not
     installed in this environment (and workload install requires elevated privileges),
     so restore fails with NETSDK1147 even though `dotnet build BuzzahBuddy/BuzzahBuddy.csproj
-    -f net9.0` succeeds standalone. Compiling the plain-C# model sources directly avoids
+    -f net10.0` succeeds standalone. Compiling the plain-C# model sources directly avoids
     the cross-TFM restore requirement.
 
     Task 7: RxFrameAssembler owns RX framing/buffering and has no Plugin.BLE dependency, so
     it (plus the constants it references) can be compiled and unit-tested directly here.
     BluetoothService.cs itself is intentionally NOT compiled into this test project — its
     constructor eagerly calls Plugin.BLE's CrossBluetoothLE.Current, which throws
-    NotImplementedException under the portable/off-device build used by a plain net9.0 test
+    NotImplementedException under the portable/off-device build used by a plain net10.0 test
     host. The BluetoothService passthrough (CommandResponse.Parse + ResponseReceived +
     _pendingResponseTcs wiring around RxFrameAssembler) is therefore covered only by the
-    `dotnet build BuzzahBuddy/BuzzahBuddy.csproj -f net9.0` compile check, not by a unit test.
+    `dotnet build BuzzahBuddy/BuzzahBuddy.csproj -f net10.0` compile check, not by a unit test.
   -->
   <ItemGroup>
     <Compile Include="../BuzzahBuddy/Models/**/*.cs" LinkBase="AppModels" />

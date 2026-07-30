@@ -5,7 +5,8 @@
              x:Class="BuzzahBuddy.Views.CalibrationPage"
              x:Name="CalibrationPageRoot"
              x:DataType="vm:CalibrationViewModel"
-             Title="{Binding Title}">
+             Title="{Binding Title}"
+             SafeAreaEdges="Container">
 
     <ScrollView>
         <VerticalStackLayout Padding="20" Spacing="25">
