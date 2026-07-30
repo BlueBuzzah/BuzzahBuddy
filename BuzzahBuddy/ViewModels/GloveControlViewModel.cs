@@ -210,6 +210,17 @@ public partial class GloveControlViewModel : BaseViewModel
         if (ConnectionInfo.IsConnected)
         {
             RefreshBatteryAsync(warnIfLow: false).SafeFireAndForget("[GLOVECONTROL]");
+
+            // Re-read INFO for the same reason. DeviceProfileId is only refreshed by
+            // the post-connect sync, so if the transport never reported a drop across
+            // a profile-change reboot, the cached id stays stale and this page keeps
+            // naming the previous profile indefinitely. GetDeviceInfoAsync raises
+            // DeviceProfileChanged, which corrects SelectedProfile. Skipped mid-session
+            // so the displayed profile can't change under a running therapy session.
+            if (!IsSessionActive)
+            {
+                _gloveControlService.GetDeviceInfoAsync().SafeFireAndForget("[GLOVECONTROL]");
+            }
         }
     }
 
