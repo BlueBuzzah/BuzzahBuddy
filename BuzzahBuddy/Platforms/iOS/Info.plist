@@ -31,5 +31,12 @@
 	<array>
 		<string>bluetooth-central</string>
 	</array>
+	<!-- Export compliance. Without this key every TestFlight build stalls at
+	     "Missing Compliance" until answered by hand in App Store Connect.
+	     false = the app uses no non-exempt encryption: BLE plus the OS's own
+	     TLS only, no custom or proprietary cryptography. Revisit if the app
+	     ever ships its own crypto. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>
