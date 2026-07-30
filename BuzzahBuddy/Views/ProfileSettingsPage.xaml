@@ -6,7 +6,8 @@
              xmlns:behaviors="clr-namespace:BuzzahBuddy.Behaviors"
              x:Class="BuzzahBuddy.Views.ProfileSettingsPage"
              x:DataType="vm:ProfileSettingsViewModel"
-             Title="{Binding Title}">
+             Title="{Binding Title}"
+             SafeAreaEdges="Container">
 
     <ScrollView>
         <VerticalStackLayout Padding="20" Spacing="20">

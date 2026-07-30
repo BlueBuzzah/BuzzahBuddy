@@ -13,7 +13,7 @@ BuzzahBuddy is a cross-platform mobile companion app for the BlueBuzzah tactile 
 
 ## Technology Stack
 
-- **.NET 9.0** with C# 13
+- **.NET 10.0** with C# 14
 - **.NET MAUI** (Multi-platform App UI)
 - **MVVM Architecture** with CommunityToolkit.Mvvm
 - **Bluetooth Low Energy** via Plugin.BLE
@@ -34,7 +34,7 @@ BuzzahBuddy is a cross-platform mobile companion app for the BlueBuzzah tactile 
 
 ## Prerequisites
 
-- **.NET 9.0 SDK** or later
+- **.NET 10.0 SDK** or later
 - **Visual Studio 2022** (Windows/Mac) or **VS Code** with C# DevKit
 - **Xcode** (for iOS development on macOS)
 - **Android SDK** (API 21+)
@@ -44,7 +44,7 @@ BuzzahBuddy is a cross-platform mobile companion app for the BlueBuzzah tactile 
 **macOS:**
 
 ```bash
-# Install .NET 9.0 SDK
+# Install .NET 10.0 SDK
 brew install dotnet
 
 # Ensure Xcode Command Line Tools are installed
@@ -81,13 +81,13 @@ xcode-select --install
 ### iOS
 
 ```bash
-dotnet build -f net9.0-ios
+dotnet build -f net10.0-ios
 ```
 
 ### Android
 
 ```bash
-dotnet build -f net9.0-android
+dotnet build -f net10.0-android
 ```
 
 ### All Platforms
@@ -101,13 +101,13 @@ dotnet build
 ### iOS Simulator
 
 ```bash
-dotnet build -f net9.0-ios -t:Run
+dotnet build -f net10.0-ios -t:Run
 ```
 
 ### Android Emulator
 
 ```bash
-dotnet build -f net9.0-android -t:Run
+dotnet build -f net10.0-android -t:Run
 ```
 
 ### Using Visual Studio

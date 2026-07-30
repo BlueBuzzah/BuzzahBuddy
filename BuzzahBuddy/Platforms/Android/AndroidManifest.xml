@@ -1,6 +1,13 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-	<application android:allowBackup="true" android:icon="@mipmap/appicon" android:roundIcon="@mipmap/appicon_round" android:supportsRtl="true"></application>
+	<!-- enableOnBackInvokedCallback=false: at targetSdk 36 predictive back is on by
+	     default and Android stops dispatching the legacy onBackPressed, which is what
+	     ApplyingSettingsPage.OnBackButtonPressed relies on to stop a user backing out
+	     while the gloves are physically rebooting. Opting out preserves that guarantee.
+	     ponytail: stopgap with a known ceiling - the opt-out is deprecated and Android
+	     will eventually ignore it. Real fix is an OnBackInvokedCallback registered here
+	     for API 33+, once MAUI's predictive-back support is verified on device. -->
+	<application android:allowBackup="true" android:icon="@mipmap/appicon" android:roundIcon="@mipmap/appicon_round" android:supportsRtl="true" android:enableOnBackInvokedCallback="false"></application>
 	<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 	<uses-permission android:name="android.permission.INTERNET" />
 

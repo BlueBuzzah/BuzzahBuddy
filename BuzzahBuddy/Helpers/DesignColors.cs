@@ -1,4 +1,4 @@
-// Explicit for the plain net9.0 test build, which lacks MAUI implicit usings
+// Explicit for the plain net10.0 test build, which lacks MAUI implicit usings
 using Microsoft.Maui.Graphics;
 
 namespace BuzzahBuddy.Helpers;
@@ -6,7 +6,7 @@ namespace BuzzahBuddy.Helpers;
 /// <summary>
 /// Design-system token values (docs/design/colors.md) as compile-time constants.
 /// Single source for hex values used from C# — either directly by code that cannot
-/// reach <c>Application.Current.Resources</c> (plain net9.0 test build), or as the
+/// reach <c>Application.Current.Resources</c> (plain net10.0 test build), or as the
 /// fallback for <c>ColorResources.Get</c>. Must stay in sync with Colors.xaml.
 /// </summary>
 public static class DesignColors

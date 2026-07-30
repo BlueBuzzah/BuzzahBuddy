@@ -6,7 +6,8 @@
              xmlns:controls="clr-namespace:BuzzahBuddy.Views.Controls"
              x:Class="BuzzahBuddy.Views.GloveControlPage"
              x:DataType="vm:GloveControlViewModel"
-             Title="{Binding Title}">
+             Title="{Binding Title}"
+             SafeAreaEdges="Container">
 
     <ScrollView>
         <VerticalStackLayout Padding="20" Spacing="20">

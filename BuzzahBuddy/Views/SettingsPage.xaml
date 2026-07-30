@@ -4,7 +4,8 @@
              xmlns:vm="clr-namespace:BuzzahBuddy.ViewModels"
              x:Class="BuzzahBuddy.Views.SettingsPage"
              x:DataType="vm:SettingsViewModel"
-             Title="{Binding Title}">
+             Title="{Binding Title}"
+             SafeAreaEdges="Container">
 
     <ScrollView>
         <VerticalStackLayout Padding="20" Spacing="25">

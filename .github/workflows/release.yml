@@ -62,7 +62,7 @@ jobs:
       - name: Setup dotnet
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: "9.0.x"
+          dotnet-version: "10.0.x"
       # Test project compiles app sources directly (no ProjectReference),
       # so no mobile workloads are needed here
       - name: Test
@@ -85,7 +85,7 @@ jobs:
       - name: Setup dotnet
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: "9.0.x"
+          dotnet-version: "10.0.x"
 
       - name: Restore Workloads
         run: dotnet workload install maui-android
@@ -115,8 +115,8 @@ jobs:
         run: |
           set -euo pipefail
           dotnet publish BuzzahBuddy/BuzzahBuddy.csproj \
-            -f net9.0-android -c Release \
-            -p:TargetFrameworks=net9.0-android \
+            -f net10.0-android -c Release \
+            -p:TargetFrameworks=net10.0-android \
             -p:ApplicationDisplayVersion=${{ needs.version.outputs.version }} \
             -p:ApplicationVersion=${{ needs.version.outputs.build }} \
             -p:AndroidPackageFormats=aab \
@@ -134,7 +134,7 @@ jobs:
           set -euo pipefail
           # -iname, not -name: find is case-sensitive on Linux, and the "-Signed"
           # suffix is an undocumented SDK detail (MS docs write it "-signed")
-          AAB=$(find BuzzahBuddy/bin/Release/net9.0-android/publish -iname '*-signed.aab' | head -1)
+          AAB=$(find BuzzahBuddy/bin/Release/net10.0-android/publish -iname '*-signed.aab' | head -1)
           if [ -z "$AAB" ]; then
             echo "::error::No signed AAB produced - check that AndroidKeyStore=true took effect."
             exit 1
@@ -172,7 +172,7 @@ jobs:
       - name: Setup dotnet
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: "9.0.x"
+          dotnet-version: "10.0.x"
 
       - name: Restore Workloads
         run: dotnet workload install maui-ios
@@ -212,8 +212,8 @@ jobs:
         run: |
           set -euo pipefail
           dotnet publish BuzzahBuddy/BuzzahBuddy.csproj \
-            -f net9.0-ios -c Release \
-            -p:TargetFrameworks=net9.0-ios \
+            -f net10.0-ios -c Release \
+            -p:TargetFrameworks=net10.0-ios \
             -p:ApplicationDisplayVersion=${{ needs.version.outputs.version }} \
             -p:ApplicationVersion=${{ needs.version.outputs.build }} \
             -p:ArchiveOnBuild=true \
@@ -225,7 +225,7 @@ jobs:
         id: ipa
         run: |
           set -euo pipefail
-          IPA=$(find BuzzahBuddy/bin/Release/net9.0-ios/ios-arm64/publish -name '*.ipa' | head -1)
+          IPA=$(find BuzzahBuddy/bin/Release/net10.0-ios/ios-arm64/publish -name '*.ipa' | head -1)
           if [ -z "$IPA" ]; then
             echo "::error::No IPA produced - check that ArchiveOnBuild=true took effect."
             exit 1

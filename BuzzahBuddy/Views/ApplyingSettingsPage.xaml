@@ -5,7 +5,8 @@
              x:Class="BuzzahBuddy.Views.ApplyingSettingsPage"
              x:DataType="vm:DeviceSettingsViewModel"
              Shell.NavBarIsVisible="False"
-             BackgroundColor="{StaticResource PageBackground}">
+             BackgroundColor="{StaticResource PageBackground}"
+             SafeAreaEdges="Container">
 
     <VerticalStackLayout Spacing="24"
                          VerticalOptions="Center"

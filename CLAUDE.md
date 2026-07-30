@@ -16,27 +16,47 @@ Create a **highly accessible**, intuitive mobile app optimized for users with Pa
 ## Tech Stack
 
 ### Framework & Runtime
-- **.NET 9.0** with C# 13
+- **.NET 10.0** with C# 14
 - **.NET MAUI** (Multi-platform App UI)
-- Target Platforms: iOS 15+, Android 21+, MacCatalyst 15+
+- Target Platforms: iOS 15+, Android 24+ (targets API 36), MacCatalyst 15+
 
 ### Key Dependencies
 ```xml
 <!-- Essential packages -->
 <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
-<PackageReference Include="Plugin.BLE" Version="3.1.0" />
-<PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" /> <!-- Optional for source generators -->
+<PackageReference Include="Plugin.BLE" Version="3.2.1" />
+<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" /> <!-- Optional for source generators -->
+<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.10" />
 
 <!-- Testing -->
 <PackageReference Include="xunit" Version="2.9.2" />
 <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
-<PackageReference Include="Moq" Version="4.20.72" />
 ```
+
+The test suite uses a hand-rolled `TestHelpers/FakeBluetoothService.cs`, **not** a
+mocking library. Do not add Moq.
 
 ### Project Configuration
 - **Nullable Reference Types**: Enabled (`<Nullable>enable</Nullable>`)
 - **Implicit Usings**: Enabled (`<ImplicitUsings>enable</ImplicitUsings>`)
 - **Single Project**: True (all platforms in one .csproj)
+
+### Safe area — every ContentPage needs `SafeAreaEdges="Container"`
+
+.NET 10 changed `ContentPage`'s default to `None` (edge-to-edge) on **all**
+platforms; in .NET 9 Android behaved like `Container`. Android 16 (API 36)
+separately enforces edge-to-edge with no opt-out. Without an explicit
+`SafeAreaEdges="Container"` on the page root, content renders under the status
+and gesture-navigation bars.
+
+This matters more here than in most apps: `DeviceListPage` and `CalibrationPage`
+deliberately anchor their primary buttons to the bottom edge ("BOTTOM ZONE —
+Easy Reach") for tremor-friendly reach, which is exactly where the gesture nav
+bar sits. **Any new ContentPage must set it.**
+
+`SoftInput` is intentionally not used yet — add it only where device testing
+shows a real keyboard-avoidance regression, and note it has no effect on a
+`ScrollView` (it needs a wrapper layout).
 
 ---
 
@@ -536,17 +556,17 @@ Use XAML Hot Reload for rapid UI iteration:
 
 **iOS Simulator:**
 ```bash
-dotnet build -f net9.0-ios -t:Run
+dotnet build -f net10.0-ios -t:Run
 ```
 
 **Android Emulator:**
 ```bash
-dotnet build -f net9.0-android -t:Run
+dotnet build -f net10.0-android -t:Run
 ```
 
 **MacCatalyst:**
 ```bash
-dotnet build -f net9.0-maccatalyst -t:Run
+dotnet build -f net10.0-maccatalyst -t:Run
 ```
 
 ### Debugging
