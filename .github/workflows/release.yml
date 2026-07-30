@@ -29,6 +29,7 @@ jobs:
   # fast on a tag shape the stores would reject after a 15-minute build.
   version:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       version: ${{ steps.derive.outputs.version }}
       build: ${{ steps.derive.outputs.build }}
@@ -55,6 +56,7 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read # checkout; inherited {} works only while the repo is public
     steps:
@@ -71,6 +73,7 @@ jobs:
   android:
     needs: [version, test]
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     permissions:
       contents: write # attach the .aab to the GitHub Release
     steps:
@@ -133,8 +136,11 @@ jobs:
         run: |
           set -euo pipefail
           # -iname, not -name: find is case-sensitive on Linux, and the "-Signed"
-          # suffix is an undocumented SDK detail (MS docs write it "-signed")
-          AAB=$(find BuzzahBuddy/bin/Release/net9.0-android/publish -iname '*-signed.aab' | head -1)
+          # suffix is an undocumented SDK detail (MS docs write it "-signed").
+          # -print -quit, not `| head -1`: head closing the pipe can SIGPIPE
+          # find, which pipefail then turns into a step failure even though the
+          # file was found.
+          AAB=$(find BuzzahBuddy/bin/Release/net9.0-android/publish -iname '*-signed.aab' -print -quit)
           if [ -z "$AAB" ]; then
             echo "::error::No signed AAB produced - check that AndroidKeyStore=true took effect."
             exit 1
@@ -164,6 +170,10 @@ jobs:
   ios:
     needs: [version, test]
     runs-on: macos-latest
+    # macOS minutes bill at 10x. A hung job would otherwise run to the 6-hour
+    # default; a cold workload install + archive + altool upload fits in well
+    # under an hour.
+    timeout-minutes: 60
     permissions:
       contents: write # attach the .ipa to the GitHub Release
     steps:
@@ -234,7 +244,8 @@ jobs:
         id: ipa
         run: |
           set -euo pipefail
-          IPA=$(find BuzzahBuddy/bin/Release/net9.0-ios/ios-arm64/publish -name '*.ipa' | head -1)
+          # -print -quit, not `| head -1` -- see "Locate signed AAB" above
+          IPA=$(find BuzzahBuddy/bin/Release/net9.0-ios/ios-arm64/publish -name '*.ipa' -print -quit)
           if [ -z "$IPA" ]; then
             echo "::error::No IPA produced - check that ArchiveOnBuild=true took effect."
             exit 1
