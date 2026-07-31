@@ -4,20 +4,21 @@
 <dict>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- iPhone only (1). Declaring iPad (2) obliges the app to offer all four
+	     orientations for multitasking, which App Store validation rejects
+	     against a portrait lock (ITMS-90474). The lock is deliberate: the
+	     bottom-anchored controls are laid out for tremor-friendly reach.
+	     UIRequiresFullScreen is not an escape hatch -- it is ignored for apps
+	     built against the iOS 26 SDK. -->
 	<key>UIDeviceFamily</key>
 	<array>
 		<integer>1</integer>
-		<integer>2</integer>
 	</array>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
 		<string>arm64</string>
 	</array>
 	<key>UISupportedInterfaceOrientations</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-	</array>
-	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 	</array>
