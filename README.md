@@ -9,7 +9,7 @@ BuzzahBuddy is a cross-platform mobile companion app for the BlueBuzzah tactile 
 ## Related Resources
 
 - **BlueBuzzah Project:** [HealthUnlocked Community Post](https://healthunlocked.com/cure-parkinsons/posts/151962393/the-blue-buzzah-a-new-wireless-diy-vibrotactile-glove)
-- **Hardware Repository:** [BlueBuzzah Gloves on GitHub](https://github.com/PWPInnovator898/BlueBuzzah-Gloves)
+- **Hardware Repository:** [BlueBuzzah-Hardware on GitHub](https://github.com/BlueBuzzah/BlueBuzzah-Hardware)
 
 ## Technology Stack
 
