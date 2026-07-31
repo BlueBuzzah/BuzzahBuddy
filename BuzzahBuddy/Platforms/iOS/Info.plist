@@ -8,7 +8,7 @@
 	     orientations for multitasking, which App Store validation rejects
 	     against a portrait lock (ITMS-90474). The lock is deliberate: the
 	     bottom-anchored controls are laid out for tremor-friendly reach.
-	     UIRequiresFullScreen is not an escape hatch -- it is ignored for apps
+	     UIRequiresFullScreen is not an escape hatch; it is ignored for apps
 	     built against the iOS 26 SDK. -->
 	<key>UIDeviceFamily</key>
 	<array>
