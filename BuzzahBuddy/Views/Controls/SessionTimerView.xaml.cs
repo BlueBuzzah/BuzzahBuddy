@@ -19,7 +19,7 @@ public partial class SessionTimerView : ContentView
     public static readonly BindableProperty IsPausedProperty = BindableProperty.Create(
         nameof(IsPaused), typeof(bool), typeof(SessionTimerView), false, propertyChanged: OnVisualChanged);
 
-    // Design tokens (docs/design, Resources/Styles/Colors.xaml) — dark theme only.
+    // Design tokens mirrored from Resources/Styles/Colors.xaml — dark theme only.
     private static readonly Color TextMutedColor = Color.FromArgb("#a3a3a3");   // TextMuted
     private static readonly Color WarningColor = Color.FromArgb("#f59e0b");     // Warning
 

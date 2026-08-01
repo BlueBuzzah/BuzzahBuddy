@@ -23,7 +23,7 @@ public static class MauiProgram
 	/// On Android these controls are backed by <c>AppCompatEditText</c>, which paints
 	/// a Material underline. Inside an <c>InputBorder</c> that reads as two stacked
 	/// borders. iOS needs nothing — <c>UITextField</c> defaults to no border, which is
-	/// why docs/design/components.md originally assumed no platform chrome existed.
+	/// why the input styling was originally specced assuming no platform chrome existed.
 	/// </remarks>
 	private static void StripNativeInputChrome()
 	{

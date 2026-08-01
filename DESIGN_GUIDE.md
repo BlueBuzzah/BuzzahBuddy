@@ -8,7 +8,11 @@ This guide establishes UI/UX principles and patterns for BuzzahBuddy, a therapeu
 
 **Target Audience:** Developers, designers, and AI coding assistants (like Claude Code) working on BuzzahBuddy.
 
-**Visual language:** This guide owns UX and interaction patterns. Colors, typography, per-control styling, and motion are owned by the [design system](docs/design/README.md) (`docs/design/`) — where the two disagree on visual specifics, the design system wins.
+**Visual language:** Token *values* live in code — `BuzzahBuddy/Resources/Styles/Colors.xaml`
+(palette), `Styles.xaml` (per-control styles and the typography scale),
+`Helpers/DesignColors.cs` (the compile-time subset, hand-synced to `Colors.xaml`). This guide
+owns the *rules* those values must satisfy: the contrast matrix, semantic usage, and motion
+constraints below. Where a style in code disagrees with a rule here, the rule wins — fix the style.
 
 ---
 
@@ -194,15 +198,31 @@ Optimize for one-handed operation by placing controls within natural thumb reach
 - **Font weight:** Medium (500-600) or Bold for interactive elements
 
 **Color:**
-- Dark theme only — use the design system palette ([docs/design/colors.md](docs/design/colors.md)); there is no light mode
+- Dark theme only — use the palette in `Resources/Styles/Colors.xaml`; there is no light mode
 - Never rely on color alone to convey information (use icons, text labels, patterns)
 - Test all colors at high contrast settings (users may enable OS accessibility features)
 - Avoid red/green as sole differentiators (color blindness)
 
 **Animation:**
-- Respect `prefers-reduced-motion` system setting
+- Respect the OS reduce-motion setting — check `Helpers/Motion.cs` → `Motion.Reduce`
 - Use animations sparingly (2-3 second max duration)
 - Avoid parallax, bouncing, or rapid transitions
+
+**Motion spec** (MAUI: `FadeTo`/`TranslateTo`/`ScaleTo` with `Easing.CubicOut`):
+
+| Pattern | Spec |
+|---|---|
+| Standard state change (color, opacity, glow) | 200ms ease-in-out |
+| Entrance | 400–600ms ease-out; fade-in-up = opacity 0→1 + translateY 20→0 |
+| Stagger step | 100ms per item, max 6 steps |
+| Press feedback | Scale to 0.98 on press, spring back (~100ms each way) |
+| Pulse glow | Opacity 0.4 ↔ 0.7, 3s loop — attention badges only, **one per screen** |
+
+- Motion communicates state. Nothing animates purely for decoration except entrance fades.
+- **Reduced motion is mandatory:** when `Motion.Reduce` is true, collapse every animation to
+  instant (≤10ms) — content appears in place, press feedback becomes a color change only, and
+  pulse effects render static at 0.7 opacity.
+- Never block interaction on an animation completing.
 - Provide instant feedback without animation for critical actions
 
 **Proximity and Grouping:**
@@ -1070,8 +1090,10 @@ Never leave users wondering if something is happening:
 
 ## Color and Theme Guidelines
 
-The full palette, WCAG contrast matrix, and per-control color specs live in the
-[design system](docs/design/colors.md). This section covers only how to apply it.
+Token values live in `BuzzahBuddy/Resources/Styles/Colors.xaml`; per-control specs live in
+`Styles.xaml`. This section owns the rules those values must satisfy. The palette derives from
+bluebuzzah.com (Tailwind config + `:root` custom properties); status colors have no website
+precedent and were chosen for distinguishability in a therapy app.
 
 ### Semantic Color Usage
 
@@ -1101,8 +1123,37 @@ the BlueBuzzah brand. Do not add light-mode variants or `AppThemeBinding` pairs.
 - Text: `#fafafa`; muted `#a3a3a3`
 - Borders: `#0A3143`
 
-**Every text/background pair must appear in the approved
-[contrast matrix](docs/design/colors.md#contrast-matrix) (WCAG AA minimum).**
+**Every text/background pair must appear in the approved contrast matrix below (WCAG AA minimum).**
+
+### Contrast Matrix
+
+Approved pairs (WCAG 2.1 ratios, computed). If a pair you need is not here, it has not been
+checked — compute it before shipping, then add the row.
+
+| Text | Background | Ratio | Grade | Use |
+|---|---|---|---|---|
+| `#fafafa` | `#0a0a0a` | 19.0:1 | AAA | Body text on page |
+| `#fafafa` | `#05212D` | 15.9:1 | AAA | Text on cards |
+| `#fafafa` | `#0d3a4d` | 11.6:1 | AAA | Text on light cards |
+| `#0a0a0a` | `#35B6F2` | 8.6:1 | AAA | **Primary button text** |
+| `#35B6F2` | `#0a0a0a` | 8.6:1 | AAA | Links, accents on page |
+| `#35B6F2` | `#05212D` | 7.2:1 | AAA | Links, accents on cards |
+| `#35B6F2` | `#0d3a4d` | 5.3:1 | AA | Accents on light cards (≥14pt Semibold) |
+| `#a3a3a3` | `#0a0a0a` | 7.8:1 | AAA | Muted text on page |
+| `#a3a3a3` | `#05212D` | 6.6:1 | AA | Muted text on cards |
+| `#a3a3a3` | `#0d3a4d` | 4.8:1 | AA | Muted text on light cards (body size and up only) |
+| `#f59e0b` | `#0a0a0a` / `#05212D` | 9.2:1 / 7.7:1 | AAA | Warning text |
+| `#0a0a0a` | `#f59e0b` | 9.2:1 | AAA | Text on warning fills |
+| `#fb7185` | `#0a0a0a` / `#05212D` | 7.4:1 / 6.2:1 | AAA / AA | Danger text |
+| `#fafafa` | `#e11d48` / `#dc2626` | 4.5:1 / 4.6:1 | AA | Text on danger fills |
+
+### Forbidden Pairs
+
+| Text | Background | Ratio | Why it keeps happening |
+|---|---|---|---|
+| `#fafafa` (or any light) | `#35B6F2` | 2.0:1 | Habit from other design systems — blue fills here take **dark** text |
+| `#e11d48` | `#0a0a0a` / `#05212D` | 4.2:1 / 3.5:1 | Use `#fb7185` for danger *text*; `#e11d48`/`#dc2626` are fill-only |
+| `#a3a3a3` | `#35B6F2` or any status fill | ≤ 2:1 | Muted text belongs on dark surfaces only |
 
 ### Avoid Over-Reliance on Color
 
@@ -1360,6 +1411,10 @@ When choosing between design alternatives, use A/B testing:
 
 ## Version History
 
+- **v1.5** (2026-07-31) - Absorbed the visual language after `docs/design/` was removed:
+  - Contrast matrix and forbidden pairs now live here (they existed nowhere else in the repo)
+  - Motion spec and the mandatory reduce-motion collapse rule folded into Accessibility
+  - Token values now sourced from `Resources/Styles/Colors.xaml` + `Styles.xaml`, not a doc tree
 - **v1.4** (2026-07-14) - Aligned with the BlueBuzzah design system (`docs/design/`):
   - Visual language (colors, typography, controls, motion) now deferred to the design system
   - Dark theme only — removed light-mode guidance

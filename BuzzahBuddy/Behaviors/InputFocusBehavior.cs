@@ -4,9 +4,9 @@ namespace BuzzahBuddy.Behaviors;
 
 /// <summary>
 /// Attaches to a <see cref="Border"/> wrapping an Entry/Editor/Picker and swaps the
-/// border's stroke color between the default and focused states, per
-/// docs/design/components.md (Entry / Editor / SearchBar): default border #0A3143,
-/// focused border #35B6F2.
+/// border's stroke color between the default and focused states: default border #0A3143,
+/// focused border #35B6F2 (the visible focus indicator every interactive control needs —
+/// see DESIGN_GUIDE.md, "Accessibility"). Token values live in Resources/Styles/Colors.xaml.
 /// </summary>
 public class InputFocusBehavior : Behavior<Border>
 {

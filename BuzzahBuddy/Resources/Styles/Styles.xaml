@@ -21,7 +21,7 @@
         <Setter Property="StrokeThickness" Value="1"/>
     </Style>
 
-    <!-- Bordered input field wrapper for Entry/Editor/Picker (docs/design/components.md).
+    <!-- Bordered input field wrapper for Entry/Editor/Picker.
          Default border CardBorder (#0A3143); InputFocusBehavior swaps it to Primary (#35B6F2) on focus. -->
     <Style x:Key="InputBorder" TargetType="Border">
         <Setter Property="BackgroundColor" Value="{StaticResource CardBackground}" />
@@ -67,7 +67,8 @@
         </Setter>
     </Style>
 
-    <!-- Visual Hierarchy: Standardized Button Styles (DESIGN_GUIDE.md Wave 2 sizes, docs/design/components.md colors) -->
+    <!-- Visual Hierarchy: Standardized Button Styles (sizes and color rules: DESIGN_GUIDE.md).
+         Blue fills always take dark text (#0a0a0a) — light-on-blue is 2.0:1 and forbidden. -->
 
     <!-- Primary Button: the one blue CTA per screen -->
     <Style x:Key="PrimaryButton" TargetType="Button">
@@ -347,7 +348,9 @@
         </Setter>
     </Style>
 
-    <!-- Typography scale (docs/design/typography.md) -->
+    <!-- Typography scale. System fonts only (no FontFamily set, no bundled font assets) — the
+         platform default is the brand rule. MAUI exposes Regular/Bold only, so where the spec
+         wants Medium/Semibold, size and color carry the hierarchy. Minimums: DESIGN_GUIDE.md. -->
     <Style TargetType="Label" x:Key="Headline">
         <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
         <Setter Property="FontSize" Value="32" />

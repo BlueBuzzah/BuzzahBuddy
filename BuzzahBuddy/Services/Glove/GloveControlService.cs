@@ -5,7 +5,7 @@ namespace BuzzahBuddy.Services.Glove;
 
 /// <summary>
 /// Service for controlling BlueBuzzah glove therapy sessions and settings.
-/// Implements all 18 commands from the BlueBuzzah smartphone app specification.
+/// Covers the firmware's full BLE command surface — see IGloveControlService.
 /// </summary>
 public class GloveControlService : IGloveControlService
 {

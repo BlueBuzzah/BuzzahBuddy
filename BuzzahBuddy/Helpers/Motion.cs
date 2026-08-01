@@ -1,7 +1,9 @@
 namespace BuzzahBuddy.Helpers;
 
 /// <summary>
-/// OS-level reduce-motion preference (docs/design/motion.md: mandatory).
+/// OS-level reduce-motion preference. Honoring this is mandatory — see the motion spec in
+/// DESIGN_GUIDE.md ("Accessibility"): when true, collapse animations to instant (≤10ms),
+/// press feedback becomes a color change only, and pulse effects render static at 0.7 opacity.
 /// </summary>
 public static class Motion
 {

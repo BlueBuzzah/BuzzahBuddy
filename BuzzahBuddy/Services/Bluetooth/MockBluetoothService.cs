@@ -5,7 +5,7 @@ namespace BuzzahBuddy.Services.Bluetooth;
 
 /// <summary>
 /// Mock Bluetooth service for testing without hardware.
-/// Implements all 20 BlueBuzzah commands with realistic responses.
+/// Implements every command the firmware's HELP reports, with realistic responses.
 /// Per BLE protocol v2.0.0.
 /// This mock simulates a 4-motor BlueBuzzah primary board; 5-motor (PentaBuzzer) ranges
 /// are only testable on hardware.
@@ -187,7 +187,7 @@ public class MockBluetoothService : IBluetoothService
     /// </summary>
     internal async Task<string> GetRawResponseAsync(string command, CancellationToken cancellationToken = default)
     {
-        // Per BLE protocol v2.0.0: Handle all 20 commands
+        // Per BLE protocol v2.0.0. Every arm here must also appear in GetMockHelpResponse.
         return command.ToUpperInvariant() switch
         {
             "INFO" => GetMockInfoResponse(),

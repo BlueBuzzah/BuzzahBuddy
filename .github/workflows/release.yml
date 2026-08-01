@@ -18,8 +18,9 @@ env:
   # for a new workflow -- so this MUST stay above the highest build number ever
   # accepted outside CI.
   #
-  # It is 2, not 0, because the mandatory first manual upload to each store
-  # (see docs/RELEASE.md 0 and 5) ships with the csproj's ApplicationVersion=2.
+  # It is 2, not 0, because each store requires one manual upload before its API
+  # will accept automated builds, and that upload ships the csproj's
+  # ApplicationVersion (2 at the time).
   # At 0, the first CI release would compute build 1 and be rejected by both
   # stores. Raise it again after any further out-of-band upload.
   BUILD_OFFSET: 2

@@ -1,643 +1,188 @@
-# BuzzahBuddy - Project Guide
-
-## Project Overview
-
-**BuzzahBuddy** is a cross-platform mobile companion app for the BlueBuzzah tactile gloves, a vibrotactile therapeutic device for Parkinson's disease treatment. The app connects to upgraded BlueBuzzah gloves via Bluetooth Low Energy (BLE) to control vibration patterns, track usage, and manage therapy sessions.
-
-### Key Links
-- [BlueBuzzah HealthUnlocked](https://healthunlocked.com/cure-parkinsons/posts/151962393/the-blue-buzzah-a-new-wireless-diy-vibrotactile-glove)
-- [BlueBuzzah GitHub Repository](https://github.com/PWPInnovator898/BlueBuzzah-Gloves)
-
-### Mission
-Create a **highly accessible**, intuitive mobile app optimized for users with Parkinson's disease, featuring tremor-friendly UI and comprehensive assistive technology support.
-
----
-
-## Tech Stack
-
-### Framework & Runtime
-- **.NET 10.0** with C# 14
-- **.NET MAUI** (Multi-platform App UI)
-- Target Platforms: iOS 15+, Android 24+ (targets API 36). MacCatalyst is not built.
-
-### Key Dependencies
-```xml
-<!-- Essential packages -->
-<PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
-<PackageReference Include="Plugin.BLE" Version="3.2.1" />
-<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" /> <!-- Optional for source generators -->
-<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.10" />
-
-<!-- Testing -->
-<PackageReference Include="xunit" Version="2.9.2" />
-<PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
-```
-
-The test suite uses a hand-rolled `TestHelpers/FakeBluetoothService.cs`, **not** a
-mocking library. Do not add Moq.
-
-### Project Configuration
-- **Nullable Reference Types**: Enabled (`<Nullable>enable</Nullable>`)
-- **Implicit Usings**: Enabled (`<ImplicitUsings>enable</ImplicitUsings>`)
-- **Single Project**: True (all platforms in one .csproj)
-
-### Safe area — every ContentPage needs `SafeAreaEdges="Container"`
-
-.NET 10 changed `ContentPage`'s default to `None` (edge-to-edge) on **all**
-platforms; in .NET 9 Android behaved like `Container`. Android 16 (API 36)
-separately enforces edge-to-edge with no opt-out. Without an explicit
-`SafeAreaEdges="Container"` on the page root, content renders under the status
-and gesture-navigation bars.
-
-This matters more here than in most apps: `DeviceListPage` and `CalibrationPage`
-deliberately anchor their primary buttons to the bottom edge ("BOTTOM ZONE —
-Easy Reach") for tremor-friendly reach, which is exactly where the gesture nav
-bar sits. **Any new ContentPage must set it.**
-
-`SoftInput` is intentionally not used yet — add it only where device testing
-shows a real keyboard-avoidance regression, and note it has no effect on a
-`ScrollView` (it needs a wrapper layout).
-
----
-
-## Architecture & Patterns
-
-### MVVM Pattern
-This project uses **Model-View-ViewModel (MVVM)** architecture:
-
-```
-┌──────────┐         ┌──────────────┐         ┌────────┐
-│   View   │ ◄─────► │  ViewModel   │ ◄─────► │ Model  │
-│  (XAML)  │         │ (INotify...) │         │ (Data) │
-└──────────┘         └──────────────┘         └────────┘
-                             │
-                             ▼
-                     ┌──────────────┐
-                     │  Services    │
-                     └──────────────┘
-```
-
-**Guidelines:**
-- Views should contain **zero business logic** (only UI and data binding)
-- ViewModels implement `INotifyPropertyChanged` (or use `ObservableObject` from CommunityToolkit)
-- Models are pure data classes (DTOs, domain entities)
-- Services contain business logic and external integrations (Bluetooth, storage)
-
-### Dependency Injection
-Use **built-in MAUI DI** via `MauiProgram.cs`:
-
-```csharp
-// Register services
-builder.Services.AddSingleton<IBluetoothService, BluetoothService>();
-builder.Services.AddTransient<MainPageViewModel>();
-
-// Register pages with ViewModels
-builder.Services.AddTransient<MainPage>();
-```
-
-**Service Lifetimes:**
-- `AddSingleton`: Bluetooth, logging, app-wide state managers
-- `AddTransient`: ViewModels, pages, short-lived services
-- `AddScoped`: Not commonly used in MAUI (no request scope)
-
----
-
-## Project Structure
-
-Organize code using the following folder structure:
-
-```
-BuzzahBuddy/
-├── Models/                  # Data models and entities
-│   ├── GloveDevice.cs
-│   ├── TherapySession.cs
-│   └── VibrationPattern.cs
-├── ViewModels/              # MVVM ViewModels
-│   ├── BaseViewModel.cs
-│   ├── MainPageViewModel.cs
-│   ├── GloveControlViewModel.cs
-│   └── SettingsViewModel.cs
-├── Views/                   # XAML Pages and Controls
-│   ├── MainPage.xaml
-│   ├── GloveControlPage.xaml
-│   └── Controls/
-│       └── GloveStatusIndicator.xaml
-├── Services/                # Business logic layer
-│   ├── Bluetooth/
-│   │   ├── IBluetoothService.cs
-│   │   └── BluetoothService.cs
-│   ├── Glove/
-│   │   ├── IGloveControlService.cs
-│   │   └── GloveControlService.cs
-│   └── Storage/
-│       └── IDataStorageService.cs
-├── Resources/               # App resources
-│   ├── Styles/             # Colors.xaml, Styles.xaml
-│   ├── Images/             # Images and icons
-│   └── Fonts/              # Custom fonts
-├── Platforms/               # Platform-specific code
-│   ├── Android/
-│   ├── iOS/
-│   └── MacCatalyst/
-├── Converters/              # XAML value converters
-├── Behaviors/               # XAML behaviors
-└── MauiProgram.cs          # DI and app configuration
-```
-
----
-
-## Accessibility Requirements
-
-BuzzahBuddy **MUST** be highly accessible for users with Parkinson's disease and motor impairments.
-
-### WCAG 2.1 Level AA Compliance
-- **Contrast Ratios**: 4.5:1 for normal text, 3:1 for large text
-- **Focus Indicators**: Clear, visible focus states for keyboard/voice navigation
-- **Text Sizing**: Support dynamic text scaling up to 200%
-
-### Semantic Properties (Required)
-Every interactive element **MUST** have semantic properties:
-
-```xaml
-<Button Text="Start Therapy"
-        SemanticProperties.Description="Starts a new therapy session with connected gloves"
-        SemanticProperties.Hint="Double tap to activate"
-        AutomationId="StartTherapyButton" />
-
-<Label Text="Session Duration"
-       SemanticProperties.HeadingLevel="Level2" />
-```
-
-### Touch Targets
-- **Minimum size**: 44x44 points (iOS HIG, Android Material)
-- **Preferred size**: 48x48 points or larger
-- **Spacing**: 8pt minimum between interactive elements
-
-### Tremor-Friendly UI
-- **No hover-only interactions** (unreliable with tremors)
-- **Avoid small touch targets** and drag gestures
-- **Confirmation dialogs** for destructive actions
-- **Toggle buttons** preferred over sliders for binary choices
-- **Large, high-contrast buttons** with clear labels
-
-### Screen Reader Support
-- Test with **VoiceOver** (iOS) and **TalkBack** (Android)
-- Provide meaningful descriptions, not just visual labels
-- Use `SemanticProperties.Description` for context-rich info
-
----
-
-## Bluetooth Integration (Plugin.BLE)
-
-### Overview
-Use **Plugin.BLE** for cross-platform Bluetooth Low Energy communication with BlueBuzzah gloves.
-
-### Service Architecture
-
-```csharp
-public interface IBluetoothService
-{
-    Task<IEnumerable<IDevice>> ScanForDevicesAsync(TimeSpan timeout);
-    Task<bool> ConnectToDeviceAsync(IDevice device);
-    Task DisconnectAsync();
-    Task<bool> WriteCharacteristicAsync(Guid serviceId, Guid characteristicId, byte[] data);
-    Task<byte[]> ReadCharacteristicAsync(Guid serviceId, Guid characteristicId);
-    IObservable<ConnectionState> ConnectionStateChanged { get; }
-}
-```
-
-### Implementation Patterns
-
-**Device Discovery:**
-```csharp
-var adapter = CrossBluetoothLE.Current.Adapter;
-adapter.ScanTimeout = 10000; // 10 seconds
-
-var devices = new List<IDevice>();
-adapter.DeviceDiscovered += (s, e) => devices.Add(e.Device);
-
-await adapter.StartScanningForDevicesAsync();
-```
-
-**Connection Management:**
-```csharp
-await adapter.ConnectToDeviceAsync(device);
-
-// Subscribe to disconnection events
-device.WhenConnectionLost().Subscribe(args =>
-{
-    // Handle disconnection, attempt reconnect
-});
-```
-
-**Characteristic Operations:**
-```csharp
-var service = await device.GetServiceAsync(SERVICE_UUID);
-var characteristic = await service.GetCharacteristicAsync(CHAR_UUID);
-
-// Write
-await characteristic.WriteAsync(data);
-
-// Read
-var value = await characteristic.ReadAsync();
-
-// Notify
-characteristic.ValueUpdated += (s, e) =>
-{
-    // Handle notifications from glove
-};
-await characteristic.StartUpdatesAsync();
-```
-
-### Error Handling
-Always wrap Bluetooth operations in try-catch:
-
-```csharp
-try
-{
-    await _bluetoothService.ConnectToDeviceAsync(device);
-}
-catch (DeviceConnectionException ex)
-{
-    // User-friendly error message
-    await DisplayAlert("Connection Failed",
-        "Could not connect to BlueBuzzah glove. Please ensure it's powered on.",
-        "OK");
-}
-```
-
-### UUIDs for BlueBuzzah Gloves
-*(Update these based on actual glove firmware specifications)*
-
-```csharp
-public static class BlueBuzzahConstants
-{
-    public static readonly Guid ServiceUuid = Guid.Parse("..."); // Primary service
-    public static readonly Guid VibrationControlCharacteristic = Guid.Parse("...");
-    public static readonly Guid BatteryLevelCharacteristic = Guid.Parse("...");
-    public static readonly Guid DeviceStatusCharacteristic = Guid.Parse("...");
-}
-```
-
----
-
-## Code Standards
-
-### .NET Naming Conventions
-- **PascalCase**: Classes, methods, properties, public fields
-  ```csharp
-  public class GloveControlService
-  public void StartVibration()
-  public string DeviceName { get; set; }
-  ```
-
-- **camelCase**: Private fields, parameters, local variables
-  ```csharp
-  private readonly IBluetoothService _bluetoothService;
-  public void Connect(string deviceId) { }
-  ```
-
-- **Interface Prefix**: Use `I` prefix for interfaces
-  ```csharp
-  public interface IBluetoothService { }
-  ```
-
-### Async/Await Patterns
-- **Always** use `async`/`await` for I/O operations (Bluetooth, file, network)
-- Suffix async methods with `Async`
-  ```csharp
-  public async Task<bool> ConnectToDeviceAsync(IDevice device)
-  ```
-
-- Use `ConfigureAwait(false)` in library code (not in UI ViewModels)
-- Avoid `async void` except for event handlers
-
-### Nullable Reference Types
-- Enable nullable warnings as errors
-- Use `?` for nullable types: `string? deviceName`
-- Use `!` null-forgiving operator sparingly (only when you're certain)
-- Initialize non-nullable properties in constructors
-
-```csharp
-public class GloveDevice
-{
-    public string Name { get; set; } = string.Empty; // Non-nullable
-    public string? Manufacturer { get; set; }         // Nullable
-}
-```
-
-### XML Documentation
-Document all public APIs:
-
-```csharp
-/// <summary>
-/// Connects to the specified BlueBuzzah glove device via Bluetooth.
-/// </summary>
-/// <param name="device">The BLE device to connect to.</param>
-/// <returns>True if connection successful, false otherwise.</returns>
-/// <exception cref="DeviceConnectionException">Thrown when connection fails.</exception>
-public async Task<bool> ConnectToDeviceAsync(IDevice device)
-```
-
-### SOLID Principles
-- **Single Responsibility**: Each class has one reason to change
-- **Open/Closed**: Open for extension, closed for modification (use interfaces)
-- **Liskov Substitution**: Derived classes must be substitutable for base classes
-- **Interface Segregation**: Many specific interfaces > one general interface
-- **Dependency Inversion**: Depend on abstractions, not concretions (use DI)
-
----
-
-## Testing Strategy
-
-### xUnit Framework
-All tests use **xUnit** with the following structure:
-
-```
-BuzzahBuddy.Tests/
-├── ViewModels/
-│   ├── MainPageViewModelTests.cs
-│   └── GloveControlViewModelTests.cs
-├── Services/
-│   ├── BluetoothServiceTests.cs
-│   └── GloveControlServiceTests.cs
-├── Mocks/
-│   ├── MockBluetoothService.cs
-│   └── MockGloveDevice.cs
-└── TestHelpers/
-    └── ViewModelTestBase.cs
-```
-
-### Test Naming Convention
-Use the pattern: `MethodName_Scenario_ExpectedBehavior`
-
-```csharp
-[Fact]
-public async Task ConnectToDeviceAsync_ValidDevice_ReturnsTrue()
-{
-    // Arrange
-    var mockService = new Mock<IBluetoothService>();
-    var device = new MockGloveDevice();
-
-    // Act
-    var result = await mockService.Object.ConnectToDeviceAsync(device);
-
-    // Assert
-    Assert.True(result);
-}
-
-[Fact]
-public async Task ConnectToDeviceAsync_DeviceNotFound_ThrowsException()
-{
-    // ...
-}
-```
-
-### Bluetooth Mocking
-Create mock implementations for testing without hardware:
-
-```csharp
-public class MockBluetoothService : IBluetoothService
-{
-    public bool IsConnected { get; set; }
-    public List<IDevice> DiscoveredDevices { get; set; } = new();
-
-    public Task<bool> ConnectToDeviceAsync(IDevice device)
-    {
-        IsConnected = true;
-        return Task.FromResult(true);
-    }
-
-    // ... other interface implementations
-}
-```
-
-### ViewModel Testing
-Test ViewModels without UI dependencies:
-
-```csharp
-public class MainPageViewModelTests
-{
-    [Fact]
-    public async Task ScanForDevices_FindsDevices_UpdatesDevicesList()
-    {
-        // Arrange
-        var mockBluetooth = new Mock<IBluetoothService>();
-        mockBluetooth.Setup(x => x.ScanForDevicesAsync(It.IsAny<TimeSpan>()))
-            .ReturnsAsync(new List<IDevice> { new MockGloveDevice() });
-
-        var viewModel = new MainPageViewModel(mockBluetooth.Object);
-
-        // Act
-        await viewModel.ScanForDevicesCommand.ExecuteAsync(null);
-
-        // Assert
-        Assert.Single(viewModel.AvailableDevices);
-    }
-}
-```
-
----
-
-## MAUI Best Practices
-
-### XAML vs C# UI
-- **Prefer XAML** for static UI layouts and data binding
-- **Use C#** for dynamic UI generation, complex animations, or platform-specific rendering
-
-### Resource Dictionaries
-Organize styles in `Resources/Styles/`. All color and style values come from the
-**design system** (`docs/design/`) — the authoritative visual spec derived from
-bluebuzzah.com (dark theme only; blue `#35B6F2` = success, never green; dark text on blue fills):
-
-```xaml
-<!-- Colors.xaml (see docs/design/colors.md for the full token set) -->
-<Color x:Key="Primary">#35B6F2</Color>
-<Color x:Key="PageBackground">#0a0a0a</Color>
-<Color x:Key="CardBackground">#05212D</Color>
-
-<!-- Styles.xaml (per-control specs in docs/design/components.md) -->
-<Style x:Key="LargeButton" TargetType="Button">
-    <Setter Property="HeightRequest" Value="56" />
-    <Setter Property="FontSize" Value="18" />
-    <Setter Property="CornerRadius" Value="8" />
-</Style>
-```
-
-### Platform-Specific Code
-Use conditional compilation for platform-specific code:
-
-```csharp
-#if ANDROID
-using Android.App;
-#elif IOS
-using UIKit;
-#endif
-
-public void ConfigurePlatformFeatures()
-{
-#if ANDROID
-    // Android-specific code
-#elif IOS
-    // iOS-specific code
-#endif
-}
-```
-
-Or use platform abstractions in `/Platforms/`:
-```
-Platforms/
-├── Android/
-│   └── BluetoothPermissionService.cs
-└── iOS/
-    └── BluetoothPermissionService.cs
-```
-
-### Shell Navigation
-Use Shell for app navigation:
-
-```xaml
-<Shell>
-    <TabBar>
-        <ShellContent Title="Home" Icon="home.png" ContentTemplate="{DataTemplate views:MainPage}" />
-        <ShellContent Title="Control" Icon="control.png" ContentTemplate="{DataTemplate views:GloveControlPage}" />
-    </TabBar>
-</Shell>
-```
-
-Navigate in code:
-```csharp
-await Shell.Current.GoToAsync("//control");
-await Shell.Current.GoToAsync($"details?id={deviceId}");
-```
-
-### Data Binding
-Use XAML binding for reactive UI:
-
-```xaml
-<Label Text="{Binding DeviceName}" />
-<Button Text="Connect"
-        Command="{Binding ConnectCommand}"
-        IsEnabled="{Binding CanConnect}" />
-```
-
-ViewModel implementation:
-```csharp
-public class GloveControlViewModel : INotifyPropertyChanged
-{
-    private string _deviceName = string.Empty;
-    public string DeviceName
-    {
-        get => _deviceName;
-        set
-        {
-            _deviceName = value;
-            OnPropertyChanged(nameof(DeviceName));
-        }
-    }
-
-    public ICommand ConnectCommand { get; }
-
-    // INotifyPropertyChanged implementation
-}
-```
-
-### Hot Reload
-Use XAML Hot Reload for rapid UI iteration:
-- Modify XAML → Changes appear instantly in emulator/device
-- Works with data bindings, styles, layouts
-- C# changes require rebuild
-
----
-
-## Development Workflow
-
-### Build Commands
-
-**iOS Simulator:**
-```bash
-dotnet build -f net10.0-ios -t:Run
-```
-
-**Android Emulator:**
-```bash
-dotnet build -f net10.0-android -t:Run
-```
-
-MacCatalyst is **not** a build target — `TargetFrameworks` is
-`net10.0;net10.0-android;net10.0-ios`. `Platforms/MacCatalyst/` is an unused
-template stub. A `-f net10.0-maccatalyst` build will fail.
-
-### Debugging
-- Use Visual Studio 2022 (Windows/Mac) or VS Code with C# DevKit
-- Set breakpoints in C# code and XAML code-behind
-- Use **Live Visual Tree** to inspect XAML hierarchy
-- Enable **XAML Hot Reload** in preferences
-
-### Testing
-```bash
-dotnet test
-```
-
-### Package Management
-```bash
-dotnet add package Plugin.BLE
-dotnet restore
-```
-
----
-
-## Best Practices Summary
-
-✅ **DO:**
-- Use MVVM pattern with clear separation of concerns
-- Implement comprehensive accessibility (SemanticProperties, high contrast, large touch targets)
-- Mock Bluetooth services for testing
-- Follow .NET naming conventions
-- Document public APIs with XML comments
-- Use async/await for all I/O operations
-- Enable nullable reference types
-- Test ViewModels independently from Views
-
-❌ **DON'T:**
-- Put business logic in code-behind or Views
-- Use hardcoded strings (use resources/localization)
-- Ignore accessibility requirements
-- Use `async void` (except event handlers)
-- Forget error handling for Bluetooth operations
-- Create small touch targets (<44pt)
-- Skip semantic properties on interactive elements
-
----
-
-## Additional Resources
-
-### .NET MAUI Documentation
-- [Official MAUI Docs](https://learn.microsoft.com/en-us/dotnet/maui/)
-- [MAUI Community Toolkit](https://learn.microsoft.com/en-us/dotnet/communitytoolkit/maui/)
-
-### Bluetooth
-- [Plugin.BLE Documentation](https://github.com/dotnet-bluetooth-le/dotnet-bluetooth-le)
-- [BLE Overview](https://learn.microsoft.com/en-us/xamarin/android/data-cloud/bluetooth)
-
-### Accessibility
-- [WCAG 2.1 Guidelines](https://www.w3.org/WAI/WCAG21/quickref/)
-- [iOS Accessibility (Apple HIG)](https://developer.apple.com/design/human-interface-guidelines/accessibility)
-- [Android Accessibility](https://developer.android.com/guide/topics/ui/accessibility)
-
-### Project Design Docs
-- `docs/design/` — **Design system** (visual source of truth: colors, typography, components, motion)
-- `DESIGN_GUIDE.md` — UX and interaction patterns
-
-### Parkinson's-Specific Design
-- [Designing for Motor Impairments](https://www.w3.org/WAI/perspective-videos/controls/)
-- [Tremor-Friendly UI Patterns](https://webaim.org/articles/motor/)
-
----
-
-## Contact & Support
-
-For questions or contributions related to BuzzahBuddy development, refer to the BlueBuzzah community resources and project repository.
-
-**Version:** 1.1
-**Last Updated:** 2026-07-14
+# BuzzahBuddy
+
+.NET MAUI companion app for the BlueBuzzah vibrotactile therapy gloves (Parkinson's
+disease). Talks BLE to the gloves to run therapy sessions, tune parameters, and
+calibrate motors. Mission: **highly accessible, tremor-friendly UI** — that constraint
+outranks visual preference in every design call.
+
+Sibling repos in the same workspace: `../BlueBuzzah-Firmware` (device firmware — the
+BLE contract lives there), `../BlueBuzzah-Updater`, `../BlueBuzzah-Hardware`.
+
+## Quick Reference
+
+| Task | Command |
+|------|---------|
+| Test | `dotnet test BuzzahBuddy.Tests` |
+| Build Android | `dotnet build BuzzahBuddy/BuzzahBuddy.csproj -f net10.0-android -p:TargetFrameworks=net10.0-android` |
+| Build iOS | `dotnet build BuzzahBuddy/BuzzahBuddy.csproj -f net10.0-ios -p:TargetFrameworks=net10.0-ios` |
+| Compile-check `BluetoothService` | `dotnet build BuzzahBuddy/BuzzahBuddy.csproj -f net10.0 -p:TargetFrameworks=net10.0` |
+| Run on physical iPhone | `./run-ios.sh` (env: `IOS_UDID`, `IOS_PROVISION`, `IOS_CONFIG`) |
+
+`-p:TargetFrameworks=...` is not optional on a single-TFM build: an unpinned restore
+resolves assets for *all* TFMs and fails wherever that workload isn't installed
+(NETSDK1147). See README.md for full environment setup. `.vscode/tasks.json` and
+`launch.json` are entirely commented out — dead, not usable as written.
+
+Targets: `net10.0;net10.0-android;net10.0-ios` (iOS 15+, Android API 24 floor / 36
+target). `Platforms/MacCatalyst|Tizen|Windows/` are template stubs **not built by any
+TFM** — a `-f net10.0-maccatalyst` build fails. The plain `net10.0` TFM exists only so
+the test project can compile app sources; it builds as a Library.
+
+## BLE Protocol — `Services/Bluetooth/`
+
+Nordic UART Service. Constants in `BlueBuzzahConstants.cs`: service
+`6E400001-B5A3-F393-E0A9-E50E24DCCA9E`, TX `...0002...`, RX `...0003...`; device name
+filter `"BlueBuzzah"`; every BLE command terminates in `\x04` (serial/debug uses `\n`);
+`CommandDelayMs = 100` between commands.
+
+Non-obvious invariants:
+
+- **No correlation IDs.** `BluetoothService.ExpectedResponseKeys` maps each command
+  prefix to a key the reply must contain (`INFO→ROLE`, `BATTERY→BATP`, `PING→PONG`);
+  frames missing it are discarded as stale. Adding a command means adding its key, or
+  responses shift and desync.
+- **One command in flight**, serialized by `BluetoothService._responseLock`
+  (`SemaphoreSlim(1,1)`). There is no priority queue.
+- `IDENTIFY:PHONE` is written right after notification subscribe (fresh connect *and*
+  reconnect) — firmware classifies the link within a 1s window and mistypes it otherwise.
+- Adapter `OnDeviceConnected` deliberately does **not** raise app `Connected` state; it
+  fires before GATT discovery, so commands sent then fail. `Connected` is raised only
+  after NUS discovery + `IDENTIFY:PHONE`.
+- `PROFILE_LOAD` **reboots the device**. `GloveControlService.LoadProfileAsync` sets
+  `ExpectingReboot` *before* sending; `ReconnectionService` then waits
+  `RebootInitialDelayMs = 3000` before its first retry (backoff 1→2→4→8→16→30s, 20 max).
+  `UserInitiatedDisconnect` always beats `ExpectingReboot` — never auto-reconnect after
+  a user disconnect.
+- Post-reconnect `INFO`/`SESSION_STATUS` retry on a `{0, 2000, 5000, 10000}ms` ladder:
+  the primary is re-establishing clock sync with the secondary (~5s cold start) and
+  starves early commands.
+- `RxFrameAssembler` reassembles `\x04`-terminated frames across packets and drops
+  firmware-internal primary↔secondary chatter (`InternalMessagePrefixes`, keyed to
+  firmware `INTERNAL_MESSAGES`). `MaxPartialFrameLength = 4096` caps a runaway partial.
+- `PROFILE_CUSTOM` takes at most **8 KEY:VAL pairs** (firmware `MAX_COMMAND_PARAMS=16`
+  tokens, 63-char tokens, 255-char command). Firmware silently drops the overflow and
+  still replies `CUSTOM_LOADED`, so the app validates client-side.
+- Amplitude writes must **widen before narrowing** — firmware rejects a narrowing write
+  against the current window. `GloveControlService.AmplitudeParametersWideningFirst`
+  handles ordering; `ApplyCustomProfileAsync` first floors `AMPMIN`.
+- Hardware generation ("v2"/"v3") comes from advertisement manufacturer data
+  (`ParseHardwareVersion`, firmware `BLE_MFG_DATA_INIT`); null on older firmware.
+
+## Cross-Repo Contract (Firmware)
+
+Maintained **by convention only — no CI check diffs these.** When touching either side,
+check both:
+
+| App | Firmware |
+|-----|----------|
+| `Models/TherapyParameterBounds.cs` | `include/config.h` `PARAM_*` |
+| `GloveControlService` custom-profile limits | `menu_controller.h/.cpp` |
+| parameter validation / amplitude ordering | `profile_manager.cpp` `setParameter` |
+| `RxFrameAssembler.InternalMessagePrefixes` | `menu_controller.cpp` `INTERNAL_MESSAGES` |
+
+A bounds mismatch means the app either sends values firmware rejects or blocks values it
+would accept.
+
+## Domain Models — `Models/`
+
+- `TherapyParameterBounds` — the firmware envelope, plus `EffectiveJitterCap()` which
+  re-implements the firmware's jitter clamp so the UI can warn *before* silent capping.
+- `ResearchDefaults` — the one clinically validated parameter set (Pfeifer et al. 2021).
+  The bounds are an engineering envelope around that single point: **a permitted value is
+  not a validated one.** Say so in UI copy.
+- `SessionClock` — timer-free interpolation between `SESSION_STATUS` anchors. Device time
+  is always authoritative; backward drift ≤ `SnapThresholdSeconds = 3` is absorbed rather
+  than shown as a jump.
+- `TherapyProfile` — 6 presets, IDs 1–6; `CustomProfileId = 4` is the only editable slot.
+- `BatteryReading` — `≤0.0V` is the firmware's "no reading" sentinel, surfaced as
+  unavailable, not 0%. 3.0V=0% / 4.2V=100% linear.
+
+## Testing
+
+`BuzzahBuddy.Tests` is plain `net10.0` with **no `ProjectReference`** — it
+`Compile Include`s app sources (`Models/**`, `Services/Glove/**`, `RxFrameAssembler`,
+`BlueBuzzahConstants`, `IBluetoothService`, `MockBluetoothService`, `DesignColors`,
+`IntMatch`). A ProjectReference would force restore across every app TFM and fail without
+mobile workloads. Adding a testable app source means adding a `Compile Include`.
+
+- `BluetoothService.cs` is **excluded on purpose** — its ctor hits
+  `CrossBluetoothLE.Current`, which throws off-device. Its only coverage is the `net10.0`
+  compile check in CI.
+- `TestHelpers/FakeBluetoothService.cs` is hand-rolled. **Do not add Moq.**
+- `MockParityTests` asserts the mock matches *firmware wire format*, not app contracts —
+  e.g. raw `"PONG:"` pre-parse, because `CommandResponse.Parse` normalizes both forms and
+  would hide a mock drift.
+
+`MockBluetoothService` (dev without hardware) is selected by
+`MauiProgram.UseMockBluetooth`, a hardcoded `false` — hand-edit and rebuild; it is not a
+build flag. It simulates a 4-motor board only (no PentaBuzzer 5-motor coverage).
+
+## UI & Navigation
+
+3 tabs in `AppShell.xaml` — `//control`, `//devices`, `//settings`; pushed routes
+`calibration` and `profilesettings` registered in `AppShell.xaml.cs`. Route strings live
+in `Helpers/Routes.cs`. `ApplyingSettingsPage` is pushed directly (not a Shell route) —
+it's the interstitial while the gloves reboot. `DeviceSettingsViewModel` has **no page of
+its own**: it's a nested child VM (`DeviceListViewModel.Settings`) and the `x:DataType`
+of `ApplyingSettingsPage`.
+
+DI (`MauiProgram.cs`): tab-backing pages/VMs are **singletons** because Shell caches
+TabBar content; `Calibration`/`ProfileSettings` pages and VMs are transient.
+
+### Accessibility (non-negotiable)
+
+WCAG 2.1 AA. Touch targets 48×48 minimum (56×56 preferred), 12–16pt spacing — larger than
+the platform 44pt floor, for tremor. No hover-only interactions, no drag gestures, no
+sliders for binary choices. Every interactive element needs
+`SemanticProperties.Description` and an `AutomationId`. Test with VoiceOver and TalkBack.
+`Helpers/Motion.cs` — `Motion.Reduce` reads the OS reduce-motion preference; honor it.
+Full patterns: `DESIGN_GUIDE.md`.
+
+### Safe area
+
+**Every `ContentPage` must set `SafeAreaEdges="Container"`** (all 6 currently do). .NET 10
+changed the default to `None` on all platforms and Android 16 forces edge-to-edge with no
+opt-out; `DeviceListPage`/`CalibrationPage` anchor primary buttons to the bottom edge for
+easy reach, exactly where the gesture nav bar sits. `SoftInput` is intentionally unused —
+it has no effect on a bare `ScrollView` anyway.
+
+### Colors
+
+Source of truth is `Resources/Styles/Colors.xaml` (dark theme only; `Primary #35B6F2`,
+`PageBackground #0a0a0a`, `CardBackground #05212D`). `Helpers/DesignColors.cs` duplicates
+a subset as compile-time constants and is **kept in sync by hand** — change both.
+`Helpers/ColorResources.cs` bridges them, falling back to the constants when app resources
+aren't available (tests, early startup). Brand rule: **blue signals success, never green.**
+
+## Gotchas
+
+- **`TrimMode=partial` is load-bearing.** Android only sets
+  `JsonSerializerIsReflectionEnabledByDefault=true` under `partial`;
+  `PreferencesStorageService` uses reflection-based `System.Text.Json` with no
+  `JsonSerializerContext`. Switching to `full` makes every save throw at runtime on
+  Android. Add source-generated contexts first.
+- **`XC0023` is suppressed for a reason.** `x:DataType={x:Null}` in item templates is
+  deliberate — the compiled `RelativeSource AncestorType` alternative silently fails to
+  resolve inside `CollectionView` item containers *on device*, producing a dead Connect
+  button. Reproduces only on hardware. (`XC0022`: `Picker.ItemDisplayBinding` can't use
+  compiled bindings; `XC0045`: intentional parent-VM `RelativeSource`.)
+- `MauiProgram.StripNativeInputChrome` (Android) clears `Entry`/`Editor`/`Picker` platform
+  backgrounds — `AppCompatEditText`'s Material underline reads as a second border inside
+  the app's `InputBorder` wrapper.
+- `tmp/` is gitignored scratch. `tmp/BLE_PROTOCOL.md` is a stale snapshot of the firmware
+  spec — useful for diffing, never citable as canonical.
+- **There is no `docs/` tree and none should be added.** The design system docs were
+  deleted deliberately (`ae481f3`); their surviving rules — contrast matrix, forbidden
+  pairs, motion spec — now live in `DESIGN_GUIDE.md`, and token values live in
+  `Colors.xaml`/`Styles.xaml`. Don't reintroduce a parallel doc tree for either.
+
+## CI — `.github/workflows/`
+
+`build.yml` (PR, push to `main` under `BuzzahBuddy*` paths): test on ubuntu without any
+workload, Android build + the `net10.0` compile check, iOS build on macOS.
+
+`release.yml` (on GitHub Release **published** only): tag must be `vX[.Y[.Z]]` — anything
+else (`v1.0.0-beta1`) is rejected by App Store Connect at upload, so the job fails fast.
+Build number = `github.run_number + BUILD_OFFSET` (currently `2`); **raise `BUILD_OFFSET`
+after any manual out-of-band store upload**, since both stores permanently reject a build
+number ≤ one already accepted. Signs and ships to TestFlight and Play internal.
