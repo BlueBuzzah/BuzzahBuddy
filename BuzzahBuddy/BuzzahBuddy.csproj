@@ -70,6 +70,23 @@
 		<TrimMode>partial</TrimMode>
 	</PropertyGroup>
 
+	<!-- Release iOS crashes on launch without this. MAUI's ApplicationHandler.MapAppTheme
+	     runs on every startup and reads UIApplication.ConnectedScenes, which returns
+	     NSSet<UIScene> via ObjCRuntime.Runtime.ConstructNSObject -> ConstructorInfo.Invoke.
+	     Since .NET 8, MethodBase.Invoke prefers an emitted invoke stub, and the emit path
+	     is still selected under Mono full AOT, so the stub needs a JIT that isn't
+	     there, and startup dies with:
+	       ExecutionEngineException: Attempting to JIT compile method
+	       '(wrapper dynamic-method) InvokeStub_NSSet`1..ctor' while running in aot-only mode
+	     The switch forces the interpreted (non-emit) invoke path instead. Android is
+	     unaffected because its SDK already sets this itself (AndroidAvoidEmitForPerformance
+	     in Microsoft.Android.Sdk.RuntimeConfig.targets); the iOS SDK does not, which is the
+	     entire asymmetry. Debug hides it, because Debug is not AOT and the JIT is there.
+	     Do not scope this to Android too: that would collide with the Android SDK's item. -->
+	<ItemGroup Condition="'$(Configuration)' == 'Release' and $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">
+		<RuntimeHostConfigurationOption Include="Switch.System.Reflection.ForceInterpretedInvoke" Value="true" Trim="true" />
+	</ItemGroup>
+
 	<ItemGroup>
 		<!-- App Icon -->
 		<MauiIcon Include="Resources\AppIcon\appicon.svg" />
