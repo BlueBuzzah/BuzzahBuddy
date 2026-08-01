@@ -12,11 +12,10 @@ public class PreferencesStorageService : IDataStorageService
     private const string LastProfileKey = "last_profile_id";
     private const string LastDeviceKey = "last_device";
 
-    private readonly JsonSerializerOptions _jsonOptions = new()
-    {
-        WriteIndented = true,
-        PropertyNameCaseInsensitive = true
-    };
+    // Source-generated, not reflection-based: see StorageJsonContext for why this is
+    // mandatory rather than an optimization (iOS Release AOT cannot JIT the invoke
+    // wrappers STJ's reflection accessor needs).
+    private static readonly StorageJsonContext Json = StorageJsonContext.Default;
 
     public async Task SaveSessionAsync(TherapySession session)
     {
@@ -37,7 +36,7 @@ public class PreferencesStorageService : IDataStorageService
             sessions = sessions.OrderByDescending(s => s.StartTime).Take(100).ToList();
         }
 
-        var json = JsonSerializer.Serialize(sessions, _jsonOptions);
+        var json = JsonSerializer.Serialize(sessions, Json.ListTherapySession);
         Preferences.Default.Set(SessionsKey, json);
 
         await Task.CompletedTask;
@@ -54,7 +53,7 @@ public class PreferencesStorageService : IDataStorageService
 
         try
         {
-            var sessions = JsonSerializer.Deserialize<List<TherapySession>>(json, _jsonOptions)
+            var sessions = JsonSerializer.Deserialize(json, Json.ListTherapySession)
                 ?? new List<TherapySession>();
 
             var ordered = sessions.OrderByDescending(s => s.StartTime);
@@ -87,7 +86,7 @@ public class PreferencesStorageService : IDataStorageService
         if (toRemove != null)
         {
             sessions.Remove(toRemove);
-            var json = JsonSerializer.Serialize(sessions, _jsonOptions);
+            var json = JsonSerializer.Serialize(sessions, Json.ListTherapySession);
             Preferences.Default.Set(SessionsKey, json);
         }
     }
@@ -107,7 +106,7 @@ public class PreferencesStorageService : IDataStorageService
 
     public async Task SaveLastDeviceAsync(GloveDevice device)
     {
-        var json = JsonSerializer.Serialize(device, _jsonOptions);
+        var json = JsonSerializer.Serialize(device, Json.GloveDevice);
         Preferences.Default.Set(LastDeviceKey, json);
         await Task.CompletedTask;
     }
@@ -124,7 +123,7 @@ public class PreferencesStorageService : IDataStorageService
         try
         {
             return await Task.FromResult(
-                JsonSerializer.Deserialize<GloveDevice>(json, _jsonOptions));
+                JsonSerializer.Deserialize(json, Json.GloveDevice));
         }
         catch (JsonException ex)
         {
