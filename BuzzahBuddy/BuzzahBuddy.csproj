@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<!-- Only targeting iOS and Android (net10.0 added because a ProjectReference from a plain-TFM
@@ -48,6 +48,25 @@
 		     "compiled" RelativeSource AncestorType alternative silently fails to resolve
 		     in CollectionView item containers on device (dead Connect button) -->
 		<NoWarn>$(NoWarn);XC0022;XC0045;XC0023</NoWarn>
+
+		<!-- Dynamic code does not exist on iOS Release: it is full AOT ("aot-only mode"),
+		     so anything needing runtime codegen throws ExecutionEngineException on device
+		     while working fine in Debug and on the simulator's JIT. Two shipped builds
+		     (0.1.2 launch crash, 0.1.3 "Connection Error" on BLE connect) were exactly this.
+		     EnableAotAnalyzer flags calls to [RequiresDynamicCode] APIs as IL3050, and
+		     WarningsAsErrors turns that into a build failure, so the class of bug cannot
+		     reach a release again.
+
+		     NOT IsAotCompatible=true: that also sets IsTrimmable=true, which would opt this
+		     assembly into full trimming despite TrimMode=partial and risk stripping
+		     XAML-referenced types. This is analyzer-only and changes no build output.
+
+		     Scope note: this covers OUR calls into annotated APIs. It cannot see dynamic
+		     code inside MAUI/Plugin.BLE internals (the 0.1.2 launch crash lived there), so
+		     it is a guardrail, not a proof of AOT safety. Launching a Release build is
+		     still the only way to catch those. -->
+		<EnableAotAnalyzer>true</EnableAotAnalyzer>
+		<WarningsAsErrors>$(WarningsAsErrors);IL3050</WarningsAsErrors>
 	</PropertyGroup>
 
 	<!-- Android Debug Configuration -->
