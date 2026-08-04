@@ -168,7 +168,7 @@ public class SessionStatus
         // IDLE, so leaving it untouched here let a dropped or mismatched frame read
         // as "session over": the gloves kept running while the app flipped back to
         // the Start button mid-session. Callers must treat UNKNOWN as "no reading",
-        // not as a state — see GloveControlViewModel.UpdateSessionStatusAsync.
+        // not as a state, and avoid overwriting live session UI/state with it.
         var statusStr = response.GetString("SESSION_STATUS");
         status.Status = statusStr != null &&
                         Enum.TryParse<SessionState>(statusStr, ignoreCase: true, out var state)
