@@ -46,6 +46,26 @@ public class SessionStatusTests
         Assert.False(status.IsIdle);
     }
 
+    [Theory]
+    // Reply that carried no SESSION_STATUS key at all: dropped, truncated, or
+    // matched against the wrong frame (the protocol has no correlation IDs).
+    [InlineData("ELAPSED:10\nTOTAL:100\nPROGRESS:10\n\x04")]
+    [InlineData("\x04")]
+    // A foreign reply that happens to contain a STATUS key - INFO's shape. The
+    // substring must not satisfy the SESSION_STATUS lookup.
+    [InlineData("ROLE:PRIMARY\nHW:v2\nSTATUS:RUNNING\n\x04")]
+    public void FromCommandResponse_MissingStatusKey_ParsesToUnknown_NotIdle(string wire)
+    {
+        // Regression: Status defaulted to IDLE and the parse left it untouched when
+        // the key was absent, so one bad frame read as "session over" - the app
+        // dropped back to the Start button mid-session while the gloves kept running.
+        var response = CommandResponse.Parse(wire);
+        var status = SessionStatus.FromCommandResponse(response);
+        Assert.Equal(SessionState.UNKNOWN, status.Status);
+        Assert.False(status.IsIdle);
+        Assert.False(status.IsActive);
+    }
+
     [Fact]
     public void FromCommandResponse_LowercaseWireString_ParsesCaseInsensitively()
     {

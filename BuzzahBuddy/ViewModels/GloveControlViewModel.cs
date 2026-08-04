@@ -435,7 +435,21 @@ public partial class GloveControlViewModel : BaseViewModel
         try
         {
             var previousProgress = SessionStatus.Progress;
-            SessionStatus = await _gloveControlService.GetSessionStatusAsync();
+            var polled = await _gloveControlService.GetSessionStatusAsync();
+
+            // UNKNOWN means the reply carried no readable SESSION_STATUS (dropped,
+            // truncated, or matched against the wrong frame — the protocol has no
+            // correlation IDs). That is a failed poll, not a session end: assigning
+            // it would clear IsSessionActive and bounce the UI back to the Start
+            // button while the gloves are still running. Count it like any other
+            // poll failure so the existing warn/reconnect ladder still applies.
+            if (polled.Status == SessionState.UNKNOWN)
+            {
+                await HandlePollFailureAsync();
+                return;
+            }
+
+            SessionStatus = polled;
 
             // Detect unexpected session end (e.g., secondary glove disconnected, error,
             // critical battery). State-aware: LOW_BATTERY keeps the session running and
@@ -501,30 +515,41 @@ public partial class GloveControlViewModel : BaseViewModel
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Status update error: {ex.Message}");
-            _consecutivePollFailures++;
+            await HandlePollFailureAsync();
+        }
+    }
 
-            if (_consecutivePollFailures >= PollFailureReconnectThreshold)
+    /// <summary>
+    /// Escalation ladder for a status poll that produced no usable reading — either
+    /// it threw, or it returned UNKNOWN (a reply with no readable SESSION_STATUS).
+    /// Both mean the same thing to the user, so both must escalate identically;
+    /// keeping them in one place stops the two paths from drifting apart.
+    /// </summary>
+    private async Task HandlePollFailureAsync()
+    {
+        _consecutivePollFailures++;
+
+        if (_consecutivePollFailures >= PollFailureReconnectThreshold)
+        {
+            // During a session the health-check ping is suspended (see
+            // CheckConnectionHealthAsync), so the status poll owns reconnect
+            // recovery. 3 failed 5s polls (~15s) forces a reconnect — faster than
+            // the health check's 2x30s — and reset so it fires once per episode.
+            SessionWarningMessage = null;
+            IsConnectionHealthy = false;
+            _consecutivePollFailures = 0;
+            try
             {
-                // During a session the health-check ping is suspended (see
-                // CheckConnectionHealthAsync), so the status poll owns reconnect
-                // recovery. 3 failed 5s polls (~15s) forces a reconnect — faster than
-                // the health check's 2x30s — and reset so it fires once per episode.
-                SessionWarningMessage = null;
-                IsConnectionHealthy = false;
-                _consecutivePollFailures = 0;
-                try
-                {
-                    await _bluetoothService.DisconnectForReconnectAsync();
-                }
-                catch (Exception disconnectEx)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Status-poll reconnect failed: {disconnectEx.Message}");
-                }
+                await _bluetoothService.DisconnectForReconnectAsync();
             }
-            else if (_consecutivePollFailures >= PollFailureWarningThreshold)
+            catch (Exception disconnectEx)
             {
-                SessionWarningMessage = "Session data may be outdated";
+                System.Diagnostics.Debug.WriteLine($"Status-poll reconnect failed: {disconnectEx.Message}");
             }
+        }
+        else if (_consecutivePollFailures >= PollFailureWarningThreshold)
+        {
+            SessionWarningMessage = "Session data may be outdated";
         }
     }
 
