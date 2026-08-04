@@ -653,8 +653,17 @@ public class GloveControlService : IGloveControlService
         response.ThrowIfError();
         var status = SessionStatus.FromCommandResponse(response);
 
-        // Update cached status and notify observers
-        UpdateSessionStatus(status);
+        // UNKNOWN means the reply carried no readable SESSION_STATUS, so it is the
+        // absence of a reading rather than a state. Neither cache nor publish it:
+        // the cache feeds Pause/Resume's elapsed time, and observers assign whatever
+        // this event carries straight onto the session UI, which would end the
+        // session on screen while the gloves keep running. The caller still gets it
+        // back and counts it as a failed poll.
+        if (status.Status != SessionState.UNKNOWN)
+        {
+            // Update cached status and notify observers
+            UpdateSessionStatus(status);
+        }
 
         return status;
     }

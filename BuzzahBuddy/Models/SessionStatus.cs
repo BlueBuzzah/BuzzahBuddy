@@ -163,13 +163,17 @@ public class SessionStatus
 
         // Parse status. Unknown wire strings map to UNKNOWN, never IDLE, so an
         // unrecognized firmware state cannot masquerade as a legitimate session end.
+        //
+        // A *missing* key maps to UNKNOWN for the same reason. Status defaults to
+        // IDLE, so leaving it untouched here let a dropped or mismatched frame read
+        // as "session over": the gloves kept running while the app flipped back to
+        // the Start button mid-session. Callers must treat UNKNOWN as "no reading",
+        // not as a state — see GloveControlViewModel.UpdateSessionStatusAsync.
         var statusStr = response.GetString("SESSION_STATUS");
-        if (statusStr != null)
-        {
-            status.Status = Enum.TryParse<SessionState>(statusStr, ignoreCase: true, out var state)
-                ? state
-                : SessionState.UNKNOWN;
-        }
+        status.Status = statusStr != null &&
+                        Enum.TryParse<SessionState>(statusStr, ignoreCase: true, out var state)
+            ? state
+            : SessionState.UNKNOWN;
 
         // Per BLE protocol v2.0.0: Keys are ELAPSED and TOTAL (not ELAPSED_TIME/TOTAL_TIME)
         // Parse elapsed time
