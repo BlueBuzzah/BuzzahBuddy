@@ -290,12 +290,7 @@ public class BluetoothService : IBluetoothService
 
             try
             {
-                var response = await pending.Reply.Task.WaitAsync(linkedCts.Token);
-
-                // Add recommended delay between commands (100ms per spec)
-                await Task.Delay(BlueBuzzahConstants.CommandDelayMs, cancellationToken);
-
-                return response;
+                return await pending.Reply.Task.WaitAsync(linkedCts.Token);
             }
             catch (OperationCanceledException)
             {

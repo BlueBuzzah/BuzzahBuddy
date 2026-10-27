@@ -45,12 +45,6 @@ public static class BlueBuzzahConstants
     public const char CommandTerminator = '\x04';
 
     /// <summary>
-    /// Recommended delay between commands in milliseconds.
-    /// Per spec: wait 100ms for reliable processing.
-    /// </summary>
-    public const int CommandDelayMs = 100;
-
-    /// <summary>
     /// Battery voltage threshold for good status (Primary blue).
     /// </summary>
     public const double BatteryGoodThreshold = 3.6;

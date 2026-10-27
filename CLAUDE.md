@@ -32,8 +32,9 @@ the test project can compile app sources; it builds as a Library.
 
 Nordic UART Service. Constants in `BlueBuzzahConstants.cs`: service
 `6E400001-B5A3-F393-E0A9-E50E24DCCA9E`, TX `...0002...`, RX `...0003...`; device name
-filter `"BlueBuzzah"`; every BLE command terminates in `\x04` (serial/debug uses `\n`);
-`CommandDelayMs = 100` between commands.
+filter `"BlueBuzzah"`; every BLE command terminates in `\x04` (serial/debug uses `\n`).
+There is no inter-command delay: the next command goes out as soon as the previous
+reply arrives (the reply proves the firmware is ready; it queues 4 deep).
 
 Non-obvious invariants:
 
