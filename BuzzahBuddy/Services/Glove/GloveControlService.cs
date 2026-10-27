@@ -614,8 +614,11 @@ public class GloveControlService : IGloveControlService
 
     /// <summary>
     /// How long SESSION_START keeps retrying "Sync not ready" before surfacing it.
+    /// Outlasts the firmware's 10 s fallback (SYNC_START_FALLBACK_MS), after which
+    /// the primary accepts the start with degraded timing, so a link that never
+    /// converges still starts instead of showing an error.
     /// </summary>
-    internal TimeSpan SyncNotReadyRetryWindow { get; set; } = TimeSpan.FromSeconds(5);
+    internal TimeSpan SyncNotReadyRetryWindow { get; set; } = TimeSpan.FromSeconds(12);
 
     public async Task StartSessionAsync()
     {
