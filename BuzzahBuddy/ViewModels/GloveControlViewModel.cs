@@ -904,8 +904,10 @@ public partial class GloveControlViewModel : BaseViewModel
                 IsConnectionHealthy = false;
             }
 
-            // Session teardown on disconnect
-            if (!isConnected && IsSessionActive)
+            // Session teardown on disconnect. A record still kept from an earlier
+            // reconnect whose outcome never arrived (UI already idle) counts too, so a
+            // later disconnect can't orphan it.
+            if (!isConnected && (IsSessionActive || _sessionDisconnectedAt != null))
             {
                 StopStatusPolling();
                 SessionStatus = SessionStatus.CreateIdle();
@@ -916,12 +918,16 @@ public partial class GloveControlViewModel : BaseViewModel
                 // likely still running the session — including after the poll's own
                 // forced reconnect — so don't split the history: keep the record until
                 // the reconnect succeeds or gives up. Otherwise save it as incomplete.
-                if (_currentSession != null)
+                // Either way the earliest drop is when tracking was lost.
+                var droppedAt = _sessionDisconnectedAt ?? DateTime.Now;
+                if (_currentSession != null && _reconnectionService.IsReconnecting)
                 {
-                    if (_reconnectionService.IsReconnecting)
-                        _sessionDisconnectedAt = DateTime.Now;
-                    else
-                        SaveInterruptedSession(DateTime.Now);
+                    _sessionDisconnectedAt = droppedAt;
+                }
+                else
+                {
+                    _sessionDisconnectedAt = null;
+                    SaveInterruptedSession(droppedAt);
                 }
             }
 
