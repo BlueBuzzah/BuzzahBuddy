@@ -22,6 +22,10 @@ public partial class GloveControlViewModel : BaseViewModel
     private readonly IDataStorageService _storageService;
     private readonly IReconnectionService _reconnectionService;
     private TherapySession? _currentSession;
+    // Set when the link dropped mid-session and an auto-reconnect is running: the
+    // gloves keep the session going without the phone, so _currentSession is kept
+    // until the reconnect reports back (see ResolveSessionAfterReconnect).
+    private DateTime? _sessionDisconnectedAt;
     private CancellationTokenSource? _statusPollCts;
     private System.Timers.Timer? _healthCheckTimer;
     private readonly SessionClock _sessionClock = new();
@@ -190,6 +194,7 @@ public partial class GloveControlViewModel : BaseViewModel
 
         // Subscribe to centralized connection state changes
         ConnectionInfo.PropertyChanged += OnConnectionInfoPropertyChanged;
+        _reconnectionService.ReconnectionStateChanged += OnReconnectionStateChanged;
 
         // Pause/resume BLE polling with the app window lifecycle
         _appLifecycle = appLifecycleService;
@@ -261,6 +266,14 @@ public partial class GloveControlViewModel : BaseViewModel
 
                 // Start session
                 await _gloveControlService.StartSessionAsync();
+
+                // A record kept across a reconnect whose outcome never arrived (the
+                // post-connect status read failed) is superseded by this new session.
+                if (_sessionDisconnectedAt is { } disconnectedAt)
+                {
+                    _sessionDisconnectedAt = null;
+                    SaveInterruptedSession(disconnectedAt);
+                }
 
                 // Create new therapy session
                 _currentSession = new TherapySession
@@ -478,6 +491,7 @@ public partial class GloveControlViewModel : BaseViewModel
             }
 
             SessionStatus = polled;
+            ResolveSessionAfterReconnect(polled);
 
             // Detect unexpected session end (e.g., secondary glove disconnected, error,
             // critical battery). State-aware: LOW_BATTERY keeps the session running and
@@ -816,6 +830,7 @@ public partial class GloveControlViewModel : BaseViewModel
                 return;
 
             SessionStatus = status;
+            ResolveSessionAfterReconnect(status);
             UpdateSessionState();
 
             // A session we didn't start (e.g. the gloves auto-started one before the
@@ -896,13 +911,17 @@ public partial class GloveControlViewModel : BaseViewModel
                 SessionStatus = SessionStatus.CreateIdle();
                 UpdateSessionState();
 
-                // Persist incomplete session
+                // ReconnectionService has already decided (synchronously, on this same
+                // state change) whether to reconnect. If it is, the gloves are most
+                // likely still running the session — including after the poll's own
+                // forced reconnect — so don't split the history: keep the record until
+                // the reconnect succeeds or gives up. Otherwise save it as incomplete.
                 if (_currentSession != null)
                 {
-                    _currentSession.EndTime = DateTime.Now;
-                    _currentSession.IsCompleted = false;
-                    _storageService.SaveSessionAsync(_currentSession).SafeFireAndForget("[GLOVECONTROL]");
-                    _currentSession = null;
+                    if (_reconnectionService.IsReconnecting)
+                        _sessionDisconnectedAt = DateTime.Now;
+                    else
+                        SaveInterruptedSession(DateTime.Now);
                 }
             }
 
@@ -919,6 +938,49 @@ public partial class GloveControlViewModel : BaseViewModel
                 SemanticScreenReader.Announce(announcement);
             }
         });
+    }
+
+    /// <summary>
+    /// The first session status after a mid-session reconnect settles the kept record:
+    /// still active means the session carried on and tracking continues; otherwise it
+    /// ended while the phone was away and is saved as incomplete.
+    /// </summary>
+    private void ResolveSessionAfterReconnect(SessionStatus status)
+    {
+        if (_sessionDisconnectedAt is not { } disconnectedAt)
+            return;
+
+        _sessionDisconnectedAt = null;
+        if (!status.IsActive)
+            SaveInterruptedSession(disconnectedAt);
+    }
+
+    private void OnReconnectionStateChanged(object? sender, ReconnectionStateEventArgs e)
+    {
+        if (e.State is not (ReconnectionState.Failed or ReconnectionState.Cancelled))
+            return;
+
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            // The reconnect gave up (or the user moved on): the session can no longer
+            // be followed, so record it as ending when the link dropped.
+            if (_sessionDisconnectedAt is { } disconnectedAt)
+            {
+                _sessionDisconnectedAt = null;
+                SaveInterruptedSession(disconnectedAt);
+            }
+        });
+    }
+
+    private void SaveInterruptedSession(DateTime endTime)
+    {
+        if (_currentSession == null)
+            return;
+
+        _currentSession.EndTime = endTime;
+        _currentSession.IsCompleted = false;
+        _storageService.SaveSessionAsync(_currentSession).SafeFireAndForget("[GLOVECONTROL]");
+        _currentSession = null;
     }
 
     private async Task HandleSessionCompletionAsync()
@@ -1048,6 +1110,7 @@ public partial class GloveControlViewModel : BaseViewModel
             _gloveControlService.DeviceInfoReceived -= OnDeviceInfoReceived;
             _gloveControlService.SessionStateChanged -= OnServiceSessionStateChanged;
             ConnectionInfo.PropertyChanged -= OnConnectionInfoPropertyChanged;
+            _reconnectionService.ReconnectionStateChanged -= OnReconnectionStateChanged;
             _appLifecycle.Stopped -= OnAppStopped;
             _appLifecycle.Resumed -= OnAppResumed;
             StopStatusPolling();
