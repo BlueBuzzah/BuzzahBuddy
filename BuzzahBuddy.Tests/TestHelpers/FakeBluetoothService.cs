@@ -27,6 +27,12 @@ public class FakeBluetoothService : IBluetoothService
 
     public List<string> SentCommands { get; } = new();
 
+    /// <summary>
+    /// When set, every reply waits for this to complete - lets a test hold a command
+    /// in flight while it makes overlapping calls.
+    /// </summary>
+    public TaskCompletionSource? HoldReplies { get; set; }
+
     public ConnectionState CurrentConnectionState { get; set; } = ConnectionState.Connected;
     public GloveDevice? ConnectedDevice { get; set; } = new() { Id = "FAKE-1", Name = "BlueBuzzah" };
     public string? LastConnectedDeviceId => ConnectedDevice?.Id;
@@ -34,13 +40,29 @@ public class FakeBluetoothService : IBluetoothService
 
 #pragma warning disable CS0067 // Events required by IBluetoothService but not raised by this fake.
     public event EventHandler<GloveDevice>? DeviceDiscovered;
-    public event EventHandler<ConnectionState>? ConnectionStateChanged;
     public event EventHandler<CommandResponse>? ResponseReceived;
 #pragma warning restore CS0067
+    public event EventHandler<ConnectionState>? ConnectionStateChanged;
+
+    /// <summary>Sets the state and raises ConnectionStateChanged, as the transport does.</summary>
+    public void RaiseConnectionStateChanged(ConnectionState state)
+    {
+        CurrentConnectionState = state;
+        ConnectionStateChanged?.Invoke(this, state);
+    }
 
     public Task<CommandResponse> SendCommandAsync(string command, int timeoutMs = 5000, CancellationToken cancellationToken = default)
     {
         SentCommands.Add(command);
+        if (HoldReplies is { } hold)
+        {
+            return hold.Task.ContinueWith(_ => Reply(command), TaskScheduler.Default).Unwrap();
+        }
+        return Reply(command);
+    }
+
+    private Task<CommandResponse> Reply(string command)
+    {
 
         // Longest prefix wins, so "PROFILE_LOAD" beats "PROFILE" regardless of insertion order.
         var throwKey = ThrowOnCommand.Keys
@@ -70,7 +92,13 @@ public class FakeBluetoothService : IBluetoothService
     public Task<bool> ConnectToDeviceAsync(GloveDevice device, CancellationToken cancellationToken = default) => Task.FromResult(true);
     public Task DisconnectAsync() => Task.CompletedTask;
     public Task<bool> ConnectToLastKnownDeviceAsync(CancellationToken ct = default) => Task.FromResult(true);
-    public Task DisconnectForReconnectAsync() => Task.CompletedTask;
+    public int DisconnectForReconnectCalls { get; private set; }
+
+    public Task DisconnectForReconnectAsync()
+    {
+        DisconnectForReconnectCalls++;
+        return Task.CompletedTask;
+    }
     public Task<ScanResult> ScanForDevicesWithResultAsync(int timeoutMs = 10000, CancellationToken ct = default)
         => Task.FromResult(new ScanResult(ScanOutcome.NoDevicesFound, Enumerable.Empty<GloveDevice>()));
     public Task SubscribeToNotificationsAsync() => Task.CompletedTask;

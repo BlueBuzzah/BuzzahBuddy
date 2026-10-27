@@ -22,7 +22,11 @@ public partial class GloveControlViewModel : BaseViewModel
     private readonly IDataStorageService _storageService;
     private readonly IReconnectionService _reconnectionService;
     private TherapySession? _currentSession;
-    private System.Timers.Timer? _statusPollTimer;
+    // Set when the link dropped mid-session and an auto-reconnect is running: the
+    // gloves keep the session going without the phone, so _currentSession is kept
+    // until the reconnect reports back (see ResolveSessionAfterReconnect).
+    private DateTime? _sessionDisconnectedAt;
+    private CancellationTokenSource? _statusPollCts;
     private System.Timers.Timer? _healthCheckTimer;
     private readonly SessionClock _sessionClock = new();
     private IDispatcherTimer? _displayTickTimer;
@@ -36,6 +40,11 @@ public partial class GloveControlViewModel : BaseViewModel
     private const int PollFailureWarningThreshold = 2;
     private const int PollFailureReconnectThreshold = 3;
     private const string ConnectionUnstableWarning = "Connection unstable — trying to recover…";
+
+    // Battery arrives with every INFO reply, including the service's post-connect
+    // one; a tab visit only asks for a new INFO when the service's is this stale.
+    private static readonly TimeSpan BatteryReadingFreshness = TimeSpan.FromSeconds(30);
+    private bool _warnOnNextBatteryReading;
 
     /// <summary>Preset profiles, used to map the device's profile id to a display profile.</summary>
     private readonly List<TherapyProfile> _profiles = TherapyProfile.GetPresetProfiles();
@@ -173,8 +182,10 @@ public partial class GloveControlViewModel : BaseViewModel
         // Subscribe to connection events
         _bluetoothService.ConnectionStateChanged += OnConnectionStateChanged;
 
-        // The service fetches INFO once per (re)connect; mirror its profile here
+        // The service fetches INFO once per (re)connect; mirror its profile and
+        // battery readings here
         _gloveControlService.DeviceProfileChanged += OnDeviceProfileChanged;
+        _gloveControlService.DeviceInfoReceived += OnDeviceInfoReceived;
 
         // Session state from the service (fires on command success and every status
         // poll) — the UI must not depend on the first SESSION_STATUS poll succeeding
@@ -182,6 +193,7 @@ public partial class GloveControlViewModel : BaseViewModel
 
         // Subscribe to centralized connection state changes
         ConnectionInfo.PropertyChanged += OnConnectionInfoPropertyChanged;
+        _reconnectionService.ReconnectionStateChanged += OnReconnectionStateChanged;
 
         // Pause/resume BLE polling with the app window lifecycle
         _appLifecycle = appLifecycleService;
@@ -204,12 +216,13 @@ public partial class GloveControlViewModel : BaseViewModel
             LoadSelectedProfileAsync().SafeFireAndForget("[GLOVECONTROL]");
         }
 
-        // The connect happens on the Devices page; refresh here so this page always
-        // shows battery values when visited, even if the on-connect refresh raced
-        // the connection-state update. No low-battery alert on mere tab visits.
+        // Refresh on tab visits so the battery values don't go stale. INFO carries
+        // both batteries (applied by OnDeviceInfoReceived); the service serves a
+        // recent reading or joins the post-connect one in flight instead of sending
+        // another. No low-battery alert on mere tab visits.
         if (ConnectionInfo.IsConnected)
         {
-            RefreshBatteryAsync(warnIfLow: false).SafeFireAndForget("[GLOVECONTROL]");
+            _gloveControlService.GetDeviceInfoAsync(BatteryReadingFreshness).SafeFireAndForget("[GLOVECONTROL]");
         }
     }
 
@@ -251,8 +264,21 @@ public partial class GloveControlViewModel : BaseViewModel
                     return;
                 }
 
+                // A record kept across a reconnect whose outcome never arrived (the
+                // post-connect status read failed) is superseded by this new session.
+                // Read it before awaiting Start: Start's synthesized RUNNING status is
+                // delivered on the main thread during the await, and would settle the
+                // old record as "still active" and clear the marker first.
+                var interruptedAt = _sessionDisconnectedAt;
+
                 // Start session
                 await _gloveControlService.StartSessionAsync();
+
+                if (interruptedAt is { } disconnectedAt)
+                {
+                    _sessionDisconnectedAt = null;
+                    SaveInterruptedSession(disconnectedAt);
+                }
 
                 // Create new therapy session
                 _currentSession = new TherapySession
@@ -379,26 +405,44 @@ public partial class GloveControlViewModel : BaseViewModel
         try
         {
             var (primaryVoltage, secondaryVoltage) = await _gloveControlService.GetBatteryAsync();
-
-            BatteryPrimaryVoltage = primaryVoltage;
-            BatterySecondaryVoltage = secondaryVoltage;
-
-            // Gray = no reading; colored = real voltage thresholds
-            BatteryPrimaryColor = primaryVoltage is { } pv
-                ? BatteryReading.GetBatteryColorFromVoltage(pv) : Colors.Gray;
-            BatterySecondaryColor = secondaryVoltage is { } sv
-                ? BatteryReading.GetBatteryColorFromVoltage(sv) : Colors.Gray;
-
-            // Check for low battery warnings (on connect, not on every tab visit)
-            if (warnIfLow)
-            {
-                await CheckBatteryWarningAsync();
-            }
+            await ApplyBatteryReadingAsync(primaryVoltage, secondaryVoltage, warnIfLow);
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Battery refresh error: {ex.Message}");
         }
+    }
+
+    private async Task ApplyBatteryReadingAsync(double? primaryVoltage, double? secondaryVoltage, bool warnIfLow)
+    {
+        BatteryPrimaryVoltage = primaryVoltage;
+        BatterySecondaryVoltage = secondaryVoltage;
+        BatteryPrimaryColor = BatteryReading.GetBatteryColor(primaryVoltage);
+        BatterySecondaryColor = BatteryReading.GetBatteryColor(secondaryVoltage);
+
+        // Check for low battery warnings (on connect, not on every tab visit)
+        if (warnIfLow)
+        {
+            await CheckBatteryWarningAsync();
+        }
+    }
+
+    /// <summary>
+    /// INFO carries both batteries. The first reading after each connect is the one
+    /// that may raise the low-battery alert, matching the old on-connect BATTERY fetch.
+    /// </summary>
+    private void OnDeviceInfoReceived(object? sender, GloveDeviceInfo info)
+    {
+        // Read synchronously, on the raising thread: only the connect reading may
+        // alert. If every post-connect INFO failed, the next one is a tab visit's.
+        var connectReading = _gloveControlService.IsPostConnectSyncRunning;
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            var warnIfLow = _warnOnNextBatteryReading && connectReading;
+            _warnOnNextBatteryReading = false;
+            ApplyBatteryReadingAsync(info.BatteryPrimaryVoltage, info.BatterySecondaryVoltage, warnIfLow)
+                .SafeFireAndForget("[GLOVECONTROL]");
+        });
     }
 
     private async Task LoadSelectedProfileAsync()
@@ -450,6 +494,7 @@ public partial class GloveControlViewModel : BaseViewModel
             }
 
             SessionStatus = polled;
+            ResolveSessionAfterReconnect(polled);
 
             // Detect unexpected session end (e.g., secondary glove disconnected, error,
             // critical battery). State-aware: LOW_BATTERY keeps the session running and
@@ -588,19 +633,37 @@ public partial class GloveControlViewModel : BaseViewModel
 
     private void StartStatusPolling()
     {
-        _statusPollTimer?.Stop();
-        _statusPollTimer?.Dispose();
-        _statusPollTimer = new System.Timers.Timer(BlueBuzzahConstants.SessionStatusPollIntervalSeconds * 1000);
-        _statusPollTimer.Elapsed += async (s, e) =>
-            await MainThread.InvokeOnMainThreadAsync(UpdateSessionStatusAsync);
-        _statusPollTimer.Start();
+        StopStatusPolling();
+        _statusPollCts = new CancellationTokenSource();
+        RunStatusPollLoopAsync(_statusPollCts.Token).SafeFireAndForget("[GLOVECONTROL]");
+    }
+
+    /// <summary>
+    /// Waits a full interval after each poll completes, so a slow poll (up to ~5.1s
+    /// with the command timeout) can never overlap the next one the way an
+    /// auto-repeating timer's ticks could.
+    /// </summary>
+    private async Task RunStatusPollLoopAsync(CancellationToken ct)
+    {
+        try
+        {
+            while (true)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(BlueBuzzahConstants.SessionStatusPollIntervalSeconds), ct);
+                await MainThread.InvokeOnMainThreadAsync(UpdateSessionStatusAsync);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // StopStatusPolling
+        }
     }
 
     private void StopStatusPolling()
     {
-        _statusPollTimer?.Stop();
-        _statusPollTimer?.Dispose();
-        _statusPollTimer = null;
+        _statusPollCts?.Cancel();
+        _statusPollCts?.Dispose();
+        _statusPollCts = null;
     }
 
     /// <summary>
@@ -770,12 +833,13 @@ public partial class GloveControlViewModel : BaseViewModel
                 return;
 
             SessionStatus = status;
+            ResolveSessionAfterReconnect(status);
             UpdateSessionState();
 
             // A session we didn't start (e.g. the gloves auto-started one before the
             // app connected, surfaced by the post-connect sync) needs polling so its
             // progress advances; start it if it isn't already running.
-            if (IsSessionActive && _statusPollTimer == null)
+            if (IsSessionActive && _statusPollCts == null)
             {
                 StartStatusPolling();
             }
@@ -798,7 +862,7 @@ public partial class GloveControlViewModel : BaseViewModel
     {
         // Pause BLE polling while backgrounded; the OS may kill timers anyway.
         _isBackgrounded = true;
-        _pollingPausedByLifecycle = _statusPollTimer != null;
+        _pollingPausedByLifecycle = _statusPollCts != null;
         StopStatusPolling();
         StopConnectionHealthCheck();
         StopDisplayTick();
@@ -834,28 +898,42 @@ public partial class GloveControlViewModel : BaseViewModel
             {
                 if (!_isBackgrounded)
                     StartConnectionHealthCheck();
-                RefreshBatteryAsync().SafeFireAndForget("[GLOVECONTROL]");
+                // Battery comes from the service's post-connect INFO (OnDeviceInfoReceived)
+                _warnOnNextBatteryReading = true;
             }
             else
             {
                 StopConnectionHealthCheck();
                 IsConnectionHealthy = false;
+                // Readings from the old link say nothing about the next one (which may
+                // even be a different glove)
+                ApplyBatteryReadingAsync(null, null, warnIfLow: false).SafeFireAndForget("[GLOVECONTROL]");
             }
 
-            // Session teardown on disconnect
-            if (!isConnected && IsSessionActive)
+            // Session teardown on disconnect. A record still kept from an earlier
+            // reconnect whose outcome never arrived (UI already idle) counts too, so a
+            // later disconnect can't orphan it.
+            if (!isConnected && (IsSessionActive || _sessionDisconnectedAt != null))
             {
                 StopStatusPolling();
                 SessionStatus = SessionStatus.CreateIdle();
                 UpdateSessionState();
 
-                // Persist incomplete session
-                if (_currentSession != null)
+                // ReconnectionService has already decided (synchronously, on this same
+                // state change) whether to reconnect. If it is, the gloves are most
+                // likely still running the session — including after the poll's own
+                // forced reconnect — so don't split the history: keep the record until
+                // the reconnect succeeds or gives up. Otherwise save it as incomplete.
+                // Either way the earliest drop is when tracking was lost.
+                var droppedAt = _sessionDisconnectedAt ?? DateTime.Now;
+                if (_currentSession != null && _reconnectionService.IsReconnecting)
                 {
-                    _currentSession.EndTime = DateTime.Now;
-                    _currentSession.IsCompleted = false;
-                    _storageService.SaveSessionAsync(_currentSession).SafeFireAndForget("[GLOVECONTROL]");
-                    _currentSession = null;
+                    _sessionDisconnectedAt = droppedAt;
+                }
+                else
+                {
+                    _sessionDisconnectedAt = null;
+                    SaveInterruptedSession(droppedAt);
                 }
             }
 
@@ -872,6 +950,59 @@ public partial class GloveControlViewModel : BaseViewModel
                 SemanticScreenReader.Announce(announcement);
             }
         });
+    }
+
+    /// <summary>
+    /// The first session status after a mid-session reconnect settles the kept record:
+    /// still active means the session carried on and tracking continues; otherwise it
+    /// ended while the phone was away and is saved as incomplete.
+    /// </summary>
+    private void ResolveSessionAfterReconnect(SessionStatus status)
+    {
+        if (_sessionDisconnectedAt is not { } disconnectedAt)
+            return;
+
+        _sessionDisconnectedAt = null;
+        // A manual connect may have gone to a different glove: an active session
+        // there is not the one this record tracks.
+        var sameGlove = _currentSession?.DeviceId == null ||
+                        _currentSession.DeviceId == _bluetoothService.ConnectedDevice?.Id;
+        if (!status.IsActive || !sameGlove)
+            SaveInterruptedSession(disconnectedAt);
+    }
+
+    private void OnReconnectionStateChanged(object? sender, ReconnectionStateEventArgs e)
+    {
+        if (e.State is not (ReconnectionState.Failed or ReconnectionState.Cancelled))
+            return;
+
+        // A manual connect replaced the reconnect (same glove, typically): keep the
+        // record for that connect to settle - its post-connect status resolves it, and
+        // a failed connect saves it through the disconnect teardown.
+        if (e.SupersededByConnect)
+            return;
+
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            // The reconnect gave up (or the user moved on): the session can no longer
+            // be followed, so record it as ending when the link dropped.
+            if (_sessionDisconnectedAt is { } disconnectedAt)
+            {
+                _sessionDisconnectedAt = null;
+                SaveInterruptedSession(disconnectedAt);
+            }
+        });
+    }
+
+    private void SaveInterruptedSession(DateTime endTime)
+    {
+        if (_currentSession == null)
+            return;
+
+        _currentSession.EndTime = endTime;
+        _currentSession.IsCompleted = false;
+        _storageService.SaveSessionAsync(_currentSession).SafeFireAndForget("[GLOVECONTROL]");
+        _currentSession = null;
     }
 
     private async Task HandleSessionCompletionAsync()
@@ -998,8 +1129,10 @@ public partial class GloveControlViewModel : BaseViewModel
         {
             _bluetoothService.ConnectionStateChanged -= OnConnectionStateChanged;
             _gloveControlService.DeviceProfileChanged -= OnDeviceProfileChanged;
+            _gloveControlService.DeviceInfoReceived -= OnDeviceInfoReceived;
             _gloveControlService.SessionStateChanged -= OnServiceSessionStateChanged;
             ConnectionInfo.PropertyChanged -= OnConnectionInfoPropertyChanged;
+            _reconnectionService.ReconnectionStateChanged -= OnReconnectionStateChanged;
             _appLifecycle.Stopped -= OnAppStopped;
             _appLifecycle.Resumed -= OnAppResumed;
             StopStatusPolling();

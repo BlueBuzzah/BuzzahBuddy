@@ -28,7 +28,12 @@ public interface IReconnectionService : IDisposable
     /// <summary>
     /// Cancels any in-progress reconnection attempt and clears the expecting reboot flag.
     /// </summary>
-    void CancelReconnect();
+    /// <param name="supersededByConnect">
+    /// True when a manual connect is replacing the reconnect. Observers then keep
+    /// state tied to the dropped link (e.g. a running session's record) for that
+    /// connect to settle, instead of treating the cancel as giving up.
+    /// </param>
+    void CancelReconnect(bool supersededByConnect = false);
 }
 
 /// <summary>
@@ -53,11 +58,19 @@ public class ReconnectionStateEventArgs : EventArgs
     public int MaxAttempts { get; }
     public string? Message { get; }
 
-    public ReconnectionStateEventArgs(ReconnectionState state, int attempt = 0, int maxAttempts = 0, string? message = null)
+    /// <summary>
+    /// On <see cref="ReconnectionState.Cancelled"/>: a manual connect replaced the
+    /// reconnect (see <see cref="IReconnectionService.CancelReconnect"/>).
+    /// </summary>
+    public bool SupersededByConnect { get; }
+
+    public ReconnectionStateEventArgs(ReconnectionState state, int attempt = 0, int maxAttempts = 0,
+        string? message = null, bool supersededByConnect = false)
     {
         State = state;
         Attempt = attempt;
         MaxAttempts = maxAttempts;
         Message = message;
+        SupersededByConnect = supersededByConnect;
     }
 }

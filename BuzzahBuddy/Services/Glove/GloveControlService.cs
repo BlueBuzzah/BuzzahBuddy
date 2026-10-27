@@ -28,11 +28,34 @@ public class GloveControlService : IGloveControlService
         _expectingRebootSetAt = DateTime.UtcNow;
     }
 
+    /// <summary>
+    /// Firmware drops the phone ~300 ms after replying STATUS:REBOOTING. Disconnecting
+    /// first starts the reboot-aware reconnect (ExpectingReboot is already set) right
+    /// away instead of waiting for the OS to notice the link is gone.
+    /// </summary>
+    private async Task DisconnectForRebootAsync()
+    {
+        try
+        {
+            await _bluetoothService.DisconnectForReconnectAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[GLOVE_SERVICE] Disconnect for reboot failed: {ex.Message}");
+        }
+    }
+
     /// <inheritdoc />
     public event EventHandler<SessionStatus>? SessionStateChanged;
 
     /// <inheritdoc />
     public event EventHandler<int>? DeviceProfileChanged;
+
+    /// <inheritdoc />
+    public event EventHandler<GloveDeviceInfo>? DeviceInfoReceived;
+
+    /// <inheritdoc />
+    public event EventHandler<bool>? TherapyLedOffReceived;
 
     /// <inheritdoc />
     public SessionStatus CurrentSessionStatus => _currentSessionStatus;
@@ -58,24 +81,6 @@ public class GloveControlService : IGloveControlService
         _expectingReboot = false;
     }
 
-    /// <inheritdoc />
-    public async Task<bool> SyncStateAsync()
-    {
-        try
-        {
-            await GetDeviceInfoAsync();
-            await PingAsync();
-            await GetBatteryAsync();
-            await GetSessionStatusAsync();
-            return true;
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[GLOVE_SERVICE] SyncStateAsync failed: {ex.Message}");
-            return false;
-        }
-    }
-
     public GloveControlService(IBluetoothService bluetoothService)
     {
         _bluetoothService = bluetoothService;
@@ -83,50 +88,163 @@ public class GloveControlService : IGloveControlService
     }
 
     /// <summary>
-    /// Once per (re)connect, syncs device state so observers don't have to ask per page:
-    /// INFO (populates DeviceProfileId, raises DeviceProfileChanged) and SESSION_STATUS
-    /// (raises SessionStateChanged — so a session the gloves auto-started before the app
-    /// connected shows up instead of the UI looking idle). Uses the transport's own state
+    /// The single owner of post-(re)connect sync, so observers don't each send their
+    /// own burst of commands: INFO (populates DeviceProfileId and raises
+    /// DeviceProfileChanged, plus DeviceInfoReceived with both batteries — no separate
+    /// BATTERY), SESSION_STATUS (raises SessionStateChanged — so a session the gloves
+    /// auto-started before the app connected shows up instead of the UI looking idle),
+    /// then THERAPY_LED_OFF (raises TherapyLedOffReceived). Uses the transport's own state
     /// (no race with the UI-facing connection service), with a growing backoff because
     /// the first commands after connect can be starved while the link/glove-sync settles.
     /// </summary>
     private void OnTransportConnectionStateChanged(object? sender, ConnectionState state)
     {
         if (state != ConnectionState.Connected)
+        {
+            // Readings from the old link say nothing about the next one
+            _infoReading.Clear();
+            _ledReading.Clear();
             return;
+        }
 
+        // Set before the task starts, so a page that appears on this same Connected
+        // event already sees the sync as running
+        Interlocked.Increment(ref _postConnectSyncsRunning);
         _ = Task.Run(async () =>
         {
-            // Growing backoff: right after a profile-reboot reconnect the primary is
-            // busy re-establishing clock sync with the secondary (~5s cold start) and
-            // can starve early commands, so short retries all land in the busy window.
-            int[] delaysMs = { 0, 2000, 5000, 10000 };
-            for (var attempt = 0; attempt < delaysMs.Length; attempt++)
+            try
             {
-                if (delaysMs[attempt] > 0)
+                // Growing backoff: right after a profile-reboot reconnect the primary is
+                // busy re-establishing clock sync with the secondary (~5s cold start) and
+                // can starve early commands, so short retries all land in the busy window.
+                int[] delaysMs = { 0, 2000, 5000, 10000 };
+                // Retry only the step that failed: resending INFO for a failed
+                // SESSION_STATUS cost another secondary-battery round trip and
+                // re-raised its events, in the link's busiest window
+                var haveInfo = false;
+                var haveStatus = false;
+                for (var attempt = 0; attempt < delaysMs.Length; attempt++)
                 {
-                    await Task.Delay(delaysMs[attempt]);
-                }
+                    if (delaysMs[attempt] > 0)
+                    {
+                        await Task.Delay(delaysMs[attempt]);
+                    }
 
-                if (_bluetoothService.CurrentConnectionState != ConnectionState.Connected)
-                    return;
+                    if (_bluetoothService.CurrentConnectionState != ConnectionState.Connected)
+                        return;
 
-                try
-                {
-                    await GetDeviceInfoAsync();
-                    // Sync session state too: the gloves auto-start a session ~30s
-                    // after power-on, which can be before the app ever connects.
-                    await GetSessionStatusAsync();
+                    try
+                    {
+                        // ThisConnection: a page that fetched INFO since the link came
+                        // up already raised its events; don't send it again
+                        if (!haveInfo)
+                        {
+                            await GetDeviceInfoAsync(ThisConnection);
+                            haveInfo = true;
+                        }
+                        // Sync session state too: the gloves auto-start a session ~30s
+                        // after power-on, which can be before the app ever connects.
+                        if (!haveStatus)
+                        {
+                            await GetSessionStatusAsync();
+                            haveStatus = true;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine(
+                            $"[GLOVE_SERVICE] Post-connect sync failed (attempt {attempt + 1}/{delaysMs.Length}): {ex.Message}");
+                        continue;
+                    }
+
+                    // Outside the retry ladder: firmware that predates THERAPY_LED_OFF
+                    // rejects it every time, and observers treat no reply as "unsupported".
+                    try
+                    {
+                        await GetTherapyLedOffAsync(ThisConnection);
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine(
+                            $"[GLOVE_SERVICE] Post-connect THERAPY_LED_OFF failed: {ex.Message}");
+                    }
                     return;
                 }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine(
-                        $"[GLOVE_SERVICE] Post-connect sync failed (attempt {attempt + 1}/{delaysMs.Length}): {ex.Message}");
-                }
+            }
+            finally
+            {
+                Interlocked.Decrement(ref _postConnectSyncsRunning);
             }
         });
     }
+
+    // Any reading the cache holds is from the current link (it is cleared on link
+    // down), so "no older than the connection" is simply no age limit
+    private static readonly TimeSpan ThisConnection = TimeSpan.MaxValue;
+
+    private readonly DeviceReading<GloveDeviceInfo> _infoReading = new();
+    private readonly DeviceReading<bool> _ledReading = new();
+
+    /// <summary>
+    /// One device query's result: concurrent callers share the query in flight, and a
+    /// caller that accepts some staleness gets the last result. Several observers want
+    /// the same INFO around every connect; without this each sent its own.
+    /// </summary>
+    private sealed class DeviceReading<T>
+    {
+        private readonly object _lock = new();
+        private Task<T>? _inFlight;
+        private T? _value;
+        private DateTime _readAt;
+        private bool _hasValue;
+        private int _generation;
+
+        public Task<T> GetAsync(Func<Task<T>> query, TimeSpan? maxAge)
+        {
+            lock (_lock)
+            {
+                if (maxAge is { } age && _hasValue && DateTime.UtcNow - _readAt <= age)
+                    return Task.FromResult(_value!);
+                if (_inFlight is { IsCompleted: false } running)
+                    return running;
+                return _inFlight = QueryAsync(query, _generation);
+            }
+        }
+
+        private async Task<T> QueryAsync(Func<Task<T>> query, int generation)
+        {
+            var value = await query();
+            lock (_lock)
+            {
+                // A query that outlived its link must not seed the next one's cache
+                if (generation == _generation)
+                {
+                    _value = value;
+                    _readAt = DateTime.UtcNow;
+                    _hasValue = true;
+                }
+            }
+            return value;
+        }
+
+        public void Clear()
+        {
+            lock (_lock)
+            {
+                _generation++;
+                _hasValue = false;
+                _value = default;
+                _inFlight = null;
+            }
+        }
+    }
+
+    // A count, not a flag: a reconnect can start a new sync while the previous
+    // link's is still unwinding its retry ladder
+    private int _postConnectSyncsRunning;
+
+    /// <inheritdoc />
+    public bool IsPostConnectSyncRunning => Volatile.Read(ref _postConnectSyncsRunning) > 0;
 
     /// <summary>
     /// Validates that the Bluetooth service is in a connected state before issuing a command.
@@ -161,7 +279,10 @@ public class GloveControlService : IGloveControlService
 
     // ========== Device Information Commands ==========
 
-    public async Task<GloveDeviceInfo> GetDeviceInfoAsync()
+    public Task<GloveDeviceInfo> GetDeviceInfoAsync(TimeSpan? maxAge = null) =>
+        _infoReading.GetAsync(QueryDeviceInfoAsync, maxAge);
+
+    private async Task<GloveDeviceInfo> QueryDeviceInfoAsync()
     {
         EnsureConnected();
         var response = await _bluetoothService.SendCommandAsync("INFO");
@@ -174,6 +295,7 @@ public class GloveControlService : IGloveControlService
             _currentProfile = TherapyProfile.GetPresetProfiles().FirstOrDefault(p => p.ProfileId == info.ProfileId);
             DeviceProfileChanged?.Invoke(this, info.ProfileId);
         }
+        DeviceInfoReceived?.Invoke(this, info);
         return info;
     }
 
@@ -341,6 +463,7 @@ public class GloveControlService : IGloveControlService
         {
             System.Diagnostics.Debug.WriteLine("[GLOVE_SERVICE] Device is rebooting after profile load");
             CacheLoadedProfile();
+            await DisconnectForRebootAsync();
             return;
         }
 
@@ -584,23 +707,59 @@ public class GloveControlService : IGloveControlService
 
     // ========== Session Control Commands ==========
 
+    /// <summary>
+    /// Pause between SESSION_START attempts while the gloves report "Sync not ready".
+    /// Settable so tests don't wait out real time.
+    /// </summary>
+    internal TimeSpan SyncNotReadyRetryInterval { get; set; } = TimeSpan.FromMilliseconds(500);
+
+    /// <summary>
+    /// How long SESSION_START keeps retrying "Sync not ready" before surfacing it.
+    /// Outlasts the firmware's 10 s fallback (SYNC_START_FALLBACK_MS), after which
+    /// the primary accepts the start with degraded timing, so a link that never
+    /// converges still starts instead of showing an error.
+    /// </summary>
+    internal TimeSpan SyncNotReadyRetryWindow { get; set; } = TimeSpan.FromSeconds(12);
+
     public async Task StartSessionAsync()
     {
         EnsureConnected();
-        // SESSION_START may take up to 500ms (establishes Primary↔Secondary sync)
-        var response = await _bluetoothService.SendCommandAsync("SESSION_START", timeoutMs: 7000);
+        // SESSION_START may take up to 500ms (establishes Primary↔Secondary sync).
+        // The primary refuses with "Sync not ready" until bilateral clock sync has
+        // converged (typically < 1 s after the gloves connect); that refusal is
+        // transient, so retry it rather than show the user an error.
+        var retryWindow = System.Diagnostics.Stopwatch.StartNew();
+        CommandResponse response;
+        while (true)
+        {
+            response = await _bluetoothService.SendCommandAsync("SESSION_START", timeoutMs: 7000);
+            if (!IsSyncNotReady(response) ||
+                retryWindow.Elapsed + SyncNotReadyRetryInterval > SyncNotReadyRetryWindow)
+            {
+                break;
+            }
+
+            System.Diagnostics.Debug.WriteLine("[GLOVE_SERVICE] SESSION_START: sync not ready, retrying");
+            await Task.Delay(SyncNotReadyRetryInterval);
+            EnsureConnected();
+        }
         response.ThrowIfError();
 
-        // Update session state to RUNNING
+        // Firmware that reports the real duration (correct for a Custom profile)
+        // includes TOTAL/ELAPSED; older firmware doesn't, so fall back to the preset.
         var status = new SessionStatus
         {
             Status = SessionState.RUNNING,
-            ElapsedTimeSeconds = 0,
-            TotalTimeSeconds = (_currentProfile?.TimeSession ?? 120) * 60, // Convert minutes to seconds
+            ElapsedTimeSeconds = response.GetInt("ELAPSED") ?? 0,
+            TotalTimeSeconds = response.GetInt("TOTAL")
+                ?? (_currentProfile?.TimeSession ?? 120) * 60, // Convert minutes to seconds
             Progress = 0
         };
         UpdateSessionStatus(status);
     }
+
+    private static bool IsSyncNotReady(CommandResponse response) =>
+        response.ErrorMessage?.Contains("sync not ready", StringComparison.OrdinalIgnoreCase) == true;
 
     public async Task PauseSessionAsync()
     {
@@ -758,7 +917,11 @@ public class GloveControlService : IGloveControlService
         SetExpectingReboot();
         try
         {
-            await _bluetoothService.SendCommandAsync("RESTART", timeoutMs: 2000);
+            var response = await _bluetoothService.SendCommandAsync("RESTART", timeoutMs: 2000);
+            if (response.GetString("STATUS") == "REBOOTING")
+            {
+                await DisconnectForRebootAsync();
+            }
         }
         catch (TimeoutException)
         {
@@ -772,7 +935,10 @@ public class GloveControlService : IGloveControlService
 
     // ========== LED and Debug Commands (per BLE protocol v2.0.0) ==========
 
-    public async Task<bool> GetTherapyLedOffAsync()
+    public Task<bool> GetTherapyLedOffAsync(TimeSpan? maxAge = null) =>
+        _ledReading.GetAsync(QueryTherapyLedOffAsync, maxAge);
+
+    private async Task<bool> QueryTherapyLedOffAsync()
     {
         EnsureConnected();
         var response = await _bluetoothService.SendCommandAsync("THERAPY_LED_OFF");
@@ -780,7 +946,9 @@ public class GloveControlService : IGloveControlService
 
         // Response format: THERAPY_LED_OFF:true/false
         var value = response.GetString("THERAPY_LED_OFF");
-        return value?.ToLowerInvariant() == "true" || value == "1";
+        var ledOff = value?.ToLowerInvariant() == "true" || value == "1";
+        TherapyLedOffReceived?.Invoke(this, ledOff);
+        return ledOff;
     }
 
     public async Task SetTherapyLedOffAsync(bool enabled)

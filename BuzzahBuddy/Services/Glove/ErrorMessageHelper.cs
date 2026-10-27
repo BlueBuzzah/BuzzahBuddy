@@ -33,6 +33,14 @@ public static class ErrorMessageHelper
                 "Try restarting both gloves.");
         }
 
+        // Bilateral clock sync still converging (SESSION_START retried this already)
+        if (lowerError.Contains("sync not ready"))
+        {
+            return ("Gloves Still Syncing",
+                "The two gloves are still synchronizing with each other.\n\n" +
+                "Please wait a few seconds and try again. If this keeps happening, restart both gloves.");
+        }
+
         // Battery Errors
         if (lowerError.Contains("battery too low") || lowerError.Contains("low battery") || lowerError.Contains("charge"))
         {

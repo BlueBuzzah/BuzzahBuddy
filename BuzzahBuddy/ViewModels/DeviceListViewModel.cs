@@ -369,7 +369,7 @@ public partial class DeviceListViewModel : BaseViewModel
             return;
 
         // A manual pick supersedes any in-progress auto-reconnect.
-        _reconnectionService.CancelReconnect();
+        _reconnectionService.CancelReconnect(supersededByConnect: true);
 
         // Stop scanning if active
         if (IsScanning)

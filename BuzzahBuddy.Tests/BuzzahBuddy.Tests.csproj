@@ -30,8 +30,9 @@
     constructor eagerly calls Plugin.BLE's CrossBluetoothLE.Current, which throws
     NotImplementedException under the portable/off-device build used by a plain net10.0 test
     host. The BluetoothService passthrough (CommandResponse.Parse + ResponseReceived +
-    _pendingResponseTcs wiring around RxFrameAssembler) is therefore covered only by the
-    `dotnet build BuzzahBuddy/BuzzahBuddy.csproj -f net10.0` compile check, not by a unit test.
+    pending-reply wiring around RxFrameAssembler) is therefore covered only by the
+    `dotnet build BuzzahBuddy/BuzzahBuddy.csproj -f net10.0` compile check, not by a unit test;
+    the stale-frame matching decision itself lives in ResponseMatcher, which is unit-tested.
   -->
   <ItemGroup>
     <Compile Include="../BuzzahBuddy/Models/**/*.cs" LinkBase="AppModels" />
@@ -39,6 +40,7 @@
     <Compile Include="../BuzzahBuddy/Helpers/DesignColors.cs" LinkBase="AppHelpers" />
     <Compile Include="../BuzzahBuddy/Helpers/IntMatch.cs" LinkBase="AppHelpers" />
     <Compile Include="../BuzzahBuddy/Services/Bluetooth/RxFrameAssembler.cs" LinkBase="AppServicesBluetooth" />
+    <Compile Include="../BuzzahBuddy/Services/Bluetooth/ResponseMatcher.cs" LinkBase="AppServicesBluetooth" />
     <Compile Include="../BuzzahBuddy/Services/Bluetooth/BlueBuzzahConstants.cs" LinkBase="AppServicesBluetooth" />
     <Compile Include="../BuzzahBuddy/Services/Bluetooth/IBluetoothService.cs" LinkBase="AppServicesBluetooth" />
     <Compile Include="../BuzzahBuddy/Services/Bluetooth/MockBluetoothService.cs" LinkBase="AppServicesBluetooth" />

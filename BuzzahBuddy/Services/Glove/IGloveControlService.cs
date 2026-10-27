@@ -55,6 +55,28 @@ public interface IGloveControlService
     /// </summary>
     event EventHandler<int>? DeviceProfileChanged;
 
+    /// <summary>
+    /// Event fired for every INFO response, including the one the service sends right
+    /// after (re)connect. Carries both batteries (BATP/BATS), so observers read battery
+    /// from here on connect instead of sending their own BATTERY command.
+    /// </summary>
+    event EventHandler<GloveDeviceInfo>? DeviceInfoReceived;
+
+    /// <summary>
+    /// Event fired for every THERAPY_LED_OFF query reply, including the one the service
+    /// sends right after (re)connect. Payload is the device's setting. No event means
+    /// the query failed (firmware without THERAPY_LED_OFF).
+    /// </summary>
+    event EventHandler<bool>? TherapyLedOffReceived;
+
+    /// <summary>
+    /// True from the moment the link connects until the post-(re)connect sync
+    /// (INFO → SESSION_STATUS → THERAPY_LED_OFF) finishes or gives up. A reading
+    /// raised while it is true is the connect reading (e.g. the one that may raise the
+    /// low-battery alert); read it synchronously in the event handler.
+    /// </summary>
+    bool IsPostConnectSyncRunning { get; }
+
     // ========== Reboot Handling ==========
 
     /// <summary>
@@ -67,19 +89,17 @@ public interface IGloveControlService
     /// </summary>
     void ClearExpectingReboot();
 
-    /// <summary>
-    /// Synchronizes app state with device by running PING, BATTERY, and SESSION_STATUS commands.
-    /// </summary>
-    /// <returns>True if all sync commands succeeded, false on any failure.</returns>
-    Task<bool> SyncStateAsync();
-
     // ========== Device Information Commands ==========
 
     /// <summary>
     /// Gets device information including firmware version, battery levels, and status.
     /// Command: INFO
+    /// A call made while an INFO is already in flight joins it rather than sending a
+    /// second one. With <paramref name="maxAge"/>, a reading this connection already
+    /// has that is at most that old is returned without a command (and without
+    /// raising events again). Readings are dropped when the link goes down.
     /// </summary>
-    Task<GloveDeviceInfo> GetDeviceInfoAsync();
+    Task<GloveDeviceInfo> GetDeviceInfoAsync(TimeSpan? maxAge = null);
 
     /// <summary>
     /// Gets battery voltage levels for both devices.
@@ -151,6 +171,8 @@ public interface IGloveControlService
     /// Starts a therapy session with the currently loaded profile.
     /// Command: SESSION_START
     /// Note: May take up to 500ms to establish Primary↔Secondary synchronization.
+    /// A transient "Sync not ready" refusal is retried for up to 12 s before it throws
+    /// (past the firmware's 10 s fallback, after which the primary accepts the start).
     /// </summary>
     /// <exception cref="BlueBuzzahCommandException">If Secondary not connected or battery too low</exception>
     Task StartSessionAsync();
@@ -239,9 +261,11 @@ public interface IGloveControlService
     /// Command: THERAPY_LED_OFF (query)
     /// When enabled, LED is turned off during active therapy to avoid visual distraction.
     /// Per BLE protocol v2.0.0.
+    /// Shares an in-flight query and honors <paramref name="maxAge"/> the same way as
+    /// <see cref="GetDeviceInfoAsync"/>.
     /// </summary>
     /// <returns>True if therapy LED is disabled during sessions</returns>
-    Task<bool> GetTherapyLedOffAsync();
+    Task<bool> GetTherapyLedOffAsync(TimeSpan? maxAge = null);
 
     /// <summary>
     /// Sets the therapy LED off setting.

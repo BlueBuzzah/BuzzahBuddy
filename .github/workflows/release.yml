@@ -234,8 +234,15 @@ jobs:
         with:
           dotnet-version: "10.0.x"
 
+      # The iOS workload pins an exact Xcode: the latest workload set (10.0.402.1+)
+      # binds iOS 27.1 and fails with MT0180 on runners that top out at Xcode
+      # 26.x. Pin both together; move them in lockstep when the runner image
+      # gains a newer Xcode (`dotnet workload search version <set>` lists the
+      # iOS SDK each set binds).
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_26.5.app
       - name: Restore Workloads
-        run: dotnet workload install maui-ios
+        run: dotnet workload install maui-ios --version 10.0.401
 
       # ponytail: no keychain teardown - GitHub-hosted runners are ephemeral.
       # Add `security delete-keychain` on always() if this moves to self-hosted.

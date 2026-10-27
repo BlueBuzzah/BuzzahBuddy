@@ -45,12 +45,6 @@ public static class BlueBuzzahConstants
     public const char CommandTerminator = '\x04';
 
     /// <summary>
-    /// Recommended delay between commands in milliseconds.
-    /// Per spec: wait 100ms for reliable processing.
-    /// </summary>
-    public const int CommandDelayMs = 100;
-
-    /// <summary>
     /// Battery voltage threshold for good status (Primary blue).
     /// </summary>
     public const double BatteryGoodThreshold = 3.6;
@@ -79,6 +73,18 @@ public static class BlueBuzzahConstants
     /// Connection timeout in seconds.
     /// </summary>
     public const int ConnectionTimeoutSeconds = 15;
+
+    /// <summary>
+    /// Pause after a reply that carries no CMD echo (older firmware) before the next
+    /// command can go out; absorbs a stray frame that would otherwise complete it.
+    /// </summary>
+    public const int LegacyReplySettleMs = 100;
+
+    /// <summary>
+    /// ATT MTU requested after connect (247 = 244-byte notifications, the common
+    /// ceiling for data-length-extended links).
+    /// </summary>
+    public const int RequestedMtu = 247;
 
     /// <summary>
     /// Timeout for PING command in milliseconds.

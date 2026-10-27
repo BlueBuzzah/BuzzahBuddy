@@ -5,14 +5,9 @@
 		</clipPath>
 	</defs>
 	<style>
-		.s0 { fill: #344952 } 
+		.s0 { fill: #000000 } 
 	</style>
-	<filter id="f0">
-		<feFlood flood-color="#000000" flood-opacity="1" />
-		<feBlend mode="normal" in2="SourceGraphic"/>
-		<feComposite in2="SourceAlpha" operator="in" />
-	</filter>
-	<g id="Clip-Path: pointer2" clip-path="url(#cp1)" filter="url(#f0)">
+	<g id="Clip-Path: pointer2" clip-path="url(#cp1)">
 		<g id="pointer2">
 			<g id="Group_2338">
 				<g id="Group_2334">

@@ -32,15 +32,20 @@ the test project can compile app sources; it builds as a Library.
 
 Nordic UART Service. Constants in `BlueBuzzahConstants.cs`: service
 `6E400001-B5A3-F393-E0A9-E50E24DCCA9E`, TX `...0002...`, RX `...0003...`; device name
-filter `"BlueBuzzah"`; every BLE command terminates in `\x04` (serial/debug uses `\n`);
-`CommandDelayMs = 100` between commands.
+filter `"BlueBuzzah"`; every BLE command terminates in `\x04` (serial/debug uses `\n`).
+There is no inter-command delay: the next command goes out as soon as the previous
+reply arrives (the reply proves the firmware is ready; it queues 4 deep). The one
+exception is older firmware: after a reply without a `CMD` line the reply slot stays
+open `LegacyReplySettleMs` (100 ms) so a stray frame can't complete the next command.
 
 Non-obvious invariants:
 
-- **No correlation IDs.** `BluetoothService.ExpectedResponseKeys` maps each command
-  prefix to a key the reply must contain (`INFO→ROLE`, `BATTERY→BATP`, `PING→PONG`);
-  frames missing it are discarded as stale. Adding a command means adding its key, or
-  responses shift and desync.
+- **No correlation IDs.** Current firmware starts every reply with `CMD:<COMMAND>`;
+  `ResponseMatcher` completes the pending command only on an exact CMD match and drops
+  other frames as stale. Older firmware has no echo, so the fallback is
+  `ResponseMatcher.ExpectedResponseKeys` — a key the reply must contain (`INFO→ROLE`,
+  `BATTERY→BATP`, `PING→PONG`). Adding a command means adding its key there too, or
+  responses shift and desync on old firmware.
 - **One command in flight**, serialized by `BluetoothService._responseLock`
   (`SemaphoreSlim(1,1)`). There is no priority queue.
 - `IDENTIFY:PHONE` is written right after notification subscribe (fresh connect *and*
@@ -49,10 +54,19 @@ Non-obvious invariants:
   fires before GATT discovery, so commands sent then fail. `Connected` is raised only
   after NUS discovery + `IDENTIFY:PHONE`.
 - `PROFILE_LOAD` **reboots the device**. `GloveControlService.LoadProfileAsync` sets
-  `ExpectingReboot` *before* sending; `ReconnectionService` then waits
+  `ExpectingReboot` *before* sending, and on `STATUS:REBOOTING` (PROFILE_LOAD and
+  RESTART) disconnects at once rather than waiting for the OS to notice the glove
+  dropping the link ~300 ms later; `ReconnectionService` then waits
   `RebootInitialDelayMs = 3000` before its first retry (backoff 1→2→4→8→16→30s, 20 max).
   `UserInitiatedDisconnect` always beats `ExpectingReboot` — never auto-reconnect after
   a user disconnect.
+- `GloveControlService` is the **single post-(re)connect sync owner**: `INFO` →
+  `SESSION_STATUS` → `THERAPY_LED_OFF`. ViewModels take battery from INFO's BATP/BATS
+  via `DeviceInfoReceived` and the LED setting via `TherapyLedOffReceived` — don't add
+  per-VM commands on `Connected`; they compete for the link in its busiest window. For
+  page-visit refreshes pass a `maxAge` to `GetDeviceInfoAsync`/`GetTherapyLedOffAsync`:
+  the service joins a query already in flight and serves a reading from the current
+  link (cleared on disconnect) instead of each VM keeping its own freshness stamp.
 - Post-reconnect `INFO`/`SESSION_STATUS` retry on a `{0, 2000, 5000, 10000}ms` ladder:
   the primary is re-establishing clock sync with the secondary (~5s cold start) and
   starves early commands.
@@ -180,6 +194,11 @@ aren't available (tests, early startup). Brand rule: **blue signals success, nev
 
 `build.yml` (PR, push to `main` under `BuzzahBuddy*` paths): test on ubuntu without any
 workload, Android build + the `net10.0` compile check, iOS build on macOS.
+
+The iOS jobs (both workflows) pin `xcode-select` and the workload set together
+(`dotnet workload install maui-ios --version …`): each iOS workload binds one Xcode,
+and an unpinned install picks up iOS SDKs newer than the runner's Xcode (MT0180).
+Bump both in lockstep.
 
 `release.yml` (on GitHub Release **published** only): tag must be `vX[.Y[.Z]]` — anything
 else (`v1.0.0-beta1`) is rejected by App Store Connect at upload, so the job fails fast.

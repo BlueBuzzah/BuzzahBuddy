@@ -59,6 +59,200 @@ public class GloveControlServiceTests
     }
 
     [Fact]
+    public async Task LoadProfileAsync_RebootingResponse_DisconnectsForReconnectImmediately()
+    {
+        var fake = new FakeBluetoothService();
+        fake.CannedResponses["PROFILE_LOAD"] = "CMD:PROFILE_LOAD\nSTATUS:REBOOTING\n\x04";
+        var service = new GloveControlService(fake);
+
+        await service.LoadProfileAsync(3);
+
+        Assert.Equal(1, fake.DisconnectForReconnectCalls);
+    }
+
+    [Fact]
+    public async Task RestartDeviceAsync_RebootingResponse_DisconnectsForReconnectImmediately()
+    {
+        var fake = new FakeBluetoothService();
+        fake.CannedResponses["RESTART"] = "CMD:RESTART\nSTATUS:REBOOTING\n\x04";
+        var service = new GloveControlService(fake);
+
+        await service.RestartDeviceAsync();
+
+        Assert.True(service.ExpectingReboot);
+        Assert.Equal(1, fake.DisconnectForReconnectCalls);
+    }
+
+    [Fact]
+    public async Task StartSessionAsync_ReplyWithTotalAndElapsed_UsesTheDevicesDuration()
+    {
+        var fake = new FakeBluetoothService();
+        fake.CannedResponses["SESSION_START"] =
+            "CMD:SESSION_START\nSESSION_STATUS:RUNNING\nELAPSED:0\nTOTAL:2700\n\x04";
+        var service = new GloveControlService(fake);
+
+        await service.StartSessionAsync();
+
+        Assert.Equal(SessionState.RUNNING, service.CurrentSessionStatus.Status);
+        Assert.Equal(2700, service.CurrentSessionStatus.TotalTimeSeconds);
+        Assert.Equal(0, service.CurrentSessionStatus.ElapsedTimeSeconds);
+    }
+
+    [Fact]
+    public async Task StartSessionAsync_LegacyReplyWithoutTotal_FallsBackToTheProfileDuration()
+    {
+        var fake = new FakeBluetoothService();
+        fake.CannedResponses["SESSION_START"] = "SESSION_STATUS:RUNNING\n\x04";
+        var service = new GloveControlService(fake);
+
+        await service.StartSessionAsync();
+
+        Assert.Equal(120 * 60, service.CurrentSessionStatus.TotalTimeSeconds);
+    }
+
+    [Fact]
+    public async Task StartSessionAsync_SyncNotReady_RetriesUntilTheGlovesAccept()
+    {
+        var fake = new FakeBluetoothService();
+        fake.QueuedResponses.Enqueue("CMD:SESSION_START\nERROR:Sync not ready\n\x04");
+        fake.QueuedResponses.Enqueue("CMD:SESSION_START\nERROR:Sync not ready\n\x04");
+        fake.QueuedResponses.Enqueue("CMD:SESSION_START\nSESSION_STATUS:RUNNING\nELAPSED:0\nTOTAL:7200\n\x04");
+        var service = new GloveControlService(fake) { SyncNotReadyRetryInterval = TimeSpan.FromMilliseconds(1) };
+
+        await service.StartSessionAsync();
+
+        Assert.Equal(3, fake.SentCommands.Count(c => c == "SESSION_START"));
+        Assert.Equal(SessionState.RUNNING, service.CurrentSessionStatus.Status);
+    }
+
+    [Fact]
+    public async Task StartSessionAsync_SyncNeverReady_SurfacesTheErrorAfterTheRetryWindow()
+    {
+        var fake = new FakeBluetoothService();
+        fake.CannedResponses["SESSION_START"] = "CMD:SESSION_START\nERROR:Sync not ready\n\x04";
+        var service = new GloveControlService(fake)
+        {
+            SyncNotReadyRetryInterval = TimeSpan.FromMilliseconds(5),
+            SyncNotReadyRetryWindow = TimeSpan.FromMilliseconds(50)
+        };
+
+        var ex = await Assert.ThrowsAsync<BlueBuzzahCommandException>(() => service.StartSessionAsync());
+
+        Assert.Contains("Sync not ready", ex.Message);
+        Assert.True(fake.SentCommands.Count(c => c == "SESSION_START") > 1);
+    }
+
+    [Fact]
+    public async Task StartSessionAsync_OtherError_IsNotRetried()
+    {
+        var fake = new FakeBluetoothService();
+        fake.CannedResponses["SESSION_START"] = "CMD:SESSION_START\nERROR:Battery too low\n\x04";
+        var service = new GloveControlService(fake) { SyncNotReadyRetryInterval = TimeSpan.FromMilliseconds(1) };
+
+        await Assert.ThrowsAsync<BlueBuzzahCommandException>(() => service.StartSessionAsync());
+
+        Assert.Single(fake.SentCommands, c => c == "SESSION_START");
+    }
+
+    [Fact]
+    public async Task OnConnect_SyncsInfoThenSessionStatusThenLed_WithoutSeparateBatteryOrPing()
+    {
+        var fake = new FakeBluetoothService();
+        fake.CannedResponses["INFO"] =
+            "CMD:INFO\nROLE:PRIMARY\nMOTORS:4\nPROFILE:2:noisy_vcr\nBATP:3.72\nBATS:3.68\nSTATUS:IDLE\n\x04";
+        fake.CannedResponses["SESSION_STATUS"] = "CMD:SESSION_STATUS\nSESSION_STATUS:IDLE\n\x04";
+        fake.CannedResponses["THERAPY_LED_OFF"] = "CMD:THERAPY_LED_OFF\nTHERAPY_LED_OFF:true\n\x04";
+        var service = new GloveControlService(fake);
+        var infoReceived = new TaskCompletionSource<GloveDeviceInfo>();
+        var ledReceived = new TaskCompletionSource<bool>();
+        service.DeviceInfoReceived += (_, info) => infoReceived.TrySetResult(info);
+        service.TherapyLedOffReceived += (_, ledOff) => ledReceived.TrySetResult(ledOff);
+
+        fake.RaiseConnectionStateChanged(ConnectionState.Connected);
+
+        var info = await infoReceived.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.True(await ledReceived.Task.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.Equal(3.72, info.BatteryPrimaryVoltage);
+        Assert.Equal(3.68, info.BatterySecondaryVoltage);
+        Assert.Equal(new[] { "INFO", "SESSION_STATUS", "THERAPY_LED_OFF" }, fake.SentCommands);
+    }
+
+    [Fact]
+    public async Task OnConnect_ReportsSyncRunningUntilItFinishes()
+    {
+        var fake = new FakeBluetoothService();
+        fake.CannedResponses["INFO"] = "CMD:INFO\nROLE:PRIMARY\nPROFILE:2:noisy_vcr\nBATP:3.72\nBATS:3.68\n\x04";
+        fake.CannedResponses["SESSION_STATUS"] = "CMD:SESSION_STATUS\nSESSION_STATUS:IDLE\n\x04";
+        fake.CannedResponses["THERAPY_LED_OFF"] = "CMD:THERAPY_LED_OFF\nTHERAPY_LED_OFF:false\n\x04";
+        var service = new GloveControlService(fake);
+        Assert.False(service.IsPostConnectSyncRunning);
+
+        fake.RaiseConnectionStateChanged(ConnectionState.Connected);
+
+        // Visible as soon as Connected is raised, before the sync's first reply
+        Assert.True(service.IsPostConnectSyncRunning);
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (service.IsPostConnectSyncRunning && DateTime.UtcNow < deadline)
+            await Task.Delay(10);
+        Assert.False(service.IsPostConnectSyncRunning);
+    }
+
+    [Fact]
+    public async Task GetDeviceInfoAsync_OverlappingCalls_ShareOneInfo()
+    {
+        var fake = new FakeBluetoothService { HoldReplies = new TaskCompletionSource() };
+        fake.CannedResponses["INFO"] = "CMD:INFO\nROLE:PRIMARY\nPROFILE:2:noisy_vcr\nBATP:3.72\nBATS:3.68\n\x04";
+        var service = new GloveControlService(fake);
+        var infoEvents = 0;
+        service.DeviceInfoReceived += (_, _) => infoEvents++;
+
+        var first = service.GetDeviceInfoAsync();
+        var second = service.GetDeviceInfoAsync(TimeSpan.FromSeconds(30));
+        fake.HoldReplies.SetResult();
+
+        Assert.Same(await first, await second);
+        Assert.Single(fake.SentCommands, c => c == "INFO");
+        Assert.Equal(1, infoEvents);
+    }
+
+    [Fact]
+    public async Task GetDeviceInfoAsync_WithMaxAge_ServesRecentReadingUntilTheLinkDrops()
+    {
+        var fake = new FakeBluetoothService();
+        fake.CannedResponses["INFO"] = "CMD:INFO\nROLE:PRIMARY\nPROFILE:2:noisy_vcr\nBATP:3.72\nBATS:3.68\n\x04";
+        var service = new GloveControlService(fake);
+
+        await service.GetDeviceInfoAsync();
+        await service.GetDeviceInfoAsync(TimeSpan.FromSeconds(30));
+        Assert.Single(fake.SentCommands, c => c == "INFO");
+
+        // A reading from the old link must not answer for the next one
+        fake.RaiseConnectionStateChanged(ConnectionState.Disconnected);
+        fake.CurrentConnectionState = ConnectionState.Connected;
+        await service.GetDeviceInfoAsync(TimeSpan.FromSeconds(30));
+        Assert.Equal(2, fake.SentCommands.Count(c => c == "INFO"));
+    }
+
+    [Fact]
+    public async Task OnConnect_RetriesOnlyTheStepThatFailed()
+    {
+        var fake = new FakeBluetoothService();
+        fake.QueuedResponses.Enqueue("CMD:INFO\nROLE:PRIMARY\nPROFILE:2:noisy_vcr\nBATP:3.72\nBATS:3.68\n\x04");
+        fake.QueuedResponses.Enqueue("CMD:SESSION_STATUS\nERROR:Busy\n\x04");
+        fake.QueuedResponses.Enqueue("CMD:SESSION_STATUS\nSESSION_STATUS:IDLE\n\x04");
+        fake.QueuedResponses.Enqueue("CMD:THERAPY_LED_OFF\nTHERAPY_LED_OFF:false\n\x04");
+        var service = new GloveControlService(fake);
+        var ledReceived = new TaskCompletionSource<bool>();
+        service.TherapyLedOffReceived += (_, ledOff) => ledReceived.TrySetResult(ledOff);
+
+        fake.RaiseConnectionStateChanged(ConnectionState.Connected);
+
+        // The second attempt waits out the ladder's 2 s step
+        Assert.False(await ledReceived.Task.WaitAsync(TimeSpan.FromSeconds(10)));
+        Assert.Equal(new[] { "INFO", "SESSION_STATUS", "SESSION_STATUS", "THERAPY_LED_OFF" }, fake.SentCommands);
+    }
+
+    [Fact]
     public async Task SetCustomProfileAsync_WithinFirmwareLimits_Sends()
     {
         var fake = new FakeBluetoothService();

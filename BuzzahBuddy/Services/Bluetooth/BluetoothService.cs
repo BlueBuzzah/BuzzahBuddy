@@ -25,11 +25,16 @@ public class BluetoothService : IBluetoothService
 
     // Response buffering and parsing
     private readonly RxFrameAssembler _rxAssembler = new();
+    // Append runs on the BLE notification thread, Reset on the command/disconnect
+    // thread; RxFrameAssembler is not thread-safe on its own.
+    private readonly object _rxAssemblerLock = new();
     private readonly SemaphoreSlim _responseLock = new(1, 1);
-    private TaskCompletionSource<CommandResponse>? _pendingResponseTcs;
-    // Key the pending command's response must contain; stale frames missing it are
-    // filtered at delivery so they never complete the TCS (see ProcessIncomingRxText).
-    private string? _pendingExpectedKey;
+    // The command awaiting a reply. Name and TCS are published together so the RX
+    // thread never pairs one command's name with another's TCS; stale frames are
+    // filtered against the name at delivery (see ProcessIncomingRxText).
+    private volatile PendingCommand? _pending;
+
+    private sealed record PendingCommand(string Name, TaskCompletionSource<CommandResponse> Reply);
 
     // Reconnection state
     private string? _lastConnectedDeviceId;
@@ -80,10 +85,16 @@ public class BluetoothService : IBluetoothService
         {
             System.Diagnostics.Debug.WriteLine($"[BLE SCAN] Starting scan, timeout={timeout.TotalSeconds}s");
             _adapter.ScanTimeout = (int)timeout.TotalMilliseconds;
+            // Every scan is user-initiated (the Devices page), so trade battery for
+            // speed while the user waits.
+            _adapter.ScanMode = ScanMode.LowLatency;
             System.Diagnostics.Debug.WriteLine($"[BLE SCAN] Adapter.ScanTimeout set to: {_adapter.ScanTimeout}ms");
             System.Diagnostics.Debug.WriteLine($"[BLE SCAN] Adapter.IsScanning before: {_adapter.IsScanning}");
             System.Diagnostics.Debug.WriteLine("[BLE SCAN] Calling StartScanningForDevicesAsync...");
-            await _adapter.StartScanningForDevicesAsync(cancellationToken: cancellationToken);
+            // Both boards advertise the NUS UUID in the primary advertisement, so the
+            // OS can filter natively; the name check in OnDeviceDiscovered still applies.
+            var scanFilter = new ScanFilterOptions { ServiceUuids = new[] { BlueBuzzahConstants.NordicUartServiceUuid } };
+            await _adapter.StartScanningForDevicesAsync(scanFilter, cancellationToken: cancellationToken);
             System.Diagnostics.Debug.WriteLine($"[BLE SCAN] Scan complete. Found {_discoveredDevices.Count} matching device(s)");
         }
         catch (OperationCanceledException)
@@ -137,51 +148,51 @@ public class BluetoothService : IBluetoothService
             if (bleDevice == null)
             {
                 System.Diagnostics.Debug.WriteLine($"❌ Device not found for connection");
-                UpdateConnectionState(ConnectionState.Error);
+                RaiseManualConnectFailure();
                 return false;
             }
 
             System.Diagnostics.Debug.WriteLine($"📡 Connecting to BLE device...");
             var connectParameters = new ConnectParameters(autoConnect: false, forceBleTransport: true);
-            await _adapter.ConnectToDeviceAsync(bleDevice, connectParameters, cancellationToken);
+            // One timeout over link-up, discovery and subscribe: a glove can reach
+            // link-up and then stall in discovery, which iOS never times out.
+            using var connectCts = CreateConnectTimeout(cancellationToken);
+            await _adapter.ConnectToDeviceAsync(bleDevice, connectParameters, connectCts.Token);
 
             _connectedBleDevice = bleDevice;
             System.Diagnostics.Debug.WriteLine($"✅ BLE connection established");
 
             // Discover Nordic UART Service and get TX/RX characteristics
             System.Diagnostics.Debug.WriteLine($"🔍 Discovering NUS service...");
-            var service = await bleDevice.GetServiceAsync(BlueBuzzahConstants.NordicUartServiceUuid);
+            var service = await bleDevice.GetServiceAsync(BlueBuzzahConstants.NordicUartServiceUuid)
+                .WaitAsync(connectCts.Token);
             if (service == null)
             {
                 System.Diagnostics.Debug.WriteLine($"❌ Nordic UART Service not found");
-                // Prevent ReconnectionService from starting a reconnect loop for a first-connect failure
-                _userInitiatedDisconnect = true;
                 await DisconnectAsync();
-                _userInitiatedDisconnect = false;
-                UpdateConnectionState(ConnectionState.Error);
+                RaiseManualConnectFailure();
                 return false;
             }
             System.Diagnostics.Debug.WriteLine($"✅ NUS service found");
 
             System.Diagnostics.Debug.WriteLine($"🔍 Getting TX/RX characteristics...");
-            _txCharacteristic = await service.GetCharacteristicAsync(BlueBuzzahConstants.TxCharacteristicUuid);
-            _rxCharacteristic = await service.GetCharacteristicAsync(BlueBuzzahConstants.RxCharacteristicUuid);
+            _txCharacteristic = await service.GetCharacteristicAsync(BlueBuzzahConstants.TxCharacteristicUuid)
+                .WaitAsync(connectCts.Token);
+            _rxCharacteristic = await service.GetCharacteristicAsync(BlueBuzzahConstants.RxCharacteristicUuid)
+                .WaitAsync(connectCts.Token);
 
             if (_txCharacteristic == null || _rxCharacteristic == null)
             {
                 System.Diagnostics.Debug.WriteLine($"❌ TX or RX characteristic not found (TX: {_txCharacteristic != null}, RX: {_rxCharacteristic != null})");
-                // Prevent ReconnectionService from starting a reconnect loop for a first-connect failure
-                _userInitiatedDisconnect = true;
                 await DisconnectAsync();
-                _userInitiatedDisconnect = false;
-                UpdateConnectionState(ConnectionState.Error);
+                RaiseManualConnectFailure();
                 return false;
             }
             System.Diagnostics.Debug.WriteLine($"✅ TX/RX characteristics found");
 
             // Subscribe to RX notifications automatically
             System.Diagnostics.Debug.WriteLine($"📬 Subscribing to notifications...");
-            await SubscribeToNotificationsAsync();
+            await SubscribeToNotificationsAsync().WaitAsync(connectCts.Token);
             System.Diagnostics.Debug.WriteLine($"✅ Subscribed to notifications");
 
             // Identify ourselves so the firmware types this connection as PHONE
@@ -199,6 +210,8 @@ public class BluetoothService : IBluetoothService
                 System.Diagnostics.Debug.WriteLine($"IDENTIFY:PHONE write failed (non-fatal): {ex.Message}");
             }
 
+            await RequestLargerMtuAsync(bleDevice);
+
             ConnectedDevice = device;
             device.ConnectionState = ConnectionState.Connected;
             device.LastConnected = DateTime.Now;
@@ -212,14 +225,28 @@ public class BluetoothService : IBluetoothService
         catch (DeviceConnectionException ex)
         {
             System.Diagnostics.Debug.WriteLine($"❌ Connection error: {ex.Message}");
-            UpdateConnectionState(ConnectionState.Error);
+            await ReleaseHalfOpenLinkAsync();
+            RaiseManualConnectFailure();
             return false;
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"❌ Unexpected error during connection: {ex.GetType().Name}: {ex.Message}");
-            UpdateConnectionState(ConnectionState.Error);
+            await ReleaseHalfOpenLinkAsync();
+            RaiseManualConnectFailure();
             return false;
+        }
+    }
+
+    /// <summary>
+    /// A connect that fails after link-up (discovery timed out, subscribe threw) would
+    /// otherwise leave the BLE link open with no app session on it.
+    /// </summary>
+    private async Task ReleaseHalfOpenLinkAsync()
+    {
+        if (_connectedBleDevice != null)
+        {
+            await DisconnectAsync();
         }
     }
 
@@ -254,29 +281,6 @@ public class BluetoothService : IBluetoothService
         }
     }
 
-    /// <summary>
-    /// Key each command's response must contain. The protocol has no correlation IDs,
-    /// so a late/stray frame would otherwise resolve the wrong command and shift every
-    /// subsequent response by one (permanent desync). A resolved frame missing its
-    /// command's expected key is discarded as stale and the wait continues.
-    /// Commands absent from this map accept any frame. Error frames always match.
-    /// </summary>
-    private static readonly Dictionary<string, string> ExpectedResponseKeys = new()
-    {
-        ["INFO"] = "ROLE",
-        ["BATTERY"] = "BATP",
-        ["PING"] = "PONG",
-        ["PROFILE_LIST"] = "PROFILE",
-        ["PROFILE_GET"] = "TYPE",
-        ["PROFILE_LOAD"] = "STATUS",
-        ["SESSION_START"] = "SESSION_STATUS",
-        ["SESSION_PAUSE"] = "SESSION_STATUS",
-        ["SESSION_RESUME"] = "SESSION_STATUS",
-        ["SESSION_STOP"] = "SESSION_STATUS",
-        ["SESSION_STATUS"] = "SESSION_STATUS",
-        ["THERAPY_LED_OFF"] = "THERAPY_LED_OFF",
-    };
-
     public async Task<CommandResponse> SendCommandAsync(
         string command,
         int timeoutMs = 5000,
@@ -291,17 +295,27 @@ public class BluetoothService : IBluetoothService
         try
         {
             // Clear any previous response buffer
-            _rxAssembler.Reset();
+            ResetRxAssembler();
 
-            // Publish the expected key BEFORE the TCS so the RX producer filters stale
-            // frames against it (a stray frame missing the key never completes the TCS).
-            ExpectedResponseKeys.TryGetValue(command.Split(':')[0], out _pendingExpectedKey);
-            _pendingResponseTcs = new TaskCompletionSource<CommandResponse>();
+            // Publish BEFORE writing so the RX producer filters stale frames against
+            // this command (see ResponseMatcher). Continuations run asynchronously so
+            // completing the TCS never runs the caller's code on the BLE RX thread.
+            var pending = new PendingCommand(
+                ResponseMatcher.CommandName(command),
+                new TaskCompletionSource<CommandResponse>(TaskCreationOptions.RunContinuationsAsynchronously));
+            _pending = pending;
 
             // Send command (add \n terminator)
             System.Diagnostics.Debug.WriteLine($"[BLE CMD] >>> {command}");
             var commandBytes = Encoding.UTF8.GetBytes(command + BlueBuzzahConstants.CommandTerminator);
-            await _txCharacteristic.WriteAsync(commandBytes);
+            // Nonzero is the GATT error from the device: fail now rather than wait
+            // out the reply timeout for a command that never arrived.
+            var writeResult = await _txCharacteristic.WriteAsync(commandBytes);
+            if (writeResult != 0)
+            {
+                throw new InvalidOperationException(
+                    $"Command '{command}' write failed (GATT status {writeResult})");
+            }
 
             // Wait for response with timeout
             using var timeoutCts = new CancellationTokenSource(timeoutMs);
@@ -310,10 +324,17 @@ public class BluetoothService : IBluetoothService
 
             try
             {
-                var response = await _pendingResponseTcs.Task.WaitAsync(linkedCts.Token);
+                var response = await pending.Reply.Task.WaitAsync(linkedCts.Token);
 
-                // Add recommended delay between commands (100ms per spec)
-                await Task.Delay(BlueBuzzahConstants.CommandDelayMs, cancellationToken);
+                // Firmware without the CMD echo can only be matched by expected key,
+                // and some commands have none. Keep this command's reply slot open a
+                // moment so a stray extra frame lands here instead of completing the
+                // next command and shifting every later reply by one. CMD-echo
+                // firmware needs no settle: stale frames are dropped by name.
+                if (response.GetString("CMD") == null)
+                {
+                    await Task.Delay(BlueBuzzahConstants.LegacyReplySettleMs, cancellationToken);
+                }
 
                 return response;
             }
@@ -328,8 +349,7 @@ public class BluetoothService : IBluetoothService
         }
         finally
         {
-            _pendingResponseTcs = null;
-            _pendingExpectedKey = null;
+            _pending = null;
             _responseLock.Release();
         }
     }
@@ -387,12 +407,18 @@ public class BluetoothService : IBluetoothService
 
             System.Diagnostics.Debug.WriteLine($"[BLE RECONNECT] Connecting to known device: {guid}");
             var connectParams = new ConnectParameters(autoConnect: false, forceBleTransport: true);
-            var bleDevice = await _adapter.ConnectToKnownDeviceAsync(guid, connectParams, ct);
+            // A timed-out attempt lands in the catch below and returns false, so the
+            // reconnect loop moves on to its next attempt rather than treating the
+            // cancellation as the user cancelling the whole loop.
+            // One timeout over link-up, discovery and subscribe (see ConnectToDeviceAsync).
+            using var connectCts = CreateConnectTimeout(ct);
+            var bleDevice = await _adapter.ConnectToKnownDeviceAsync(guid, connectParams, connectCts.Token);
 
             _connectedBleDevice = bleDevice;
 
             // Discover Nordic UART Service and get TX/RX characteristics
-            var service = await bleDevice.GetServiceAsync(BlueBuzzahConstants.NordicUartServiceUuid);
+            var service = await bleDevice.GetServiceAsync(BlueBuzzahConstants.NordicUartServiceUuid)
+                .WaitAsync(connectCts.Token);
             if (service == null)
             {
                 System.Diagnostics.Debug.WriteLine("[BLE RECONNECT] Nordic UART Service not found");
@@ -401,8 +427,10 @@ public class BluetoothService : IBluetoothService
                 return false;
             }
 
-            _txCharacteristic = await service.GetCharacteristicAsync(BlueBuzzahConstants.TxCharacteristicUuid);
-            _rxCharacteristic = await service.GetCharacteristicAsync(BlueBuzzahConstants.RxCharacteristicUuid);
+            _txCharacteristic = await service.GetCharacteristicAsync(BlueBuzzahConstants.TxCharacteristicUuid)
+                .WaitAsync(connectCts.Token);
+            _rxCharacteristic = await service.GetCharacteristicAsync(BlueBuzzahConstants.RxCharacteristicUuid)
+                .WaitAsync(connectCts.Token);
 
             if (_txCharacteristic == null || _rxCharacteristic == null)
             {
@@ -412,7 +440,7 @@ public class BluetoothService : IBluetoothService
                 return false;
             }
 
-            await SubscribeToNotificationsAsync();
+            await SubscribeToNotificationsAsync().WaitAsync(connectCts.Token);
 
             // Identify ourselves immediately (parity with ConnectToDeviceAsync):
             // without this, the firmware types this connection UNKNOWN for up to
@@ -426,6 +454,8 @@ public class BluetoothService : IBluetoothService
             {
                 System.Diagnostics.Debug.WriteLine($"[BLE RECONNECT] IDENTIFY:PHONE write failed (non-fatal): {ex.Message}");
             }
+
+            await RequestLargerMtuAsync(bleDevice);
 
             var gloveDevice = new GloveDevice
             {
@@ -500,7 +530,7 @@ public class BluetoothService : IBluetoothService
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"RX parse error: {ex.Message}");
-            _pendingResponseTcs?.TrySetException(ex);
+            _pending?.Reply.TrySetException(ex);
         }
     }
 
@@ -513,26 +543,83 @@ public class BluetoothService : IBluetoothService
     /// </summary>
     internal void ProcessIncomingRxText(string text)
     {
-        foreach (var frame in _rxAssembler.Append(text))
+        IReadOnlyList<string> frames;
+        lock (_rxAssemblerLock)
         {
+            frames = _rxAssembler.Append(text);
+        }
+
+        foreach (var frame in frames)
+        {
+            var pending = _pending;
             System.Diagnostics.Debug.WriteLine(
-                $"[BLE RSP] <<< {frame.Replace("\n", "|")} (pending={_pendingResponseTcs != null})");
+                $"[BLE RSP] <<< {frame.Replace("\n", "|")} (pending={pending?.Name ?? "none"})");
             var response = CommandResponse.Parse(frame);
             ResponseReceived?.Invoke(this, response);
 
-            // Filter stale frames here (not in the awaiter): the protocol has no
-            // correlation IDs, so a late frame from a timed-out command would
-            // otherwise complete the current command's TCS with the wrong response.
-            // Doing it at the single delivery point means only a matching frame ever
-            // completes the TCS — no re-arm race when two frames arrive together.
-            var expectedKey = _pendingExpectedKey;
-            if (expectedKey != null && !response.IsError && response.GetString(expectedKey) == null)
+            if (pending == null)
+                continue;
+
+            // Filter stale frames here (not in the awaiter): doing it at the single
+            // delivery point means only a matching frame ever completes the TCS — no
+            // re-arm race when two frames arrive together.
+            if (!ResponseMatcher.Completes(pending.Name, response))
             {
-                System.Diagnostics.Debug.WriteLine($"[BLE] Discarded stale frame (missing {expectedKey})");
+                System.Diagnostics.Debug.WriteLine(
+                    $"[BLE] Discarded stale frame (CMD={response.GetString("CMD") ?? "none"}, awaiting {pending.Name})");
                 continue;
             }
 
-            _pendingResponseTcs?.TrySetResult(response);
+            pending.Reply.TrySetResult(response);
+        }
+    }
+
+    /// <summary>
+    /// Reports a failed user-picked connect. The flag stays set so ReconnectionService,
+    /// which reads it synchronously on this Error, doesn't auto-reconnect to the
+    /// previously connected glove; the next successful connect clears it.
+    /// </summary>
+    private void RaiseManualConnectFailure()
+    {
+        _userInitiatedDisconnect = true;
+        UpdateConnectionState(ConnectionState.Error);
+    }
+
+    private void ResetRxAssembler()
+    {
+        lock (_rxAssemblerLock)
+        {
+            _rxAssembler.Reset();
+        }
+    }
+
+    /// <summary>
+    /// Bounds a connect attempt, from link-up through subscribe: without it iOS waits
+    /// forever for a peripheral that is out of range or stalls in discovery.
+    /// </summary>
+    private static CancellationTokenSource CreateConnectTimeout(CancellationToken cancellationToken)
+    {
+        var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        cts.CancelAfter(TimeSpan.FromSeconds(BlueBuzzahConstants.ConnectionTimeoutSeconds));
+        return cts;
+    }
+
+    /// <summary>
+    /// Asks for a larger ATT MTU so replies fit in fewer notifications. Android stays
+    /// at the 23-byte default unless the app asks; iOS negotiates on its own and just
+    /// reports the current value. Best-effort: a failure leaves the link usable.
+    /// </summary>
+    private static async Task RequestLargerMtuAsync(IDevice device)
+    {
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+            var mtu = await device.RequestMtuAsync(BlueBuzzahConstants.RequestedMtu, cts.Token);
+            System.Diagnostics.Debug.WriteLine($"[BLE] MTU is {mtu}");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[BLE] MTU request failed (non-fatal): {ex.Message}");
         }
     }
 
@@ -620,8 +707,8 @@ public class BluetoothService : IBluetoothService
         _rxCharacteristic = null;
 
         // Clear stale response data before cancelling pending commands
-        _rxAssembler.Reset();
-        _pendingResponseTcs?.TrySetCanceled();
+        ResetRxAssembler();
+        _pending?.Reply.TrySetCanceled();
 
         if (ConnectedDevice != null)
         {
@@ -638,8 +725,8 @@ public class BluetoothService : IBluetoothService
         _rxCharacteristic = null;
 
         // Clear stale response data before cancelling pending commands
-        _rxAssembler.Reset();
-        _pendingResponseTcs?.TrySetCanceled();
+        ResetRxAssembler();
+        _pending?.Reply.TrySetCanceled();
 
         if (ConnectedDevice != null)
         {
