@@ -34,7 +34,9 @@ Nordic UART Service. Constants in `BlueBuzzahConstants.cs`: service
 `6E400001-B5A3-F393-E0A9-E50E24DCCA9E`, TX `...0002...`, RX `...0003...`; device name
 filter `"BlueBuzzah"`; every BLE command terminates in `\x04` (serial/debug uses `\n`).
 There is no inter-command delay: the next command goes out as soon as the previous
-reply arrives (the reply proves the firmware is ready; it queues 4 deep).
+reply arrives (the reply proves the firmware is ready; it queues 4 deep). The one
+exception is older firmware: after a reply without a `CMD` line the reply slot stays
+open `LegacyReplySettleMs` (100 ms) so a stray frame can't complete the next command.
 
 Non-obvious invariants:
 
@@ -61,7 +63,10 @@ Non-obvious invariants:
 - `GloveControlService` is the **single post-(re)connect sync owner**: `INFO` →
   `SESSION_STATUS` → `THERAPY_LED_OFF`. ViewModels take battery from INFO's BATP/BATS
   via `DeviceInfoReceived` and the LED setting via `TherapyLedOffReceived` — don't add
-  per-VM commands on `Connected`; they compete for the link in its busiest window.
+  per-VM commands on `Connected`; they compete for the link in its busiest window. For
+  page-visit refreshes pass a `maxAge` to `GetDeviceInfoAsync`/`GetTherapyLedOffAsync`:
+  the service joins a query already in flight and serves a reading from the current
+  link (cleared on disconnect) instead of each VM keeping its own freshness stamp.
 - Post-reconnect `INFO`/`SESSION_STATUS` retry on a `{0, 2000, 5000, 10000}ms` ladder:
   the primary is re-establishing clock sync with the secondary (~5s cold start) and
   starves early commands.

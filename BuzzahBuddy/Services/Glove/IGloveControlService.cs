@@ -71,9 +71,9 @@ public interface IGloveControlService
 
     /// <summary>
     /// True from the moment the link connects until the post-(re)connect sync
-    /// (INFO → SESSION_STATUS → THERAPY_LED_OFF) finishes or gives up. Observers skip
-    /// their own refreshes meanwhile: the sync's events deliver that data, and a
-    /// duplicate query only competes for the link in its busiest window.
+    /// (INFO → SESSION_STATUS → THERAPY_LED_OFF) finishes or gives up. A reading
+    /// raised while it is true is the connect reading (e.g. the one that may raise the
+    /// low-battery alert); read it synchronously in the event handler.
     /// </summary>
     bool IsPostConnectSyncRunning { get; }
 
@@ -94,8 +94,12 @@ public interface IGloveControlService
     /// <summary>
     /// Gets device information including firmware version, battery levels, and status.
     /// Command: INFO
+    /// A call made while an INFO is already in flight joins it rather than sending a
+    /// second one. With <paramref name="maxAge"/>, a reading this connection already
+    /// has that is at most that old is returned without a command (and without
+    /// raising events again). Readings are dropped when the link goes down.
     /// </summary>
-    Task<GloveDeviceInfo> GetDeviceInfoAsync();
+    Task<GloveDeviceInfo> GetDeviceInfoAsync(TimeSpan? maxAge = null);
 
     /// <summary>
     /// Gets battery voltage levels for both devices.
@@ -167,7 +171,8 @@ public interface IGloveControlService
     /// Starts a therapy session with the currently loaded profile.
     /// Command: SESSION_START
     /// Note: May take up to 500ms to establish Primary↔Secondary synchronization.
-    /// A transient "Sync not ready" refusal is retried for up to 5 s before it throws.
+    /// A transient "Sync not ready" refusal is retried for up to 12 s before it throws
+    /// (past the firmware's 10 s fallback, after which the primary accepts the start).
     /// </summary>
     /// <exception cref="BlueBuzzahCommandException">If Secondary not connected or battery too low</exception>
     Task StartSessionAsync();
@@ -256,9 +261,11 @@ public interface IGloveControlService
     /// Command: THERAPY_LED_OFF (query)
     /// When enabled, LED is turned off during active therapy to avoid visual distraction.
     /// Per BLE protocol v2.0.0.
+    /// Shares an in-flight query and honors <paramref name="maxAge"/> the same way as
+    /// <see cref="GetDeviceInfoAsync"/>.
     /// </summary>
     /// <returns>True if therapy LED is disabled during sessions</returns>
-    Task<bool> GetTherapyLedOffAsync();
+    Task<bool> GetTherapyLedOffAsync(TimeSpan? maxAge = null);
 
     /// <summary>
     /// Sets the therapy LED off setting.

@@ -164,13 +164,11 @@ public partial class DeviceSettingsViewModel : BaseViewModel
 
     private CancellationTokenSource? _applyWatchCts;
 
-    // Stamped when the service's post-connect sync delivers INFO / THERAPY_LED_OFF.
-    // OnPageAppearing skips re-fetching what is this fresh: popping the apply modal
-    // re-shows this page right as the reconnect sync runs, in the window where the
-    // primary is busiest re-syncing with the secondary.
+    // OnPageAppearing accepts readings this fresh from the service instead of
+    // querying again: popping the apply modal re-shows this page right as the
+    // reconnect sync runs, in the window where the primary is busiest re-syncing
+    // with the secondary. The service also joins a query already in flight.
     private static readonly TimeSpan DeviceReadingFreshness = TimeSpan.FromSeconds(30);
-    private DateTime _lastDeviceInfoAt = DateTime.MinValue;
-    private DateTime _lastTherapyLedAt = DateTime.MinValue;
 
     public DeviceSettingsViewModel(
         IGloveControlService gloveControlService,
@@ -208,28 +206,14 @@ public partial class DeviceSettingsViewModel : BaseViewModel
             return;
         }
 
-        // The post-connect sync is fetching INFO and THERAPY_LED_OFF right now (e.g. this
-        // page re-showing as the Applying Settings modal closes on a reboot reconnect);
-        // its events fill both in. If it fails, no stamp is set and the next visit
-        // fetches them.
-        if (_gloveControlService.IsPostConnectSyncRunning)
-            return;
-
-        var now = DateTime.UtcNow;
-        if (now - _lastTherapyLedAt > DeviceReadingFreshness)
-        {
-            LoadDeviceSettingsAsync().SafeFireAndForget("[DEVICESETTINGS]");
-        }
+        LoadTherapyLedAsync(DeviceReadingFreshness).SafeFireAndForget("[DEVICESETTINGS]");
 
         // Re-fetch INFO on visits; it also refreshes battery (OnDeviceInfoReceived), so
         // no separate BATTERY. DeviceProfileId persists across connections, so a
         // "still set" value can be stale from the previous connection if the
-        // post-connect fetch failed — and then there is no fresh stamp, so this still
-        // runs. One cheap round-trip keeps this page truthful.
-        if (now - _lastDeviceInfoAt > DeviceReadingFreshness)
-        {
-            _gloveControlService.GetDeviceInfoAsync().SafeFireAndForget("[DEVICESETTINGS]");
-        }
+        // post-connect fetch failed — the service holds no reading then, so this
+        // queries. One cheap round-trip keeps this page truthful.
+        _gloveControlService.GetDeviceInfoAsync(DeviceReadingFreshness).SafeFireAndForget("[DEVICESETTINGS]");
     }
 
     /// <summary>
@@ -409,17 +393,11 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     {
         try
         {
-            _suppressTherapyLedWrite = true;
-            TherapyLedOff = await _gloveControlService.GetTherapyLedOffAsync();
-            _deviceTherapyLedOff = TherapyLedOff;
+            ApplyTherapyLedState(await _gloveControlService.GetTherapyLedOffAsync());
         }
         catch
         {
             TherapyLedLoaded = false;
-        }
-        finally
-        {
-            _suppressTherapyLedWrite = false;
         }
     }
 
@@ -492,12 +470,8 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     {
         BatteryPrimaryVoltage = primaryVoltage;
         BatterySecondaryVoltage = secondaryVoltage;
-
-        // Gray = no reading; colored = real voltage thresholds
-        BatteryPrimaryColor = primaryVoltage is { } pv
-            ? BatteryReading.GetBatteryColorFromVoltage(pv) : Colors.Gray;
-        BatterySecondaryColor = secondaryVoltage is { } sv
-            ? BatteryReading.GetBatteryColorFromVoltage(sv) : Colors.Gray;
+        BatteryPrimaryColor = BatteryReading.GetBatteryColor(primaryVoltage);
+        BatterySecondaryColor = BatteryReading.GetBatteryColor(secondaryVoltage);
 
         // Primary always has a battery; a null secondary may just mean no
         // secondary glove (firmware reports both as BATS:0.00), so only
@@ -514,35 +488,38 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     private void OnDeviceInfoReceived(object? sender, GloveDeviceInfo info)
     {
         MainThread.BeginInvokeOnMainThread(() =>
-        {
-            _lastDeviceInfoAt = DateTime.UtcNow;
-            ApplyBatteryReading(info.BatteryPrimaryVoltage, info.BatterySecondaryVoltage);
-        });
+            ApplyBatteryReading(info.BatteryPrimaryVoltage, info.BatterySecondaryVoltage));
     }
 
     /// <summary>
-    /// The service queries THERAPY_LED_OFF right after every (re)connect. If that
-    /// query fails (older firmware), no event arrives and the toggle stays hidden.
+    /// The service's post-connect THERAPY_LED_OFF query reports here. If that query
+    /// fails (older firmware), no event arrives and the toggle stays hidden.
     /// </summary>
     private void OnTherapyLedOffReceived(object? sender, bool ledOff)
     {
-        MainThread.BeginInvokeOnMainThread(() =>
-        {
-            _lastTherapyLedAt = DateTime.UtcNow;
-            _suppressTherapyLedWrite = true;
-            TherapyLedOff = ledOff;
-            _deviceTherapyLedOff = ledOff;
-            TherapyLedLoaded = true;
-            _suppressTherapyLedWrite = false;
-            OnPropertyChanged(nameof(HasPendingChanges));
-        });
+        MainThread.BeginInvokeOnMainThread(() => ApplyTherapyLedState(ledOff));
     }
 
     /// <summary>
-    /// Reads device-side settings (therapy LED) from the connected glove.
+    /// Shows the device's therapy LED setting. The one place the toggle takes a device
+    /// value: the post-connect event, page loads and the post-failure resync all land
+    /// here (a load can be served from the service's cache, which raises no event).
     /// </summary>
-    [RelayCommand]
-    private async Task LoadDeviceSettingsAsync()
+    private void ApplyTherapyLedState(bool ledOff)
+    {
+        _suppressTherapyLedWrite = true;
+        TherapyLedOff = ledOff;
+        _deviceTherapyLedOff = ledOff;
+        TherapyLedLoaded = true;
+        _suppressTherapyLedWrite = false;
+        OnPropertyChanged(nameof(HasPendingChanges));
+    }
+
+    /// <summary>
+    /// Reads the therapy LED setting from the connected glove, accepting a reading the
+    /// service already has if it is at most <paramref name="maxAge"/> old.
+    /// </summary>
+    private async Task LoadTherapyLedAsync(TimeSpan? maxAge)
     {
         if (TherapyLedBusy)
             return;
@@ -556,10 +533,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         TherapyLedBusy = true;
         try
         {
-            _suppressTherapyLedWrite = true;
-            TherapyLedOff = await _gloveControlService.GetTherapyLedOffAsync();
-            _deviceTherapyLedOff = TherapyLedOff;
-            TherapyLedLoaded = true;
+            ApplyTherapyLedState(await _gloveControlService.GetTherapyLedOffAsync(maxAge));
         }
         catch
         {
@@ -568,9 +542,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         }
         finally
         {
-            _suppressTherapyLedWrite = false;
             TherapyLedBusy = false;
-            OnPropertyChanged(nameof(HasPendingChanges));
         }
     }
 
@@ -803,9 +775,8 @@ public partial class DeviceSettingsViewModel : BaseViewModel
             else
             {
                 TherapyLedLoaded = false;
-                // Readings from the old link say nothing about the next one.
-                _lastDeviceInfoAt = DateTime.MinValue;
-                _lastTherapyLedAt = DateTime.MinValue;
+                // Readings from the old link say nothing about the next one
+                ApplyBatteryReading(null, null);
             }
 
             OnPropertyChanged(nameof(ShowDisconnectedView));

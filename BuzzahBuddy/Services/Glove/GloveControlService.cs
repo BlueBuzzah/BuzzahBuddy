@@ -100,7 +100,12 @@ public class GloveControlService : IGloveControlService
     private void OnTransportConnectionStateChanged(object? sender, ConnectionState state)
     {
         if (state != ConnectionState.Connected)
+        {
+            // Readings from the old link say nothing about the next one
+            _infoReading.Clear();
+            _ledReading.Clear();
             return;
+        }
 
         // Set before the task starts, so a page that appears on this same Connected
         // event already sees the sync as running
@@ -113,6 +118,11 @@ public class GloveControlService : IGloveControlService
                 // busy re-establishing clock sync with the secondary (~5s cold start) and
                 // can starve early commands, so short retries all land in the busy window.
                 int[] delaysMs = { 0, 2000, 5000, 10000 };
+                // Retry only the step that failed: resending INFO for a failed
+                // SESSION_STATUS cost another secondary-battery round trip and
+                // re-raised its events, in the link's busiest window
+                var haveInfo = false;
+                var haveStatus = false;
                 for (var attempt = 0; attempt < delaysMs.Length; attempt++)
                 {
                     if (delaysMs[attempt] > 0)
@@ -125,10 +135,20 @@ public class GloveControlService : IGloveControlService
 
                     try
                     {
-                        await GetDeviceInfoAsync();
+                        // ThisConnection: a page that fetched INFO since the link came
+                        // up already raised its events; don't send it again
+                        if (!haveInfo)
+                        {
+                            await GetDeviceInfoAsync(ThisConnection);
+                            haveInfo = true;
+                        }
                         // Sync session state too: the gloves auto-start a session ~30s
                         // after power-on, which can be before the app ever connects.
-                        await GetSessionStatusAsync();
+                        if (!haveStatus)
+                        {
+                            await GetSessionStatusAsync();
+                            haveStatus = true;
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -141,7 +161,7 @@ public class GloveControlService : IGloveControlService
                     // rejects it every time, and observers treat no reply as "unsupported".
                     try
                     {
-                        await GetTherapyLedOffAsync();
+                        await GetTherapyLedOffAsync(ThisConnection);
                     }
                     catch (Exception ex)
                     {
@@ -156,6 +176,67 @@ public class GloveControlService : IGloveControlService
                 Interlocked.Decrement(ref _postConnectSyncsRunning);
             }
         });
+    }
+
+    // Any reading the cache holds is from the current link (it is cleared on link
+    // down), so "no older than the connection" is simply no age limit
+    private static readonly TimeSpan ThisConnection = TimeSpan.MaxValue;
+
+    private readonly DeviceReading<GloveDeviceInfo> _infoReading = new();
+    private readonly DeviceReading<bool> _ledReading = new();
+
+    /// <summary>
+    /// One device query's result: concurrent callers share the query in flight, and a
+    /// caller that accepts some staleness gets the last result. Several observers want
+    /// the same INFO around every connect; without this each sent its own.
+    /// </summary>
+    private sealed class DeviceReading<T>
+    {
+        private readonly object _lock = new();
+        private Task<T>? _inFlight;
+        private T? _value;
+        private DateTime _readAt;
+        private bool _hasValue;
+        private int _generation;
+
+        public Task<T> GetAsync(Func<Task<T>> query, TimeSpan? maxAge)
+        {
+            lock (_lock)
+            {
+                if (maxAge is { } age && _hasValue && DateTime.UtcNow - _readAt <= age)
+                    return Task.FromResult(_value!);
+                if (_inFlight is { IsCompleted: false } running)
+                    return running;
+                return _inFlight = QueryAsync(query, _generation);
+            }
+        }
+
+        private async Task<T> QueryAsync(Func<Task<T>> query, int generation)
+        {
+            var value = await query();
+            lock (_lock)
+            {
+                // A query that outlived its link must not seed the next one's cache
+                if (generation == _generation)
+                {
+                    _value = value;
+                    _readAt = DateTime.UtcNow;
+                    _hasValue = true;
+                }
+            }
+            return value;
+        }
+
+        public void Clear()
+        {
+            lock (_lock)
+            {
+                _generation++;
+                _hasValue = false;
+                _value = default;
+                _inFlight = null;
+            }
+        }
     }
 
     // A count, not a flag: a reconnect can start a new sync while the previous
@@ -198,7 +279,10 @@ public class GloveControlService : IGloveControlService
 
     // ========== Device Information Commands ==========
 
-    public async Task<GloveDeviceInfo> GetDeviceInfoAsync()
+    public Task<GloveDeviceInfo> GetDeviceInfoAsync(TimeSpan? maxAge = null) =>
+        _infoReading.GetAsync(QueryDeviceInfoAsync, maxAge);
+
+    private async Task<GloveDeviceInfo> QueryDeviceInfoAsync()
     {
         EnsureConnected();
         var response = await _bluetoothService.SendCommandAsync("INFO");
@@ -851,7 +935,10 @@ public class GloveControlService : IGloveControlService
 
     // ========== LED and Debug Commands (per BLE protocol v2.0.0) ==========
 
-    public async Task<bool> GetTherapyLedOffAsync()
+    public Task<bool> GetTherapyLedOffAsync(TimeSpan? maxAge = null) =>
+        _ledReading.GetAsync(QueryTherapyLedOffAsync, maxAge);
+
+    private async Task<bool> QueryTherapyLedOffAsync()
     {
         EnsureConnected();
         var response = await _bluetoothService.SendCommandAsync("THERAPY_LED_OFF");

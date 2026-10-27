@@ -75,6 +75,12 @@ public static class BlueBuzzahConstants
     public const int ConnectionTimeoutSeconds = 15;
 
     /// <summary>
+    /// Pause after a reply that carries no CMD echo (older firmware) before the next
+    /// command can go out; absorbs a stray frame that would otherwise complete it.
+    /// </summary>
+    public const int LegacyReplySettleMs = 100;
+
+    /// <summary>
     /// ATT MTU requested after connect (247 = 244-byte notifications, the common
     /// ceiling for data-length-extended links).
     /// </summary>

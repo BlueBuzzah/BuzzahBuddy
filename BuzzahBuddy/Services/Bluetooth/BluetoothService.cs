@@ -154,17 +154,18 @@ public class BluetoothService : IBluetoothService
 
             System.Diagnostics.Debug.WriteLine($"📡 Connecting to BLE device...");
             var connectParameters = new ConnectParameters(autoConnect: false, forceBleTransport: true);
-            using (var connectCts = CreateConnectTimeout(cancellationToken))
-            {
-                await _adapter.ConnectToDeviceAsync(bleDevice, connectParameters, connectCts.Token);
-            }
+            // One timeout over link-up, discovery and subscribe: a glove can reach
+            // link-up and then stall in discovery, which iOS never times out.
+            using var connectCts = CreateConnectTimeout(cancellationToken);
+            await _adapter.ConnectToDeviceAsync(bleDevice, connectParameters, connectCts.Token);
 
             _connectedBleDevice = bleDevice;
             System.Diagnostics.Debug.WriteLine($"✅ BLE connection established");
 
             // Discover Nordic UART Service and get TX/RX characteristics
             System.Diagnostics.Debug.WriteLine($"🔍 Discovering NUS service...");
-            var service = await bleDevice.GetServiceAsync(BlueBuzzahConstants.NordicUartServiceUuid);
+            var service = await bleDevice.GetServiceAsync(BlueBuzzahConstants.NordicUartServiceUuid)
+                .WaitAsync(connectCts.Token);
             if (service == null)
             {
                 System.Diagnostics.Debug.WriteLine($"❌ Nordic UART Service not found");
@@ -175,8 +176,10 @@ public class BluetoothService : IBluetoothService
             System.Diagnostics.Debug.WriteLine($"✅ NUS service found");
 
             System.Diagnostics.Debug.WriteLine($"🔍 Getting TX/RX characteristics...");
-            _txCharacteristic = await service.GetCharacteristicAsync(BlueBuzzahConstants.TxCharacteristicUuid);
-            _rxCharacteristic = await service.GetCharacteristicAsync(BlueBuzzahConstants.RxCharacteristicUuid);
+            _txCharacteristic = await service.GetCharacteristicAsync(BlueBuzzahConstants.TxCharacteristicUuid)
+                .WaitAsync(connectCts.Token);
+            _rxCharacteristic = await service.GetCharacteristicAsync(BlueBuzzahConstants.RxCharacteristicUuid)
+                .WaitAsync(connectCts.Token);
 
             if (_txCharacteristic == null || _rxCharacteristic == null)
             {
@@ -189,7 +192,7 @@ public class BluetoothService : IBluetoothService
 
             // Subscribe to RX notifications automatically
             System.Diagnostics.Debug.WriteLine($"📬 Subscribing to notifications...");
-            await SubscribeToNotificationsAsync();
+            await SubscribeToNotificationsAsync().WaitAsync(connectCts.Token);
             System.Diagnostics.Debug.WriteLine($"✅ Subscribed to notifications");
 
             // Identify ourselves so the firmware types this connection as PHONE
@@ -222,14 +225,28 @@ public class BluetoothService : IBluetoothService
         catch (DeviceConnectionException ex)
         {
             System.Diagnostics.Debug.WriteLine($"❌ Connection error: {ex.Message}");
+            await ReleaseHalfOpenLinkAsync();
             RaiseManualConnectFailure();
             return false;
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"❌ Unexpected error during connection: {ex.GetType().Name}: {ex.Message}");
+            await ReleaseHalfOpenLinkAsync();
             RaiseManualConnectFailure();
             return false;
+        }
+    }
+
+    /// <summary>
+    /// A connect that fails after link-up (discovery timed out, subscribe threw) would
+    /// otherwise leave the BLE link open with no app session on it.
+    /// </summary>
+    private async Task ReleaseHalfOpenLinkAsync()
+    {
+        if (_connectedBleDevice != null)
+        {
+            await DisconnectAsync();
         }
     }
 
@@ -307,7 +324,19 @@ public class BluetoothService : IBluetoothService
 
             try
             {
-                return await pending.Reply.Task.WaitAsync(linkedCts.Token);
+                var response = await pending.Reply.Task.WaitAsync(linkedCts.Token);
+
+                // Firmware without the CMD echo can only be matched by expected key,
+                // and some commands have none. Keep this command's reply slot open a
+                // moment so a stray extra frame lands here instead of completing the
+                // next command and shifting every later reply by one. CMD-echo
+                // firmware needs no settle: stale frames are dropped by name.
+                if (response.GetString("CMD") == null)
+                {
+                    await Task.Delay(BlueBuzzahConstants.LegacyReplySettleMs, cancellationToken);
+                }
+
+                return response;
             }
             catch (OperationCanceledException)
             {
@@ -381,16 +410,15 @@ public class BluetoothService : IBluetoothService
             // A timed-out attempt lands in the catch below and returns false, so the
             // reconnect loop moves on to its next attempt rather than treating the
             // cancellation as the user cancelling the whole loop.
-            IDevice bleDevice;
-            using (var connectCts = CreateConnectTimeout(ct))
-            {
-                bleDevice = await _adapter.ConnectToKnownDeviceAsync(guid, connectParams, connectCts.Token);
-            }
+            // One timeout over link-up, discovery and subscribe (see ConnectToDeviceAsync).
+            using var connectCts = CreateConnectTimeout(ct);
+            var bleDevice = await _adapter.ConnectToKnownDeviceAsync(guid, connectParams, connectCts.Token);
 
             _connectedBleDevice = bleDevice;
 
             // Discover Nordic UART Service and get TX/RX characteristics
-            var service = await bleDevice.GetServiceAsync(BlueBuzzahConstants.NordicUartServiceUuid);
+            var service = await bleDevice.GetServiceAsync(BlueBuzzahConstants.NordicUartServiceUuid)
+                .WaitAsync(connectCts.Token);
             if (service == null)
             {
                 System.Diagnostics.Debug.WriteLine("[BLE RECONNECT] Nordic UART Service not found");
@@ -399,8 +427,10 @@ public class BluetoothService : IBluetoothService
                 return false;
             }
 
-            _txCharacteristic = await service.GetCharacteristicAsync(BlueBuzzahConstants.TxCharacteristicUuid);
-            _rxCharacteristic = await service.GetCharacteristicAsync(BlueBuzzahConstants.RxCharacteristicUuid);
+            _txCharacteristic = await service.GetCharacteristicAsync(BlueBuzzahConstants.TxCharacteristicUuid)
+                .WaitAsync(connectCts.Token);
+            _rxCharacteristic = await service.GetCharacteristicAsync(BlueBuzzahConstants.RxCharacteristicUuid)
+                .WaitAsync(connectCts.Token);
 
             if (_txCharacteristic == null || _rxCharacteristic == null)
             {
@@ -410,7 +440,7 @@ public class BluetoothService : IBluetoothService
                 return false;
             }
 
-            await SubscribeToNotificationsAsync();
+            await SubscribeToNotificationsAsync().WaitAsync(connectCts.Token);
 
             // Identify ourselves immediately (parity with ConnectToDeviceAsync):
             // without this, the firmware types this connection UNKNOWN for up to
@@ -564,8 +594,8 @@ public class BluetoothService : IBluetoothService
     }
 
     /// <summary>
-    /// Bounds a connect attempt: without it iOS waits forever for a peripheral that
-    /// is out of range. Dispose the result once the connect call returns.
+    /// Bounds a connect attempt, from link-up through subscribe: without it iOS waits
+    /// forever for a peripheral that is out of range or stalls in discovery.
     /// </summary>
     private static CancellationTokenSource CreateConnectTimeout(CancellationToken cancellationToken)
     {

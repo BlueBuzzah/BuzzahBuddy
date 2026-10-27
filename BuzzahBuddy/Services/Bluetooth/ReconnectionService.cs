@@ -38,7 +38,7 @@ public class ReconnectionService : IReconnectionService
     /// <summary>
     /// Cancels any in-progress reconnection and clears the expecting reboot flag.
     /// </summary>
-    public void CancelReconnect()
+    public void CancelReconnect(bool supersededByConnect = false)
     {
         if (_reconnectCts != null && !_reconnectCts.IsCancellationRequested)
         {
@@ -51,7 +51,8 @@ public class ReconnectionService : IReconnectionService
         _currentAttempt = 0;
         _gloveControlService.ClearExpectingReboot();
 
-        RaiseStateChanged(ReconnectionState.Cancelled, 0, MaxReconnectAttempts, "Reconnection cancelled by user");
+        RaiseStateChanged(ReconnectionState.Cancelled, 0, MaxReconnectAttempts, "Reconnection cancelled by user",
+            supersededByConnect);
     }
 
     private void OnConnectionStateChanged(object? sender, ConnectionState newState)
@@ -204,9 +205,11 @@ public class ReconnectionService : IReconnectionService
         }
     }
 
-    private void RaiseStateChanged(ReconnectionState state, int attempt, int maxAttempts, string? message = null)
+    private void RaiseStateChanged(ReconnectionState state, int attempt, int maxAttempts, string? message = null,
+        bool supersededByConnect = false)
     {
-        ReconnectionStateChanged?.Invoke(this, new ReconnectionStateEventArgs(state, attempt, maxAttempts, message));
+        ReconnectionStateChanged?.Invoke(this,
+            new ReconnectionStateEventArgs(state, attempt, maxAttempts, message, supersededByConnect));
     }
 
     public void Dispose()

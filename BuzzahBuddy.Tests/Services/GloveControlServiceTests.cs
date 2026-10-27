@@ -198,6 +198,61 @@ public class GloveControlServiceTests
     }
 
     [Fact]
+    public async Task GetDeviceInfoAsync_OverlappingCalls_ShareOneInfo()
+    {
+        var fake = new FakeBluetoothService { HoldReplies = new TaskCompletionSource() };
+        fake.CannedResponses["INFO"] = "CMD:INFO\nROLE:PRIMARY\nPROFILE:2:noisy_vcr\nBATP:3.72\nBATS:3.68\n\x04";
+        var service = new GloveControlService(fake);
+        var infoEvents = 0;
+        service.DeviceInfoReceived += (_, _) => infoEvents++;
+
+        var first = service.GetDeviceInfoAsync();
+        var second = service.GetDeviceInfoAsync(TimeSpan.FromSeconds(30));
+        fake.HoldReplies.SetResult();
+
+        Assert.Same(await first, await second);
+        Assert.Single(fake.SentCommands, c => c == "INFO");
+        Assert.Equal(1, infoEvents);
+    }
+
+    [Fact]
+    public async Task GetDeviceInfoAsync_WithMaxAge_ServesRecentReadingUntilTheLinkDrops()
+    {
+        var fake = new FakeBluetoothService();
+        fake.CannedResponses["INFO"] = "CMD:INFO\nROLE:PRIMARY\nPROFILE:2:noisy_vcr\nBATP:3.72\nBATS:3.68\n\x04";
+        var service = new GloveControlService(fake);
+
+        await service.GetDeviceInfoAsync();
+        await service.GetDeviceInfoAsync(TimeSpan.FromSeconds(30));
+        Assert.Single(fake.SentCommands, c => c == "INFO");
+
+        // A reading from the old link must not answer for the next one
+        fake.RaiseConnectionStateChanged(ConnectionState.Disconnected);
+        fake.CurrentConnectionState = ConnectionState.Connected;
+        await service.GetDeviceInfoAsync(TimeSpan.FromSeconds(30));
+        Assert.Equal(2, fake.SentCommands.Count(c => c == "INFO"));
+    }
+
+    [Fact]
+    public async Task OnConnect_RetriesOnlyTheStepThatFailed()
+    {
+        var fake = new FakeBluetoothService();
+        fake.QueuedResponses.Enqueue("CMD:INFO\nROLE:PRIMARY\nPROFILE:2:noisy_vcr\nBATP:3.72\nBATS:3.68\n\x04");
+        fake.QueuedResponses.Enqueue("CMD:SESSION_STATUS\nERROR:Busy\n\x04");
+        fake.QueuedResponses.Enqueue("CMD:SESSION_STATUS\nSESSION_STATUS:IDLE\n\x04");
+        fake.QueuedResponses.Enqueue("CMD:THERAPY_LED_OFF\nTHERAPY_LED_OFF:false\n\x04");
+        var service = new GloveControlService(fake);
+        var ledReceived = new TaskCompletionSource<bool>();
+        service.TherapyLedOffReceived += (_, ledOff) => ledReceived.TrySetResult(ledOff);
+
+        fake.RaiseConnectionStateChanged(ConnectionState.Connected);
+
+        // The second attempt waits out the ladder's 2 s step
+        Assert.False(await ledReceived.Task.WaitAsync(TimeSpan.FromSeconds(10)));
+        Assert.Equal(new[] { "INFO", "SESSION_STATUS", "SESSION_STATUS", "THERAPY_LED_OFF" }, fake.SentCommands);
+    }
+
+    [Fact]
     public async Task SetCustomProfileAsync_WithinFirmwareLimits_Sends()
     {
         var fake = new FakeBluetoothService();

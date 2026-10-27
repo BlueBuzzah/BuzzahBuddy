@@ -42,9 +42,8 @@ public partial class GloveControlViewModel : BaseViewModel
     private const string ConnectionUnstableWarning = "Connection unstable — trying to recover…";
 
     // Battery arrives with every INFO reply, including the service's post-connect
-    // one; a tab visit only sends its own BATTERY when that reading has gone stale.
+    // one; a tab visit only asks for a new INFO when the service's is this stale.
     private static readonly TimeSpan BatteryReadingFreshness = TimeSpan.FromSeconds(30);
-    private DateTime _lastBatteryReadingAt = DateTime.MinValue;
     private bool _warnOnNextBatteryReading;
 
     /// <summary>Preset profiles, used to map the device's profile id to a display profile.</summary>
@@ -217,13 +216,13 @@ public partial class GloveControlViewModel : BaseViewModel
             LoadSelectedProfileAsync().SafeFireAndForget("[GLOVECONTROL]");
         }
 
-        // Refresh on tab visits so the battery values don't go stale, but skip it
-        // around connect: the post-connect INFO delivers them (or is about to). No
-        // low-battery alert on mere tab visits.
-        if (ConnectionInfo.IsConnected && !_gloveControlService.IsPostConnectSyncRunning &&
-            DateTime.UtcNow - _lastBatteryReadingAt > BatteryReadingFreshness)
+        // Refresh on tab visits so the battery values don't go stale. INFO carries
+        // both batteries (applied by OnDeviceInfoReceived); the service serves a
+        // recent reading or joins the post-connect one in flight instead of sending
+        // another. No low-battery alert on mere tab visits.
+        if (ConnectionInfo.IsConnected)
         {
-            RefreshBatteryAsync(warnIfLow: false).SafeFireAndForget("[GLOVECONTROL]");
+            _gloveControlService.GetDeviceInfoAsync(BatteryReadingFreshness).SafeFireAndForget("[GLOVECONTROL]");
         }
     }
 
@@ -418,13 +417,8 @@ public partial class GloveControlViewModel : BaseViewModel
     {
         BatteryPrimaryVoltage = primaryVoltage;
         BatterySecondaryVoltage = secondaryVoltage;
-        _lastBatteryReadingAt = DateTime.UtcNow;
-
-        // Gray = no reading; colored = real voltage thresholds
-        BatteryPrimaryColor = primaryVoltage is { } pv
-            ? BatteryReading.GetBatteryColorFromVoltage(pv) : Colors.Gray;
-        BatterySecondaryColor = secondaryVoltage is { } sv
-            ? BatteryReading.GetBatteryColorFromVoltage(sv) : Colors.Gray;
+        BatteryPrimaryColor = BatteryReading.GetBatteryColor(primaryVoltage);
+        BatterySecondaryColor = BatteryReading.GetBatteryColor(secondaryVoltage);
 
         // Check for low battery warnings (on connect, not on every tab visit)
         if (warnIfLow)
@@ -439,9 +433,12 @@ public partial class GloveControlViewModel : BaseViewModel
     /// </summary>
     private void OnDeviceInfoReceived(object? sender, GloveDeviceInfo info)
     {
+        // Read synchronously, on the raising thread: only the connect reading may
+        // alert. If every post-connect INFO failed, the next one is a tab visit's.
+        var connectReading = _gloveControlService.IsPostConnectSyncRunning;
         MainThread.BeginInvokeOnMainThread(() =>
         {
-            var warnIfLow = _warnOnNextBatteryReading;
+            var warnIfLow = _warnOnNextBatteryReading && connectReading;
             _warnOnNextBatteryReading = false;
             ApplyBatteryReadingAsync(info.BatteryPrimaryVoltage, info.BatterySecondaryVoltage, warnIfLow)
                 .SafeFireAndForget("[GLOVECONTROL]");
@@ -908,6 +905,9 @@ public partial class GloveControlViewModel : BaseViewModel
             {
                 StopConnectionHealthCheck();
                 IsConnectionHealthy = false;
+                // Readings from the old link say nothing about the next one (which may
+                // even be a different glove)
+                ApplyBatteryReadingAsync(null, null, warnIfLow: false).SafeFireAndForget("[GLOVECONTROL]");
             }
 
             // Session teardown on disconnect. A record still kept from an earlier
@@ -963,13 +963,23 @@ public partial class GloveControlViewModel : BaseViewModel
             return;
 
         _sessionDisconnectedAt = null;
-        if (!status.IsActive)
+        // A manual connect may have gone to a different glove: an active session
+        // there is not the one this record tracks.
+        var sameGlove = _currentSession?.DeviceId == null ||
+                        _currentSession.DeviceId == _bluetoothService.ConnectedDevice?.Id;
+        if (!status.IsActive || !sameGlove)
             SaveInterruptedSession(disconnectedAt);
     }
 
     private void OnReconnectionStateChanged(object? sender, ReconnectionStateEventArgs e)
     {
         if (e.State is not (ReconnectionState.Failed or ReconnectionState.Cancelled))
+            return;
+
+        // A manual connect replaced the reconnect (same glove, typically): keep the
+        // record for that connect to settle - its post-connect status resolves it, and
+        // a failed connect saves it through the disconnect teardown.
+        if (e.SupersededByConnect)
             return;
 
         MainThread.BeginInvokeOnMainThread(() =>

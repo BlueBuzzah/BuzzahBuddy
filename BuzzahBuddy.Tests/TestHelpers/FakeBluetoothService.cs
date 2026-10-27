@@ -27,6 +27,12 @@ public class FakeBluetoothService : IBluetoothService
 
     public List<string> SentCommands { get; } = new();
 
+    /// <summary>
+    /// When set, every reply waits for this to complete - lets a test hold a command
+    /// in flight while it makes overlapping calls.
+    /// </summary>
+    public TaskCompletionSource? HoldReplies { get; set; }
+
     public ConnectionState CurrentConnectionState { get; set; } = ConnectionState.Connected;
     public GloveDevice? ConnectedDevice { get; set; } = new() { Id = "FAKE-1", Name = "BlueBuzzah" };
     public string? LastConnectedDeviceId => ConnectedDevice?.Id;
@@ -48,6 +54,15 @@ public class FakeBluetoothService : IBluetoothService
     public Task<CommandResponse> SendCommandAsync(string command, int timeoutMs = 5000, CancellationToken cancellationToken = default)
     {
         SentCommands.Add(command);
+        if (HoldReplies is { } hold)
+        {
+            return hold.Task.ContinueWith(_ => Reply(command), TaskScheduler.Default).Unwrap();
+        }
+        return Reply(command);
+    }
+
+    private Task<CommandResponse> Reply(string command)
+    {
 
         // Longest prefix wins, so "PROFILE_LOAD" beats "PROFILE" regardless of insertion order.
         var throwKey = ThrowOnCommand.Keys

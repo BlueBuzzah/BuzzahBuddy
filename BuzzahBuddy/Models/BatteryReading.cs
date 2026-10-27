@@ -63,6 +63,13 @@ public static class BatteryReading
     }
 
     /// <summary>
+    /// Display color for an optional reading: gray when there is none, otherwise the
+    /// voltage thresholds.
+    /// </summary>
+    public static Color GetBatteryColor(double? voltage) =>
+        voltage is { } v ? GetBatteryColorFromVoltage(v) : Colors.Gray;
+
+    /// <summary>
     /// Gets human-readable status text for a battery voltage level.
     /// </summary>
     public static string GetBatteryStatusText(double voltage)
