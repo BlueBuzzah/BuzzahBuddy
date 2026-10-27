@@ -142,7 +142,7 @@ public class BluetoothService : IBluetoothService
             if (bleDevice == null)
             {
                 System.Diagnostics.Debug.WriteLine($"❌ Device not found for connection");
-                UpdateConnectionState(ConnectionState.Error);
+                RaiseManualConnectFailure();
                 return false;
             }
 
@@ -162,11 +162,8 @@ public class BluetoothService : IBluetoothService
             if (service == null)
             {
                 System.Diagnostics.Debug.WriteLine($"❌ Nordic UART Service not found");
-                // Prevent ReconnectionService from starting a reconnect loop for a first-connect failure
-                _userInitiatedDisconnect = true;
                 await DisconnectAsync();
-                _userInitiatedDisconnect = false;
-                UpdateConnectionState(ConnectionState.Error);
+                RaiseManualConnectFailure();
                 return false;
             }
             System.Diagnostics.Debug.WriteLine($"✅ NUS service found");
@@ -178,11 +175,8 @@ public class BluetoothService : IBluetoothService
             if (_txCharacteristic == null || _rxCharacteristic == null)
             {
                 System.Diagnostics.Debug.WriteLine($"❌ TX or RX characteristic not found (TX: {_txCharacteristic != null}, RX: {_rxCharacteristic != null})");
-                // Prevent ReconnectionService from starting a reconnect loop for a first-connect failure
-                _userInitiatedDisconnect = true;
                 await DisconnectAsync();
-                _userInitiatedDisconnect = false;
-                UpdateConnectionState(ConnectionState.Error);
+                RaiseManualConnectFailure();
                 return false;
             }
             System.Diagnostics.Debug.WriteLine($"✅ TX/RX characteristics found");
@@ -222,13 +216,13 @@ public class BluetoothService : IBluetoothService
         catch (DeviceConnectionException ex)
         {
             System.Diagnostics.Debug.WriteLine($"❌ Connection error: {ex.Message}");
-            UpdateConnectionState(ConnectionState.Error);
+            RaiseManualConnectFailure();
             return false;
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"❌ Unexpected error during connection: {ex.GetType().Name}: {ex.Message}");
-            UpdateConnectionState(ConnectionState.Error);
+            RaiseManualConnectFailure();
             return false;
         }
     }
@@ -542,6 +536,17 @@ public class BluetoothService : IBluetoothService
 
             pending.Reply.TrySetResult(response);
         }
+    }
+
+    /// <summary>
+    /// Reports a failed user-picked connect. The flag stays set so ReconnectionService,
+    /// which reads it synchronously on this Error, doesn't auto-reconnect to the
+    /// previously connected glove; the next successful connect clears it.
+    /// </summary>
+    private void RaiseManualConnectFailure()
+    {
+        _userInitiatedDisconnect = true;
+        UpdateConnectionState(ConnectionState.Error);
     }
 
     private void ResetRxAssembler()
