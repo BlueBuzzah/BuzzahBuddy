@@ -52,6 +52,12 @@ public class GloveControlService : IGloveControlService
     public event EventHandler<int>? DeviceProfileChanged;
 
     /// <inheritdoc />
+    public event EventHandler<GloveDeviceInfo>? DeviceInfoReceived;
+
+    /// <inheritdoc />
+    public event EventHandler<bool>? TherapyLedOffReceived;
+
+    /// <inheritdoc />
     public SessionStatus CurrentSessionStatus => _currentSessionStatus;
 
     /// <inheritdoc />
@@ -75,24 +81,6 @@ public class GloveControlService : IGloveControlService
         _expectingReboot = false;
     }
 
-    /// <inheritdoc />
-    public async Task<bool> SyncStateAsync()
-    {
-        try
-        {
-            await GetDeviceInfoAsync();
-            await PingAsync();
-            await GetBatteryAsync();
-            await GetSessionStatusAsync();
-            return true;
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[GLOVE_SERVICE] SyncStateAsync failed: {ex.Message}");
-            return false;
-        }
-    }
-
     public GloveControlService(IBluetoothService bluetoothService)
     {
         _bluetoothService = bluetoothService;
@@ -100,10 +88,12 @@ public class GloveControlService : IGloveControlService
     }
 
     /// <summary>
-    /// Once per (re)connect, syncs device state so observers don't have to ask per page:
-    /// INFO (populates DeviceProfileId, raises DeviceProfileChanged) and SESSION_STATUS
-    /// (raises SessionStateChanged — so a session the gloves auto-started before the app
-    /// connected shows up instead of the UI looking idle). Uses the transport's own state
+    /// The single owner of post-(re)connect sync, so observers don't each send their
+    /// own burst of commands: INFO (populates DeviceProfileId and raises
+    /// DeviceProfileChanged, plus DeviceInfoReceived with both batteries — no separate
+    /// BATTERY), SESSION_STATUS (raises SessionStateChanged — so a session the gloves
+    /// auto-started before the app connected shows up instead of the UI looking idle),
+    /// then THERAPY_LED_OFF (raises TherapyLedOffReceived). Uses the transport's own state
     /// (no race with the UI-facing connection service), with a growing backoff because
     /// the first commands after connect can be starved while the link/glove-sync settles.
     /// </summary>
@@ -134,13 +124,26 @@ public class GloveControlService : IGloveControlService
                     // Sync session state too: the gloves auto-start a session ~30s
                     // after power-on, which can be before the app ever connects.
                     await GetSessionStatusAsync();
-                    return;
                 }
                 catch (Exception ex)
                 {
                     System.Diagnostics.Debug.WriteLine(
                         $"[GLOVE_SERVICE] Post-connect sync failed (attempt {attempt + 1}/{delaysMs.Length}): {ex.Message}");
+                    continue;
                 }
+
+                // Outside the retry ladder: firmware that predates THERAPY_LED_OFF
+                // rejects it every time, and observers treat no reply as "unsupported".
+                try
+                {
+                    await GetTherapyLedOffAsync();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine(
+                        $"[GLOVE_SERVICE] Post-connect THERAPY_LED_OFF failed: {ex.Message}");
+                }
+                return;
             }
         });
     }
@@ -191,6 +194,7 @@ public class GloveControlService : IGloveControlService
             _currentProfile = TherapyProfile.GetPresetProfiles().FirstOrDefault(p => p.ProfileId == info.ProfileId);
             DeviceProfileChanged?.Invoke(this, info.ProfileId);
         }
+        DeviceInfoReceived?.Invoke(this, info);
         return info;
     }
 
@@ -835,7 +839,9 @@ public class GloveControlService : IGloveControlService
 
         // Response format: THERAPY_LED_OFF:true/false
         var value = response.GetString("THERAPY_LED_OFF");
-        return value?.ToLowerInvariant() == "true" || value == "1";
+        var ledOff = value?.ToLowerInvariant() == "true" || value == "1";
+        TherapyLedOffReceived?.Invoke(this, ledOff);
+        return ledOff;
     }
 
     public async Task SetTherapyLedOffAsync(bool enabled)

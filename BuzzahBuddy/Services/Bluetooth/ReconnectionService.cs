@@ -149,8 +149,8 @@ public class ReconnectionService : IReconnectionService
                     {
                         System.Diagnostics.Debug.WriteLine($"[RECONNECT] Success on attempt {_currentAttempt}");
 
-                        // Sync state with device and clear reboot flag
-                        await _gloveControlService.SyncStateAsync();
+                        // No state sync here: GloveControlService runs the post-connect
+                        // INFO/SESSION_STATUS sync on the transport's Connected event.
                         _gloveControlService.ClearExpectingReboot();
 
                         _isReconnecting = false;

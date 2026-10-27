@@ -58,6 +58,10 @@ Non-obvious invariants:
   `RebootInitialDelayMs = 3000` before its first retry (backoff 1→2→4→8→16→30s, 20 max).
   `UserInitiatedDisconnect` always beats `ExpectingReboot` — never auto-reconnect after
   a user disconnect.
+- `GloveControlService` is the **single post-(re)connect sync owner**: `INFO` →
+  `SESSION_STATUS` → `THERAPY_LED_OFF`. ViewModels take battery from INFO's BATP/BATS
+  via `DeviceInfoReceived` and the LED setting via `TherapyLedOffReceived` — don't add
+  per-VM commands on `Connected`; they compete for the link in its busiest window.
 - Post-reconnect `INFO`/`SESSION_STATUS` retry on a `{0, 2000, 5000, 10000}ms` ladder:
   the primary is re-establishing clock sync with the secondary (~5s cold start) and
   starves early commands.

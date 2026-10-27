@@ -34,9 +34,16 @@ public class FakeBluetoothService : IBluetoothService
 
 #pragma warning disable CS0067 // Events required by IBluetoothService but not raised by this fake.
     public event EventHandler<GloveDevice>? DeviceDiscovered;
-    public event EventHandler<ConnectionState>? ConnectionStateChanged;
     public event EventHandler<CommandResponse>? ResponseReceived;
 #pragma warning restore CS0067
+    public event EventHandler<ConnectionState>? ConnectionStateChanged;
+
+    /// <summary>Sets the state and raises ConnectionStateChanged, as the transport does.</summary>
+    public void RaiseConnectionStateChanged(ConnectionState state)
+    {
+        CurrentConnectionState = state;
+        ConnectionStateChanged?.Invoke(this, state);
+    }
 
     public Task<CommandResponse> SendCommandAsync(string command, int timeoutMs = 5000, CancellationToken cancellationToken = default)
     {

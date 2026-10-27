@@ -155,6 +155,29 @@ public class GloveControlServiceTests
     }
 
     [Fact]
+    public async Task OnConnect_SyncsInfoThenSessionStatusThenLed_WithoutSeparateBatteryOrPing()
+    {
+        var fake = new FakeBluetoothService();
+        fake.CannedResponses["INFO"] =
+            "CMD:INFO\nROLE:PRIMARY\nMOTORS:4\nPROFILE:2:noisy_vcr\nBATP:3.72\nBATS:3.68\nSTATUS:IDLE\n\x04";
+        fake.CannedResponses["SESSION_STATUS"] = "CMD:SESSION_STATUS\nSESSION_STATUS:IDLE\n\x04";
+        fake.CannedResponses["THERAPY_LED_OFF"] = "CMD:THERAPY_LED_OFF\nTHERAPY_LED_OFF:true\n\x04";
+        var service = new GloveControlService(fake);
+        var infoReceived = new TaskCompletionSource<GloveDeviceInfo>();
+        var ledReceived = new TaskCompletionSource<bool>();
+        service.DeviceInfoReceived += (_, info) => infoReceived.TrySetResult(info);
+        service.TherapyLedOffReceived += (_, ledOff) => ledReceived.TrySetResult(ledOff);
+
+        fake.RaiseConnectionStateChanged(ConnectionState.Connected);
+
+        var info = await infoReceived.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.True(await ledReceived.Task.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.Equal(3.72, info.BatteryPrimaryVoltage);
+        Assert.Equal(3.68, info.BatterySecondaryVoltage);
+        Assert.Equal(new[] { "INFO", "SESSION_STATUS", "THERAPY_LED_OFF" }, fake.SentCommands);
+    }
+
+    [Fact]
     public async Task SetCustomProfileAsync_WithinFirmwareLimits_Sends()
     {
         var fake = new FakeBluetoothService();

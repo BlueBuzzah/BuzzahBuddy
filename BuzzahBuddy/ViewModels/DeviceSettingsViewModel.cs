@@ -180,6 +180,8 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         _bluetoothService.ConnectionStateChanged += OnConnectionStateChanged;
         _gloveControlService.SessionStateChanged += OnSessionStateChanged;
         _gloveControlService.DeviceProfileChanged += OnDeviceProfileChanged;
+        _gloveControlService.DeviceInfoReceived += OnDeviceInfoReceived;
+        _gloveControlService.TherapyLedOffReceived += OnTherapyLedOffReceived;
         _reconnectionService.ReconnectionStateChanged += OnReconnectionStateChanged;
 
         LoadProfilesAsync().SafeFireAndForget("[DEVICESETTINGS]");
@@ -450,22 +452,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         try
         {
             var (primaryVoltage, secondaryVoltage) = await _gloveControlService.GetBatteryAsync();
-
-            BatteryPrimaryVoltage = primaryVoltage;
-            BatterySecondaryVoltage = secondaryVoltage;
-
-            // Gray = no reading; colored = real voltage thresholds
-            BatteryPrimaryColor = primaryVoltage is { } pv
-                ? BatteryReading.GetBatteryColorFromVoltage(pv) : Colors.Gray;
-            BatterySecondaryColor = secondaryVoltage is { } sv
-                ? BatteryReading.GetBatteryColorFromVoltage(sv) : Colors.Gray;
-
-            // Primary always has a battery; a null secondary may just mean no
-            // secondary glove (firmware reports both as BATS:0.00), so only
-            // flag the primary.
-            BatteryStatusMessage = primaryVoltage is null
-                ? "Battery status unavailable — try refreshing"
-                : null;
+            ApplyBatteryReading(primaryVoltage, secondaryVoltage);
         }
         catch (Exception ex)
         {
@@ -476,6 +463,52 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         {
             IsRefreshingBattery = false;
         }
+    }
+
+    private void ApplyBatteryReading(double? primaryVoltage, double? secondaryVoltage)
+    {
+        BatteryPrimaryVoltage = primaryVoltage;
+        BatterySecondaryVoltage = secondaryVoltage;
+
+        // Gray = no reading; colored = real voltage thresholds
+        BatteryPrimaryColor = primaryVoltage is { } pv
+            ? BatteryReading.GetBatteryColorFromVoltage(pv) : Colors.Gray;
+        BatterySecondaryColor = secondaryVoltage is { } sv
+            ? BatteryReading.GetBatteryColorFromVoltage(sv) : Colors.Gray;
+
+        // Primary always has a battery; a null secondary may just mean no
+        // secondary glove (firmware reports both as BATS:0.00), so only
+        // flag the primary.
+        BatteryStatusMessage = primaryVoltage is null
+            ? "Battery status unavailable — try refreshing"
+            : null;
+    }
+
+    /// <summary>
+    /// INFO carries both batteries; the service sends one right after every
+    /// (re)connect, so this replaces a separate on-connect BATTERY command.
+    /// </summary>
+    private void OnDeviceInfoReceived(object? sender, GloveDeviceInfo info)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+            ApplyBatteryReading(info.BatteryPrimaryVoltage, info.BatterySecondaryVoltage));
+    }
+
+    /// <summary>
+    /// The service queries THERAPY_LED_OFF right after every (re)connect. If that
+    /// query fails (older firmware), no event arrives and the toggle stays hidden.
+    /// </summary>
+    private void OnTherapyLedOffReceived(object? sender, bool ledOff)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            _suppressTherapyLedWrite = true;
+            TherapyLedOff = ledOff;
+            _deviceTherapyLedOff = ledOff;
+            TherapyLedLoaded = true;
+            _suppressTherapyLedWrite = false;
+            OnPropertyChanged(nameof(HasPendingChanges));
+        });
     }
 
     /// <summary>
@@ -736,9 +769,9 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         {
             if (state == ConnectionState.Connected)
             {
+                // Therapy LED and battery arrive from the service's post-connect sync
+                // (OnTherapyLedOffReceived / OnDeviceInfoReceived).
                 EndApplyReconnectWatch(succeeded: true);
-                LoadDeviceSettingsAsync().SafeFireAndForget("[DEVICESETTINGS]");
-                RefreshBatteryAsync().SafeFireAndForget("[DEVICESETTINGS]");
             }
             else
             {
@@ -770,6 +803,8 @@ public partial class DeviceSettingsViewModel : BaseViewModel
             _bluetoothService.ConnectionStateChanged -= OnConnectionStateChanged;
             _gloveControlService.SessionStateChanged -= OnSessionStateChanged;
             _gloveControlService.DeviceProfileChanged -= OnDeviceProfileChanged;
+            _gloveControlService.DeviceInfoReceived -= OnDeviceInfoReceived;
+            _gloveControlService.TherapyLedOffReceived -= OnTherapyLedOffReceived;
             _reconnectionService.ReconnectionStateChanged -= OnReconnectionStateChanged;
             _applyWatchCts?.Cancel();
             _applyWatchCts?.Dispose();

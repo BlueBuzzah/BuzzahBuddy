@@ -55,6 +55,20 @@ public interface IGloveControlService
     /// </summary>
     event EventHandler<int>? DeviceProfileChanged;
 
+    /// <summary>
+    /// Event fired for every INFO response, including the one the service sends right
+    /// after (re)connect. Carries both batteries (BATP/BATS), so observers read battery
+    /// from here on connect instead of sending their own BATTERY command.
+    /// </summary>
+    event EventHandler<GloveDeviceInfo>? DeviceInfoReceived;
+
+    /// <summary>
+    /// Event fired for every THERAPY_LED_OFF query reply, including the one the service
+    /// sends right after (re)connect. Payload is the device's setting. No event means
+    /// the query failed (firmware without THERAPY_LED_OFF).
+    /// </summary>
+    event EventHandler<bool>? TherapyLedOffReceived;
+
     // ========== Reboot Handling ==========
 
     /// <summary>
@@ -66,12 +80,6 @@ public interface IGloveControlService
     /// Clears the expecting reboot flag after reconnection is established.
     /// </summary>
     void ClearExpectingReboot();
-
-    /// <summary>
-    /// Synchronizes app state with device by running PING, BATTERY, and SESSION_STATUS commands.
-    /// </summary>
-    /// <returns>True if all sync commands succeeded, false on any failure.</returns>
-    Task<bool> SyncStateAsync();
 
     // ========== Device Information Commands ==========
 

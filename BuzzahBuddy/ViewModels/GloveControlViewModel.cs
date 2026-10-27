@@ -37,6 +37,12 @@ public partial class GloveControlViewModel : BaseViewModel
     private const int PollFailureReconnectThreshold = 3;
     private const string ConnectionUnstableWarning = "Connection unstable — trying to recover…";
 
+    // Battery arrives with every INFO reply, including the service's post-connect
+    // one; a tab visit only sends its own BATTERY when that reading has gone stale.
+    private static readonly TimeSpan BatteryReadingFreshness = TimeSpan.FromSeconds(30);
+    private DateTime _lastBatteryReadingAt = DateTime.MinValue;
+    private bool _warnOnNextBatteryReading;
+
     /// <summary>Preset profiles, used to map the device's profile id to a display profile.</summary>
     private readonly List<TherapyProfile> _profiles = TherapyProfile.GetPresetProfiles();
 
@@ -173,8 +179,10 @@ public partial class GloveControlViewModel : BaseViewModel
         // Subscribe to connection events
         _bluetoothService.ConnectionStateChanged += OnConnectionStateChanged;
 
-        // The service fetches INFO once per (re)connect; mirror its profile here
+        // The service fetches INFO once per (re)connect; mirror its profile and
+        // battery readings here
         _gloveControlService.DeviceProfileChanged += OnDeviceProfileChanged;
+        _gloveControlService.DeviceInfoReceived += OnDeviceInfoReceived;
 
         // Session state from the service (fires on command success and every status
         // poll) — the UI must not depend on the first SESSION_STATUS poll succeeding
@@ -204,10 +212,10 @@ public partial class GloveControlViewModel : BaseViewModel
             LoadSelectedProfileAsync().SafeFireAndForget("[GLOVECONTROL]");
         }
 
-        // The connect happens on the Devices page; refresh here so this page always
-        // shows battery values when visited, even if the on-connect refresh raced
-        // the connection-state update. No low-battery alert on mere tab visits.
-        if (ConnectionInfo.IsConnected)
+        // Refresh on tab visits so the battery values don't go stale, but skip it
+        // right after connect: the post-connect INFO just delivered them. No
+        // low-battery alert on mere tab visits.
+        if (ConnectionInfo.IsConnected && DateTime.UtcNow - _lastBatteryReadingAt > BatteryReadingFreshness)
         {
             RefreshBatteryAsync(warnIfLow: false).SafeFireAndForget("[GLOVECONTROL]");
         }
@@ -379,26 +387,46 @@ public partial class GloveControlViewModel : BaseViewModel
         try
         {
             var (primaryVoltage, secondaryVoltage) = await _gloveControlService.GetBatteryAsync();
-
-            BatteryPrimaryVoltage = primaryVoltage;
-            BatterySecondaryVoltage = secondaryVoltage;
-
-            // Gray = no reading; colored = real voltage thresholds
-            BatteryPrimaryColor = primaryVoltage is { } pv
-                ? BatteryReading.GetBatteryColorFromVoltage(pv) : Colors.Gray;
-            BatterySecondaryColor = secondaryVoltage is { } sv
-                ? BatteryReading.GetBatteryColorFromVoltage(sv) : Colors.Gray;
-
-            // Check for low battery warnings (on connect, not on every tab visit)
-            if (warnIfLow)
-            {
-                await CheckBatteryWarningAsync();
-            }
+            await ApplyBatteryReadingAsync(primaryVoltage, secondaryVoltage, warnIfLow);
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Battery refresh error: {ex.Message}");
         }
+    }
+
+    private async Task ApplyBatteryReadingAsync(double? primaryVoltage, double? secondaryVoltage, bool warnIfLow)
+    {
+        BatteryPrimaryVoltage = primaryVoltage;
+        BatterySecondaryVoltage = secondaryVoltage;
+        _lastBatteryReadingAt = DateTime.UtcNow;
+
+        // Gray = no reading; colored = real voltage thresholds
+        BatteryPrimaryColor = primaryVoltage is { } pv
+            ? BatteryReading.GetBatteryColorFromVoltage(pv) : Colors.Gray;
+        BatterySecondaryColor = secondaryVoltage is { } sv
+            ? BatteryReading.GetBatteryColorFromVoltage(sv) : Colors.Gray;
+
+        // Check for low battery warnings (on connect, not on every tab visit)
+        if (warnIfLow)
+        {
+            await CheckBatteryWarningAsync();
+        }
+    }
+
+    /// <summary>
+    /// INFO carries both batteries. The first reading after each connect is the one
+    /// that may raise the low-battery alert, matching the old on-connect BATTERY fetch.
+    /// </summary>
+    private void OnDeviceInfoReceived(object? sender, GloveDeviceInfo info)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            var warnIfLow = _warnOnNextBatteryReading;
+            _warnOnNextBatteryReading = false;
+            ApplyBatteryReadingAsync(info.BatteryPrimaryVoltage, info.BatterySecondaryVoltage, warnIfLow)
+                .SafeFireAndForget("[GLOVECONTROL]");
+        });
     }
 
     private async Task LoadSelectedProfileAsync()
@@ -834,7 +862,8 @@ public partial class GloveControlViewModel : BaseViewModel
             {
                 if (!_isBackgrounded)
                     StartConnectionHealthCheck();
-                RefreshBatteryAsync().SafeFireAndForget("[GLOVECONTROL]");
+                // Battery comes from the service's post-connect INFO (OnDeviceInfoReceived)
+                _warnOnNextBatteryReading = true;
             }
             else
             {
@@ -998,6 +1027,7 @@ public partial class GloveControlViewModel : BaseViewModel
         {
             _bluetoothService.ConnectionStateChanged -= OnConnectionStateChanged;
             _gloveControlService.DeviceProfileChanged -= OnDeviceProfileChanged;
+            _gloveControlService.DeviceInfoReceived -= OnDeviceInfoReceived;
             _gloveControlService.SessionStateChanged -= OnServiceSessionStateChanged;
             ConnectionInfo.PropertyChanged -= OnConnectionInfoPropertyChanged;
             _appLifecycle.Stopped -= OnAppStopped;
