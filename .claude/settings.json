@@ -1,15 +1,13 @@
 {
   "permissions": {
-    "allow": [],
+    "allow": [
+      "Skill(frontend-design:frontend-design)",
+      "Bash($ANDROID_HOME/emulator/emulator -list-avds)"
+    ],
     "deny": [],
     "ask": []
   },
-  "enabledMcpjsonServers": [
-    "memory",
-    "context7",
-    "tree-sitter",
-    "sequential-thinking"
-  ],
+  "enableAllProjectMcpServers": true,
   "extraKnownMarketplaces": {
     "maui-skills": {
       "source": {

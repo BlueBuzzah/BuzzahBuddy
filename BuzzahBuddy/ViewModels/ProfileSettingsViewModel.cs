@@ -171,9 +171,9 @@ public partial class ProfileSettingsViewModel : BaseViewModel
     [RelayCommand]
     private async Task ResetToDefaultsAsync()
     {
-        // Discards whatever the user has tuned. CLAUDE.md requires a confirmation
-        // for destructive actions because an accidental tap is a real hazard for
-        // tremor-prone users, and there is no undo once the fields are replaced.
+        // Discards whatever the user has tuned. Destructive actions require a
+        // confirmation (BlueBuzzah design system, accessibility.md) because an accidental tap is a real hazard
+        // for tremor-prone users, and there is no undo once the fields are replaced.
         var confirmed = await Shell.Current.DisplayAlert(
             "Use Research Defaults?",
             "This replaces the values in the form with the settings used in the published "

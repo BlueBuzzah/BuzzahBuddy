@@ -79,13 +79,11 @@
 	<!-- Release Configuration: Trimming and optimization -->
 	<PropertyGroup Condition="'$(Configuration)' == 'Release'">
 		<PublishTrimmed>true</PublishTrimmed>
-		<!-- "partial" is load-bearing, not just a conservatism dial. The Android SDK
-		     sets JsonSerializerIsReflectionEnabledByDefault=true only when TrimMode is
-		     partial (Microsoft.Android.Sdk.DefaultProperties.targets); iOS sets it
-		     unconditionally. PreferencesStorageService uses reflection-based
-		     System.Text.Json with no JsonSerializerContext, so switching to "full"
-		     would make every session/device save throw InvalidOperationException at
-		     runtime on Android. Add source-generated contexts before changing this. -->
+		<!-- Kept at "partial" deliberately. Persistence no longer depends on it:
+		     PreferencesStorageService serializes through the source-generated
+		     StorageJsonContext, not reflection. But "full" would trim this assembly too,
+		     which is the same risk the IsAotCompatible note above avoids (it implies
+		     IsTrimmable). Test a Release build on device before changing this. -->
 		<TrimMode>partial</TrimMode>
 	</PropertyGroup>
 

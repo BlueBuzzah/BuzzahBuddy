@@ -4,8 +4,8 @@ using Microsoft.Maui.Graphics;
 namespace BuzzahBuddy.Helpers;
 
 /// <summary>
-/// Design token values as compile-time constants (see DESIGN_GUIDE.md, "Color and Theme
-/// Guidelines", for the rules these must satisfy).
+/// Design token values as compile-time constants (the BlueBuzzah design system's color
+/// tokens set the rules these must satisfy).
 /// Single source for hex values used from C# — either directly by code that cannot
 /// reach <c>Application.Current.Resources</c> (plain net10.0 test build), or as the
 /// fallback for <c>ColorResources.Get</c>. Must stay in sync with Colors.xaml.

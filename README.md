@@ -61,33 +61,36 @@ xcode-select --install
 1. **Clone the repository**
 
    ```bash
-   git clone https://github.com/bluebuzzah/buzzahbuddy
+   git clone https://github.com/BlueBuzzah/BuzzahBuddy
    cd BuzzahBuddy
    ```
 
-2. **Restore dependencies**
+2. **Verify MAUI workloads**
+   ```bash
+   dotnet workload install maui
+   ```
+
+3. **Restore dependencies**
 
    ```bash
    dotnet restore
    ```
 
-3. **Verify MAUI workloads**
-   ```bash
-   dotnet workload install maui
-   ```
+Single-platform commands below pin `-p:TargetFrameworks`: without it, restore resolves
+assets for every target and fails (NETSDK1147) wherever a workload isn't installed.
 
 ## Build
 
 ### iOS
 
 ```bash
-dotnet build -f net10.0-ios
+dotnet build BuzzahBuddy/BuzzahBuddy.csproj -f net10.0-ios -p:TargetFrameworks=net10.0-ios
 ```
 
 ### Android
 
 ```bash
-dotnet build -f net10.0-android
+dotnet build BuzzahBuddy/BuzzahBuddy.csproj -f net10.0-android -p:TargetFrameworks=net10.0-android
 ```
 
 ### All Platforms
@@ -101,7 +104,7 @@ dotnet build
 ### iOS Simulator
 
 ```bash
-dotnet build -f net10.0-ios -t:Run
+dotnet build BuzzahBuddy/BuzzahBuddy.csproj -f net10.0-ios -p:TargetFrameworks=net10.0-ios -t:Run
 ```
 
 ### Physical iPhone
@@ -117,7 +120,7 @@ indefinitely on iOS 17+ devices, so the script uses `devicectl` instead.
 ### Android Emulator
 
 ```bash
-dotnet build -f net10.0-android -t:Run
+dotnet build BuzzahBuddy/BuzzahBuddy.csproj -f net10.0-android -p:TargetFrameworks=net10.0-android -t:Run
 ```
 
 ### Using Visual Studio
@@ -167,19 +170,19 @@ dotnet build --no-incremental
 
 ```bash
 # Run all tests
-dotnet test
+dotnet test BuzzahBuddy.Tests
 
 # Run with detailed output
-dotnet test --logger "console;verbosity=detailed"
+dotnet test BuzzahBuddy.Tests --logger "console;verbosity=detailed"
 ```
 
 ## Accessibility
 
-This app is designed with accessibility as a core requirement:
+This app is designed with accessibility as a core requirement, following the BlueBuzzah design system (in the [BlueBuzzah-Workspace](https://github.com/BlueBuzzah/BlueBuzzah-Workspace) repo):
 
-- **WCAG 2.1 Level AA** compliance
+- **WCAG 2.2 Level AA** compliance
 - **Large touch targets** (48x48pt minimum)
-- **High contrast ratios** (4.5:1 for text)
+- **High contrast ratios** (4.5:1 for text, 7:1 in high-contrast themes)
 - **Semantic properties** for screen readers (VoiceOver, TalkBack)
 - **Tremor-friendly UI** optimized for Parkinson's patients
 
@@ -193,4 +196,4 @@ The BlueBuzzah project is see [MIT licensed](./LICENSE).
 2. Create your feature branch: `git checkout -b my-new-feature`
 3. Commit your changes: `git commit -am 'Added some new feature'`
 4. Push to the branch: `git push origin my-new-feature`
-5. [Submit a pull request!](https://github.com/bluebuzzah/bluebuzzah/pull/new/development)
+5. [Submit a pull request!](https://github.com/BlueBuzzah/BuzzahBuddy/compare)
