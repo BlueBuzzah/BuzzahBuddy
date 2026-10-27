@@ -178,6 +178,26 @@ public class GloveControlServiceTests
     }
 
     [Fact]
+    public async Task OnConnect_ReportsSyncRunningUntilItFinishes()
+    {
+        var fake = new FakeBluetoothService();
+        fake.CannedResponses["INFO"] = "CMD:INFO\nROLE:PRIMARY\nPROFILE:2:noisy_vcr\nBATP:3.72\nBATS:3.68\n\x04";
+        fake.CannedResponses["SESSION_STATUS"] = "CMD:SESSION_STATUS\nSESSION_STATUS:IDLE\n\x04";
+        fake.CannedResponses["THERAPY_LED_OFF"] = "CMD:THERAPY_LED_OFF\nTHERAPY_LED_OFF:false\n\x04";
+        var service = new GloveControlService(fake);
+        Assert.False(service.IsPostConnectSyncRunning);
+
+        fake.RaiseConnectionStateChanged(ConnectionState.Connected);
+
+        // Visible as soon as Connected is raised, before the sync's first reply
+        Assert.True(service.IsPostConnectSyncRunning);
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (service.IsPostConnectSyncRunning && DateTime.UtcNow < deadline)
+            await Task.Delay(10);
+        Assert.False(service.IsPostConnectSyncRunning);
+    }
+
+    [Fact]
     public async Task SetCustomProfileAsync_WithinFirmwareLimits_Sends()
     {
         var fake = new FakeBluetoothService();

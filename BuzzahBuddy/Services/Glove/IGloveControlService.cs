@@ -69,6 +69,14 @@ public interface IGloveControlService
     /// </summary>
     event EventHandler<bool>? TherapyLedOffReceived;
 
+    /// <summary>
+    /// True from the moment the link connects until the post-(re)connect sync
+    /// (INFO → SESSION_STATUS → THERAPY_LED_OFF) finishes or gives up. Observers skip
+    /// their own refreshes meanwhile: the sync's events deliver that data, and a
+    /// duplicate query only competes for the link in its busiest window.
+    /// </summary>
+    bool IsPostConnectSyncRunning { get; }
+
     // ========== Reboot Handling ==========
 
     /// <summary>

@@ -208,6 +208,13 @@ public partial class DeviceSettingsViewModel : BaseViewModel
             return;
         }
 
+        // The post-connect sync is fetching INFO and THERAPY_LED_OFF right now (e.g. this
+        // page re-showing as the Applying Settings modal closes on a reboot reconnect);
+        // its events fill both in. If it fails, no stamp is set and the next visit
+        // fetches them.
+        if (_gloveControlService.IsPostConnectSyncRunning)
+            return;
+
         var now = DateTime.UtcNow;
         if (now - _lastTherapyLedAt > DeviceReadingFreshness)
         {

@@ -102,51 +102,68 @@ public class GloveControlService : IGloveControlService
         if (state != ConnectionState.Connected)
             return;
 
+        // Set before the task starts, so a page that appears on this same Connected
+        // event already sees the sync as running
+        Interlocked.Increment(ref _postConnectSyncsRunning);
         _ = Task.Run(async () =>
         {
-            // Growing backoff: right after a profile-reboot reconnect the primary is
-            // busy re-establishing clock sync with the secondary (~5s cold start) and
-            // can starve early commands, so short retries all land in the busy window.
-            int[] delaysMs = { 0, 2000, 5000, 10000 };
-            for (var attempt = 0; attempt < delaysMs.Length; attempt++)
+            try
             {
-                if (delaysMs[attempt] > 0)
+                // Growing backoff: right after a profile-reboot reconnect the primary is
+                // busy re-establishing clock sync with the secondary (~5s cold start) and
+                // can starve early commands, so short retries all land in the busy window.
+                int[] delaysMs = { 0, 2000, 5000, 10000 };
+                for (var attempt = 0; attempt < delaysMs.Length; attempt++)
                 {
-                    await Task.Delay(delaysMs[attempt]);
-                }
+                    if (delaysMs[attempt] > 0)
+                    {
+                        await Task.Delay(delaysMs[attempt]);
+                    }
 
-                if (_bluetoothService.CurrentConnectionState != ConnectionState.Connected)
+                    if (_bluetoothService.CurrentConnectionState != ConnectionState.Connected)
+                        return;
+
+                    try
+                    {
+                        await GetDeviceInfoAsync();
+                        // Sync session state too: the gloves auto-start a session ~30s
+                        // after power-on, which can be before the app ever connects.
+                        await GetSessionStatusAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine(
+                            $"[GLOVE_SERVICE] Post-connect sync failed (attempt {attempt + 1}/{delaysMs.Length}): {ex.Message}");
+                        continue;
+                    }
+
+                    // Outside the retry ladder: firmware that predates THERAPY_LED_OFF
+                    // rejects it every time, and observers treat no reply as "unsupported".
+                    try
+                    {
+                        await GetTherapyLedOffAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine(
+                            $"[GLOVE_SERVICE] Post-connect THERAPY_LED_OFF failed: {ex.Message}");
+                    }
                     return;
-
-                try
-                {
-                    await GetDeviceInfoAsync();
-                    // Sync session state too: the gloves auto-start a session ~30s
-                    // after power-on, which can be before the app ever connects.
-                    await GetSessionStatusAsync();
                 }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine(
-                        $"[GLOVE_SERVICE] Post-connect sync failed (attempt {attempt + 1}/{delaysMs.Length}): {ex.Message}");
-                    continue;
-                }
-
-                // Outside the retry ladder: firmware that predates THERAPY_LED_OFF
-                // rejects it every time, and observers treat no reply as "unsupported".
-                try
-                {
-                    await GetTherapyLedOffAsync();
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine(
-                        $"[GLOVE_SERVICE] Post-connect THERAPY_LED_OFF failed: {ex.Message}");
-                }
-                return;
+            }
+            finally
+            {
+                Interlocked.Decrement(ref _postConnectSyncsRunning);
             }
         });
     }
+
+    // A count, not a flag: a reconnect can start a new sync while the previous
+    // link's is still unwinding its retry ladder
+    private int _postConnectSyncsRunning;
+
+    /// <inheritdoc />
+    public bool IsPostConnectSyncRunning => Volatile.Read(ref _postConnectSyncsRunning) > 0;
 
     /// <summary>
     /// Validates that the Bluetooth service is in a connected state before issuing a command.

@@ -218,9 +218,10 @@ public partial class GloveControlViewModel : BaseViewModel
         }
 
         // Refresh on tab visits so the battery values don't go stale, but skip it
-        // right after connect: the post-connect INFO just delivered them. No
+        // around connect: the post-connect INFO delivers them (or is about to). No
         // low-battery alert on mere tab visits.
-        if (ConnectionInfo.IsConnected && DateTime.UtcNow - _lastBatteryReadingAt > BatteryReadingFreshness)
+        if (ConnectionInfo.IsConnected && !_gloveControlService.IsPostConnectSyncRunning &&
+            DateTime.UtcNow - _lastBatteryReadingAt > BatteryReadingFreshness)
         {
             RefreshBatteryAsync(warnIfLow: false).SafeFireAndForget("[GLOVECONTROL]");
         }
@@ -264,12 +265,17 @@ public partial class GloveControlViewModel : BaseViewModel
                     return;
                 }
 
+                // A record kept across a reconnect whose outcome never arrived (the
+                // post-connect status read failed) is superseded by this new session.
+                // Read it before awaiting Start: Start's synthesized RUNNING status is
+                // delivered on the main thread during the await, and would settle the
+                // old record as "still active" and clear the marker first.
+                var interruptedAt = _sessionDisconnectedAt;
+
                 // Start session
                 await _gloveControlService.StartSessionAsync();
 
-                // A record kept across a reconnect whose outcome never arrived (the
-                // post-connect status read failed) is superseded by this new session.
-                if (_sessionDisconnectedAt is { } disconnectedAt)
+                if (interruptedAt is { } disconnectedAt)
                 {
                     _sessionDisconnectedAt = null;
                     SaveInterruptedSession(disconnectedAt);
