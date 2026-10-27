@@ -164,6 +164,14 @@ public partial class DeviceSettingsViewModel : BaseViewModel
 
     private CancellationTokenSource? _applyWatchCts;
 
+    // Stamped when the service's post-connect sync delivers INFO / THERAPY_LED_OFF.
+    // OnPageAppearing skips re-fetching what is this fresh: popping the apply modal
+    // re-shows this page right as the reconnect sync runs, in the window where the
+    // primary is busiest re-syncing with the secondary.
+    private static readonly TimeSpan DeviceReadingFreshness = TimeSpan.FromSeconds(30);
+    private DateTime _lastDeviceInfoAt = DateTime.MinValue;
+    private DateTime _lastTherapyLedAt = DateTime.MinValue;
+
     public DeviceSettingsViewModel(
         IGloveControlService gloveControlService,
         IBluetoothService bluetoothService,
@@ -200,13 +208,21 @@ public partial class DeviceSettingsViewModel : BaseViewModel
             return;
         }
 
-        LoadDeviceSettingsAsync().SafeFireAndForget("[DEVICESETTINGS]");
-        RefreshBatteryAsync().SafeFireAndForget("[DEVICESETTINGS]");
+        var now = DateTime.UtcNow;
+        if (now - _lastTherapyLedAt > DeviceReadingFreshness)
+        {
+            LoadDeviceSettingsAsync().SafeFireAndForget("[DEVICESETTINGS]");
+        }
 
-        // Re-fetch INFO on every visit: DeviceProfileId persists across connections,
-        // so a "still set" value can be stale from the previous connection if the
-        // post-connect fetch failed. One cheap round-trip keeps this page truthful.
-        _gloveControlService.GetDeviceInfoAsync().SafeFireAndForget("[DEVICESETTINGS]");
+        // Re-fetch INFO on visits; it also refreshes battery (OnDeviceInfoReceived), so
+        // no separate BATTERY. DeviceProfileId persists across connections, so a
+        // "still set" value can be stale from the previous connection if the
+        // post-connect fetch failed — and then there is no fresh stamp, so this still
+        // runs. One cheap round-trip keeps this page truthful.
+        if (now - _lastDeviceInfoAt > DeviceReadingFreshness)
+        {
+            _gloveControlService.GetDeviceInfoAsync().SafeFireAndForget("[DEVICESETTINGS]");
+        }
     }
 
     /// <summary>
@@ -491,7 +507,10 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     private void OnDeviceInfoReceived(object? sender, GloveDeviceInfo info)
     {
         MainThread.BeginInvokeOnMainThread(() =>
-            ApplyBatteryReading(info.BatteryPrimaryVoltage, info.BatterySecondaryVoltage));
+        {
+            _lastDeviceInfoAt = DateTime.UtcNow;
+            ApplyBatteryReading(info.BatteryPrimaryVoltage, info.BatterySecondaryVoltage);
+        });
     }
 
     /// <summary>
@@ -502,6 +521,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     {
         MainThread.BeginInvokeOnMainThread(() =>
         {
+            _lastTherapyLedAt = DateTime.UtcNow;
             _suppressTherapyLedWrite = true;
             TherapyLedOff = ledOff;
             _deviceTherapyLedOff = ledOff;
@@ -776,6 +796,9 @@ public partial class DeviceSettingsViewModel : BaseViewModel
             else
             {
                 TherapyLedLoaded = false;
+                // Readings from the old link say nothing about the next one.
+                _lastDeviceInfoAt = DateTime.MinValue;
+                _lastTherapyLedAt = DateTime.MinValue;
             }
 
             OnPropertyChanged(nameof(ShowDisconnectedView));
