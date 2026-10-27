@@ -28,6 +28,23 @@ public class GloveControlService : IGloveControlService
         _expectingRebootSetAt = DateTime.UtcNow;
     }
 
+    /// <summary>
+    /// Firmware drops the phone ~300 ms after replying STATUS:REBOOTING. Disconnecting
+    /// first starts the reboot-aware reconnect (ExpectingReboot is already set) right
+    /// away instead of waiting for the OS to notice the link is gone.
+    /// </summary>
+    private async Task DisconnectForRebootAsync()
+    {
+        try
+        {
+            await _bluetoothService.DisconnectForReconnectAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[GLOVE_SERVICE] Disconnect for reboot failed: {ex.Message}");
+        }
+    }
+
     /// <inheritdoc />
     public event EventHandler<SessionStatus>? SessionStateChanged;
 
@@ -341,6 +358,7 @@ public class GloveControlService : IGloveControlService
         {
             System.Diagnostics.Debug.WriteLine("[GLOVE_SERVICE] Device is rebooting after profile load");
             CacheLoadedProfile();
+            await DisconnectForRebootAsync();
             return;
         }
 
@@ -758,7 +776,11 @@ public class GloveControlService : IGloveControlService
         SetExpectingReboot();
         try
         {
-            await _bluetoothService.SendCommandAsync("RESTART", timeoutMs: 2000);
+            var response = await _bluetoothService.SendCommandAsync("RESTART", timeoutMs: 2000);
+            if (response.GetString("STATUS") == "REBOOTING")
+            {
+                await DisconnectForRebootAsync();
+            }
         }
         catch (TimeoutException)
         {

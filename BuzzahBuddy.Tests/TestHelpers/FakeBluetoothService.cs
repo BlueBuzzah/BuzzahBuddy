@@ -70,7 +70,13 @@ public class FakeBluetoothService : IBluetoothService
     public Task<bool> ConnectToDeviceAsync(GloveDevice device, CancellationToken cancellationToken = default) => Task.FromResult(true);
     public Task DisconnectAsync() => Task.CompletedTask;
     public Task<bool> ConnectToLastKnownDeviceAsync(CancellationToken ct = default) => Task.FromResult(true);
-    public Task DisconnectForReconnectAsync() => Task.CompletedTask;
+    public int DisconnectForReconnectCalls { get; private set; }
+
+    public Task DisconnectForReconnectAsync()
+    {
+        DisconnectForReconnectCalls++;
+        return Task.CompletedTask;
+    }
     public Task<ScanResult> ScanForDevicesWithResultAsync(int timeoutMs = 10000, CancellationToken ct = default)
         => Task.FromResult(new ScanResult(ScanOutcome.NoDevicesFound, Enumerable.Empty<GloveDevice>()));
     public Task SubscribeToNotificationsAsync() => Task.CompletedTask;

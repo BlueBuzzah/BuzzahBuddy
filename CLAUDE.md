@@ -52,7 +52,9 @@ Non-obvious invariants:
   fires before GATT discovery, so commands sent then fail. `Connected` is raised only
   after NUS discovery + `IDENTIFY:PHONE`.
 - `PROFILE_LOAD` **reboots the device**. `GloveControlService.LoadProfileAsync` sets
-  `ExpectingReboot` *before* sending; `ReconnectionService` then waits
+  `ExpectingReboot` *before* sending, and on `STATUS:REBOOTING` (PROFILE_LOAD and
+  RESTART) disconnects at once rather than waiting for the OS to notice the glove
+  dropping the link ~300 ms later; `ReconnectionService` then waits
   `RebootInitialDelayMs = 3000` before its first retry (backoff 1→2→4→8→16→30s, 20 max).
   `UserInitiatedDisconnect` always beats `ExpectingReboot` — never auto-reconnect after
   a user disconnect.

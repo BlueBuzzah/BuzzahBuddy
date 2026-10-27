@@ -59,6 +59,31 @@ public class GloveControlServiceTests
     }
 
     [Fact]
+    public async Task LoadProfileAsync_RebootingResponse_DisconnectsForReconnectImmediately()
+    {
+        var fake = new FakeBluetoothService();
+        fake.CannedResponses["PROFILE_LOAD"] = "CMD:PROFILE_LOAD\nSTATUS:REBOOTING\n\x04";
+        var service = new GloveControlService(fake);
+
+        await service.LoadProfileAsync(3);
+
+        Assert.Equal(1, fake.DisconnectForReconnectCalls);
+    }
+
+    [Fact]
+    public async Task RestartDeviceAsync_RebootingResponse_DisconnectsForReconnectImmediately()
+    {
+        var fake = new FakeBluetoothService();
+        fake.CannedResponses["RESTART"] = "CMD:RESTART\nSTATUS:REBOOTING\n\x04";
+        var service = new GloveControlService(fake);
+
+        await service.RestartDeviceAsync();
+
+        Assert.True(service.ExpectingReboot);
+        Assert.Equal(1, fake.DisconnectForReconnectCalls);
+    }
+
+    [Fact]
     public async Task SetCustomProfileAsync_WithinFirmwareLimits_Sends()
     {
         var fake = new FakeBluetoothService();
