@@ -22,7 +22,7 @@ public partial class GloveControlViewModel : BaseViewModel
     private readonly IDataStorageService _storageService;
     private readonly IReconnectionService _reconnectionService;
     private TherapySession? _currentSession;
-    private System.Timers.Timer? _statusPollTimer;
+    private CancellationTokenSource? _statusPollCts;
     private System.Timers.Timer? _healthCheckTimer;
     private readonly SessionClock _sessionClock = new();
     private IDispatcherTimer? _displayTickTimer;
@@ -616,19 +616,37 @@ public partial class GloveControlViewModel : BaseViewModel
 
     private void StartStatusPolling()
     {
-        _statusPollTimer?.Stop();
-        _statusPollTimer?.Dispose();
-        _statusPollTimer = new System.Timers.Timer(BlueBuzzahConstants.SessionStatusPollIntervalSeconds * 1000);
-        _statusPollTimer.Elapsed += async (s, e) =>
-            await MainThread.InvokeOnMainThreadAsync(UpdateSessionStatusAsync);
-        _statusPollTimer.Start();
+        StopStatusPolling();
+        _statusPollCts = new CancellationTokenSource();
+        RunStatusPollLoopAsync(_statusPollCts.Token).SafeFireAndForget("[GLOVECONTROL]");
+    }
+
+    /// <summary>
+    /// Waits a full interval after each poll completes, so a slow poll (up to ~5.1s
+    /// with the command timeout) can never overlap the next one the way an
+    /// auto-repeating timer's ticks could.
+    /// </summary>
+    private async Task RunStatusPollLoopAsync(CancellationToken ct)
+    {
+        try
+        {
+            while (true)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(BlueBuzzahConstants.SessionStatusPollIntervalSeconds), ct);
+                await MainThread.InvokeOnMainThreadAsync(UpdateSessionStatusAsync);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // StopStatusPolling
+        }
     }
 
     private void StopStatusPolling()
     {
-        _statusPollTimer?.Stop();
-        _statusPollTimer?.Dispose();
-        _statusPollTimer = null;
+        _statusPollCts?.Cancel();
+        _statusPollCts?.Dispose();
+        _statusPollCts = null;
     }
 
     /// <summary>
@@ -803,7 +821,7 @@ public partial class GloveControlViewModel : BaseViewModel
             // A session we didn't start (e.g. the gloves auto-started one before the
             // app connected, surfaced by the post-connect sync) needs polling so its
             // progress advances; start it if it isn't already running.
-            if (IsSessionActive && _statusPollTimer == null)
+            if (IsSessionActive && _statusPollCts == null)
             {
                 StartStatusPolling();
             }
@@ -826,7 +844,7 @@ public partial class GloveControlViewModel : BaseViewModel
     {
         // Pause BLE polling while backgrounded; the OS may kill timers anyway.
         _isBackgrounded = true;
-        _pollingPausedByLifecycle = _statusPollTimer != null;
+        _pollingPausedByLifecycle = _statusPollCts != null;
         StopStatusPolling();
         StopConnectionHealthCheck();
         StopDisplayTick();
