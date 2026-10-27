@@ -85,10 +85,16 @@ public class BluetoothService : IBluetoothService
         {
             System.Diagnostics.Debug.WriteLine($"[BLE SCAN] Starting scan, timeout={timeout.TotalSeconds}s");
             _adapter.ScanTimeout = (int)timeout.TotalMilliseconds;
+            // Every scan is user-initiated (the Devices page), so trade battery for
+            // speed while the user waits.
+            _adapter.ScanMode = ScanMode.LowLatency;
             System.Diagnostics.Debug.WriteLine($"[BLE SCAN] Adapter.ScanTimeout set to: {_adapter.ScanTimeout}ms");
             System.Diagnostics.Debug.WriteLine($"[BLE SCAN] Adapter.IsScanning before: {_adapter.IsScanning}");
             System.Diagnostics.Debug.WriteLine("[BLE SCAN] Calling StartScanningForDevicesAsync...");
-            await _adapter.StartScanningForDevicesAsync(cancellationToken: cancellationToken);
+            // Both boards advertise the NUS UUID in the primary advertisement, so the
+            // OS can filter natively; the name check in OnDeviceDiscovered still applies.
+            var scanFilter = new ScanFilterOptions { ServiceUuids = new[] { BlueBuzzahConstants.NordicUartServiceUuid } };
+            await _adapter.StartScanningForDevicesAsync(scanFilter, cancellationToken: cancellationToken);
             System.Diagnostics.Debug.WriteLine($"[BLE SCAN] Scan complete. Found {_discoveredDevices.Count} matching device(s)");
         }
         catch (OperationCanceledException)
