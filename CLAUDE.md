@@ -190,6 +190,11 @@ aren't available (tests, early startup). Brand rule: **blue signals success, nev
 `build.yml` (PR, push to `main` under `BuzzahBuddy*` paths): test on ubuntu without any
 workload, Android build + the `net10.0` compile check, iOS build on macOS.
 
+The iOS jobs (both workflows) pin `xcode-select` and the workload set together
+(`dotnet workload install maui-ios --version …`): each iOS workload binds one Xcode,
+and an unpinned install picks up iOS SDKs newer than the runner's Xcode (MT0180).
+Bump both in lockstep.
+
 `release.yml` (on GitHub Release **published** only): tag must be `vX[.Y[.Z]]` — anything
 else (`v1.0.0-beta1`) is rejected by App Store Connect at upload, so the job fails fast.
 Build number = `github.run_number + BUILD_OFFSET` (currently `2`); **raise `BUILD_OFFSET`
