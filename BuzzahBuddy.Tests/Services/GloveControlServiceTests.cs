@@ -84,6 +84,77 @@ public class GloveControlServiceTests
     }
 
     [Fact]
+    public async Task StartSessionAsync_ReplyWithTotalAndElapsed_UsesTheDevicesDuration()
+    {
+        var fake = new FakeBluetoothService();
+        fake.CannedResponses["SESSION_START"] =
+            "CMD:SESSION_START\nSESSION_STATUS:RUNNING\nELAPSED:0\nTOTAL:2700\n\x04";
+        var service = new GloveControlService(fake);
+
+        await service.StartSessionAsync();
+
+        Assert.Equal(SessionState.RUNNING, service.CurrentSessionStatus.Status);
+        Assert.Equal(2700, service.CurrentSessionStatus.TotalTimeSeconds);
+        Assert.Equal(0, service.CurrentSessionStatus.ElapsedTimeSeconds);
+    }
+
+    [Fact]
+    public async Task StartSessionAsync_LegacyReplyWithoutTotal_FallsBackToTheProfileDuration()
+    {
+        var fake = new FakeBluetoothService();
+        fake.CannedResponses["SESSION_START"] = "SESSION_STATUS:RUNNING\n\x04";
+        var service = new GloveControlService(fake);
+
+        await service.StartSessionAsync();
+
+        Assert.Equal(120 * 60, service.CurrentSessionStatus.TotalTimeSeconds);
+    }
+
+    [Fact]
+    public async Task StartSessionAsync_SyncNotReady_RetriesUntilTheGlovesAccept()
+    {
+        var fake = new FakeBluetoothService();
+        fake.QueuedResponses.Enqueue("CMD:SESSION_START\nERROR:Sync not ready\n\x04");
+        fake.QueuedResponses.Enqueue("CMD:SESSION_START\nERROR:Sync not ready\n\x04");
+        fake.QueuedResponses.Enqueue("CMD:SESSION_START\nSESSION_STATUS:RUNNING\nELAPSED:0\nTOTAL:7200\n\x04");
+        var service = new GloveControlService(fake) { SyncNotReadyRetryInterval = TimeSpan.FromMilliseconds(1) };
+
+        await service.StartSessionAsync();
+
+        Assert.Equal(3, fake.SentCommands.Count(c => c == "SESSION_START"));
+        Assert.Equal(SessionState.RUNNING, service.CurrentSessionStatus.Status);
+    }
+
+    [Fact]
+    public async Task StartSessionAsync_SyncNeverReady_SurfacesTheErrorAfterTheRetryWindow()
+    {
+        var fake = new FakeBluetoothService();
+        fake.CannedResponses["SESSION_START"] = "CMD:SESSION_START\nERROR:Sync not ready\n\x04";
+        var service = new GloveControlService(fake)
+        {
+            SyncNotReadyRetryInterval = TimeSpan.FromMilliseconds(5),
+            SyncNotReadyRetryWindow = TimeSpan.FromMilliseconds(50)
+        };
+
+        var ex = await Assert.ThrowsAsync<BlueBuzzahCommandException>(() => service.StartSessionAsync());
+
+        Assert.Contains("Sync not ready", ex.Message);
+        Assert.True(fake.SentCommands.Count(c => c == "SESSION_START") > 1);
+    }
+
+    [Fact]
+    public async Task StartSessionAsync_OtherError_IsNotRetried()
+    {
+        var fake = new FakeBluetoothService();
+        fake.CannedResponses["SESSION_START"] = "CMD:SESSION_START\nERROR:Battery too low\n\x04";
+        var service = new GloveControlService(fake) { SyncNotReadyRetryInterval = TimeSpan.FromMilliseconds(1) };
+
+        await Assert.ThrowsAsync<BlueBuzzahCommandException>(() => service.StartSessionAsync());
+
+        Assert.Single(fake.SentCommands, c => c == "SESSION_START");
+    }
+
+    [Fact]
     public async Task SetCustomProfileAsync_WithinFirmwareLimits_Sends()
     {
         var fake = new FakeBluetoothService();

@@ -151,6 +151,7 @@ public interface IGloveControlService
     /// Starts a therapy session with the currently loaded profile.
     /// Command: SESSION_START
     /// Note: May take up to 500ms to establish Primary↔Secondary synchronization.
+    /// A transient "Sync not ready" refusal is retried for up to 5 s before it throws.
     /// </summary>
     /// <exception cref="BlueBuzzahCommandException">If Secondary not connected or battery too low</exception>
     Task StartSessionAsync();

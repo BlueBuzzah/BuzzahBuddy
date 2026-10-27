@@ -602,23 +602,56 @@ public class GloveControlService : IGloveControlService
 
     // ========== Session Control Commands ==========
 
+    /// <summary>
+    /// Pause between SESSION_START attempts while the gloves report "Sync not ready".
+    /// Settable so tests don't wait out real time.
+    /// </summary>
+    internal TimeSpan SyncNotReadyRetryInterval { get; set; } = TimeSpan.FromMilliseconds(500);
+
+    /// <summary>
+    /// How long SESSION_START keeps retrying "Sync not ready" before surfacing it.
+    /// </summary>
+    internal TimeSpan SyncNotReadyRetryWindow { get; set; } = TimeSpan.FromSeconds(5);
+
     public async Task StartSessionAsync()
     {
         EnsureConnected();
-        // SESSION_START may take up to 500ms (establishes Primary↔Secondary sync)
-        var response = await _bluetoothService.SendCommandAsync("SESSION_START", timeoutMs: 7000);
+        // SESSION_START may take up to 500ms (establishes Primary↔Secondary sync).
+        // The primary refuses with "Sync not ready" until bilateral clock sync has
+        // converged (typically < 1 s after the gloves connect); that refusal is
+        // transient, so retry it rather than show the user an error.
+        var retryWindow = System.Diagnostics.Stopwatch.StartNew();
+        CommandResponse response;
+        while (true)
+        {
+            response = await _bluetoothService.SendCommandAsync("SESSION_START", timeoutMs: 7000);
+            if (!IsSyncNotReady(response) ||
+                retryWindow.Elapsed + SyncNotReadyRetryInterval > SyncNotReadyRetryWindow)
+            {
+                break;
+            }
+
+            System.Diagnostics.Debug.WriteLine("[GLOVE_SERVICE] SESSION_START: sync not ready, retrying");
+            await Task.Delay(SyncNotReadyRetryInterval);
+            EnsureConnected();
+        }
         response.ThrowIfError();
 
-        // Update session state to RUNNING
+        // Firmware that reports the real duration (correct for a Custom profile)
+        // includes TOTAL/ELAPSED; older firmware doesn't, so fall back to the preset.
         var status = new SessionStatus
         {
             Status = SessionState.RUNNING,
-            ElapsedTimeSeconds = 0,
-            TotalTimeSeconds = (_currentProfile?.TimeSession ?? 120) * 60, // Convert minutes to seconds
+            ElapsedTimeSeconds = response.GetInt("ELAPSED") ?? 0,
+            TotalTimeSeconds = response.GetInt("TOTAL")
+                ?? (_currentProfile?.TimeSession ?? 120) * 60, // Convert minutes to seconds
             Progress = 0
         };
         UpdateSessionStatus(status);
     }
+
+    private static bool IsSyncNotReady(CommandResponse response) =>
+        response.ErrorMessage?.Contains("sync not ready", StringComparison.OrdinalIgnoreCase) == true;
 
     public async Task PauseSessionAsync()
     {
