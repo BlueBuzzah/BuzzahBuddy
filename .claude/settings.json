@@ -2,9 +2,6 @@
   "permissions": {
     "allow": [
       "Skill(frontend-design:frontend-design)",
-      "Bash(dotnet build:*)",
-      "Bash(dotnet clean:*)",
-      "Bash(dotnet restore:*)",
       "Bash($ANDROID_HOME/emulator/emulator -list-avds)"
     ],
     "deny": [],
