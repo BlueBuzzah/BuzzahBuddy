@@ -24,6 +24,7 @@ public class MockBluetoothService : IBluetoothService
     private bool _isInCalibrationMode;
     private bool _therapyLedOff;
     private bool _debugMode;
+    private const int MockSessionTotalSeconds = 120 * 60; // 2 hours default
 
     public ConnectionState CurrentConnectionState { get; private set; } = ConnectionState.Disconnected;
     public GloveDevice? ConnectedDevice => _connectedDevice;
@@ -187,6 +188,13 @@ public class MockBluetoothService : IBluetoothService
     /// </summary>
     internal async Task<string> GetRawResponseAsync(string command, CancellationToken cancellationToken = default)
     {
+        // Firmware echoes the parsed command name as the first line of every reply,
+        // errors and unknown commands included.
+        return $"CMD:{ResponseMatcher.CommandName(command)}\n" + await GetResponseBodyAsync(command, cancellationToken);
+    }
+
+    private async Task<string> GetResponseBodyAsync(string command, CancellationToken cancellationToken)
+    {
         // Per BLE protocol v2.0.0. Every arm here must also appear in GetMockHelpResponse.
         return command.ToUpperInvariant() switch
         {
@@ -349,7 +357,10 @@ public class MockBluetoothService : IBluetoothService
         _mockSessionStartTime = DateTime.Now;
         _mockElapsedTime = TimeSpan.Zero;
 
-        return "SESSION_STATUS:RUNNING\n\x04";
+        return "SESSION_STATUS:RUNNING\n" +
+               "ELAPSED:0\n" +
+               $"TOTAL:{MockSessionTotalSeconds}\n" +
+               "\x04";
     }
 
     private string HandleSessionPause()
@@ -420,7 +431,7 @@ public class MockBluetoothService : IBluetoothService
                    "\x04";
         }
 
-        var totalSeconds = 120 * 60; // 2 hours default
+        var totalSeconds = MockSessionTotalSeconds;
         int elapsedSeconds;
 
         if (_mockSessionState == SessionState.RUNNING && _mockSessionStartTime.HasValue)

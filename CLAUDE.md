@@ -37,10 +37,12 @@ filter `"BlueBuzzah"`; every BLE command terminates in `\x04` (serial/debug uses
 
 Non-obvious invariants:
 
-- **No correlation IDs.** `BluetoothService.ExpectedResponseKeys` maps each command
-  prefix to a key the reply must contain (`INFO→ROLE`, `BATTERY→BATP`, `PING→PONG`);
-  frames missing it are discarded as stale. Adding a command means adding its key, or
-  responses shift and desync.
+- **No correlation IDs.** Current firmware starts every reply with `CMD:<COMMAND>`;
+  `ResponseMatcher` completes the pending command only on an exact CMD match and drops
+  other frames as stale. Older firmware has no echo, so the fallback is
+  `ResponseMatcher.ExpectedResponseKeys` — a key the reply must contain (`INFO→ROLE`,
+  `BATTERY→BATP`, `PING→PONG`). Adding a command means adding its key there too, or
+  responses shift and desync on old firmware.
 - **One command in flight**, serialized by `BluetoothService._responseLock`
   (`SemaphoreSlim(1,1)`). There is no priority queue.
 - `IDENTIFY:PHONE` is written right after notification subscribe (fresh connect *and*

@@ -21,7 +21,29 @@ public class MockParityTests
         // "PONG\n" and "PONG:\n" to the same key/value pair, so asserting on the parsed
         // CommandResponse cannot detect a regression to the bare (non-firmware) form.
         var raw = await mock.GetRawResponseAsync("PING");
-        Assert.StartsWith("PONG:", raw);
+        Assert.Equal("PONG:", raw.Split('\n')[1]);
+    }
+
+    [Theory]
+    [InlineData("PING", "PING")]
+    [InlineData("SESSION_PAUSE", "SESSION_PAUSE")]
+    [InlineData("PROFILE_LOAD:3", "PROFILE_LOAD")]
+    [InlineData("THERAPY_LED_OFF:true", "THERAPY_LED_OFF")]
+    [InlineData("BOGUS", "BOGUS")]
+    public async Task EveryReply_StartsWithCmdEcho_LikeFirmware(string command, string echoed)
+    {
+        var mock = await ConnectedMock();
+        var raw = await mock.GetRawResponseAsync(command);
+        Assert.StartsWith($"CMD:{echoed}\n", raw);
+    }
+
+    [Fact]
+    public async Task SessionStart_ReportsElapsedAndTotal()
+    {
+        var mock = await ConnectedMock();
+        var raw = await mock.GetRawResponseAsync("SESSION_START");
+        Assert.Contains("\nELAPSED:0\n", raw);
+        Assert.Contains("\nTOTAL:7200\n", raw);
     }
 
     [Fact]

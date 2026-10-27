@@ -39,6 +39,7 @@
     <Compile Include="../BuzzahBuddy/Helpers/DesignColors.cs" LinkBase="AppHelpers" />
     <Compile Include="../BuzzahBuddy/Helpers/IntMatch.cs" LinkBase="AppHelpers" />
     <Compile Include="../BuzzahBuddy/Services/Bluetooth/RxFrameAssembler.cs" LinkBase="AppServicesBluetooth" />
+    <Compile Include="../BuzzahBuddy/Services/Bluetooth/ResponseMatcher.cs" LinkBase="AppServicesBluetooth" />
     <Compile Include="../BuzzahBuddy/Services/Bluetooth/BlueBuzzahConstants.cs" LinkBase="AppServicesBluetooth" />
     <Compile Include="../BuzzahBuddy/Services/Bluetooth/IBluetoothService.cs" LinkBase="AppServicesBluetooth" />
     <Compile Include="../BuzzahBuddy/Services/Bluetooth/MockBluetoothService.cs" LinkBase="AppServicesBluetooth" />

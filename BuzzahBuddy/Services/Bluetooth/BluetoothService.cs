@@ -26,10 +26,12 @@ public class BluetoothService : IBluetoothService
     // Response buffering and parsing
     private readonly RxFrameAssembler _rxAssembler = new();
     private readonly SemaphoreSlim _responseLock = new(1, 1);
-    private TaskCompletionSource<CommandResponse>? _pendingResponseTcs;
-    // Key the pending command's response must contain; stale frames missing it are
-    // filtered at delivery so they never complete the TCS (see ProcessIncomingRxText).
-    private string? _pendingExpectedKey;
+    // The command awaiting a reply. Name and TCS are published together so the RX
+    // thread never pairs one command's name with another's TCS; stale frames are
+    // filtered against the name at delivery (see ProcessIncomingRxText).
+    private volatile PendingCommand? _pending;
+
+    private sealed record PendingCommand(string Name, TaskCompletionSource<CommandResponse> Reply);
 
     // Reconnection state
     private string? _lastConnectedDeviceId;
@@ -254,29 +256,6 @@ public class BluetoothService : IBluetoothService
         }
     }
 
-    /// <summary>
-    /// Key each command's response must contain. The protocol has no correlation IDs,
-    /// so a late/stray frame would otherwise resolve the wrong command and shift every
-    /// subsequent response by one (permanent desync). A resolved frame missing its
-    /// command's expected key is discarded as stale and the wait continues.
-    /// Commands absent from this map accept any frame. Error frames always match.
-    /// </summary>
-    private static readonly Dictionary<string, string> ExpectedResponseKeys = new()
-    {
-        ["INFO"] = "ROLE",
-        ["BATTERY"] = "BATP",
-        ["PING"] = "PONG",
-        ["PROFILE_LIST"] = "PROFILE",
-        ["PROFILE_GET"] = "TYPE",
-        ["PROFILE_LOAD"] = "STATUS",
-        ["SESSION_START"] = "SESSION_STATUS",
-        ["SESSION_PAUSE"] = "SESSION_STATUS",
-        ["SESSION_RESUME"] = "SESSION_STATUS",
-        ["SESSION_STOP"] = "SESSION_STATUS",
-        ["SESSION_STATUS"] = "SESSION_STATUS",
-        ["THERAPY_LED_OFF"] = "THERAPY_LED_OFF",
-    };
-
     public async Task<CommandResponse> SendCommandAsync(
         string command,
         int timeoutMs = 5000,
@@ -293,10 +272,11 @@ public class BluetoothService : IBluetoothService
             // Clear any previous response buffer
             _rxAssembler.Reset();
 
-            // Publish the expected key BEFORE the TCS so the RX producer filters stale
-            // frames against it (a stray frame missing the key never completes the TCS).
-            ExpectedResponseKeys.TryGetValue(command.Split(':')[0], out _pendingExpectedKey);
-            _pendingResponseTcs = new TaskCompletionSource<CommandResponse>();
+            // Publish BEFORE writing so the RX producer filters stale frames against
+            // this command (see ResponseMatcher).
+            var pending = new PendingCommand(
+                ResponseMatcher.CommandName(command), new TaskCompletionSource<CommandResponse>());
+            _pending = pending;
 
             // Send command (add \n terminator)
             System.Diagnostics.Debug.WriteLine($"[BLE CMD] >>> {command}");
@@ -310,7 +290,7 @@ public class BluetoothService : IBluetoothService
 
             try
             {
-                var response = await _pendingResponseTcs.Task.WaitAsync(linkedCts.Token);
+                var response = await pending.Reply.Task.WaitAsync(linkedCts.Token);
 
                 // Add recommended delay between commands (100ms per spec)
                 await Task.Delay(BlueBuzzahConstants.CommandDelayMs, cancellationToken);
@@ -328,8 +308,7 @@ public class BluetoothService : IBluetoothService
         }
         finally
         {
-            _pendingResponseTcs = null;
-            _pendingExpectedKey = null;
+            _pending = null;
             _responseLock.Release();
         }
     }
@@ -500,7 +479,7 @@ public class BluetoothService : IBluetoothService
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"RX parse error: {ex.Message}");
-            _pendingResponseTcs?.TrySetException(ex);
+            _pending?.Reply.TrySetException(ex);
         }
     }
 
@@ -515,24 +494,26 @@ public class BluetoothService : IBluetoothService
     {
         foreach (var frame in _rxAssembler.Append(text))
         {
+            var pending = _pending;
             System.Diagnostics.Debug.WriteLine(
-                $"[BLE RSP] <<< {frame.Replace("\n", "|")} (pending={_pendingResponseTcs != null})");
+                $"[BLE RSP] <<< {frame.Replace("\n", "|")} (pending={pending?.Name ?? "none"})");
             var response = CommandResponse.Parse(frame);
             ResponseReceived?.Invoke(this, response);
 
-            // Filter stale frames here (not in the awaiter): the protocol has no
-            // correlation IDs, so a late frame from a timed-out command would
-            // otherwise complete the current command's TCS with the wrong response.
-            // Doing it at the single delivery point means only a matching frame ever
-            // completes the TCS — no re-arm race when two frames arrive together.
-            var expectedKey = _pendingExpectedKey;
-            if (expectedKey != null && !response.IsError && response.GetString(expectedKey) == null)
+            if (pending == null)
+                continue;
+
+            // Filter stale frames here (not in the awaiter): doing it at the single
+            // delivery point means only a matching frame ever completes the TCS — no
+            // re-arm race when two frames arrive together.
+            if (!ResponseMatcher.Completes(pending.Name, response))
             {
-                System.Diagnostics.Debug.WriteLine($"[BLE] Discarded stale frame (missing {expectedKey})");
+                System.Diagnostics.Debug.WriteLine(
+                    $"[BLE] Discarded stale frame (CMD={response.GetString("CMD") ?? "none"}, awaiting {pending.Name})");
                 continue;
             }
 
-            _pendingResponseTcs?.TrySetResult(response);
+            pending.Reply.TrySetResult(response);
         }
     }
 
@@ -621,7 +602,7 @@ public class BluetoothService : IBluetoothService
 
         // Clear stale response data before cancelling pending commands
         _rxAssembler.Reset();
-        _pendingResponseTcs?.TrySetCanceled();
+        _pending?.Reply.TrySetCanceled();
 
         if (ConnectedDevice != null)
         {
@@ -639,7 +620,7 @@ public class BluetoothService : IBluetoothService
 
         // Clear stale response data before cancelling pending commands
         _rxAssembler.Reset();
-        _pendingResponseTcs?.TrySetCanceled();
+        _pending?.Reply.TrySetCanceled();
 
         if (ConnectedDevice != null)
         {
