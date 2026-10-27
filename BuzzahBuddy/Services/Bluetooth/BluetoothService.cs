@@ -25,6 +25,9 @@ public class BluetoothService : IBluetoothService
 
     // Response buffering and parsing
     private readonly RxFrameAssembler _rxAssembler = new();
+    // Append runs on the BLE notification thread, Reset on the command/disconnect
+    // thread; RxFrameAssembler is not thread-safe on its own.
+    private readonly object _rxAssemblerLock = new();
     private readonly SemaphoreSlim _responseLock = new(1, 1);
     // The command awaiting a reply. Name and TCS are published together so the RX
     // thread never pairs one command's name with another's TCS; stale frames are
@@ -145,7 +148,10 @@ public class BluetoothService : IBluetoothService
 
             System.Diagnostics.Debug.WriteLine($"📡 Connecting to BLE device...");
             var connectParameters = new ConnectParameters(autoConnect: false, forceBleTransport: true);
-            await _adapter.ConnectToDeviceAsync(bleDevice, connectParameters, cancellationToken);
+            using (var connectCts = CreateConnectTimeout(cancellationToken))
+            {
+                await _adapter.ConnectToDeviceAsync(bleDevice, connectParameters, connectCts.Token);
+            }
 
             _connectedBleDevice = bleDevice;
             System.Diagnostics.Debug.WriteLine($"✅ BLE connection established");
@@ -200,6 +206,8 @@ public class BluetoothService : IBluetoothService
             {
                 System.Diagnostics.Debug.WriteLine($"IDENTIFY:PHONE write failed (non-fatal): {ex.Message}");
             }
+
+            await RequestLargerMtuAsync(bleDevice);
 
             ConnectedDevice = device;
             device.ConnectionState = ConnectionState.Connected;
@@ -270,18 +278,27 @@ public class BluetoothService : IBluetoothService
         try
         {
             // Clear any previous response buffer
-            _rxAssembler.Reset();
+            ResetRxAssembler();
 
             // Publish BEFORE writing so the RX producer filters stale frames against
-            // this command (see ResponseMatcher).
+            // this command (see ResponseMatcher). Continuations run asynchronously so
+            // completing the TCS never runs the caller's code on the BLE RX thread.
             var pending = new PendingCommand(
-                ResponseMatcher.CommandName(command), new TaskCompletionSource<CommandResponse>());
+                ResponseMatcher.CommandName(command),
+                new TaskCompletionSource<CommandResponse>(TaskCreationOptions.RunContinuationsAsynchronously));
             _pending = pending;
 
             // Send command (add \n terminator)
             System.Diagnostics.Debug.WriteLine($"[BLE CMD] >>> {command}");
             var commandBytes = Encoding.UTF8.GetBytes(command + BlueBuzzahConstants.CommandTerminator);
-            await _txCharacteristic.WriteAsync(commandBytes);
+            // Nonzero is the GATT error from the device: fail now rather than wait
+            // out the reply timeout for a command that never arrived.
+            var writeResult = await _txCharacteristic.WriteAsync(commandBytes);
+            if (writeResult != 0)
+            {
+                throw new InvalidOperationException(
+                    $"Command '{command}' write failed (GATT status {writeResult})");
+            }
 
             // Wait for response with timeout
             using var timeoutCts = new CancellationTokenSource(timeoutMs);
@@ -361,7 +378,14 @@ public class BluetoothService : IBluetoothService
 
             System.Diagnostics.Debug.WriteLine($"[BLE RECONNECT] Connecting to known device: {guid}");
             var connectParams = new ConnectParameters(autoConnect: false, forceBleTransport: true);
-            var bleDevice = await _adapter.ConnectToKnownDeviceAsync(guid, connectParams, ct);
+            // A timed-out attempt lands in the catch below and returns false, so the
+            // reconnect loop moves on to its next attempt rather than treating the
+            // cancellation as the user cancelling the whole loop.
+            IDevice bleDevice;
+            using (var connectCts = CreateConnectTimeout(ct))
+            {
+                bleDevice = await _adapter.ConnectToKnownDeviceAsync(guid, connectParams, connectCts.Token);
+            }
 
             _connectedBleDevice = bleDevice;
 
@@ -400,6 +424,8 @@ public class BluetoothService : IBluetoothService
             {
                 System.Diagnostics.Debug.WriteLine($"[BLE RECONNECT] IDENTIFY:PHONE write failed (non-fatal): {ex.Message}");
             }
+
+            await RequestLargerMtuAsync(bleDevice);
 
             var gloveDevice = new GloveDevice
             {
@@ -487,7 +513,13 @@ public class BluetoothService : IBluetoothService
     /// </summary>
     internal void ProcessIncomingRxText(string text)
     {
-        foreach (var frame in _rxAssembler.Append(text))
+        IReadOnlyList<string> frames;
+        lock (_rxAssemblerLock)
+        {
+            frames = _rxAssembler.Append(text);
+        }
+
+        foreach (var frame in frames)
         {
             var pending = _pending;
             System.Diagnostics.Debug.WriteLine(
@@ -509,6 +541,44 @@ public class BluetoothService : IBluetoothService
             }
 
             pending.Reply.TrySetResult(response);
+        }
+    }
+
+    private void ResetRxAssembler()
+    {
+        lock (_rxAssemblerLock)
+        {
+            _rxAssembler.Reset();
+        }
+    }
+
+    /// <summary>
+    /// Bounds a connect attempt: without it iOS waits forever for a peripheral that
+    /// is out of range. Dispose the result once the connect call returns.
+    /// </summary>
+    private static CancellationTokenSource CreateConnectTimeout(CancellationToken cancellationToken)
+    {
+        var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        cts.CancelAfter(TimeSpan.FromSeconds(BlueBuzzahConstants.ConnectionTimeoutSeconds));
+        return cts;
+    }
+
+    /// <summary>
+    /// Asks for a larger ATT MTU so replies fit in fewer notifications. Android stays
+    /// at the 23-byte default unless the app asks; iOS negotiates on its own and just
+    /// reports the current value. Best-effort: a failure leaves the link usable.
+    /// </summary>
+    private static async Task RequestLargerMtuAsync(IDevice device)
+    {
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+            var mtu = await device.RequestMtuAsync(BlueBuzzahConstants.RequestedMtu, cts.Token);
+            System.Diagnostics.Debug.WriteLine($"[BLE] MTU is {mtu}");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[BLE] MTU request failed (non-fatal): {ex.Message}");
         }
     }
 
@@ -596,7 +666,7 @@ public class BluetoothService : IBluetoothService
         _rxCharacteristic = null;
 
         // Clear stale response data before cancelling pending commands
-        _rxAssembler.Reset();
+        ResetRxAssembler();
         _pending?.Reply.TrySetCanceled();
 
         if (ConnectedDevice != null)
@@ -614,7 +684,7 @@ public class BluetoothService : IBluetoothService
         _rxCharacteristic = null;
 
         // Clear stale response data before cancelling pending commands
-        _rxAssembler.Reset();
+        ResetRxAssembler();
         _pending?.Reply.TrySetCanceled();
 
         if (ConnectedDevice != null)

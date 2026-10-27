@@ -75,6 +75,12 @@ public static class BlueBuzzahConstants
     public const int ConnectionTimeoutSeconds = 15;
 
     /// <summary>
+    /// ATT MTU requested after connect (247 = 244-byte notifications, the common
+    /// ceiling for data-length-extended links).
+    /// </summary>
+    public const int RequestedMtu = 247;
+
+    /// <summary>
     /// Timeout for PING command in milliseconds.
     /// </summary>
     public const int PingTimeoutMs = 2000;
