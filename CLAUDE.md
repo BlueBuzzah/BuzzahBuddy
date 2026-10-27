@@ -20,8 +20,8 @@ BLE contract lives there), `../BlueBuzzah-Updater`, `../BlueBuzzah-Hardware`.
 
 `-p:TargetFrameworks=...` is not optional on a single-TFM build: an unpinned restore
 resolves assets for *all* TFMs and fails wherever that workload isn't installed
-(NETSDK1147). See README.md for full environment setup. `.vscode/tasks.json` and
-`launch.json` are entirely commented out — dead, not usable as written.
+(NETSDK1147). README's build/test commands omit it — trust this table over README.
+`.vscode/tasks.json` and `launch.json` are entirely commented out.
 
 Targets: `net10.0;net10.0-android;net10.0-ios` (iOS 15+, Android API 24 floor / 36
 target). `Platforms/MacCatalyst|Tizen|Windows/` are template stubs **not built by any
@@ -33,49 +33,46 @@ the test project can compile app sources; it builds as a Library.
 Nordic UART Service. Constants in `BlueBuzzahConstants.cs`: service
 `6E400001-B5A3-F393-E0A9-E50E24DCCA9E`, TX `...0002...`, RX `...0003...`; device name
 filter `"BlueBuzzah"`; every BLE command terminates in `\x04` (serial/debug uses `\n`).
-There is no inter-command delay: the next command goes out as soon as the previous
-reply arrives (the reply proves the firmware is ready; it queues 4 deep). The one
-exception is older firmware: after a reply without a `CMD` line the reply slot stays
-open `LegacyReplySettleMs` (100 ms) so a stray frame can't complete the next command.
-
-Non-obvious invariants:
+No inter-command delay: the next command goes out as soon as the previous reply arrives
+(firmware queues 4 deep). Exception: after a reply without a `CMD` line (older firmware)
+the reply slot stays open `LegacyReplySettleMs` (100 ms) so a stray frame can't complete
+the next command. `ConnectionTimeoutSeconds = 15` bounds link-up through subscribe —
+iOS never times out a connect on its own.
 
 - **No correlation IDs.** Current firmware starts every reply with `CMD:<COMMAND>`;
   `ResponseMatcher` completes the pending command only on an exact CMD match and drops
   other frames as stale. Older firmware has no echo, so the fallback is
-  `ResponseMatcher.ExpectedResponseKeys` — a key the reply must contain (`INFO→ROLE`,
-  `BATTERY→BATP`, `PING→PONG`). Adding a command means adding its key there too, or
-  responses shift and desync on old firmware.
+  `ResponseMatcher.ExpectedResponseKeys` — a key the reply must contain (e.g.
+  `INFO→ROLE`, `PING→PONG`). Commands with no entry accept *any* frame on old firmware;
+  adding a command means adding its key, or responses shift and desync.
 - **One command in flight**, serialized by `BluetoothService._responseLock`
   (`SemaphoreSlim(1,1)`). There is no priority queue.
 - `IDENTIFY:PHONE` is written right after notification subscribe (fresh connect *and*
   reconnect) — firmware classifies the link within a 1s window and mistypes it otherwise.
-- Adapter `OnDeviceConnected` deliberately does **not** raise app `Connected` state; it
-  fires before GATT discovery, so commands sent then fail. `Connected` is raised only
-  after NUS discovery + `IDENTIFY:PHONE`.
-- `PROFILE_LOAD` **reboots the device**. `GloveControlService.LoadProfileAsync` sets
-  `ExpectingReboot` *before* sending, and on `STATUS:REBOOTING` (PROFILE_LOAD and
-  RESTART) disconnects at once rather than waiting for the OS to notice the glove
-  dropping the link ~300 ms later; `ReconnectionService` then waits
-  `RebootInitialDelayMs = 3000` before its first retry (backoff 1→2→4→8→16→30s, 20 max).
-  `UserInitiatedDisconnect` always beats `ExpectingReboot` — never auto-reconnect after
-  a user disconnect.
+- Adapter `OnDeviceConnected` deliberately does **not** raise app `Connected`; it fires
+  before GATT discovery. `Connected` is raised only after NUS discovery + `IDENTIFY:PHONE`.
+- **Two disconnects.** `DisconnectAsync` (and `RaiseManualConnectFailure`) set
+  `UserInitiatedDisconnect`, which blocks auto-reconnect and always beats
+  `ExpectingReboot`. App-initiated drops (reboot, failed health check) must use
+  `DisconnectForReconnectAsync`.
+- `PROFILE_LOAD` and `RESTART` **reboot the device**. `GloveControlService` sets
+  `ExpectingReboot` (30s `ExpectingRebootTtl`) *before* sending and disconnects at once on
+  `STATUS:REBOOTING` instead of waiting ~300 ms for the glove to drop the link;
+  `ReconnectionService` waits `RebootInitialDelayMs = 3000`, then backs off
+  1→2→4→8→16→30s, 20 attempts max.
 - `GloveControlService` is the **single post-(re)connect sync owner**: `INFO` →
-  `SESSION_STATUS` → `THERAPY_LED_OFF`. ViewModels take battery from INFO's BATP/BATS
-  via `DeviceInfoReceived` and the LED setting via `TherapyLedOffReceived` — don't add
-  per-VM commands on `Connected`; they compete for the link in its busiest window. For
-  page-visit refreshes pass a `maxAge` to `GetDeviceInfoAsync`/`GetTherapyLedOffAsync`:
-  the service joins a query already in flight and serves a reading from the current
-  link (cleared on disconnect) instead of each VM keeping its own freshness stamp.
-- Post-reconnect `INFO`/`SESSION_STATUS` retry on a `{0, 2000, 5000, 10000}ms` ladder:
-  the primary is re-establishing clock sync with the secondary (~5s cold start) and
-  starves early commands.
+  `SESSION_STATUS` → `THERAPY_LED_OFF`, retried on a `{0, 2000, 5000, 10000}ms` ladder
+  (the primary is re-syncing with the secondary, ~5s cold, and starves early commands).
+  VMs take battery via `DeviceInfoReceived` and the LED via `TherapyLedOffReceived` —
+  don't add per-VM commands on `Connected`. For page-visit refreshes pass a `maxAge` to
+  `GetDeviceInfoAsync`/`GetTherapyLedOffAsync`: the service joins an in-flight query and
+  caches per link instead of each VM keeping its own freshness stamp.
 - `RxFrameAssembler` reassembles `\x04`-terminated frames across packets and drops
-  firmware-internal primary↔secondary chatter (`InternalMessagePrefixes`, keyed to
-  firmware `INTERNAL_MESSAGES`). `MaxPartialFrameLength = 4096` caps a runaway partial.
-- `PROFILE_CUSTOM` takes at most **8 KEY:VAL pairs** (firmware `MAX_COMMAND_PARAMS=16`
-  tokens, 63-char tokens, 255-char command). Firmware silently drops the overflow and
-  still replies `CUSTOM_LOADED`, so the app validates client-side.
+  firmware-internal primary↔secondary chatter (`InternalMessagePrefixes`).
+  `MaxPartialFrameLength = 4096` caps a runaway partial.
+- `PROFILE_CUSTOM` takes at most **8 KEY:VAL pairs**, 63-char tokens, 255-char command.
+  Firmware silently drops the overflow and still replies `CUSTOM_LOADED`, so the app
+  validates client-side.
 - Amplitude writes must **widen before narrowing** — firmware rejects a narrowing write
   against the current window. `GloveControlService.AmplitudeParametersWideningFirst`
   handles ordering; `ApplyCustomProfileAsync` first floors `AMPMIN`.
@@ -89,13 +86,10 @@ check both:
 
 | App | Firmware |
 |-----|----------|
-| `Models/TherapyParameterBounds.cs` | `include/config.h` `PARAM_*` |
-| `GloveControlService` custom-profile limits | `menu_controller.h/.cpp` |
-| parameter validation / amplitude ordering | `profile_manager.cpp` `setParameter` |
-| `RxFrameAssembler.InternalMessagePrefixes` | `menu_controller.cpp` `INTERNAL_MESSAGES` |
-
-A bounds mismatch means the app either sends values firmware rejects or blocks values it
-would accept.
+| `Models/TherapyParameterBounds.cs` (+ hardcoded ranges in `ProfileSettingsPage.xaml` labels) | `include/config.h` `PARAM_*` |
+| `GloveControlService` custom-profile limits | `include/menu_controller.h` `MAX_COMMAND_PARAMS` |
+| parameter validation / amplitude ordering | `src/profile_manager.cpp` `setParameter` |
+| `RxFrameAssembler.InternalMessagePrefixes` | `include/internal_messages.h` `INTERNAL_MESSAGES` |
 
 ## Domain Models — `Models/`
 
@@ -105,8 +99,7 @@ would accept.
   The bounds are an engineering envelope around that single point: **a permitted value is
   not a validated one.** Say so in UI copy.
 - `SessionClock` — timer-free interpolation between `SESSION_STATUS` anchors. Device time
-  is always authoritative; backward drift ≤ `SnapThresholdSeconds = 3` is absorbed rather
-  than shown as a jump.
+  is authoritative; backward drift ≤ `SnapThresholdSeconds = 3` is absorbed, not shown.
 - `TherapyProfile` — 6 presets, IDs 1–6; `CustomProfileId = 4` is the only editable slot.
 - `BatteryReading` — `≤0.0V` is the firmware's "no reading" sentinel, surfaced as
   unavailable, not 0%. 3.0V=0% / 4.2V=100% linear.
@@ -115,9 +108,9 @@ would accept.
 
 `BuzzahBuddy.Tests` is plain `net10.0` with **no `ProjectReference`** — it
 `Compile Include`s app sources (`Models/**`, `Services/Glove/**`, `RxFrameAssembler`,
-`BlueBuzzahConstants`, `IBluetoothService`, `MockBluetoothService`, `DesignColors`,
-`IntMatch`). A ProjectReference would force restore across every app TFM and fail without
-mobile workloads. Adding a testable app source means adding a `Compile Include`.
+`ResponseMatcher`, `BlueBuzzahConstants`, `IBluetoothService`, `MockBluetoothService`,
+`DesignColors`, `IntMatch`). A ProjectReference would force restore across every app TFM
+and fail without mobile workloads. A new testable source needs its own `Compile Include`.
 
 - `BluetoothService.cs` is **excluded on purpose** — its ctor hits
   `CrossBluetoothLE.Current`, which throws off-device. Its only coverage is the `net10.0`
@@ -128,20 +121,26 @@ mobile workloads. Adding a testable app source means adding a `Compile Include`.
   would hide a mock drift.
 
 `MockBluetoothService` (dev without hardware) is selected by
-`MauiProgram.UseMockBluetooth`, a hardcoded `false` — hand-edit and rebuild; it is not a
-build flag. It simulates a 4-motor board only (no PentaBuzzer 5-motor coverage).
+`MauiProgram.UseMockBluetooth`, a hardcoded `false` — hand-edit and rebuild. It simulates
+a 4-motor board only, and raises events synchronously on the caller's thread, so it
+hides a missing `MainThread` dispatch (real BLE events arrive off the UI thread).
 
 ## UI & Navigation
 
 3 tabs in `AppShell.xaml` — `//control`, `//devices`, `//settings`; pushed routes
-`calibration` and `profilesettings` registered in `AppShell.xaml.cs`. Route strings live
-in `Helpers/Routes.cs`. `ApplyingSettingsPage` is pushed directly (not a Shell route) —
-it's the interstitial while the gloves reboot. `DeviceSettingsViewModel` has **no page of
-its own**: it's a nested child VM (`DeviceListViewModel.Settings`) and the `x:DataType`
-of `ApplyingSettingsPage`.
+`calibration` and `profilesettings` registered in `AppShell.xaml.cs`; strings in
+`Helpers/Routes.cs`. `ApplyingSettingsPage` is a **modal** (`PushModalAsync`, created with
+`new`, not a route) shown while the gloves reboot; its `OnBackButtonPressed` block works
+on Android only because `AndroidManifest.xml` sets `enableOnBackInvokedCallback="false"`.
+`DeviceSettingsViewModel` has no page of its own: it's `DeviceListViewModel.Settings`.
 
-DI (`MauiProgram.cs`): tab-backing pages/VMs are **singletons** because Shell caches
-TabBar content; `Calibration`/`ProfileSettings` pages and VMs are transient.
+DI (`MauiProgram.cs`): tab-backing pages/VMs are **singletons** (Shell caches TabBar
+content) and never disposed; `Calibration`/`ProfileSettings` are transient. A transient VM
+that subscribes to service events must be disposed like `CalibrationPage.OnPageUnloaded`.
+
+VM conventions: `[ObservableProperty]` on `_camelCase` fields; fire-and-forget via
+`.SafeFireAndForget("[TAG]")`, not `_ =`; service-event handlers marshal with
+`MainThread.BeginInvokeOnMainThread`.
 
 ### Accessibility (non-negotiable)
 
@@ -150,50 +149,51 @@ the platform 44pt floor, for tremor. No hover-only interactions, no drag gesture
 sliders for binary choices. Every interactive element needs
 `SemanticProperties.Description` and an `AutomationId`. Test with VoiceOver and TalkBack.
 `Helpers/Motion.cs` — `Motion.Reduce` reads the OS reduce-motion preference; honor it.
-Full patterns: `DESIGN_GUIDE.md`.
+Full patterns (incl. confirm-before-destructive): `DESIGN_GUIDE.md`.
 
 ### Safe area
 
-**Every `ContentPage` must set `SafeAreaEdges="Container"`** (all 6 currently do). .NET 10
-changed the default to `None` on all platforms and Android 16 forces edge-to-edge with no
-opt-out; `DeviceListPage`/`CalibrationPage` anchor primary buttons to the bottom edge for
-easy reach, exactly where the gesture nav bar sits. `SoftInput` is intentionally unused —
-it has no effect on a bare `ScrollView` anyway.
+**Every `ContentPage` must set `SafeAreaEdges="Container"`** (all 6 do). .NET 10 changed
+the default to `None` and Android 16 forces edge-to-edge; `DeviceListPage`/
+`CalibrationPage` anchor primary buttons to the bottom edge, exactly where the gesture
+nav bar sits. `SoftInput` is intentionally unused.
 
 ### Colors
 
 Source of truth is `Resources/Styles/Colors.xaml` (dark theme only; `Primary #35B6F2`,
-`PageBackground #0a0a0a`, `CardBackground #05212D`). `Helpers/DesignColors.cs` duplicates
-a subset as compile-time constants and is **kept in sync by hand** — change both.
-`Helpers/ColorResources.cs` bridges them, falling back to the constants when app resources
-aren't available (tests, early startup). Brand rule: **blue signals success, never green.**
+`PageBackground #0a0a0a`, `CardBackground #05212D`). Hand-synced copies — change all:
+`Helpers/DesignColors.cs` (constants; `Helpers/ColorResources.cs` falls back to them when
+app resources aren't loaded) and `Views/Controls/SessionTimerView.xaml.cs` (4 hex
+literals). Brand rule: **blue signals success, never green.**
 
 ## Gotchas
 
-- **`TrimMode=partial` is load-bearing.** Android only sets
-  `JsonSerializerIsReflectionEnabledByDefault=true` under `partial`;
-  `PreferencesStorageService` uses reflection-based `System.Text.Json` with no
-  `JsonSerializerContext`. Switching to `full` makes every save throw at runtime on
-  Android. Add source-generated contexts first.
-- **`XC0023` is suppressed for a reason.** `x:DataType={x:Null}` in item templates is
-  deliberate — the compiled `RelativeSource AncestorType` alternative silently fails to
-  resolve inside `CollectionView` item containers *on device*, producing a dead Connect
-  button. Reproduces only on hardware. (`XC0022`: `Picker.ItemDisplayBinding` can't use
-  compiled bindings; `XC0045`: intentional parent-VM `RelativeSource`.)
+- **iOS Release is full AOT; Debug hides it.** Two shipped builds crashed on device in
+  Release only. Guards in `BuzzahBuddy.csproj`: `EnableAotAnalyzer` with `IL3050` as an
+  error, and the iOS-Release-only `Switch.System.Reflection.ForceInterpretedInvoke`
+  (launch crash without it). Never set `IsAotCompatible` (it implies `IsTrimmable`).
+  `build.yml` builds Debug only — verify reflection-adjacent changes with `-c Release` on
+  a device.
+- **Every persisted type needs a `[JsonSerializable]` in
+  `Services/Storage/StorageJsonContext.cs`.** A missing entry throws at runtime on
+  device, not at compile time. Keep `TrimMode=partial`.
+- **`XC0023` is suppressed for a reason.** Compiled `RelativeSource AncestorType` silently
+  fails to resolve inside recycled `CollectionView` item containers *on device* (dead
+  Connect button); `DeviceListPage` uses `Source={x:Reference page}` instead.
+  `BindableLayout` (`CalibrationPage`) is unaffected. `XC0045`: intentional parent-VM
+  `RelativeSource`.
 - `MauiProgram.StripNativeInputChrome` (Android) clears `Entry`/`Editor`/`Picker` platform
-  backgrounds — `AppCompatEditText`'s Material underline reads as a second border inside
-  the app's `InputBorder` wrapper.
+  backgrounds — the Material underline reads as a second border inside `InputBorder`.
 - `tmp/` is gitignored scratch. `tmp/BLE_PROTOCOL.md` is a stale snapshot of the firmware
-  spec — useful for diffing, never citable as canonical.
-- **There is no `docs/` tree and none should be added.** The design system docs were
-  deleted deliberately (`ae481f3`); their surviving rules — contrast matrix, forbidden
-  pairs, motion spec — now live in `DESIGN_GUIDE.md`, and token values live in
-  `Colors.xaml`/`Styles.xaml`. Don't reintroduce a parallel doc tree for either.
+  spec — useful for diffing, never canonical. `UX_IMPROVEMENT_PLAN.md` (Nov 2025) is a
+  historical record, not a roadmap.
+- **No `docs/` tree, and don't add one** (deleted in `ae481f3`): design rules live in
+  `DESIGN_GUIDE.md`, token values in `Colors.xaml`/`Styles.xaml`.
 
 ## CI — `.github/workflows/`
 
 `build.yml` (PR, push to `main` under `BuzzahBuddy*` paths): test on ubuntu without any
-workload, Android build + the `net10.0` compile check, iOS build on macOS.
+workload, Android build + the `net10.0` compile check, iOS build on macOS — all Debug.
 
 The iOS jobs (both workflows) pin `xcode-select` and the workload set together
 (`dotnet workload install maui-ios --version …`): each iOS workload binds one Xcode,
@@ -202,6 +202,7 @@ Bump both in lockstep.
 
 `release.yml` (on GitHub Release **published** only): tag must be `vX[.Y[.Z]]` — anything
 else (`v1.0.0-beta1`) is rejected by App Store Connect at upload, so the job fails fast.
-Build number = `github.run_number + BUILD_OFFSET` (currently `2`); **raise `BUILD_OFFSET`
-after any manual out-of-band store upload**, since both stores permanently reject a build
-number ≤ one already accepted. Signs and ships to TestFlight and Play internal.
+Version comes from the tag (csproj `ApplicationDisplayVersion` is ignored). Build number =
+`github.run_number + BUILD_OFFSET` (currently `2`); **raise `BUILD_OFFSET` after any
+manual out-of-band store upload**, since both stores permanently reject a build number ≤
+one already accepted. Signs and ships to TestFlight and Play internal.
