@@ -8,6 +8,44 @@ outranks visual preference in every design call.
 Sibling repos in the same workspace: `../BlueBuzzah-Firmware` (device firmware — the
 BLE contract lives there), `../BlueBuzzah-Updater`, `../BlueBuzzah-Hardware`.
 
+## Design System — required for every UI/UX change
+
+Any change a person can see, hear or touch follows the **BlueBuzzah design system**. That
+includes layout, color, type, spacing, controls, icons, the app icon and splash, motion,
+haptics, accessibility, and copy (voice, error messages, the disclaimer). The design
+system lives in the BlueBuzzah workspace repo as the `bluebuzzah-design-system` skill, at
+`../../.claude/skills/bluebuzzah-design-system/` from this repo's root.
+
+Before making a UI/UX change:
+
+1. **Load it.** Invoke the `bluebuzzah-design-system` skill. If it isn't in your skill list
+   (e.g. Claude was started in this repo instead of the workspace root), read
+   `../../.claude/skills/bluebuzzah-design-system/SKILL.md` directly and follow it.
+2. **If that path doesn't exist, stop.** This repo isn't checked out inside the workspace.
+   Ask the user to set it up: clone `https://github.com/BlueBuzzah/BlueBuzzah-Workspace`,
+   then run `npm run workspace:setup` to clone this repo under its `projects/`. Don't work
+   from memory.
+3. **Read what applies:** `README.md` and `accessibility.md`, then `buzzahbuddy.md` (this
+   app's surface guide), then the README of every design-system component you rebuild.
+
+Rules:
+
+- **The design system wins any conflict.** That includes the current
+  `Colors.xaml`/`Styles.xaml` and anything else in this file. Much of the current UI
+  predates it. Build new and changed UI to the design system rather than copying the
+  surrounding legacy styles.
+- **It ships no XAML.** Its React components are the reference for each control's
+  anatomy, states and rules. Build them as MAUI controls and styles. Derive XAML
+  resources from its `tokens.json` (all four themes) rather than hand-typing hex values,
+  sizes or fonts.
+- **Copy, don't link.** Copy fonts, icons and the app-icon files from the design system's
+  `assets/` (`iOS`, `Android`) into this repo. Never reference the workspace path at build
+  time, because this repo builds and ships on its own.
+- **Don't invent rules.** If the design system doesn't cover something, ask rather than
+  inventing a rule.
+- **Full migrations:** a whole-app pass is the `/implement-design-system` command, run from
+  the workspace.
+
 ## Quick Reference
 
 | Task | Command |
@@ -144,12 +182,11 @@ VM conventions: `[ObservableProperty]` on `_camelCase` fields; fire-and-forget v
 
 ### Accessibility (non-negotiable)
 
-WCAG 2.1 AA. Touch targets 48×48 minimum (56×56 preferred), 12–16pt spacing — larger than
-the platform 44pt floor, for tremor. No hover-only interactions, no drag gestures, no
-sliders for binary choices. Every interactive element needs
-`SemanticProperties.Description` and an `AutomationId`. Test with VoiceOver and TalkBack.
-`Helpers/Motion.cs` — `Motion.Reduce` reads the OS reduce-motion preference; honor it.
-Full patterns (incl. confirm-before-destructive): `DESIGN_GUIDE.md`.
+The rules (targets, gestures, contrast, motion, screen readers) are the design system's
+`accessibility.md`. MAUI specifics: every interactive element needs
+`SemanticProperties.Description` and an `AutomationId`; `Helpers/Motion.cs` —
+`Motion.Reduce` reads the OS reduce-motion preference; honor it. Test with VoiceOver and
+TalkBack.
 
 ### Safe area
 
@@ -160,11 +197,10 @@ nav bar sits. `SoftInput` is intentionally unused.
 
 ### Colors
 
-Source of truth is `Resources/Styles/Colors.xaml` (dark theme only; `Primary #35B6F2`,
-`PageBackground #0a0a0a`, `CardBackground #05212D`). Hand-synced copies — change all:
+Values come from the design system's color tokens. The app holds hex values in three
+hand-synced places; change them together: `Resources/Styles/Colors.xaml`,
 `Helpers/DesignColors.cs` (constants; `Helpers/ColorResources.cs` falls back to them when
-app resources aren't loaded) and `Views/Controls/SessionTimerView.xaml.cs` (4 hex
-literals). Brand rule: **blue signals success, never green.**
+app resources aren't loaded) and `Views/Controls/SessionTimerView.xaml.cs` (4 hex literals).
 
 ## Gotchas
 
@@ -184,11 +220,9 @@ literals). Brand rule: **blue signals success, never green.**
   `RelativeSource`.
 - `MauiProgram.StripNativeInputChrome` (Android) clears `Entry`/`Editor`/`Picker` platform
   backgrounds — the Material underline reads as a second border inside `InputBorder`.
-- `tmp/` is gitignored scratch. `tmp/BLE_PROTOCOL.md` is a stale snapshot of the firmware
-  spec — useful for diffing, never canonical. `UX_IMPROVEMENT_PLAN.md` (Nov 2025) is a
-  historical record, not a roadmap.
-- **No `docs/` tree, and don't add one** (deleted in `ae481f3`): design rules live in
-  `DESIGN_GUIDE.md`, token values in `Colors.xaml`/`Styles.xaml`.
+- `tmp/` is gitignored scratch; nothing in it is canonical.
+- **No `docs/` tree, and don't add one**: design rules come from the workspace design
+  system (top of this file).
 
 ## CI — `.github/workflows/`
 

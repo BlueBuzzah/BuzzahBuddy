@@ -4,7 +4,8 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
 
-    <!-- Dark Mode Only - BlueBuzzah.com Design System -->
+    <!-- Legacy dark-only palette. It predates the BlueBuzzah design system (workspace
+         bluebuzzah-design-system skill), which replaces it. -->
 
     <Style TargetType="ActivityIndicator">
         <Setter Property="Color" Value="{StaticResource Primary}" />
@@ -67,7 +68,7 @@
         </Setter>
     </Style>
 
-    <!-- Visual Hierarchy: Standardized Button Styles (sizes and color rules: DESIGN_GUIDE.md).
+    <!-- Visual Hierarchy: Standardized Button Styles (legacy; the design system's Button component replaces them).
          Blue fills always take dark text (#0a0a0a) — light-on-blue is 2.0:1 and forbidden. -->
 
     <!-- Primary Button: the one blue CTA per screen -->
@@ -348,9 +349,9 @@
         </Setter>
     </Style>
 
-    <!-- Typography scale. System fonts only (no FontFamily set, no bundled font assets) — the
-         platform default is the brand rule. MAUI exposes Regular/Bold only, so where the spec
-         wants Medium/Semibold, size and color carry the hierarchy. Minimums: DESIGN_GUIDE.md. -->
+    <!-- Typography scale (legacy: system fonts, no FontFamily set; the design system replaces it
+         with Lexend / Atkinson Hyperlegible). MAUI exposes Regular/Bold only, so where the spec
+         wants Medium/Semibold, size and color carry the hierarchy. -->
     <Style TargetType="Label" x:Key="Headline">
         <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
         <Setter Property="FontSize" Value="32" />

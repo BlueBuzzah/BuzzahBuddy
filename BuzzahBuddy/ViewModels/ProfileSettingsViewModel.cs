@@ -172,7 +172,7 @@ public partial class ProfileSettingsViewModel : BaseViewModel
     private async Task ResetToDefaultsAsync()
     {
         // Discards whatever the user has tuned. Destructive actions require a
-        // confirmation (DESIGN_GUIDE.md) because an accidental tap is a real hazard
+        // confirmation (BlueBuzzah design system, accessibility.md) because an accidental tap is a real hazard
         // for tremor-prone users, and there is no undo once the fields are replaced.
         var confirmed = await Shell.Current.DisplayAlert(
             "Use Research Defaults?",

@@ -178,11 +178,11 @@ dotnet test BuzzahBuddy.Tests --logger "console;verbosity=detailed"
 
 ## Accessibility
 
-This app is designed with accessibility as a core requirement:
+This app is designed with accessibility as a core requirement, following the BlueBuzzah design system (in the [BlueBuzzah-Workspace](https://github.com/BlueBuzzah/BlueBuzzah-Workspace) repo):
 
-- **WCAG 2.1 Level AA** compliance
+- **WCAG 2.2 Level AA** compliance
 - **Large touch targets** (48x48pt minimum)
-- **High contrast ratios** (4.5:1 for text)
+- **High contrast ratios** (4.5:1 for text, 7:1 in high-contrast themes)
 - **Semantic properties** for screen readers (VoiceOver, TalkBack)
 - **Tremor-friendly UI** optimized for Parkinson's patients
 
