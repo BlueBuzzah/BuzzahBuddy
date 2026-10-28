@@ -368,14 +368,15 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         catch (BlueBuzzahCommandException ex)
         {
             AbortApplyReconnectWatch();
-            var (title, message) = ErrorMessageHelper.GetFriendlyError(ex.Message);
-            await Shell.Current.DisplayAlert(title, message, "OK");
+            var error = ErrorMessageHelper.GetFriendlyError(ex.Message);
+            await Shell.Current.DisplayAlert(error.Title, error.ForAlert, "OK");
             await ResyncTherapyLedAsync();
         }
         catch (Exception ex)
         {
             AbortApplyReconnectWatch();
-            await Shell.Current.DisplayAlert(GetErrorTitle(ex), GetErrorMessage(ex), "OK");
+            var error = FromException(ex);
+            await Shell.Current.DisplayAlert(error.Title, error.ForAlert, "OK");
             await ResyncTherapyLedAsync();
         }
         finally

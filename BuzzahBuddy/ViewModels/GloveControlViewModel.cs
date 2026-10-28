@@ -311,14 +311,13 @@ public partial class GloveControlViewModel : BaseViewModel
         }
         catch (BlueBuzzahCommandException ex)
         {
-            var (title, message) = ErrorMessageHelper.GetFriendlyError(ex.Message);
-            await Shell.Current.DisplayAlert(title, message, "OK");
+            var error = ErrorMessageHelper.GetFriendlyError(ex.Message);
+            await Shell.Current.DisplayAlert(error.Title, error.ForAlert, "OK");
         }
         catch (Exception ex)
         {
-            var title = ErrorMessageHelper.GetErrorTitle(ex);
-            var message = ErrorMessageHelper.GetErrorMessage(ex);
-            await Shell.Current.DisplayAlert(title, message, "OK");
+            var error = ErrorMessageHelper.FromException(ex);
+            await Shell.Current.DisplayAlert(error.Title, error.ForAlert, "OK");
         }
         finally
         {
@@ -375,14 +374,13 @@ public partial class GloveControlViewModel : BaseViewModel
         }
         catch (BlueBuzzahCommandException ex)
         {
-            var (title, message) = ErrorMessageHelper.GetFriendlyError(ex.Message);
-            await Shell.Current.DisplayAlert(title, message, "OK");
+            var error = ErrorMessageHelper.GetFriendlyError(ex.Message);
+            await Shell.Current.DisplayAlert(error.Title, error.ForAlert, "OK");
         }
         catch (Exception ex)
         {
-            var title = ErrorMessageHelper.GetErrorTitle(ex);
-            var message = ErrorMessageHelper.GetErrorMessage(ex);
-            await Shell.Current.DisplayAlert(title, message, "OK");
+            var error = ErrorMessageHelper.FromException(ex);
+            await Shell.Current.DisplayAlert(error.Title, error.ForAlert, "OK");
         }
         finally
         {

@@ -135,7 +135,7 @@ public class CustomProfileFormTests
 
     [Fact]
     public void DerivedTimingText_ReportsTheCoordinatedResetPeriod()
-        => Assert.Equal("CR period 668 ms · 1.50 Hz", ValidForm().DerivedTimingText);
+        => Assert.Equal("One full cycle takes 668 ms, about 1.5 times a second.", ValidForm().DerivedTimingText);
 
     [Fact]
     public void DerivedTimingText_UsesTheDeviceFingerCount()
@@ -144,7 +144,7 @@ public class CustomProfileFormTests
         form.Fingers = 5;
 
         // A five-motor glove lengthens the CR period at identical burst timing.
-        Assert.Equal("CR period 835 ms · 1.20 Hz", form.DerivedTimingText);
+        Assert.Equal("One full cycle takes 835 ms, about 1.2 times a second.", form.DerivedTimingText);
     }
 
     [Fact]
@@ -153,7 +153,7 @@ public class CustomProfileFormTests
         var form = ValidForm();
         form.TimeOffMsText = "";
 
-        Assert.Equal("CR period unavailable", form.DerivedTimingText);
+        Assert.Equal("Enter both times above to see the cycle length.", form.DerivedTimingText);
     }
 
     [Fact]

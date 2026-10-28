@@ -112,7 +112,7 @@ public class TherapyProfile
             {
                 ProfileId = 1,
                 Name = "Regular",
-                Description = "Standard vibrotactile continuous reset pattern with consistent timing",
+                Description = "Steady timing. Each glove uses its own random finger order.",
                 ActuatorType = "LRA",
                 ActuatorFrequency = 250,
                 ActuatorVoltage = 2.5,
@@ -132,7 +132,7 @@ public class TherapyProfile
             {
                 ProfileId = 2,
                 Name = "Noisy",
-                Description = "Pattern with jitter and mirrored patterns - recommended default",
+                Description = "Slightly varied timing. Both gloves use the same finger order.",
                 ActuatorType = "LRA",
                 ActuatorFrequency = 250,
                 ActuatorVoltage = 2.5,
@@ -152,7 +152,7 @@ public class TherapyProfile
             {
                 ProfileId = 3,
                 Name = "Hybrid",
-                Description = "Mixed frequency stimulation pattern",
+                Description = "Slightly varied timing. Each glove uses its own finger order.",
                 ActuatorType = "LRA",
                 ActuatorFrequency = 250,
                 ActuatorVoltage = 2.5,
@@ -172,7 +172,7 @@ public class TherapyProfile
             {
                 ProfileId = 4,
                 Name = "Custom",
-                Description = "Variable amplitude and frequency for personalized therapy",
+                Description = "Your own settings. The only profile you can edit.",
                 ActuatorType = "LRA",
                 ActuatorFrequency = 250,
                 ActuatorVoltage = 2.5,
@@ -192,7 +192,7 @@ public class TherapyProfile
             {
                 ProfileId = 5,
                 Name = "Gentle",
-                Description = "Lower amplitude therapy with sequential pattern for sensitive users",
+                Description = "Softer buzzes in a fixed finger order. 1-hour sessions.",
                 ActuatorType = "LRA",
                 ActuatorFrequency = 250,
                 ActuatorVoltage = 2.0,
@@ -211,8 +211,8 @@ public class TherapyProfile
             new TherapyProfile
             {
                 ProfileId = 6,
-                Name = "Quick Test",
-                Description = "5-minute test session for quick device verification",
+                Name = "Quick test",
+                Description = "A 5-minute session to check that your gloves work.",
                 ActuatorType = "LRA",
                 ActuatorFrequency = 250,
                 ActuatorVoltage = 2.5,
@@ -239,7 +239,7 @@ public class TherapyProfile
         {
             ProfileId = CustomProfileId,
             Name = $"Custom ({Name})",
-            Description = "User-customized therapy profile",
+            Description = "Your own settings. The only profile you can edit.",
             ActuatorType = ActuatorType,
             ActuatorFrequency = ActuatorFrequency,
             ActuatorVoltage = ActuatorVoltage,

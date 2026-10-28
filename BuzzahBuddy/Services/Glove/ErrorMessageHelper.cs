@@ -3,190 +3,93 @@ using BuzzahBuddy.Models;
 namespace BuzzahBuddy.Services.Glove;
 
 /// <summary>
-/// Helper class to convert BlueBuzzah error codes and messages into user-friendly text.
-/// Maps technical error messages to actionable, accessible descriptions.
+/// An error as people read it (design system README "Voice"): the title says what happened,
+/// the message says what to do next, and the raw firmware or exception text goes only in
+/// <see cref="Detail"/>, shown underneath in code-s, never in the headline.
+/// </summary>
+public sealed record UserError(string Title, string Message, string? Detail)
+{
+    /// <summary>For a native alert, which can't style text: the detail goes underneath.</summary>
+    public string ForAlert => Detail is null ? Message : $"{Message}\n\nDetails: {Detail}";
+}
+
+/// <summary>
+/// Turns BlueBuzzah firmware error strings and exceptions into <see cref="UserError"/>s.
 /// </summary>
 public static class ErrorMessageHelper
 {
-    /// <summary>
-    /// Converts a BlueBuzzah error message to a user-friendly message with recovery suggestions.
-    /// </summary>
-    /// <param name="errorMessage">The raw error message from the device</param>
-    /// <returns>Tuple of (title, message) for display</returns>
-    public static (string Title, string Message) GetFriendlyError(string errorMessage)
+    private const string Generic = "Something went wrong";
+    private const string TryAgain = "Try again. If it keeps happening, restart both gloves.";
+
+    /// <summary>Maps a firmware error string; the original text is kept as the detail.</summary>
+    public static UserError GetFriendlyError(string errorMessage)
     {
         if (string.IsNullOrWhiteSpace(errorMessage))
-        {
-            return ("Error", "An unknown error occurred. Please try again.");
-        }
+            return new(Generic, TryAgain, null);
 
+        var detail = errorMessage;
         var lowerError = errorMessage.ToLowerInvariant();
 
-        // Secondary Device Connection Errors
         if (lowerError.Contains("secondary"))
-        {
-            return ("Second Glove Not Connected",
-                "The second glove (Secondary device) is not detected. Please ensure:\n\n" +
-                "• Second glove is powered on\n" +
-                "• Second glove is charged\n" +
-                "• Both gloves are paired\n\n" +
-                "Try restarting both gloves.");
-        }
+            return new("Secondary glove not connected",
+                "Turn on your secondary glove and make sure it's charged. Then restart both gloves and try again.", detail);
 
-        // Bilateral clock sync still converging (SESSION_START retried this already)
         if (lowerError.Contains("sync not ready"))
-        {
-            return ("Gloves Still Syncing",
-                "The two gloves are still synchronizing with each other.\n\n" +
-                "Please wait a few seconds and try again. If this keeps happening, restart both gloves.");
-        }
+            return new("Gloves are still pairing up",
+                "Wait a few seconds, then try again. If it keeps happening, restart both gloves.", detail);
 
-        // Battery Errors
         if (lowerError.Contains("battery too low") || lowerError.Contains("low battery") || lowerError.Contains("charge"))
-        {
-            return ("Battery Too Low",
-                "Battery level is too low to start a therapy session.\n\n" +
-                "Please charge the gloves before continuing. A session requires at least 3.3V.");
-        }
+            return new("Charge your gloves",
+                "The battery is too low to start a session. Charge both gloves, then try again.", detail);
 
-        // Session Active Errors
         if (lowerError.Contains("session active") || lowerError.Contains("session running") || lowerError.Contains("already running"))
-        {
-            return ("Session Already Running",
-                "Cannot start a new session while one is already active.\n\n" +
-                "Please stop the current session first.");
-        }
+            return new("A session is already running", "Stop the current session before starting a new one.", detail);
 
-        // Profile/Parameter Modification Errors
         if (lowerError.Contains("cannot modify") || lowerError.Contains("session must be stopped") || lowerError.Contains("must be idle"))
-        {
-            return ("Cannot Modify During Session",
-                "Profile and parameter changes are not allowed during an active session.\n\n" +
-                "Please stop the current session to change settings.");
-        }
+            return new("Stop your session first", "Settings can't change while a session runs.", detail);
 
-        // Invalid Boolean Setting Errors (e.g., "use: true/false" or "use: 1/0")
         if (lowerError.Contains("use:") && (lowerError.Contains("true/false") || lowerError.Contains("1/0")))
-        {
-            return ("Invalid Setting",
-                "An invalid value was sent. Please try again.");
-        }
+            return new("That setting didn't work", TryAgain, detail);
 
-        // Invalid Parameter Errors
         if (lowerError.Contains("invalid") && (lowerError.Contains("parameter") || lowerError.Contains("value")))
-        {
-            return ("Invalid Parameter",
-                "The parameter value is outside the allowed range.\n\n" +
-                "Please check the parameter constraints and try again.");
-        }
+            return new("That value is out of range", "Check the range under each field, then try again.", detail);
 
-        // Profile Errors
         if (lowerError.Contains("invalid profile") || lowerError.Contains("profile not found"))
-        {
-            // Per BLE protocol v2.0.0: 6 profiles available
-            return ("Invalid Profile",
-                "The selected profile is not available.\n\n" +
-                "Valid profiles are:\n" +
-                "• 1 - Regular VCR\n" +
-                "• 2 - Noisy VCR\n" +
-                "• 3 - Hybrid VCR\n" +
-                "• 4 - Custom VCR\n" +
-                "• 5 - Gentle\n" +
-                "• 6 - Quick Test");
-        }
+            return new("That profile isn't available", "Pick a profile from the list on the Gloves tab.", detail);
 
-        // Profile Manager Not Available
         if (lowerError.Contains("profile manager not available"))
-        {
-            return ("Device Not Ready",
-                "The device is still initializing. Please wait a moment and try again, or restart the gloves.");
-        }
+            return new("Your glove is still starting",
+                "Wait a moment and try again. If it keeps happening, restart both gloves.", detail);
 
-        // Calibration Errors
         if (lowerError.Contains("not in calibration") || lowerError.Contains("calibration mode"))
-        {
-            return ("Not in Calibration Mode",
-                "This command requires calibration mode to be active.\n\n" +
-                "Please enter calibration mode first.");
-        }
+            return new("Start test mode first", "Tap Start test mode, then try again.", detail);
 
         if (lowerError.Contains("invalid finger") || lowerError.Contains("finger index"))
-        {
-            return ("Invalid Finger Selection",
-                "That finger isn't available on the connected gloves.\n\n" +
-                "Please pick one of the finger buttons shown on the calibration screen.");
-        }
+            return new("That finger isn't available", "Pick one of the finger buttons on this screen.", detail);
 
-        // Connection/Communication Errors
         if (lowerError.Contains("timeout") || lowerError.Contains("no response"))
-        {
-            return ("Communication Timeout",
-                "The glove did not respond in time.\n\n" +
-                "Please check the Bluetooth connection and try again.");
-        }
+            return new("Your glove didn't answer", "Move your phone closer to your primary glove, then try again.", detail);
 
         if (lowerError.Contains("disconnected") || lowerError.Contains("not connected"))
-        {
-            return ("Connection Lost",
-                "The Bluetooth connection to the glove was lost.\n\n" +
-                "Please reconnect and try again.");
-        }
+            return new("Connection lost", "Connect again on the Gloves tab, then try again.", detail);
 
-        // Invalid Command Format (more specific, must come before generic "invalid command" check)
+        // More specific than the "invalid command" check below.
         if (lowerError.Contains("invalid command format"))
-        {
-            return ("Communication Error",
-                "The device received a malformed command. Please try again.");
-        }
+            return new("Your glove didn't understand", TryAgain, detail);
 
-        // Command Errors
         if (lowerError.Contains("unknown command") || lowerError.Contains("invalid command"))
-        {
-            return ("Unknown Command",
-                "The glove does not recognize this command.\n\n" +
-                "This may indicate a firmware version mismatch. Consider updating the glove firmware.");
-        }
+            return new("Your glove needs an update",
+                "Update the glove firmware with the BlueBuzzah Updater on a computer, then try again.", detail);
 
-        // Generic Error
-        return ("Error", errorMessage);
+        return new(Generic, TryAgain, detail);
     }
 
-    /// <summary>
-    /// Gets a user-friendly title for an exception.
-    /// </summary>
-    public static string GetErrorTitle(Exception ex)
+    /// <summary>Maps an exception; its message is kept as the detail.</summary>
+    public static UserError FromException(Exception ex) => ex switch
     {
-        return ex switch
-        {
-            BlueBuzzahCommandException => "Command Error",
-            TimeoutException => "Timeout",
-            InvalidOperationException => "Invalid Operation",
-            _ => "Error"
-        };
-    }
-
-    /// <summary>
-    /// Gets a user-friendly message for an exception.
-    /// </summary>
-    public static string GetErrorMessage(Exception ex)
-    {
-        if (ex is BlueBuzzahCommandException commandEx)
-        {
-            var (_, message) = GetFriendlyError(commandEx.Message);
-            return message;
-        }
-
-        if (ex is TimeoutException)
-        {
-            return "The operation took too long to complete.\n\n" +
-                   "Please check the Bluetooth connection and try again.";
-        }
-
-        if (ex is InvalidOperationException)
-        {
-            return ex.Message;
-        }
-
-        return $"An unexpected error occurred:\n\n{ex.Message}";
-    }
+        BlueBuzzahCommandException command => GetFriendlyError(command.Message),
+        TimeoutException => new("Your glove didn't answer",
+            "Move your phone closer to your primary glove, then try again.", ex.Message),
+        _ => new(Generic, TryAgain, ex.Message),
+    };
 }

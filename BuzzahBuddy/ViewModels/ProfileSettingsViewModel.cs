@@ -151,12 +151,13 @@ public partial class ProfileSettingsViewModel : BaseViewModel
         }
         catch (BlueBuzzahCommandException ex)
         {
-            var (title, message) = GetFriendlyError(ex.Message);
-            await Shell.Current.DisplayAlert(title, message, "OK");
+            var error = GetFriendlyError(ex.Message);
+            await Shell.Current.DisplayAlert(error.Title, error.ForAlert, "OK");
         }
         catch (Exception ex)
         {
-            await Shell.Current.DisplayAlert(GetErrorTitle(ex), GetErrorMessage(ex), "OK");
+            var error = FromException(ex);
+            await Shell.Current.DisplayAlert(error.Title, error.ForAlert, "OK");
         }
         finally
         {
@@ -264,13 +265,14 @@ public partial class ProfileSettingsViewModel : BaseViewModel
         }
         catch (BlueBuzzahCommandException ex)
         {
-            var (title, message) = GetFriendlyError(ex.Message);
-            await Shell.Current.DisplayAlert(title, await AppendResyncNoteAsync(message, applyStarted), "OK");
+            var error = GetFriendlyError(ex.Message);
+            await Shell.Current.DisplayAlert(error.Title, await AppendResyncNoteAsync(error.ForAlert, applyStarted), "OK");
         }
         catch (Exception ex)
         {
+            var error = FromException(ex);
             await Shell.Current.DisplayAlert(
-                GetErrorTitle(ex), await AppendResyncNoteAsync(GetErrorMessage(ex), applyStarted), "OK");
+                error.Title, await AppendResyncNoteAsync(error.ForAlert, applyStarted), "OK");
         }
         finally
         {

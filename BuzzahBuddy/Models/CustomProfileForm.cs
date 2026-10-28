@@ -86,12 +86,12 @@ public class CustomProfileForm
     }
 
     /// <summary>
-    /// Derived coordinated-reset timing for display, e.g. "CR period 668 ms · 1.50 Hz".
+    /// Derived cycle timing for display, e.g. "One full cycle takes 668 ms, about 1.5 times a second."
     /// </summary>
     public string DerivedTimingText =>
         TryParseTiming(out var onMs, out var offMs)
             ? TherapyTiming.CrTimingLabel(Fingers, onMs, offMs)
-            : "CR period unavailable";
+            : "Enter both times above to see the cycle length.";
 
     /// <summary>
     /// Warning text when the entered jitter exceeds what this burst timing can
@@ -110,8 +110,7 @@ public class CustomProfileForm
             if (jitter <= cap)
                 return null;
 
-            return $"At this timing the gloves cap jitter near {cap.ToString("0.#", inv)}% " +
-                   "so bursts don't run together.";
+            return $"With these times, the gloves can vary timing by about {cap.ToString("0.#", inv)}% at most.";
         }
     }
 

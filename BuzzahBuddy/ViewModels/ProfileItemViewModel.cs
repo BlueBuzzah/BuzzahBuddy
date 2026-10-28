@@ -32,9 +32,9 @@ public partial class ProfileItemViewModel : ObservableObject
     public bool IsRecommended => ProfileId == 2;
 
     /// <summary>
-    /// Display name including "(Recommended)" suffix if applicable.
+    /// Display name including "(recommended)" suffix if applicable.
     /// </summary>
-    public string DisplayName => IsRecommended ? $"{Name} (Recommended)" : Name;
+    public string DisplayName => IsRecommended ? $"{Name} (recommended)" : Name;
 
     /// <summary>
     /// Whether this is a primary profile (shown by default).

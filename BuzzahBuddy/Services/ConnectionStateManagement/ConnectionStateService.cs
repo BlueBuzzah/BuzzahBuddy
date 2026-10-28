@@ -122,10 +122,10 @@ public class ConnectionStateService : IConnectionStateService, IDisposable
             IsReconnecting = e.State == ReconnectionState.Reconnecting;
             ReconnectionMessage = e.State switch
             {
-                ReconnectionState.Reconnecting => $"Reconnecting... (attempt {e.Attempt}/{e.MaxAttempts})",
+                ReconnectionState.Reconnecting => $"Reconnecting, try {e.Attempt} of {e.MaxAttempts}",
                 // Succeeded intentionally maps to null: recovery needs no lingering
                 // warning banner (screen readers get "Device connected" already).
-                ReconnectionState.Failed => "Could not reconnect. Please reconnect manually.",
+                ReconnectionState.Failed => "Couldn't reconnect. Go to Gloves and tap Scan for gloves.",
                 _ => null
             };
         });

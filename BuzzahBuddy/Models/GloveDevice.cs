@@ -58,10 +58,10 @@ public class GloveDevice
         {
             // RSSI values typically range from -30 (excellent) to -90 (poor)
             if (SignalStrength >= -50)
-                return "Signal: Strong";
+                return "Strong signal";
             if (SignalStrength >= -70)
-                return "Signal: Medium";
-            return "Signal: Weak";
+                return "Medium signal";
+            return "Weak signal";
         }
     }
 

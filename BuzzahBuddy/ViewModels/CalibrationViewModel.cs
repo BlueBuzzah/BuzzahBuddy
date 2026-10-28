@@ -191,14 +191,13 @@ public partial class CalibrationViewModel : BaseViewModel
         }
         catch (BlueBuzzahCommandException ex)
         {
-            var (title, message) = GetFriendlyError(ex.Message);
-            await Shell.Current.DisplayAlert(title, message, "OK");
+            var error = GetFriendlyError(ex.Message);
+            await Shell.Current.DisplayAlert(error.Title, error.ForAlert, "OK");
         }
         catch (Exception ex)
         {
-            var title = GetErrorTitle(ex);
-            var message = GetErrorMessage(ex);
-            await Shell.Current.DisplayAlert(title, message, "OK");
+            var error = FromException(ex);
+            await Shell.Current.DisplayAlert(error.Title, error.ForAlert, "OK");
         }
         finally
         {
@@ -228,14 +227,13 @@ public partial class CalibrationViewModel : BaseViewModel
         }
         catch (BlueBuzzahCommandException ex)
         {
-            var (title, message) = GetFriendlyError(ex.Message);
-            await Shell.Current.DisplayAlert(title, message, "OK");
+            var error = GetFriendlyError(ex.Message);
+            await Shell.Current.DisplayAlert(error.Title, error.ForAlert, "OK");
         }
         catch (Exception ex)
         {
-            var title = GetErrorTitle(ex);
-            var message = GetErrorMessage(ex);
-            await Shell.Current.DisplayAlert(title, message, "OK");
+            var error = FromException(ex);
+            await Shell.Current.DisplayAlert(error.Title, error.ForAlert, "OK");
         }
         finally
         {
@@ -338,14 +336,13 @@ public partial class CalibrationViewModel : BaseViewModel
         }
         catch (BlueBuzzahCommandException ex)
         {
-            var (title, message) = GetFriendlyError(ex.Message);
-            await Shell.Current.DisplayAlert(title, message, "OK");
+            var error = GetFriendlyError(ex.Message);
+            await Shell.Current.DisplayAlert(error.Title, error.ForAlert, "OK");
         }
         catch (Exception ex)
         {
-            var title = GetErrorTitle(ex);
-            var message = GetErrorMessage(ex);
-            await Shell.Current.DisplayAlert(title, message, "OK");
+            var error = FromException(ex);
+            await Shell.Current.DisplayAlert(error.Title, error.ForAlert, "OK");
         }
         finally
         {
