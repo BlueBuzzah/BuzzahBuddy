@@ -2,7 +2,13 @@
 
 ## Overview
 
-BuzzahBuddy is a cross-platform mobile companion app for the BlueBuzzah tactile gloves, a vibrotactile therapeutic device for Parkinson's disease treatment. The app connects to BlueBuzzah gloves via Bluetooth Low Energy (BLE) to control vibration patterns, track therapy usage, and manage treatment sessions.
+BuzzahBuddy is a cross-platform mobile companion app for BlueBuzzah, open-source vibrotactile gloves for people living with Parkinson's. It connects to the gloves over Bluetooth Low Energy (BLE) to run sessions, change settings and test the motors.
+
+## Important
+
+BlueBuzzah devices are not FDA approved medical devices and not intended to diagnose, treat, cure, or prevent any disease. The information provided through BlueBuzzah is for general wellness purposes only and not a substitute for professional medical advice, diagnosis, or treatment.
+
+Important: People with implanted electrodes from deep brain stimulation (DBS), heart pacemakers, or other internal electronic devices should take special precautions around all electronic devices, including BlueBuzzah. Consult your physician before use.
 
 **Mission:** Create a highly accessible, intuitive mobile app optimized for users with Parkinson's disease, featuring tremor-friendly UI and comprehensive assistive technology support.
 

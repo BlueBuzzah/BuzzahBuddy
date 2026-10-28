@@ -230,6 +230,10 @@ files under Bold Text.
   `RelativeSource`.
 - `MauiProgram.StripNativeInputChrome` (Android) clears `Entry`/`Editor`/`Picker` platform
   backgrounds — the Material underline reads as a second border inside `InputBorder`.
+- **App icons come from the design system's `assets/`.** iOS uses `MauiIcon`
+  (`Resources/AppIcon/appicon.png`, iOS only); Android uses the adaptive mipmaps in
+  `Platforms/Android/Resources/mipmap-*`, not `MauiIcon`. After replacing an icon, delete
+  `obj/**/resizetizer`: the resizetizer keeps the old art under the same file name.
 - `tmp/` is gitignored scratch; nothing in it is canonical.
 - **No `docs/` tree, and don't add one**: design rules come from the workspace design
   system (top of this file).

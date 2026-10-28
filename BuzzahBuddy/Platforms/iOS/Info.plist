@@ -25,9 +25,9 @@
 	<key>XSAppIconAssets</key>
 	<string>Assets.xcassets/appicon.appiconset</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>BuzzahBuddy needs Bluetooth access to connect to and control your BlueBuzzah glove for therapeutic vibration.</string>
+	<string>BuzzahBuddy uses Bluetooth to connect to your BlueBuzzah gloves and run sessions.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
-	<string>BuzzahBuddy uses Bluetooth to communicate with your BlueBuzzah glove device.</string>
+	<string>BuzzahBuddy uses Bluetooth to connect to your BlueBuzzah gloves and run sessions.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>bluetooth-central</string>
