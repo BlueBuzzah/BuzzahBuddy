@@ -2,6 +2,7 @@ using BuzzahBuddy.Helpers;
 using BuzzahBuddy.Models;
 using BuzzahBuddy.Services.Bluetooth;
 using BuzzahBuddy.Services.ConnectionStateManagement;
+using BuzzahBuddy.Services.Dialogs;
 using BuzzahBuddy.Services.Glove;
 using BuzzahBuddy.Services.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -24,6 +25,8 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     private readonly IBluetoothService _bluetoothService;
     private readonly IDataStorageService _storageService;
     private readonly IReconnectionService _reconnectionService;
+    private readonly IConfirmationService _confirmation;
+    private string? _firmwareVersion;
 
     private const string ProfileRebootWarning = "Gloves are restarting to apply the new profile…";
 
@@ -53,7 +56,12 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsSessionInactive))]
+    [NotifyPropertyChangedFor(nameof(ApplyDisabledReason))]
     private bool _isSessionActive;
+
+    partial void OnIsSessionActiveChanged(bool value) => ResolveBanner();
+
+    partial void OnSavedBadgeVisibleChanged(bool value) => OnPropertyChanged(nameof(ApplyDisabledReason));
 
     /// <summary>Inverse of IsSessionActive for XAML binding.</summary>
     public bool IsSessionInactive => !IsSessionActive;
@@ -74,39 +82,54 @@ public partial class DeviceSettingsViewModel : BaseViewModel
 
     // Null voltage = no reading available (missing key or firmware 0.00 sentinel)
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(BatteryPrimaryText))]
-    [NotifyPropertyChangedFor(nameof(BatteryPrimaryDescription))]
     private double? _batteryPrimaryVoltage;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(BatterySecondaryText))]
-    [NotifyPropertyChangedFor(nameof(BatterySecondaryDescription))]
     private double? _batterySecondaryVoltage;
 
-    // Gray = no reading yet; real thresholds apply after the first battery poll
     [ObservableProperty]
-    private Color _batteryPrimaryColor = Colors.Gray;
+    private GloveStatusInfo _primaryGlove = new(GloveRole.Primary, GloveLinkStatus.Disconnected, null);
 
     [ObservableProperty]
-    private Color _batterySecondaryColor = Colors.Gray;
+    private GloveStatusInfo _secondaryGlove = new(GloveRole.Secondary, GloveLinkStatus.Disconnected, null);
 
-    /// <summary>Display text for the primary battery, e.g. "60% (3.72V)" or "—".</summary>
-    public string BatteryPrimaryText => BatteryReading.Format(BatteryPrimaryVoltage);
+    // The connected view's one banner (Banner README).
+    [ObservableProperty]
+    private bool _bannerVisible;
 
-    /// <summary>Display text for the secondary battery, e.g. "58% (3.68V)" or "—".</summary>
-    public string BatterySecondaryText => BatteryReading.Format(BatterySecondaryVoltage);
+    [ObservableProperty]
+    private StatusTone _bannerTone = StatusTone.Info;
 
-    /// <summary>Accessibility description for the primary battery status.</summary>
-    public string BatteryPrimaryDescription =>
-        BatteryPrimaryVoltage is { } v
-            ? $"Primary battery: {BatteryReading.ToPercentage(v)} percent, {BatteryReading.GetBatteryStatusText(v)}"
-            : "Primary battery: status unavailable";
+    [ObservableProperty]
+    private string? _bannerTitle;
 
-    /// <summary>Accessibility description for the secondary battery status.</summary>
-    public string BatterySecondaryDescription =>
-        BatterySecondaryVoltage is { } v
-            ? $"Secondary battery: {BatteryReading.ToPercentage(v)} percent, {BatteryReading.GetBatteryStatusText(v)}"
-            : "Secondary battery: status unavailable";
+    [ObservableProperty]
+    private string? _bannerMessage;
+
+    private (StatusTone Tone, string Title, string Message)? _resultBanner;
+
+    /// <summary>Shown under Apply settings once the gloves have the new settings.</summary>
+    [ObservableProperty]
+    private bool _savedBadgeVisible;
+
+    /// <summary>
+    /// True after an apply whose gloves never reconnected; the Gloves scan view shows a
+    /// warning banner for it until the next connect.
+    /// </summary>
+    [ObservableProperty]
+    private bool _applyReconnectFailed;
+
+    /// <summary>True when the apply wait has run past the backstop (plan choice PC22).</summary>
+    [ObservableProperty]
+    private bool _isWaitingLong;
+
+    /// <summary>Why Apply settings is unavailable, shown beside it; null when it isn't.</summary>
+    public string? ApplyDisabledReason =>
+        SavedBadgeVisible ? null
+        : !ConnectionInfo.IsConnected ? "Connect your primary glove first."
+        : IsSessionActive ? "Stop your session to change settings."
+        : !HasPendingChanges ? "Nothing to change yet."
+        : null;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsNotRefreshingBattery))]
@@ -115,8 +138,6 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     /// <summary>Inverse of IsRefreshingBattery for XAML MultiBinding.</summary>
     public bool IsNotRefreshingBattery => !IsRefreshingBattery;
 
-    [ObservableProperty]
-    private string? _batteryStatusMessage;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsNotTestingConnection))]
@@ -175,8 +196,10 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         IBluetoothService bluetoothService,
         IDataStorageService storageService,
         IConnectionStateService connectionStateService,
-        IReconnectionService reconnectionService)
+        IReconnectionService reconnectionService,
+        IConfirmationService confirmation)
     {
+        _confirmation = confirmation;
         _gloveControlService = gloveControlService;
         _bluetoothService = bluetoothService;
         _storageService = storageService;
@@ -255,8 +278,8 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         if (SelectedProfile?.IsCustom != true)
         {
             await Shell.Current.DisplayAlert(
-                "Select Custom First",
-                "Tap the Custom profile to select it, then edit its parameters.",
+                "Select Custom first",
+                "Tap the Custom profile to select it, then edit its settings.",
                 "OK");
             return;
         }
@@ -264,8 +287,8 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         if (!ConnectionInfo.IsConnected)
         {
             await Shell.Current.DisplayAlert(
-                "Not Connected",
-                "Connect to a BlueBuzzah glove to edit the Custom profile parameters.",
+                "Connect your primary glove",
+                "Connect on the Gloves tab to see and change these settings.",
                 "OK");
             return;
         }
@@ -275,8 +298,8 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         if (IsSessionActive)
         {
             await Shell.Current.DisplayAlert(
-                "Session Active",
-                "Stop the current session before changing the Custom profile parameters.",
+                "Stop your session first",
+                "Settings can't change while a session runs.",
                 "OK");
             return;
         }
@@ -287,8 +310,8 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         if (_gloveControlService.DeviceProfileId != TherapyProfile.CustomProfileId)
         {
             await Shell.Current.DisplayAlert(
-                "Apply Custom First",
-                "Press Apply Settings to load the Custom profile onto the gloves, then edit its parameters.",
+                "Apply Custom first",
+                "Tap Apply settings to load the Custom profile onto your gloves, then edit its settings.",
                 "OK");
             return;
         }
@@ -315,8 +338,8 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         if (IsSessionActive)
         {
             await Shell.Current.DisplayAlert(
-                "Session Active",
-                "Stop the current session before changing device settings.",
+                "Stop your session first",
+                "Settings can't change while a session runs.",
                 "OK");
             return;
         }
@@ -324,12 +347,10 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         var applyProfile = IsProfileDirty;
         if (applyProfile)
         {
-            var confirm = await Shell.Current.DisplayAlert(
-                "Apply Settings?",
-                $"Switching to \"{SelectedProfile!.Name}\" will restart your gloves. " +
-                "They will reconnect automatically in a few moments.",
-                "Apply",
-                "Cancel");
+            var confirm = await _confirmation.ConfirmAsync(new ConfirmRequest(
+                "Restart gloves to apply?",
+                $"Switching to \u201c{SelectedProfile!.Name}\u201d restarts both gloves. They usually reconnect on their own in under a minute.",
+                "Apply and restart"));
             if (!confirm)
                 return;
         }
@@ -363,7 +384,10 @@ public partial class DeviceSettingsViewModel : BaseViewModel
                 await _gloveControlService.LoadProfileAsync(SelectedProfile!.ProfileId);
             }
 
-            SemanticScreenReader.Announce("Device settings applied");
+            // A profile change confirms after the gloves reconnect (EndApplyReconnectWatch);
+            // an LED-only change is already on the gloves.
+            if (!applyProfile)
+                ConfirmSaved();
         }
         catch (BlueBuzzahCommandException ex)
         {
@@ -382,7 +406,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         finally
         {
             IsBusy = false;
-            OnPropertyChanged(nameof(HasPendingChanges));
+            NotifyPendingChanged();
         }
     }
 
@@ -421,20 +445,10 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         {
             var success = await _gloveControlService.PingAsync();
 
-            if (success)
-            {
-                await Shell.Current.DisplayAlert(
-                    "Test Successful",
-                    "Connection test completed successfully!",
-                    "OK");
-            }
-            else
-            {
-                await Shell.Current.DisplayAlert(
-                    "Test Failed",
-                    "Connection test failed. Please check your connection.",
-                    "OK");
-            }
+            _resultBanner = success
+                ? (StatusTone.Success, "Connection works", "Your primary glove buzzed once.")
+                : (StatusTone.Danger, "Connection test failed", "Move your phone closer to your primary glove, then try again.");
+            ResolveBanner();
         }
         finally
         {
@@ -459,7 +473,6 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Battery refresh error: {ex.Message}");
-            BatteryStatusMessage = "Battery status unavailable";
         }
         finally
         {
@@ -471,15 +484,52 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     {
         BatteryPrimaryVoltage = primaryVoltage;
         BatterySecondaryVoltage = secondaryVoltage;
-        BatteryPrimaryColor = BatteryReading.GetBatteryColor(primaryVoltage);
-        BatterySecondaryColor = BatteryReading.GetBatteryColor(secondaryVoltage);
+        UpdateGloves();
+    }
 
-        // Primary always has a battery; a null secondary may just mean no
-        // secondary glove (firmware reports both as BATS:0.00), so only
-        // flag the primary.
-        BatteryStatusMessage = primaryVoltage is null
-            ? "Battery status unavailable — try refreshing"
-            : null;
+    /// <summary>
+    /// GloveStatus for both gloves, with firmware and raw volts in code-s (design system
+    /// Principles #4). The secondary's state is inferred from the primary's report of its
+    /// battery (plan choice PC15).
+    /// </summary>
+    private void UpdateGloves()
+    {
+        var link = ConnectionInfo.IsConnected ? GloveLinkStatus.Connected : GloveLinkStatus.Disconnected;
+        int? Percent(double? v) => v is { } volts ? BatteryReading.ToPercentage(volts) : null;
+        PrimaryGlove = new GloveStatusInfo(GloveRole.Primary, link, Percent(BatteryPrimaryVoltage),
+            link == GloveLinkStatus.Connected ? _firmwareVersion : null, BatteryReading.FormatVolts(BatteryPrimaryVoltage));
+        var secondaryLink = link != GloveLinkStatus.Connected ? GloveLinkStatus.Disconnected
+            : BatterySecondaryVoltage is null ? GloveLinkStatus.NoReading
+            : GloveLinkStatus.Connected;
+        SecondaryGlove = new GloveStatusInfo(GloveRole.Secondary, secondaryLink, Percent(BatterySecondaryVoltage),
+            Detail: BatteryReading.FormatVolts(BatterySecondaryVoltage));
+    }
+
+    /// <summary>Session-locked warning beats the last action's result.</summary>
+    private void ResolveBanner()
+    {
+        (StatusTone Tone, string Title, string Message)? banner =
+            IsSessionActive && ConnectionInfo.IsConnected
+                ? (StatusTone.Warning, "Stop your session to change settings", "Glove settings are locked while a session runs.")
+                : _resultBanner;
+        BannerVisible = banner is not null;
+        if (banner is { } b)
+            (BannerTone, BannerTitle, BannerMessage) = b;
+    }
+
+    /// <summary>Pending changes moved: refresh Apply and its reason; a new change retires "Saved".</summary>
+    private void NotifyPendingChanged()
+    {
+        if (HasPendingChanges)
+            SavedBadgeVisible = false;
+        OnPropertyChanged(nameof(HasPendingChanges));
+        OnPropertyChanged(nameof(ApplyDisabledReason));
+    }
+
+    private void ConfirmSaved()
+    {
+        SavedBadgeVisible = true;
+        SemanticScreenReader.Announce("Settings saved to both gloves");
     }
 
     /// <summary>
@@ -489,7 +539,10 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     private void OnDeviceInfoReceived(object? sender, GloveDeviceInfo info)
     {
         MainThread.BeginInvokeOnMainThread(() =>
-            ApplyBatteryReading(info.BatteryPrimaryVoltage, info.BatterySecondaryVoltage));
+        {
+            _firmwareVersion = info.FirmwareVersion is { Length: > 0 } and not "0.0.0" ? info.FirmwareVersion : null;
+            ApplyBatteryReading(info.BatteryPrimaryVoltage, info.BatterySecondaryVoltage);
+        });
     }
 
     /// <summary>
@@ -513,7 +566,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         _deviceTherapyLedOff = ledOff;
         TherapyLedLoaded = true;
         _suppressTherapyLedWrite = false;
-        OnPropertyChanged(nameof(HasPendingChanges));
+        NotifyPendingChanged();
     }
 
     /// <summary>
@@ -552,13 +605,13 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         // No device write here — changes are batched behind Apply Settings.
         if (!_suppressTherapyLedWrite)
         {
-            OnPropertyChanged(nameof(HasPendingChanges));
+            NotifyPendingChanged();
         }
     }
 
     partial void OnSelectedProfileChanged(TherapyProfile? value)
     {
-        OnPropertyChanged(nameof(HasPendingChanges));
+        NotifyPendingChanged();
     }
 
     private async Task LoadProfilesAsync()
@@ -627,7 +680,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
             }
 
             // The profile baseline changed even if the local selection didn't.
-            OnPropertyChanged(nameof(HasPendingChanges));
+            NotifyPendingChanged();
         });
     }
 
@@ -669,6 +722,16 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         _applyWatchCts = new CancellationTokenSource();
         var ct = _applyWatchCts.Token;
 
+        StartWaitBackstop(ct);
+    }
+
+    /// <summary>
+    /// After the backstop the wait page asks instead of giving up silently: Keep
+    /// waiting restarts it, Stop waiting ends the watch (accessibility.md: no time limits).
+    /// </summary>
+    private void StartWaitBackstop(CancellationToken ct)
+    {
+        IsWaitingLong = false;
         _ = Task.Run(async () =>
         {
             try
@@ -679,9 +742,20 @@ public partial class DeviceSettingsViewModel : BaseViewModel
             {
                 return;
             }
-            await MainThread.InvokeOnMainThreadAsync(() => EndApplyReconnectWatch(succeeded: false));
+            await MainThread.InvokeOnMainThreadAsync(() => IsWaitingLong = IsApplyingSettings);
         });
     }
+
+    [RelayCommand]
+    private void KeepWaiting()
+    {
+        if (!IsApplyingSettings || _applyWatchCts is null)
+            return;
+        StartWaitBackstop(_applyWatchCts.Token);
+    }
+
+    [RelayCommand]
+    private void StopWaiting() => EndApplyReconnectWatch(succeeded: false);
 
     /// <summary>
     /// Dismisses the apply modal without a reconnect-failed alert. Used when a write
@@ -721,6 +795,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
             return;
 
         IsApplyingSettings = false;
+        IsWaitingLong = false;
         _applyWatchCts?.Cancel();
 
         MainThread.BeginInvokeOnMainThread(async () =>
@@ -734,16 +809,13 @@ public partial class DeviceSettingsViewModel : BaseViewModel
                 {
                     ProfileStatusMessage = null;
                 }
-                SemanticScreenReader.Announce("Gloves reconnected. Settings applied.");
+                ConfirmSaved();
             }
             else
             {
+                // A warning banner on the scan view, not a modal (Banner README).
                 ProfileStatusMessage = null;
-                await Shell.Current.DisplayAlert(
-                    "Reconnect Failed",
-                    "The settings were sent, but the gloves haven't reconnected. " +
-                    "Make sure they're powered on, then connect again below.",
-                    "OK");
+                ApplyReconnectFailed = true;
             }
         });
     }
@@ -754,12 +826,12 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         {
             MainThread.BeginInvokeOnMainThread(() => EndApplyReconnectWatch(succeeded: false));
         }
-        else if (e.State == ReconnectionState.Reconnecting && IsApplyingSettings)
+        else if (e.State == ReconnectionState.Reconnecting && IsApplyingSettings && e.Attempt == 1)
         {
-            // The apply modal blocks back navigation, so proactively voice each
-            // attempt for screen-reader users parked on it (they can't re-explore).
+            // The apply modal blocks back navigation, so voice the reconnect for
+            // screen-reader users parked on it; once, then the result (D11b).
             MainThread.BeginInvokeOnMainThread(() =>
-                SemanticScreenReader.Announce($"Reconnecting, attempt {e.Attempt} of {e.MaxAttempts}"));
+                SemanticScreenReader.Announce("Reconnecting to your primary glove"));
         }
     }
 
@@ -771,19 +843,25 @@ public partial class DeviceSettingsViewModel : BaseViewModel
             {
                 // Therapy LED and battery arrive from the service's post-connect sync
                 // (OnTherapyLedOffReceived / OnDeviceInfoReceived).
+                ApplyReconnectFailed = false;
                 EndApplyReconnectWatch(succeeded: true);
             }
             else
             {
                 TherapyLedLoaded = false;
+                SavedBadgeVisible = false;
+                _resultBanner = null;
+                _firmwareVersion = null;
                 // Readings from the old link say nothing about the next one
                 ApplyBatteryReading(null, null);
             }
+            ResolveBanner();
+            OnPropertyChanged(nameof(ApplyDisabledReason));
 
             OnPropertyChanged(nameof(ShowDisconnectedView));
             // IsProfileDirty reads IsConnected, so pending-change state can shift
             // with the connection even though no setting changed.
-            OnPropertyChanged(nameof(HasPendingChanges));
+            NotifyPendingChanged();
         });
     }
 

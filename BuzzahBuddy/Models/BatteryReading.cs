@@ -1,8 +1,4 @@
 using System.Globalization;
-using BuzzahBuddy.Helpers;
-using BuzzahBuddy.Services.Bluetooth;
-// Explicit for the plain net10.0 test build, which lacks MAUI implicit usings
-using Microsoft.Maui.Graphics;
 
 namespace BuzzahBuddy.Models;
 
@@ -43,41 +39,4 @@ public static class BatteryReading
     /// <summary>The raw voltage for technical detail, e.g. "3.72 V"; null when unavailable.</summary>
     public static string? FormatVolts(double? voltage) =>
         voltage is { } v ? string.Create(CultureInfo.InvariantCulture, $"{v:F2} V") : null;
-
-    /// <summary>
-    /// Gets display color for a battery percentage. Success >= 60%, Warning >= 20%, Danger below (dark-theme values; removed once GloveStatus replaces its last caller).
-    /// </summary>
-    public static Color GetBatteryColor(int percentage) => percentage switch
-    {
-        >= 60 => DesignColors.Themes["dark"]["Success"],
-        >= 20 => DesignColors.Themes["dark"]["Warning"],
-        _ => DesignColors.Themes["dark"]["Danger"]
-    };
-
-    /// <summary>
-    /// Gets display color based on battery voltage using BlueBuzzahConstants thresholds.
-    /// </summary>
-    public static Color GetBatteryColorFromVoltage(double voltage)
-    {
-        if (voltage > BlueBuzzahConstants.BatteryGoodThreshold) return DesignColors.Themes["dark"]["Success"];
-        if (voltage >= BlueBuzzahConstants.BatteryMediumThreshold) return DesignColors.Themes["dark"]["Warning"];
-        return DesignColors.Themes["dark"]["Danger"];
-    }
-
-    /// <summary>
-    /// Display color for an optional reading: gray when there is none, otherwise the
-    /// voltage thresholds.
-    /// </summary>
-    public static Color GetBatteryColor(double? voltage) =>
-        voltage is { } v ? GetBatteryColorFromVoltage(v) : Colors.Gray;
-
-    /// <summary>
-    /// Gets human-readable status text for a battery voltage level.
-    /// </summary>
-    public static string GetBatteryStatusText(double voltage)
-    {
-        if (voltage > BlueBuzzahConstants.BatteryGoodThreshold) return "good";
-        if (voltage >= BlueBuzzahConstants.BatteryMediumThreshold) return "low";
-        return "critical";
-    }
 }

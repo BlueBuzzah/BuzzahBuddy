@@ -12,7 +12,11 @@ public partial class ProfileItemViewModel : ObservableObject
     private static readonly int[] PrimaryProfileIds = { 2, 1, 6 };
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AccessibleText))]
     private bool _isSelected;
+
+    /// <summary>The row read as one item, with its selected state (a single-choice list).</summary>
+    public string AccessibleText => $"{DisplayName}, {Description}{(IsSelected ? ", selected" : "")}";
 
     public TherapyProfile Profile { get; }
 
