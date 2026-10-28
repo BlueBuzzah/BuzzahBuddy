@@ -1,0 +1,42 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<!-- Confirmation sheet (accessibility.md Motor): a bottom sheet on surface-overlay over the
+     scrim. Confirm sits on top and Cancel at the bottom, space-8 apart, so a repeat tap
+     where the first one landed (low on the screen) hits Cancel. Tapping the scrim does
+     nothing; only the buttons or Android back (Cancel) close it. -->
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="BuzzahBuddy.Views.ConfirmSheetPage"
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="{DynamicResource Scrim}"
+             SafeAreaEdges="Container">
+
+    <Grid RowDefinitions="*,Auto">
+        <Border Grid.Row="1"
+                BackgroundColor="{DynamicResource SurfaceOverlay}"
+                Stroke="{DynamicResource Line}"
+                StrokeThickness="{DynamicResource HcBorderWidth}"
+                Shadow="{DynamicResource Shadow3}"
+                Padding="{StaticResource Space8}">
+            <Border.StrokeShape>
+                <RoundRectangle CornerRadius="28,28,0,0" />
+            </Border.StrokeShape>
+
+            <VerticalStackLayout Spacing="{StaticResource Space3}">
+                <Label x:Name="TitleLabel"
+                       Style="{StaticResource TypeTitleL}"
+                       SemanticProperties.HeadingLevel="Level1" />
+                <Label x:Name="MessageLabel" />
+
+                <Button x:Name="ConfirmButton"
+                        Margin="0,12,0,0"
+                        Clicked="OnConfirmClicked"
+                        AutomationId="ConfirmSheetConfirm" />
+                <Button x:Name="CancelButton"
+                        Style="{StaticResource ButtonQuiet}"
+                        Margin="0,20,0,0"
+                        Clicked="OnCancelClicked"
+                        AutomationId="ConfirmSheetCancel" />
+            </VerticalStackLayout>
+        </Border>
+    </Grid>
+</ContentPage>

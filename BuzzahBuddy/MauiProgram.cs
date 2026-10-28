@@ -90,6 +90,7 @@ public static class MauiProgram
 		builder.Services.AddSingleton<IDataStorageService, PreferencesStorageService>();
 		builder.Services.AddSingleton<BuzzahBuddy.Services.AppLifecycle.IAppLifecycleService, BuzzahBuddy.Services.AppLifecycle.AppLifecycleService>();
 		builder.Services.AddSingleton<BuzzahBuddy.Services.Theme.IThemeService, BuzzahBuddy.Services.Theme.ThemeService>();
+		builder.Services.AddSingleton<BuzzahBuddy.Services.Dialogs.IConfirmationService, BuzzahBuddy.Services.Dialogs.ConfirmationService>();
 
 		// Register ViewModels
 		// Tab pages and their ViewModels live for the app's lifetime (Shell caches TabBar content)
