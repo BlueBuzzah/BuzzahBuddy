@@ -113,6 +113,8 @@
 
 		<!-- Images -->
 		<MauiImage Include="Resources\Images\*" />
+		<!-- The 512px mark is shown at 48 tall; a 96px base keeps the generated densities small. -->
+		<MauiImage Update="Resources\Images\bluebuzzah_mark.png" BaseSize="96,92" />
 
 		<!-- Custom Fonts -->
 		<MauiFont Include="Resources\Fonts\*" />
