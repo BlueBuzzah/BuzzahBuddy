@@ -204,6 +204,7 @@ def main():
     colors = theme_colors(ds["color"]["tokens"])
     gen_themes(ds, colors, version)
     gen_tokens(ds, version)
+    gen_type(ds, version)
     gen_csharp(colors, version)
     gen_android(colors, version)
 

@@ -56,6 +56,7 @@ Rules:
 | Compile-check `BluetoothService` | `dotnet build BuzzahBuddy/BuzzahBuddy.csproj -f net10.0 -p:TargetFrameworks=net10.0` |
 | Run on physical iPhone | `./run-ios.sh` (env: `IOS_UDID`, `IOS_PROVISION`, `IOS_CONFIG`) |
 | Regenerate design tokens | `python3 scripts/gen_design_tokens.py` |
+| Regenerate fonts | `scripts/gen_fonts.py` (needs fontTools + brotli; see its docstring) |
 
 `-p:TargetFrameworks=...` is not optional on a single-TFM build: an unpinned restore
 resolves assets for *all* TFMs and fails wherever that workload isn't installed
@@ -204,7 +205,11 @@ writes `Resources/Styles/Themes/*Theme.g.xaml(.cs)` (the four themes), `Tokens.g
 `Type.g.xaml`, `Helpers/DesignColors.g.cs` (the same colors for code that can't reach app
 resources; `ColorResources.Get` falls back to its dark theme) and
 `Platforms/Android/Resources/values{,-night}/colors.xml`. **Never hand-edit them**: rerun
-the script after the design system changes and commit the output.
+the script after the design system changes and commit the output. `scripts/gen_fonts.py`
+likewise makes `Resources/Fonts/*.ttf` (static weights; MAUI can't use the design
+system's variable woff2), registered in `MauiProgram.ConfigureFonts`. Styles pick fonts
+through `FontDisplay500`-style resource keys that `Helpers/Typography` points at heavier
+files under Bold Text.
 
 ## Gotchas
 

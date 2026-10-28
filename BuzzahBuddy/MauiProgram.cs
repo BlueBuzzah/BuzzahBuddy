@@ -50,9 +50,21 @@ public static class MauiProgram
 	{
 		var builder = MauiApp.CreateBuilder();
 		builder
-			.UseMauiApp<App>();
+			.UseMauiApp<App>()
+			.ConfigureFonts(fonts =>
+			{
+				fonts.AddFont("Lexend-Medium.ttf", "LexendMedium");
+				fonts.AddFont("Lexend-SemiBold.ttf", "LexendSemiBold");
+				fonts.AddFont("Lexend-Bold.ttf", "LexendBold");
+				fonts.AddFont("AtkinsonHyperlegibleNext-Regular.ttf", "AtkinsonRegular");
+				fonts.AddFont("AtkinsonHyperlegibleNext-Bold.ttf", "AtkinsonBold");
+				fonts.AddFont("AtkinsonHyperlegibleNext-ExtraBold.ttf", "AtkinsonExtraBold");
+				fonts.AddFont("AtkinsonHyperlegibleMono-Regular.ttf", "AtkinsonMonoRegular");
+				fonts.AddFont("AtkinsonHyperlegibleMono-Bold.ttf", "AtkinsonMonoBold");
+			});
 
 		StripNativeInputChrome();
+		BuzzahBuddy.Helpers.Typography.RegisterHandlers();
 
 #if DEBUG
 		builder.Logging.AddDebug();
