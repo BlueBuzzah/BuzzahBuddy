@@ -19,8 +19,6 @@
             <converters:InvertedBoolConverter x:Key="InvertedBoolConverter" />
             <converters:IsNotNullConverter x:Key="IsNotNullConverter" />
             <converters:ContinuousModeConverter x:Key="ContinuousModeConverter" />
-            <converters:IntToColorConverter x:Key="IntToColorConverter" />
-            <converters:IntToTextColorConverter x:Key="IntToTextColorConverter" />
             <converters:AllTrueConverter x:Key="AllTrueConverter" />
         </ResourceDictionary>
     </Application.Resources>

@@ -150,7 +150,7 @@ check both:
 `BuzzahBuddy.Tests` is plain `net10.0` with **no `ProjectReference`** — it
 `Compile Include`s app sources (`Models/**`, `Services/Glove/**`, `RxFrameAssembler`,
 `ResponseMatcher`, `BlueBuzzahConstants`, `IBluetoothService`, `MockBluetoothService`,
-`DesignColors.g`, `LucideIcons.g`, `IntMatch`). A ProjectReference would force restore across every app TFM
+`DesignColors.g`, `LucideIcons.g`, `RepeatGuard`, `CubicBezier`). A ProjectReference would force restore across every app TFM
 and fail without mobile workloads. A new testable source needs its own `Compile Include`.
 
 - `BluetoothService.cs` is **excluded on purpose** — its ctor hits

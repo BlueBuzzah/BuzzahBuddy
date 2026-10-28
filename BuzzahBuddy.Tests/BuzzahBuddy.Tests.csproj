@@ -36,12 +36,11 @@
   -->
   <ItemGroup>
     <Compile Include="../BuzzahBuddy/Models/**/*.cs" LinkBase="AppModels" />
-    <!-- Controls-free helpers referenced by Models (DesignColors) and covered by unit tests (IntMatch) -->
+    <!-- Controls-free helpers referenced by Models and covered by unit tests -->
     <Compile Include="../BuzzahBuddy/Helpers/DesignColors.g.cs" LinkBase="AppHelpers" />
     <Compile Include="../BuzzahBuddy/Helpers/LucideIcons.g.cs" LinkBase="AppHelpers" />
     <Compile Include="../BuzzahBuddy/Helpers/RepeatGuard.cs" LinkBase="AppHelpers" />
     <Compile Include="../BuzzahBuddy/Helpers/CubicBezier.cs" LinkBase="AppHelpers" />
-    <Compile Include="../BuzzahBuddy/Helpers/IntMatch.cs" LinkBase="AppHelpers" />
     <Compile Include="../BuzzahBuddy/Services/Bluetooth/RxFrameAssembler.cs" LinkBase="AppServicesBluetooth" />
     <Compile Include="../BuzzahBuddy/Services/Bluetooth/ResponseMatcher.cs" LinkBase="AppServicesBluetooth" />
     <Compile Include="../BuzzahBuddy/Services/Bluetooth/BlueBuzzahConstants.cs" LinkBase="AppServicesBluetooth" />

@@ -2,9 +2,11 @@ using System.Collections.ObjectModel;
 using BuzzahBuddy.Models;
 using BuzzahBuddy.Services.Bluetooth;
 using BuzzahBuddy.Services.ConnectionStateManagement;
+using BuzzahBuddy.Services.Dialogs;
 using BuzzahBuddy.Services.Glove;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using BuzzahBuddy.Views.Controls;
 using static BuzzahBuddy.Services.Glove.ErrorMessageHelper;
 
 namespace BuzzahBuddy.ViewModels;
@@ -23,18 +25,23 @@ public partial class FingerButtonItem : ObservableObject
     /// <summary>AutomationId for UI testing (e.g. "PrimaryIndexButton").</summary>
     public string AutomationId { get; }
 
+    /// <summary>"Primary glove" or "Secondary glove".</summary>
+    public string Glove { get; }
+
+    /// <summary>Tested fingers show a Lucide check on the button (bound in XAML).</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(DisplayLabel))]
+    [NotifyPropertyChangedFor(nameof(AccessibleText))]
     private bool _isTested;
 
-    /// <summary>Button text — prefixed with a checkmark once the finger has been tested.</summary>
-    public string DisplayLabel => IsTested ? $"✓ {Label}" : Label;
+    /// <summary>"Primary glove index, tested".</summary>
+    public string AccessibleText => $"{Glove} {Label.ToLowerInvariant()}{(IsTested ? ", tested" : "")}";
 
-    public FingerButtonItem(int index, string label, string automationId)
+    public FingerButtonItem(int index, string label, string automationId, string glove)
     {
         Index = index;
         Label = label;
         AutomationId = automationId;
+        Glove = glove;
     }
 }
 
@@ -46,6 +53,7 @@ public partial class CalibrationViewModel : BaseViewModel
 {
     private readonly IGloveControlService _gloveControlService;
     private readonly IBluetoothService _bluetoothService;
+    private readonly IConfirmationService _confirmation;
 
     /// <summary>
     /// Centralized connection state service exposed for XAML binding.
@@ -57,17 +65,37 @@ public partial class CalibrationViewModel : BaseViewModel
     [NotifyPropertyChangedFor(nameof(CanBuzzFingers))]
     private bool _isInCalibrationMode;
 
+    // Start on the controls' grids: strength steps of 20 (Stepper), lengths 100/500/1000/2000.
     [ObservableProperty]
-    private int _intensity = 50;
+    private int _intensity = 40;
 
     [ObservableProperty]
-    private int _duration = 200;
+    private int _duration = 500;
+
+    /// <summary>Buzz lengths for the SegmentedControl.</summary>
+    public IList<SegmentOption> DurationOptions { get; } = new[]
+    {
+        new SegmentOption(100, "100 ms"), new SegmentOption(500, "500 ms"),
+        new SegmentOption(1000, "1 s"), new SegmentOption(2000, "2 s"),
+    };
+
+    /// <summary>Set when a disconnect ended test mode; drives the warning banner.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowNotConnected))]
+    private bool _endedByDisconnect;
+
+    public bool ShowNotConnected => !ConnectionInfo.IsConnected && !EndedByDisconnect;
 
     [ObservableProperty]
     private int _selectedFingerIndex = -1;
 
     [ObservableProperty]
-    private string _selectedFingerName = "None";
+    private string _selectedFingerName = string.Empty;
+
+    /// <summary>StatusBadge text while a finger buzzes, e.g. "Buzzing index".</summary>
+    public string BuzzingText => $"Buzzing {SelectedFingerName.Split(' ').Last().ToLowerInvariant()}";
+
+    partial void OnSelectedFingerNameChanged(string value) => OnPropertyChanged(nameof(BuzzingText));
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanBuzzFingers))]
@@ -83,10 +111,13 @@ public partial class CalibrationViewModel : BaseViewModel
     private int _currentStep = 1;
 
     [ObservableProperty]
-    private string _stepTitle = "Step 1 of 3: Select Intensity";
+    private string _stepCaption = "Step 1 of 3";
 
     [ObservableProperty]
-    private string _stepDescription = "Choose the vibration intensity level for testing.";
+    private string _stepTitle = "Pick a strength";
+
+    [ObservableProperty]
+    private string _stepDescription = "Start low. Go higher if you can't feel it.";
 
     public bool IsStep1 => CurrentStep == 1;
     public bool IsStep2 => CurrentStep == 2;
@@ -113,13 +144,16 @@ public partial class CalibrationViewModel : BaseViewModel
     public CalibrationViewModel(
         IGloveControlService gloveControlService,
         IBluetoothService bluetoothService,
-        IConnectionStateService connectionStateService)
+        IConnectionStateService connectionStateService,
+        IConfirmationService confirmation)
     {
         _gloveControlService = gloveControlService;
         _bluetoothService = bluetoothService;
+        _confirmation = confirmation;
         ConnectionInfo = connectionStateService;
 
-        Title = "Calibration";
+        // The page's own headline is the title; the native bar only carries Back.
+        Title = string.Empty;
 
         // Subscribe to connection events
         _bluetoothService.ConnectionStateChanged += OnConnectionStateChanged;
@@ -152,7 +186,8 @@ public partial class CalibrationViewModel : BaseViewModel
                 ? fullLabel[(spaceIndex + 1)..]
                 : fullLabel;
 
-            var item = new FingerButtonItem(i, shortLabel, fullLabel.Replace(" ", "") + "Button");
+            var item = new FingerButtonItem(i, shortLabel, fullLabel.Replace(" ", "") + "Button",
+                i < count ? "Primary glove" : "Secondary glove");
 
             if (i < count)
                 PrimaryFingers.Add(item);
@@ -165,13 +200,7 @@ public partial class CalibrationViewModel : BaseViewModel
     private async Task EnterCalibrationModeAsync()
     {
         if (!ConnectionInfo.IsConnected)
-        {
-            await Shell.Current.DisplayAlert(
-                "Not Connected",
-                "Please connect to a BlueBuzzah glove first.",
-                "OK");
-            return;
-        }
+            return; // the "Connect your primary glove" banner says what to do
 
         IsBusy = true;
 
@@ -183,11 +212,8 @@ public partial class CalibrationViewModel : BaseViewModel
             // Actuator count is populated on connect; rebuild in case it changed.
             RebuildFingerButtons();
 
-            await Shell.Current.DisplayAlert(
-                "Calibration Mode Active",
-                "You can now test individual finger motors.\n\n" +
-                "Select a finger, adjust intensity and duration, then tap the finger button to test.",
-                "OK");
+            EndedByDisconnect = false;
+            SemanticScreenReader.Announce("Test mode on");
         }
         catch (BlueBuzzahCommandException ex)
         {
@@ -218,12 +244,8 @@ public partial class CalibrationViewModel : BaseViewModel
             await _gloveControlService.ExitCalibrationAsync();
             IsInCalibrationMode = false;
             SelectedFingerIndex = -1;
-            SelectedFingerName = "None";
-
-            await Shell.Current.DisplayAlert(
-                "Calibration Complete",
-                "Exited calibration mode. You can now return to normal therapy sessions.",
-                "OK");
+            SelectedFingerName = string.Empty;
+            SemanticScreenReader.Announce("Test mode off");
         }
         catch (BlueBuzzahCommandException ex)
         {
@@ -276,20 +298,16 @@ public partial class CalibrationViewModel : BaseViewModel
     [RelayCommand]
     private async Task SkipCalibrationAsync()
     {
-        // Use safe default values
+        var skip = await _confirmation.ConfirmAsync(new ConfirmRequest(
+            "Skip the motor test?",
+            "We'll use 50% strength and 200 ms buzzes. You can test the motors any time.",
+            "Skip test"));
+        if (!skip)
+            return; // Cancel leaves strength and length as they were
+
         Intensity = 50;
         Duration = 200;
-
-        var result = await Shell.Current.DisplayAlert(
-            "Skip Calibration?",
-            "This will use safe default settings (50% intensity, 200ms duration) without testing individual motors.\n\nYou can always return to calibration later if needed.",
-            "Use Defaults",
-            "Cancel");
-
-        if (result)
-        {
-            await ExitCalibrationModeAsync();
-        }
+        await ExitCalibrationModeAsync();
     }
 
     [RelayCommand]
@@ -298,8 +316,8 @@ public partial class CalibrationViewModel : BaseViewModel
         if (!IsInCalibrationMode)
         {
             await Shell.Current.DisplayAlert(
-                "Not in Calibration Mode",
-                "Please enter calibration mode first.",
+                "Start test mode first",
+                "Tap Start test mode, then try again.",
                 "OK");
             return;
         }
@@ -308,8 +326,8 @@ public partial class CalibrationViewModel : BaseViewModel
         if (fingerIndex < 0 || fingerIndex > maxFingerIndex)
         {
             await Shell.Current.DisplayAlert(
-                "Invalid Finger",
-                $"Finger index must be 0-{maxFingerIndex}.",
+                "That finger isn't available",
+                "Pick one of the finger buttons on this screen.",
                 "OK");
             return;
         }
@@ -325,8 +343,7 @@ public partial class CalibrationViewModel : BaseViewModel
         {
             await _gloveControlService.BuzzFingerAsync(fingerIndex, Intensity, Duration);
 
-            // Mark finger as tested
-            // Mark finger as tested (drives the ✓ prefix on the button)
+            // Mark finger as tested (drives the check on the button)
             var tested = PrimaryFingers.Concat(SecondaryFingers).FirstOrDefault(f => f.Index == fingerIndex);
             if (tested != null)
                 tested.IsTested = true;
@@ -375,16 +392,10 @@ public partial class CalibrationViewModel : BaseViewModel
         {
             IsInCalibrationMode = false;
             SelectedFingerIndex = -1;
-            SelectedFingerName = "None";
+            SelectedFingerName = string.Empty;
 
-            // Notify user that calibration was interrupted
-            MainThread.BeginInvokeOnMainThread(async () =>
-            {
-                await Shell.Current.DisplayAlert(
-                    "Device Disconnected",
-                    "Calibration mode has been exited because the device was disconnected.",
-                    "OK");
-            });
+            // A warning banner (not a modal) says test mode ended and how to get back.
+            EndedByDisconnect = true;
         }
     }
 
@@ -395,6 +406,7 @@ public partial class CalibrationViewModel : BaseViewModel
             UpdateConnectionState();
             OnPropertyChanged(nameof(CanCalibrate));
             OnPropertyChanged(nameof(CanBuzzFingers));
+            OnPropertyChanged(nameof(ShowNotConnected));
 
             // A different device (4- vs 5-motor) may have connected; actuator count
             // is refreshed by the post-connect INFO sync, and EnterCalibrationModeAsync
@@ -421,16 +433,19 @@ public partial class CalibrationViewModel : BaseViewModel
         switch (CurrentStep)
         {
             case 1:
-                StepTitle = "Step 1 of 3: Select Intensity";
-                StepDescription = "Choose the vibration intensity level for testing.";
+                StepCaption = "Step 1 of 3";
+                StepTitle = "Pick a strength";
+                StepDescription = "Start low. Go higher if you can't feel it.";
                 break;
             case 2:
-                StepTitle = "Step 2 of 3: Select Duration";
-                StepDescription = "Choose how long each test pulse will last.";
+                StepCaption = "Step 2 of 3";
+                StepTitle = "Pick a buzz length";
+                StepDescription = "Longer buzzes are easier to notice.";
                 break;
             case 3:
-                StepTitle = "Step 3 of 3: Test Fingers";
-                StepDescription = "Tap each finger button to test the motor. Tested fingers will show a checkmark.";
+                StepCaption = "Step 3 of 3";
+                StepTitle = "Test each finger";
+                StepDescription = "Tap a finger to make it buzz. A check shows it's done.";
                 break;
         }
     }
