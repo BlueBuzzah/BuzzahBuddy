@@ -45,11 +45,6 @@ public static class BlueBuzzahConstants
     public const char CommandTerminator = '\x04';
 
     /// <summary>
-    /// Battery voltage below which the app warns to charge before (or during) a session.
-    /// </summary>
-    public const double BatteryLowThreshold = 3.3;
-
-    /// <summary>
     /// Default scan timeout in seconds.
     /// </summary>
     public const int DefaultScanTimeoutSeconds = 10;

@@ -11,6 +11,7 @@ public partial class ProfileSettingsPage : ContentPage
         InitializeComponent();
         _viewModel = viewModel;
         BindingContext = viewModel;
+        Unloaded += (_, _) => _viewModel.Dispose();
     }
 
     protected override void OnAppearing()

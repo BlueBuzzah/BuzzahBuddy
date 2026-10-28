@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Globalization;
 using BuzzahBuddy.Models;
 using BuzzahBuddy.Services.ConnectionStateManagement;
@@ -96,7 +97,22 @@ public partial class ProfileSettingsViewModel : BaseViewModel
 
         // The page's own headline is the title; the native bar only carries Back.
         Title = string.Empty;
+        ConnectionInfo.PropertyChanged += OnConnectionInfoChanged;
         ResolveBanner();
+    }
+
+    // A disconnect while this page is open swaps in the "Connect Your Primary Glove" banner.
+    private void OnConnectionInfoChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(IConnectionStateService.IsConnected))
+            MainThread.BeginInvokeOnMainThread(ResolveBanner);
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+            ConnectionInfo.PropertyChanged -= OnConnectionInfoChanged;
+        base.Dispose(disposing);
     }
 
     /// <summary>Motors per glove on the connected device (4 on v2, 5 on v3).</summary>

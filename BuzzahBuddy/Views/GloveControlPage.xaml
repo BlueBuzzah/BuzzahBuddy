@@ -77,7 +77,8 @@
                 <controls:GloveStatusPair Primary="{Binding PrimaryGlove}"
                                           Secondary="{Binding SecondaryGlove}" />
 
-                <controls:SessionRing State="{Binding RingState}"
+                <controls:SessionRing IsVisible="{Binding ConnectionInfo.IsConnected}"
+                                      State="{Binding RingState}"
                                       Progress="{Binding RingProgress}"
                                       Time="{Binding RingTimeText}"
                                       AccessibleText="{Binding RingAccessibleText}"

@@ -66,10 +66,31 @@ public partial class Banner : ContentView
             banner.AnnounceIfAsked();
     }
 
+    private bool _announceQueued;
+
+    // View models set visibility, title and message one after another, so speak once on the
+    // next main-loop turn, when they have settled.
     private void AnnounceIfAsked()
     {
-        if (Announce && !string.IsNullOrEmpty(Title))
-            SemanticScreenReader.Announce(string.IsNullOrEmpty(Message) ? Title : $"{Title}. {Message}");
+        if (!Announce || _announceQueued)
+            return;
+        _announceQueued = true;
+        Dispatcher.Dispatch(() =>
+        {
+            _announceQueued = false;
+            if (IsVisible && !string.IsNullOrEmpty(Title) && IsOnFrontPage())
+                SemanticScreenReader.Announce(string.IsNullOrEmpty(Message) ? Title : $"{Title}. {Message}");
+        });
+    }
+
+    // Tab pages are singletons that stay alive off screen; only the page in front speaks.
+    private bool IsOnFrontPage()
+    {
+        Element? element = this;
+        while (element is not null and not Page)
+            element = element.Parent;
+        return element is Page page
+            && (page.Navigation.ModalStack.LastOrDefault() ?? Shell.Current?.CurrentPage) == page;
     }
 
     private void Apply()

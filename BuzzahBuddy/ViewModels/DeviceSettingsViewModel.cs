@@ -446,7 +446,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
             var success = await _gloveControlService.PingAsync();
 
             _resultBanner = success
-                ? (StatusTone.Success, "Connection Works", "Your primary glove buzzed once.")
+                ? (StatusTone.Success, "Connection Works", "Your primary glove answered.")
                 : (StatusTone.Danger, "Connection Test Failed", "Move your phone closer to your primary glove, then try again.");
             ResolveBanner();
         }
@@ -825,13 +825,6 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         if (e.State is ReconnectionState.Failed or ReconnectionState.Cancelled)
         {
             MainThread.BeginInvokeOnMainThread(() => EndApplyReconnectWatch(succeeded: false));
-        }
-        else if (e.State == ReconnectionState.Reconnecting && IsApplyingSettings && e.Attempt == 1)
-        {
-            // The apply modal blocks back navigation, so voice the reconnect for
-            // screen-reader users parked on it; once, then the result (D11b).
-            MainThread.BeginInvokeOnMainThread(() =>
-                SemanticScreenReader.Announce("Reconnecting to Your Primary Glove"));
         }
     }
 

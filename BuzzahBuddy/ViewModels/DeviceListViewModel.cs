@@ -367,7 +367,6 @@ public partial class DeviceListViewModel : BaseViewModel
             // in BluetoothService where OnDeviceDisconnected fires before ConnectedDevice
             // is nulled, and the finally block's UpdateConnectionState is then a no-op.
             UpdateConnectionState();
-            SemanticScreenReader.Announce("Gloves disconnected");
         }
         catch (Exception ex)
         {

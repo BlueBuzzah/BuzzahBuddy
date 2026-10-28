@@ -447,14 +447,14 @@ public partial class GloveControlViewModel : BaseViewModel
     /// </summary>
     private void ResolveBanner()
     {
-        static bool Low(double? v) => v is { } volts && volts < BlueBuzzahConstants.BatteryLowThreshold;
+        static bool Low(double? v) => GloveStatusText.IsLowVoltage(v);
         var primaryLow = Low(BatteryPrimaryVoltage);
         var secondaryLow = Low(BatterySecondaryVoltage);
         string? lowGlove = primaryLow && !secondaryLow ? "Primary" : secondaryLow && !primaryLow ? "Secondary" : null;
 
         (StatusTone Tone, string Title, string Message, bool GoToGloves)? banner = null;
         if (_sessionEndedMessage is { } ended)
-            banner = (StatusTone.Danger, "Your Session Stopped", ended, _sessionEndedByConnection);
+            banner = (StatusTone.Danger, "Your Session Stopped", ended, false);
         else if (ConnectionInfo.IsReconnecting)
             banner = (StatusTone.Warning, "Reconnecting to Your Primary Glove",
                 _reconnectAttempt.Max > 0
@@ -565,7 +565,7 @@ public partial class GloveControlViewModel : BaseViewModel
             string? endReason = SessionStatus.Status switch
             {
                 SessionState.ERROR => "Your gloves reported a problem and stopped. Restart both gloves, then start a new session.",
-                SessionState.CONNECTION_LOST => "Your phone lost its connection to the gloves. Move closer and connect again on the Gloves tab.",
+                SessionState.CONNECTION_LOST => "Your gloves lost their connection to each other. Keep them close together, restart both, then start a new session.",
                 SessionState.CRITICAL_BATTERY => "A glove battery is almost empty. Charge both gloves, then start a new session.",
                 SessionState.IDLE when SessionStatus.Progress < 100 => "Your secondary glove may have disconnected. Turn it off and on, then start a new session.",
                 _ => null
@@ -756,8 +756,9 @@ public partial class GloveControlViewModel : BaseViewModel
             spoken = SessionRingText.Accessible(RingState, total);
         }
 
-        // A running countdown speaks at most once a minute; other states change rarely.
-        if (RingState != SessionRingState.Running || _ringSpeech.ShouldUpdate(spoken, RingState))
+        // A running countdown speaks at most once a minute. Every state goes through the throttle so
+        // it sees pauses and resumes.
+        if (_ringSpeech.ShouldUpdate(spoken, RingState))
             RingAccessibleText = spoken;
     }
 

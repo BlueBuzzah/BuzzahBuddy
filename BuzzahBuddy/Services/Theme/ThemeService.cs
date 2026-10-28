@@ -13,6 +13,7 @@ public sealed class ThemeService : IThemeService
     private const string HighContrastKey = "HighContrast";
 
     private bool _applied;
+    private bool _applying;
 
     public ThemeService(IAppLifecycleService lifecycle)
     {
@@ -47,8 +48,26 @@ public sealed class ThemeService : IThemeService
 
     public void Apply()
     {
-        if (Application.Current is not { } app)
+        // Setting UserAppTheme raises the trait change that calls Apply again.
+        if (Application.Current is not { } app || _applying)
             return;
+        _applying = true;
+        try
+        {
+            ApplyTo(app);
+        }
+        finally
+        {
+            _applying = false;
+        }
+    }
+
+    private void ApplyTo(Application app)
+    {
+        // On iOS AppInfo reads the window's traits, which a pinned theme overrides; unpin
+        // before reading so a switch back to System sees the OS.
+        if (Preference == ThemePreference.System)
+            app.UserAppTheme = AppTheme.Unspecified;
 
         // AppInfo reads the live trait; Application.PlatformAppTheme goes stale on iOS under Shell.
         var os = AppInfo.RequestedTheme switch

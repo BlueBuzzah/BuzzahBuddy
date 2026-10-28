@@ -46,6 +46,12 @@ public partial class SessionRing : ContentView
             WeakReferenceMessenger.Default.Unregister<ThemeChangedMessage>(this);
             this.AbortAnimation(BreathAnimation);
         };
+        // A hidden ring stops breathing (the page binds IsVisible to what hides it).
+        PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(IsVisible))
+                Apply();
+        };
         SetBaseSize();
     }
 
@@ -102,7 +108,7 @@ public partial class SessionRing : ContentView
         _drawable.State = State;
         _drawable.Progress = Math.Clamp(Progress, 0, 1);
 
-        if (State == SessionRingState.Idle && !Motion.Reduce)
+        if (State == SessionRingState.Idle && !Motion.Reduce && IsVisible && IsLoaded)
         {
             if (!this.AnimationIsRunning(BreathAnimation))
             {

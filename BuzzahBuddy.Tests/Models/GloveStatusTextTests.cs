@@ -49,4 +49,14 @@ public class GloveStatusTextTests
     [Fact]
     public void Volts_have_a_space_and_two_decimals() =>
         Assert.Equal("3.72 V", BatteryReading.FormatVolts(3.72));
+
+    // The Session banner's "Charge your glove" and the GloveStatus "Low" use one threshold:
+    // 3.28 V reads 23%, which the badge doesn't call low.
+    [Fact]
+    public void Low_voltage_matches_the_low_badge()
+    {
+        Assert.False(GloveStatusText.IsLowVoltage(3.28));
+        Assert.True(GloveStatusText.IsLowVoltage(3.2));
+        Assert.False(GloveStatusText.IsLowVoltage(null));
+    }
 }

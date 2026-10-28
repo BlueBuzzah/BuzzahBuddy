@@ -32,4 +32,30 @@ public class AnnouncementThrottleTests
         clock.Advance(TimeSpan.FromMinutes(5));
         Assert.False(throttle.ShouldUpdate("Session ready, 2 hours left", SessionRingState.Idle));
     }
+
+    // The ring feeds every state through the throttle, so resuming soon after a pause
+    // replaces "Session paused" instead of waiting out the minute.
+    [Fact]
+    public void Resume_right_after_pause_updates()
+    {
+        var clock = new ManualTimeProvider();
+        var throttle = new AnnouncementThrottle(TimeSpan.FromMinutes(1), clock);
+
+        Assert.True(throttle.ShouldUpdate("Session running, 10 minutes left", SessionRingState.Running));
+        clock.Advance(TimeSpan.FromSeconds(5));
+        Assert.True(throttle.ShouldUpdate("Session paused", SessionRingState.Paused));
+        clock.Advance(TimeSpan.FromSeconds(5));
+        Assert.True(throttle.ShouldUpdate("Session running, 10 minutes left", SessionRingState.Running));
+    }
+
+    [Fact]
+    public void Only_a_running_countdown_is_throttled()
+    {
+        var clock = new ManualTimeProvider();
+        var throttle = new AnnouncementThrottle(TimeSpan.FromMinutes(1), clock);
+
+        Assert.True(throttle.ShouldUpdate("Session ready, 2 hours left", SessionRingState.Idle));
+        clock.Advance(TimeSpan.FromSeconds(5));
+        Assert.True(throttle.ShouldUpdate("Session ready, 30 minutes left", SessionRingState.Idle));
+    }
 }

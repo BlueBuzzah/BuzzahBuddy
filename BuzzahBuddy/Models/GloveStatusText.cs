@@ -31,6 +31,9 @@ public static class GloveStatusText
     /// <summary>Under 20% the battery turns warning and says "Low".</summary>
     public static bool IsLow(int? percent) => percent is < 20;
 
+    /// <summary>The same threshold for a voltage; null (no reading) is never low.</summary>
+    public static bool IsLowVoltage(double? volts) => volts is { } v && IsLow(BatteryReading.ToPercentage(v));
+
     public static string BatteryGlyph(int percent) =>
         percent >= 70 ? LucideIcons.BatteryFull : percent >= 20 ? LucideIcons.BatteryMedium : LucideIcons.BatteryLow;
 
