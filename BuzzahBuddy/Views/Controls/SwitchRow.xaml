@@ -1,0 +1,55 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<!-- Switch (Switch README; bundle .bb-switch): the whole row is the tap target. Off: sunken
+     track with a 2px line-strong edge. On: brand track, on-brand thumb with a check, so the
+     state reads without color. -->
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="BuzzahBuddy.Views.Controls.SwitchRow">
+    <Grid x:Name="Root"
+          ColumnDefinitions="*,Auto"
+          ColumnSpacing="{StaticResource Space4}"
+          Padding="16,8"
+          MinimumHeightRequest="{StaticResource TargetLg}">
+        <Grid.GestureRecognizers>
+            <TapGestureRecognizer Tapped="OnTapped" />
+        </Grid.GestureRecognizers>
+
+        <VerticalStackLayout Spacing="2" VerticalOptions="Center">
+            <Label x:Name="LabelText"
+                   Style="{StaticResource TypeLabel}"
+                   AutomationProperties.IsInAccessibleTree="False" />
+            <Label x:Name="DescriptionText"
+                   Style="{StaticResource TypeBodyS}"
+                   TextColor="{DynamicResource InkMuted}"
+                   AutomationProperties.IsInAccessibleTree="False" />
+        </VerticalStackLayout>
+
+        <Border x:Name="Track"
+                Grid.Column="1"
+                WidthRequest="60"
+                HeightRequest="36"
+                StrokeThickness="{StaticResource BorderControl}"
+                VerticalOptions="Center"
+                AutomationProperties.IsInAccessibleTree="False">
+            <Border.StrokeShape>
+                <RoundRectangle CornerRadius="{StaticResource RadiusFull}" />
+            </Border.StrokeShape>
+            <Border x:Name="Thumb"
+                    WidthRequest="26"
+                    HeightRequest="26"
+                    Margin="3,0,0,0"
+                    StrokeThickness="0"
+                    HorizontalOptions="Start"
+                    VerticalOptions="Center">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="{StaticResource RadiusFull}" />
+                </Border.StrokeShape>
+                <Label x:Name="CheckGlyph"
+                       Style="{StaticResource IconLabel}"
+                       FontSize="18"
+                       HorizontalOptions="Center"
+                       TextColor="{DynamicResource Brand}" />
+            </Border>
+        </Border>
+    </Grid>
+</ContentView>
