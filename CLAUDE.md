@@ -31,7 +31,7 @@ Before making a UI/UX change:
 Rules:
 
 - **The design system wins any conflict.** That includes the current
-  `Colors.xaml`/`Styles.xaml` and anything else in this file. Much of the current UI
+  `Styles.xaml` and anything else in this file. Much of the current UI
   predates it. Build new and changed UI to the design system rather than copying the
   surrounding legacy styles.
 - **It ships no XAML.** Its React components are the reference for each control's
@@ -174,6 +174,8 @@ hides a missing `MainThread` dispatch (real BLE events arrive off the UI thread)
 `new`, not a route) shown while the gloves reboot; its `OnBackButtonPressed` block works
 on Android only because `AndroidManifest.xml` sets `enableOnBackInvokedCallback="false"`.
 `DeviceSettingsViewModel` has no page of its own: it's `DeviceListViewModel.Settings`.
+`WelcomePage` (first-run safety notices) and `ConfirmSheetPage` (every confirmation, via
+`IConfirmationService`) are modals too.
 
 DI (`MauiProgram.cs`): tab-backing pages/VMs are **singletons** (Shell caches TabBar
 content) and never disposed; `Calibration`/`ProfileSettings` are transient. A transient VM
@@ -193,7 +195,7 @@ TalkBack.
 
 ### Safe area
 
-**Every `ContentPage` must set `SafeAreaEdges="Container"`** (all 6 do). .NET 10 changed
+**Every `ContentPage` must set `SafeAreaEdges="Container"`** (all 8 do). .NET 10 changed
 the default to `None` and Android 16 forces edge-to-edge; `DeviceListPage`/
 `CalibrationPage` anchor primary buttons to the bottom edge, exactly where the gesture
 nav bar sits. `SoftInput` is intentionally unused.
@@ -229,7 +231,7 @@ files under Bold Text.
   `BindableLayout` (`CalibrationPage`) is unaffected. `XC0045`: intentional parent-VM
   `RelativeSource`.
 - `MauiProgram.StripNativeInputChrome` (Android) clears `Entry`/`Editor`/`Picker` platform
-  backgrounds — the Material underline reads as a second border inside `InputBorder`.
+  backgrounds — the Material underline reads as a second border inside `TextFieldBorder`.
 - **App icons come from the design system's `assets/`.** iOS uses `MauiIcon`
   (`Resources/AppIcon/appicon.png`, iOS only); Android uses the adaptive mipmaps in
   `Platforms/Android/Resources/mipmap-*`, not `MauiIcon`. After replacing an icon, delete
