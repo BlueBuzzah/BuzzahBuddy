@@ -1,0 +1,33 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<!-- SessionRing (SessionRing README; bundle .bb-ring): time left in metric-xl inside a ring
+     that fills as the session runs, with the state word beneath. Children are hidden from
+     screen readers; the ring speaks one timer label, at most once a minute. -->
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="BuzzahBuddy.Views.Controls.SessionRing"
+             HorizontalOptions="Center">
+    <Grid x:Name="Root">
+        <GraphicsView x:Name="Canvas" AutomationProperties.IsInAccessibleTree="False" />
+        <VerticalStackLayout Spacing="{StaticResource Space1}"
+                             HorizontalOptions="Center"
+                             VerticalOptions="Center"
+                             InputTransparent="True"
+                             AutomationProperties.ExcludedWithChildren="True">
+            <Label x:Name="TimeText"
+                   Style="{StaticResource TypeMetricXl}"
+                   LineHeight="1"
+                   HorizontalTextAlignment="Center"
+                   LineBreakMode="NoWrap" />
+            <HorizontalStackLayout Spacing="6" HorizontalOptions="Center">
+                <Label x:Name="StateGlyph"
+                       Style="{StaticResource IconLabel}"
+                       FontSize="20"
+                       TextColor="{DynamicResource InkMuted}" />
+                <Label x:Name="StateText"
+                       Style="{StaticResource TypeLabel}"
+                       TextColor="{DynamicResource InkMuted}"
+                       VerticalOptions="Center" />
+            </HorizontalStackLayout>
+        </VerticalStackLayout>
+    </Grid>
+</ContentView>

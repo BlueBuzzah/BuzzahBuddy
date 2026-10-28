@@ -1,0 +1,48 @@
+using BuzzahBuddy.Models;
+using Xunit;
+
+namespace BuzzahBuddy.Tests.Models;
+
+/// <summary>Time text matching the design system's bundle.js clock() and spoken().</summary>
+public class DurationTextTests
+{
+    [Theory]
+    [InlineData(6127, "1:42:07")]
+    [InlineData(300, "5:00")]
+    [InlineData(59, "0:59")]
+    [InlineData(7200, "2:00:00")]
+    public void Clock(int seconds, string expected) => Assert.Equal(expected, DurationText.Clock(seconds));
+
+    [Theory]
+    [InlineData(6127, "1 hour 42 minutes")]
+    [InlineData(3600, "1 hour")]
+    [InlineData(7200, "2 hours")]
+    [InlineData(60, "1 minute")]
+    public void Spoken(int seconds, string expected) => Assert.Equal(expected, DurationText.Spoken(seconds));
+
+    // JS Math.round rounds 0.5 up; C# Math.Round defaults to banker's rounding ("0 minutes").
+    [Fact]
+    public void Spoken_RoundsHalfUp() => Assert.Equal("1 minute", DurationText.Spoken(30));
+
+    [Theory]
+    [InlineData(5400, "1 h 30 min")]
+    [InlineData(300, "5 min")]
+    [InlineData(7200, "2 h")]
+    public void Short(int seconds, string expected) => Assert.Equal(expected, DurationText.Short(seconds));
+
+    [Fact]
+    public void Accessible_running() =>
+        Assert.Equal("Session running, 1 hour 42 minutes left", SessionRingText.Accessible(SessionRingState.Running, 6127));
+
+    [Fact]
+    public void Accessible_idle() =>
+        Assert.Equal("Session ready, 2 hours left", SessionRingText.Accessible(SessionRingState.Idle, 7200));
+
+    [Fact]
+    public void Accessible_complete() =>
+        Assert.Equal("Session complete", SessionRingText.Accessible(SessionRingState.Complete, 0));
+
+    [Fact]
+    public void Accessible_count_up() =>
+        Assert.Equal("Session running, 12 minutes so far", SessionRingText.AccessibleCountUp(720));
+}
