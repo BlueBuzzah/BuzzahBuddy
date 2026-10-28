@@ -1,6 +1,7 @@
 using System.Globalization;
 using BuzzahBuddy.Models;
 using BuzzahBuddy.Services.ConnectionStateManagement;
+using BuzzahBuddy.Services.Dialogs;
 using BuzzahBuddy.Services.Glove;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -21,6 +22,8 @@ namespace BuzzahBuddy.ViewModels;
 public partial class ProfileSettingsViewModel : BaseViewModel
 {
     private readonly IGloveControlService _gloveControlService;
+    private readonly IConfirmationService _confirmation;
+    private (StatusTone Tone, string Title, string Message, string? Detail)? _saveResult;
 
     /// <summary>
     /// Centralized connection state service exposed for XAML binding.
@@ -61,14 +64,39 @@ public partial class ProfileSettingsViewModel : BaseViewModel
     [ObservableProperty]
     private bool _isLoaded;
 
+    partial void OnIsLoadedChanged(bool value) => ResolveBanner();
+
+    // Per-field errors, set when Save is tapped (not while typing; TextField README) and
+    // cleared as soon as that field changes.
+    [ObservableProperty] private string? _timeOnError;
+    [ObservableProperty] private string? _timeOffError;
+    [ObservableProperty] private string? _sessionError;
+    [ObservableProperty] private string? _amplitudeMinError;
+    [ObservableProperty] private string? _amplitudeMaxError;
+    [ObservableProperty] private string? _jitterError;
+
+    [ObservableProperty]
+    private bool _savedBadgeVisible;
+
+    // One banner: not connected > save failed/not stored > differs from the study.
+    [ObservableProperty] private bool _bannerVisible;
+    [ObservableProperty] private StatusTone _bannerTone = StatusTone.Info;
+    [ObservableProperty] private string? _bannerTitle;
+    [ObservableProperty] private string? _bannerMessage;
+    [ObservableProperty] private string? _bannerDetail;
+
     public ProfileSettingsViewModel(
         IGloveControlService gloveControlService,
-        IConnectionStateService connectionStateService)
+        IConnectionStateService connectionStateService,
+        IConfirmationService confirmation)
     {
         _gloveControlService = gloveControlService;
+        _confirmation = confirmation;
         ConnectionInfo = connectionStateService;
 
-        Title = "Custom Profile";
+        // The page's own headline is the title; the native bar only carries Back.
+        Title = string.Empty;
+        ResolveBanner();
     }
 
     /// <summary>Motors per glove on the connected device (4 on v2, 5 on v3).</summary>
@@ -77,8 +105,8 @@ public partial class ProfileSettingsViewModel : BaseViewModel
     // ========== Derived, read-only guidance ==========
 
     /// <summary>
-    /// Coordinated-reset period and frequency implied by the current field values,
-    /// e.g. "CR period 668 ms · 1.50 Hz". The studied protocol runs at 1.50 Hz.
+    /// Cycle length implied by the current field values, e.g. "One full cycle takes
+    /// 668 ms, about 1.5 times a second." The studied protocol runs at 1.5 a second.
     /// </summary>
     public string DerivedTimingText => CurrentForm().DerivedTimingText;
 
@@ -108,19 +136,36 @@ public partial class ProfileSettingsViewModel : BaseViewModel
         Fingers = _deviceFingers,
     };
 
-    partial void OnTimeOnMsTextChanged(string value) => RaiseDerived();
-    partial void OnTimeOffMsTextChanged(string value) => RaiseDerived();
-    partial void OnJitterTextChanged(string value) => RaiseDerived();
-    partial void OnSessionMinutesTextChanged(string value) => RaiseDerived();
-    partial void OnAmplitudeMinTextChanged(string value) => RaiseDerived();
-    partial void OnAmplitudeMaxTextChanged(string value) => RaiseDerived();
+    partial void OnTimeOnMsTextChanged(string value) { TimeOnError = null; RaiseDerived(); }
+    partial void OnTimeOffMsTextChanged(string value) { TimeOffError = null; RaiseDerived(); }
+    partial void OnJitterTextChanged(string value) { JitterError = null; RaiseDerived(); }
+    partial void OnSessionMinutesTextChanged(string value) { SessionError = null; RaiseDerived(); }
+    partial void OnAmplitudeMinTextChanged(string value) { AmplitudeMinError = null; AmplitudeMaxError = null; RaiseDerived(); }
+    partial void OnAmplitudeMaxTextChanged(string value) { AmplitudeMaxError = null; RaiseDerived(); }
     partial void OnMirrorChanged(bool value) => RaiseDerived();
 
     private void RaiseDerived()
     {
+        SavedBadgeVisible = false;
         OnPropertyChanged(nameof(DerivedTimingText));
         OnPropertyChanged(nameof(EffectiveJitterCapText));
         OnPropertyChanged(nameof(DeviatesFromResearchDefaults));
+        ResolveBanner();
+    }
+
+    private void ResolveBanner()
+    {
+        (StatusTone Tone, string Title, string Message, string? Detail)? banner =
+            !IsLoaded || !ConnectionInfo.IsConnected
+                ? (StatusTone.Info, "Connect your primary glove", "Connect on the Gloves tab to see and change these settings.", null)
+            : _saveResult is { } result ? result
+            : DeviatesFromResearchDefaults
+                ? (StatusTone.Warning, "These settings differ from the study",
+                    "They're within what the gloves accept, but no study has tested them.", null)
+            : null;
+        BannerVisible = banner is not null;
+        if (banner is { } b)
+            (BannerTone, BannerTitle, BannerMessage, BannerDetail) = b;
     }
 
     // ========== Commands ==========
@@ -175,12 +220,10 @@ public partial class ProfileSettingsViewModel : BaseViewModel
         // Discards whatever the user has tuned. Destructive actions require a
         // confirmation (BlueBuzzah design system, accessibility.md) because an accidental tap is a real hazard
         // for tremor-prone users, and there is no undo once the fields are replaced.
-        var confirmed = await Shell.Current.DisplayAlert(
-            "Use Research Defaults?",
-            "This replaces the values in the form with the settings used in the published "
-            + "vibrotactile therapy study. Nothing is sent to the gloves until you save.",
-            "Use Defaults",
-            "Cancel");
+        var confirmed = await _confirmation.ConfirmAsync(new ConfirmRequest(
+            "Use the study settings?",
+            "This fills the form with the settings from the published study. Nothing changes on your gloves until you tap Save to gloves.",
+            "Use study settings"));
 
         if (confirmed)
             PopulateFrom(ResearchDefaults.For(MotorCount));
@@ -197,21 +240,25 @@ public partial class ProfileSettingsViewModel : BaseViewModel
 
         if (!IsLoaded || !ConnectionInfo.IsConnected)
         {
-            await Shell.Current.DisplayAlert(
-                "Not Connected",
-                "Connect to a BlueBuzzah glove and load the current settings first.",
-                "OK");
+            ResolveBanner(); // "Connect your primary glove"
             return;
         }
 
-        if (!CurrentForm().TryBuildProfile(out var desired))
+        // Each bad field gets its own message beside it; nothing is sent.
+        var errors = CurrentForm().Validate();
+        TimeOnError = errors.GetValueOrDefault(CustomProfileField.TimeOn);
+        TimeOffError = errors.GetValueOrDefault(CustomProfileField.TimeOff);
+        SessionError = errors.GetValueOrDefault(CustomProfileField.Session);
+        AmplitudeMinError = errors.GetValueOrDefault(CustomProfileField.AmplitudeMin);
+        AmplitudeMaxError = errors.GetValueOrDefault(CustomProfileField.AmplitudeMax);
+        JitterError = errors.GetValueOrDefault(CustomProfileField.Jitter);
+        if (errors.Count > 0 || !CurrentForm().TryBuildProfile(out var desired))
         {
-            await Shell.Current.DisplayAlert(
-                "Invalid Value",
-                "One or more fields contain an invalid number. Please check the values and try again.",
-                "OK");
+            SemanticScreenReader.Announce(errors.Values.FirstOrDefault() ?? "Something went wrong");
             return;
         }
+
+        _saveResult = null;
 
         IsBusy = true;
         var applyStarted = false;
@@ -243,40 +290,30 @@ public partial class ProfileSettingsViewModel : BaseViewModel
             PopulateFromDevice(confirmed);
 
             // Only promise persistence when the firmware actually provides it.
-            await Shell.Current.DisplayAlert(
-                "Settings Saved",
-                _gloveControlService.PersistsCustomProfile
-                    ? "The gloves are now using these settings, and will keep them after a restart."
-                    : "The gloves are now using these settings. This firmware does not store them, "
-                      + "so they will return to the previous values when the gloves restart.",
-                "OK");
-        }
-        catch (ArgumentException ex)
-        {
-            // Parameter validation runs before the first send, so in the reachable
-            // case nothing has been written and the form is still accurate. Resync
-            // anyway when a send had already begun: the command-length guard also
-            // throws ArgumentException, and it fires mid-batch. That guard is
-            // unreachable at present (worst-case command is ~98 of 255 chars), so
-            // this costs nothing today and stops a future ninth parameter from
-            // turning a partial write into a silently stale form.
-            await Shell.Current.DisplayAlert(
-                "Invalid Value", await AppendResyncNoteAsync(ex.Message, applyStarted), "OK");
-        }
-        catch (BlueBuzzahCommandException ex)
-        {
-            var error = GetFriendlyError(ex.Message);
-            await Shell.Current.DisplayAlert(error.Title, await AppendResyncNoteAsync(error.ForAlert, applyStarted), "OK");
+            if (_gloveControlService.PersistsCustomProfile)
+            {
+                SavedBadgeVisible = true;
+                SemanticScreenReader.Announce("Settings saved to both gloves");
+            }
+            else
+            {
+                _saveResult = (StatusTone.Info, "Saved until the gloves restart",
+                    "This firmware doesn't store Custom settings. Update it with the BlueBuzzah Updater to keep them.", null);
+            }
         }
         catch (Exception ex)
         {
+            // Covers BlueBuzzahCommandException (firmware text), timeouts and the
+            // client-side parameter guards (ArgumentException: the command-length guard
+            // fires mid-batch, so resync when a send had begun). Raw text goes in Detail.
             var error = FromException(ex);
-            await Shell.Current.DisplayAlert(
-                error.Title, await AppendResyncNoteAsync(error.ForAlert, applyStarted), "OK");
+            _saveResult = (StatusTone.Danger, "Couldn't save your settings",
+                await AppendResyncNoteAsync(error.Message, applyStarted), error.Detail);
         }
         finally
         {
             IsBusy = false;
+            ResolveBanner();
         }
     }
 
@@ -294,11 +331,11 @@ public partial class ProfileSettingsViewModel : BaseViewModel
         {
             var current = await _gloveControlService.GetCurrentProfileAsync();
             PopulateFromDevice(current);
-            return message + "\n\nSome changes may have been applied. The form now shows the gloves' current settings.";
+            return message + " Some changes may have been saved. The form shows what your gloves have now.";
         }
         catch
         {
-            return message + "\n\nSome changes may have been applied. Reload from the gloves to see their current settings.";
+            return message + " Some changes may have been saved. Tap Reload from gloves to see what your gloves have now.";
         }
     }
 

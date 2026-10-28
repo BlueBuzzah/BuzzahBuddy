@@ -185,4 +185,47 @@ public class CustomProfileFormTests
 
         Assert.Null(form.EffectiveJitterCapText);
     }
+
+    // Per-field validation: each error names the range, tied to its own field.
+
+    [Fact]
+    public void Validate_FlagsOutOfRange()
+    {
+        var form = ValidForm();
+        form.TimeOnMsText = "20";
+        var errors = form.Validate();
+        Assert.Single(errors);
+        Assert.Equal("Enter a number from 50 to 200.", errors[CustomProfileField.TimeOn]);
+    }
+
+    [Fact]
+    public void Validate_FlagsMinOverMax()
+    {
+        var form = ValidForm();
+        form.AmplitudeMinText = "90";
+        form.AmplitudeMaxText = "50";
+        var errors = form.Validate();
+        Assert.Equal("Strongest buzz can't be lower than softest buzz.", errors[CustomProfileField.AmplitudeMax]);
+        Assert.False(errors.ContainsKey(CustomProfileField.AmplitudeMin));
+    }
+
+    [Fact]
+    public void Validate_AcceptsResearchDefaults() => Assert.Empty(ValidForm().Validate());
+
+    [Fact]
+    public void Validate_FlagsUnparseable()
+    {
+        var form = ValidForm();
+        form.JitterText = "abc";
+        Assert.Equal("Enter a number from 0 to 50.", form.Validate()[CustomProfileField.Jitter]);
+    }
+
+    // Amplitude and session are whole numbers on the wire; "50.5" must not slip through.
+    [Fact]
+    public void Validate_FlagsFractionalWholeNumberFields()
+    {
+        var form = ValidForm();
+        form.SessionMinutesText = "30.5";
+        Assert.Equal("Enter a number from 1 to 240.", form.Validate()[CustomProfileField.Session]);
+    }
 }
