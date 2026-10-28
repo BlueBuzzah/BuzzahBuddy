@@ -5,6 +5,7 @@
              x:Class="BuzzahBuddy.Views.SettingsPage"
              x:DataType="vm:SettingsViewModel"
              Title="{Binding Title}"
+             Shell.NavBarIsVisible="False"
              SafeAreaEdges="Container">
 
     <ScrollView>

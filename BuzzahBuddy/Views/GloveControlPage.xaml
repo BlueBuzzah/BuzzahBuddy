@@ -7,6 +7,7 @@
              x:Class="BuzzahBuddy.Views.GloveControlPage"
              x:DataType="vm:GloveControlViewModel"
              Title="{Binding Title}"
+             Shell.NavBarIsVisible="False"
              SafeAreaEdges="Container">
 
     <ScrollView>

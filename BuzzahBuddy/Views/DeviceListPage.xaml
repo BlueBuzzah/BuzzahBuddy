@@ -8,6 +8,7 @@
              x:DataType="vm:DeviceListViewModel"
              x:Name="page"
              Title="{Binding Title}"
+             Shell.NavBarIsVisible="False"
              SafeAreaEdges="Container">
 
     <Grid RowDefinitions="*,Auto" Padding="20">

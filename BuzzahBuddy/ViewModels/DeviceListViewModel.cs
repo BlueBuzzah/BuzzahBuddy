@@ -78,7 +78,7 @@ public partial class DeviceListViewModel : BaseViewModel
         ConnectionInfo = connectionStateService;
         Settings = deviceSettingsViewModel;
 
-        Title = "Devices";
+        Title = "Gloves";
 
         // Subscribe to device discovery
         _bluetoothService.DeviceDiscovered += OnDeviceDiscovered;

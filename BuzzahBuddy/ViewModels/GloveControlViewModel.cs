@@ -177,7 +177,7 @@ public partial class GloveControlViewModel : BaseViewModel
         _reconnectionService = reconnectionService;
         ConnectionInfo = connectionStateService;
 
-        Title = "Control";
+        Title = "Session";
 
         // Subscribe to connection events
         _bluetoothService.ConnectionStateChanged += OnConnectionStateChanged;
