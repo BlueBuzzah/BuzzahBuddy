@@ -20,7 +20,7 @@
                 <!-- Connection Status Banner -->
                 <VerticalStackLayout Spacing="15">
                     <Label Text="Connected Device"
-                           Style="{StaticResource Headline}"
+                           Style="{StaticResource TypeHeadline}"
                            HorizontalTextAlignment="Center"
                            SemanticProperties.HeadingLevel="Level1" />
 
@@ -30,10 +30,9 @@
                 </VerticalStackLayout>
 
                 <!-- Session-active hint: device settings are locked during a session -->
-                <Label Text="End the therapy session to change device settings."
+                <Label Style="{StaticResource TypeBodyS}" Text="End the therapy session to change device settings."
                        IsVisible="{Binding Settings.IsSessionActive}"
-                       TextColor="{StaticResource Warning}"
-                       FontSize="14"
+                       TextColor="{DynamicResource Warning}"
                        HorizontalTextAlignment="Center"
                        SemanticProperties.Description="Device settings are locked while a therapy session is active"
                        AutomationId="SessionActiveHint" />
@@ -41,13 +40,12 @@
                 <!-- Therapy Profile Selection -->
                 <VerticalStackLayout Spacing="12">
                     <Label Text="Therapy Profile"
-                           Style="{StaticResource Heading2}"
+                           Style="{StaticResource TypeTitleL}"
                            SemanticProperties.HeadingLevel="Level2" />
 
-                    <Label Text="{Binding Settings.ProfileStatusMessage}"
+                    <Label Style="{StaticResource TypeCaption}" Text="{Binding Settings.ProfileStatusMessage}"
                            IsVisible="{Binding Settings.ProfileStatusMessage, Converter={StaticResource IsNotNullConverter}}"
-                           TextColor="{StaticResource Warning}"
-                           FontSize="12"
+                           TextColor="{DynamicResource Warning}"
                            SemanticProperties.Description="{Binding Settings.ProfileStatusMessage}"
                            AutomationId="ProfileStatusLabel" />
 
@@ -56,15 +54,9 @@
                                          Spacing="16">
                         <BindableLayout.ItemTemplate>
                             <DataTemplate x:DataType="vm:ProfileItemViewModel">
-                                <Border Padding="20"
-                                        BackgroundColor="{StaticResource CardBackground}"
-                                        StrokeThickness="2"
-                                        Stroke="{StaticResource CardBorder}"
+                                <Border Style="{StaticResource Card}" Padding="20"
                                         SemanticProperties.Description="{Binding DisplayName}"
                                         SemanticProperties.Hint="Tap to select this therapy profile, then press Apply Settings to send it to the gloves">
-                                    <Border.StrokeShape>
-                                        <RoundRectangle CornerRadius="12" />
-                                    </Border.StrokeShape>
 
                                     <!-- Tap to select this profile. x:DataType cleared + x:Reference on purpose:
                                          RelativeSource AncestorType bindings silently fail to resolve in item
@@ -81,7 +73,7 @@
                                         <Border Grid.Row="0" Grid.RowSpan="2" Grid.Column="0"
                                                 WidthRequest="56"
                                                 HeightRequest="56"
-                                                BackgroundColor="{StaticResource Primary}"
+                                                BackgroundColor="{DynamicResource Brand}"
                                                 VerticalOptions="Center"
                                                 HorizontalOptions="Center"
                                                 IsVisible="{Binding IsSelected}"
@@ -91,27 +83,22 @@
                                                 <RoundRectangle CornerRadius="28" />
                                             </Border.StrokeShape>
 
-                                            <Label Text="✓"
-                                                   FontSize="32"
-                                                   FontAttributes="Bold"
-                                                   TextColor="{StaticResource PrimaryDarkText}"
+                                            <Label Style="{StaticResource TypeHeadline}" Text="✓"
+                                                   TextColor="{DynamicResource OnBrand}"
                                                    HorizontalOptions="Center"
                                                    VerticalOptions="Center" />
                                         </Border>
 
                                         <!-- Profile Name -->
-                                        <Label Grid.Row="0" Grid.Column="1"
+                                        <Label Style="{StaticResource TypeTitleM}" Grid.Row="0" Grid.Column="1"
                                                Text="{Binding Name}"
-                                               FontSize="20"
-                                               FontAttributes="Bold"
-                                               TextColor="{StaticResource TextPrimary}"
+                                               TextColor="{DynamicResource Ink}"
                                                AutomationProperties.IsInAccessibleTree="False" />
 
                                         <!-- Profile Description -->
-                                        <Label Grid.Row="1" Grid.Column="1"
+                                        <Label Style="{StaticResource TypeBodyS}" Grid.Row="1" Grid.Column="1"
                                                Text="{Binding Description}"
-                                               FontSize="15"
-                                               TextColor="{StaticResource TextMuted}"
+                                               TextColor="{DynamicResource InkMuted}"
                                                LineBreakMode="WordWrap"
                                                AutomationProperties.IsInAccessibleTree="False" />
 
@@ -121,7 +108,7 @@
                                         <Button Grid.Row="2" Grid.Column="1"
                                                 Text="Edit Parameters"
                                                 IsVisible="{Binding CanEditParameters}"
-                                                Style="{StaticResource TertiaryButton}"
+                                                Style="{StaticResource ButtonQuiet}"
                                                 HorizontalOptions="Start"
                                                 SemanticProperties.Description="Edit the Custom profile's therapy parameters"
                                                 SemanticProperties.Hint="Double tap to open the Custom profile parameter editor"
@@ -143,24 +130,18 @@
                 <!-- Device Options -->
                 <VerticalStackLayout Spacing="12">
                     <Label Text="Device Options"
-                           Style="{StaticResource Heading2}"
+                           Style="{StaticResource TypeTitleL}"
                            SemanticProperties.HeadingLevel="Level2" />
 
-                    <Border Padding="15"
-                            BackgroundColor="{StaticResource CardBackground}"
-                            StrokeThickness="0">
-                        <Border.StrokeShape>
-                            <RoundRectangle CornerRadius="12" />
-                        </Border.StrokeShape>
+                    <Border Style="{StaticResource Card}" Padding="15">
 
                         <VerticalStackLayout Spacing="10">
                             <!-- Device setting: therapy LED off (THERAPY_LED_OFF). Hidden until read from device. -->
                             <Grid ColumnDefinitions="*,Auto"
                                   MinimumHeightRequest="48"
                                   IsVisible="{Binding Settings.TherapyLedLoaded}">
-                                <Label Grid.Column="0"
+                                <Label Style="{StaticResource TypeBody}" Grid.Column="0"
                                        Text="Turn LED Off During Therapy"
-                                       FontSize="16"
                                        VerticalOptions="Center"
                                        LineBreakMode="WordWrap" />
                                 <Switch Grid.Column="1"
@@ -174,7 +155,7 @@
 
                             <Button Text="Test Connection"
                                     Command="{Binding Settings.TestConnectionCommand}"
-                                    Style="{StaticResource TertiaryButton}"
+                                    Style="{StaticResource ButtonQuiet}"
                                     SemanticProperties.Hint="Send a brief test pulse to the device"
                                     SemanticProperties.Description="Test connection with brief vibration pulse"
                                     AutomationId="TestConnectionButton">
@@ -188,7 +169,7 @@
 
                             <Button Text="Calibrate Motors"
                                     Command="{Binding Settings.NavigateToCalibrationCommand}"
-                                    Style="{StaticResource TertiaryButton}"
+                                    Style="{StaticResource ButtonQuiet}"
                                     SemanticProperties.Description="Open motor calibration for testing individual finger motors"
                                     SemanticProperties.Hint="Double tap to navigate to calibration"
                                     AutomationId="CalibrateMotorsButton">
@@ -206,15 +187,10 @@
                 <!-- Battery Status -->
                 <VerticalStackLayout Spacing="12">
                     <Label Text="Battery Status"
-                           Style="{StaticResource Heading2}"
+                           Style="{StaticResource TypeTitleL}"
                            SemanticProperties.HeadingLevel="Level2" />
 
-                    <Border Padding="15"
-                            BackgroundColor="{StaticResource CardBackground}"
-                            StrokeThickness="0">
-                        <Border.StrokeShape>
-                            <RoundRectangle CornerRadius="12" />
-                        </Border.StrokeShape>
+                    <Border Style="{StaticResource Card}" Padding="15">
 
                         <VerticalStackLayout Spacing="12">
                             <!-- One row per glove: dot | name | value, columns aligned -->
@@ -223,50 +199,41 @@
                                   ColumnSpacing="8"
                                   RowSpacing="10">
                                 <!-- Primary Glove -->
-                                <Label Grid.Row="0" Grid.Column="0"
+                                <Label Style="{StaticResource TypeBody}" Grid.Row="0" Grid.Column="0"
                                        Text="●"
-                                       FontSize="16"
                                        TextColor="{Binding Settings.BatteryPrimaryColor}"
                                        VerticalOptions="Center"
                                        AutomationProperties.IsInAccessibleTree="False" />
-                                <Label Grid.Row="0" Grid.Column="1"
+                                <Label Style="{StaticResource TypeBodyS}" Grid.Row="0" Grid.Column="1"
                                        Text="Primary:"
-                                       FontSize="14"
                                        VerticalOptions="Center"
                                        AutomationProperties.IsInAccessibleTree="False" />
-                                <Label Grid.Row="0" Grid.Column="2"
+                                <Label Style="{StaticResource TypeBodyStrong}" Grid.Row="0" Grid.Column="2"
                                        Text="{Binding Settings.BatteryPrimaryText}"
-                                       FontSize="16"
-                                       FontAttributes="Bold"
                                        HorizontalOptions="End"
                                        VerticalOptions="Center"
                                        SemanticProperties.Description="{Binding Settings.BatteryPrimaryDescription}" />
 
                                 <!-- Secondary Glove -->
-                                <Label Grid.Row="1" Grid.Column="0"
+                                <Label Style="{StaticResource TypeBody}" Grid.Row="1" Grid.Column="0"
                                        Text="●"
-                                       FontSize="16"
                                        TextColor="{Binding Settings.BatterySecondaryColor}"
                                        VerticalOptions="Center"
                                        AutomationProperties.IsInAccessibleTree="False" />
-                                <Label Grid.Row="1" Grid.Column="1"
+                                <Label Style="{StaticResource TypeBodyS}" Grid.Row="1" Grid.Column="1"
                                        Text="Secondary:"
-                                       FontSize="14"
                                        VerticalOptions="Center"
                                        AutomationProperties.IsInAccessibleTree="False" />
-                                <Label Grid.Row="1" Grid.Column="2"
+                                <Label Style="{StaticResource TypeBodyStrong}" Grid.Row="1" Grid.Column="2"
                                        Text="{Binding Settings.BatterySecondaryText}"
-                                       FontSize="16"
-                                       FontAttributes="Bold"
                                        HorizontalOptions="End"
                                        VerticalOptions="Center"
                                        SemanticProperties.Description="{Binding Settings.BatterySecondaryDescription}" />
                             </Grid>
 
-                            <Label Text="{Binding Settings.BatteryStatusMessage}"
+                            <Label Style="{StaticResource TypeCaption}" Text="{Binding Settings.BatteryStatusMessage}"
                                    IsVisible="{Binding Settings.BatteryStatusMessage, Converter={StaticResource IsNotNullConverter}}"
-                                   TextColor="{StaticResource Warning}"
-                                   FontSize="12"
+                                   TextColor="{DynamicResource Warning}"
                                    HorizontalTextAlignment="Center"
                                    SemanticProperties.Description="Battery status warning" />
 
@@ -278,7 +245,7 @@
                                                    SemanticProperties.Description="Refreshing battery status" />
                                 <Button Text="🔄 Refresh"
                                         Command="{Binding Settings.RefreshBatteryCommand}"
-                                        Style="{StaticResource TertiaryButton}"
+                                        Style="{StaticResource ButtonQuiet}"
                                         HorizontalOptions="Center"
                                         Padding="20,0"
                                         SemanticProperties.Hint="Refresh battery levels"
@@ -299,7 +266,7 @@
                 <!-- Apply Settings: writes all pending device settings to the gloves -->
                 <Button Text="Apply Settings"
                         Command="{Binding Settings.ApplySettingsCommand}"
-                        Style="{StaticResource PrimaryButtonGlow}"
+                        Style="{StaticResource ButtonPrimary}"
                         Margin="0,8,0,0"
                         SemanticProperties.Description="Applies the selected therapy profile and device options to the gloves"
                         SemanticProperties.Hint="Double tap to apply all pending device settings"
@@ -317,7 +284,7 @@
                 <!-- Disconnect -->
                 <Button Text="Disconnect Device"
                         Command="{Binding DisconnectCommand}"
-                        Style="{StaticResource DangerActionButton}"
+                        Style="{StaticResource ButtonDanger}"
                         Margin="0,8,0,0"
                         SemanticProperties.Hint="Disconnect from current device"
                         SemanticProperties.Description="Tap to disconnect from the connected device"
@@ -338,12 +305,11 @@
             <!-- TOP ZONE: Header Info (Read-Only) -->
             <VerticalStackLayout Grid.Row="0" Spacing="10" Margin="0,0,0,16">
                 <Label Text="Available Devices"
-                       Style="{StaticResource Headline}"
+                       Style="{StaticResource TypeHeadline}"
                        SemanticProperties.HeadingLevel="Level1" />
 
-                <Label Text="Bluetooth is disabled. Please enable Bluetooth to scan for devices."
-                       FontSize="16"
-                       TextColor="{StaticResource DangerDark}"
+                <Label Style="{StaticResource TypeBody}" Text="Bluetooth is disabled. Please enable Bluetooth to scan for devices."
+                       TextColor="{DynamicResource Danger}"
                        IsVisible="{Binding BluetoothEnabled, Converter={StaticResource InvertedBoolConverter}}"
                        LineBreakMode="WordWrap" />
             </VerticalStackLayout>
@@ -352,7 +318,7 @@
             <RefreshView Grid.Row="1"
                          IsRefreshing="{Binding IsRefreshing}"
                          Command="{Binding RefreshDevicesCommand}"
-                         RefreshColor="{StaticResource Primary}">
+                         RefreshColor="{DynamicResource Brand}">
                 <CollectionView ItemsSource="{Binding AvailableDevices}"
                                 SelectionMode="None"
                                 ItemSizingStrategy="MeasureFirstItem">
@@ -368,11 +334,11 @@
                                        HorizontalOptions="Center"
                                        AutomationProperties.IsInAccessibleTree="False" />
                                 <Label Text="Ready to Connect"
-                                       Style="{StaticResource Heading2}"
+                                       Style="{StaticResource TypeTitleL}"
                                        HorizontalTextAlignment="Center"
                                        SemanticProperties.HeadingLevel="Level2" />
                                 <Label Text="Power on your BlueBuzzah gloves and tap 'Scan for Devices' below to begin searching."
-                                       Style="{StaticResource BodyText}"
+                                       Style="{StaticResource TypeBody}"
                                        HorizontalTextAlignment="Center"
                                        LineBreakMode="WordWrap" />
                             </VerticalStackLayout>
@@ -385,18 +351,18 @@
                                 <ActivityIndicator IsRunning="{Binding IsScanning}"
                                                    HeightRequest="64"
                                                    WidthRequest="64"
-                                                   Color="{StaticResource Primary}"
+                                                   Color="{DynamicResource Brand}"
                                                    HorizontalOptions="Center"
                                                    SemanticProperties.Description="Scanning for nearby Bluetooth devices" />
                                 <Label Text="Scanning for Devices..."
-                                       Style="{StaticResource Heading2}"
+                                       Style="{StaticResource TypeTitleL}"
                                        HorizontalTextAlignment="Center"
                                        SemanticProperties.HeadingLevel="Level2" />
                                 <Label Text="Looking for nearby BlueBuzzah gloves. This may take a few moments."
-                                       Style="{StaticResource BodyText}"
+                                       Style="{StaticResource TypeBody}"
                                        HorizontalTextAlignment="Center"
                                        LineBreakMode="WordWrap"
-                                       TextColor="{StaticResource TextMuted}" />
+                                       TextColor="{DynamicResource InkMuted}" />
                             </VerticalStackLayout>
 
                             <!-- State 3: No Devices Found (scan completed empty) -->
@@ -409,36 +375,28 @@
                                        HorizontalOptions="Center"
                                        AutomationProperties.IsInAccessibleTree="False" />
                                 <Label Text="No Devices Found"
-                                       Style="{StaticResource Heading2}"
+                                       Style="{StaticResource TypeTitleL}"
                                        HorizontalTextAlignment="Center"
                                        SemanticProperties.HeadingLevel="Level2" />
                                 <Label Text="No BlueBuzzah gloves were detected. Please check the following and try scanning again."
-                                       Style="{StaticResource BodyText}"
+                                       Style="{StaticResource TypeBody}"
                                        HorizontalTextAlignment="Center"
                                        LineBreakMode="WordWrap" />
-                                <Border Padding="12"
-                                        BackgroundColor="{StaticResource CardBackground}"
-                                        StrokeThickness="0"
+                                <Border Style="{StaticResource Card}" Padding="12"
                                         Margin="0,8,0,0">
-                                    <Border.StrokeShape>
-                                        <RoundRectangle CornerRadius="8" />
-                                    </Border.StrokeShape>
                                     <VerticalStackLayout Spacing="8">
-                                        <Label Text="Troubleshooting:"
-                                               FontSize="14"
-                                               FontAttributes="Bold" />
+                                        <Label Style="{StaticResource TypeLabel}" Text="Troubleshooting:" />
                                         <Label Text="• Ensure Bluetooth is enabled on your device"
-                                               Style="{StaticResource SecondaryText}" />
+                                               Style="{StaticResource TypeBodyS}" />
                                         <Label Text="• Check that gloves are charged and powered on"
-                                               Style="{StaticResource SecondaryText}" />
+                                               Style="{StaticResource TypeBodyS}" />
                                         <Label Text="• Move closer to the gloves (within 30 feet)"
-                                               Style="{StaticResource SecondaryText}" />
+                                               Style="{StaticResource TypeBodyS}" />
                                     </VerticalStackLayout>
                                 </Border>
-                                <Label Text="{Binding ScanStatusMessage}"
+                                <Label Style="{StaticResource TypeBodyS}" Text="{Binding ScanStatusMessage}"
                                        IsVisible="{Binding ScanStatusMessage, Converter={StaticResource IsNotNullConverter}}"
-                                       TextColor="{StaticResource TextMuted}"
-                                       FontSize="14"
+                                       TextColor="{DynamicResource InkMuted}"
                                        HorizontalTextAlignment="Center"
                                        AutomationId="ScanStatusLabel" />
                             </VerticalStackLayout>
@@ -446,24 +404,16 @@
                     </CollectionView.EmptyView>
                     <CollectionView.ItemTemplate>
                         <DataTemplate x:DataType="models:GloveDevice">
-                            <Border Padding="15"
-                                    Margin="0,0,0,10"
-                                    BackgroundColor="{StaticResource CardBackground}"
-                                    StrokeThickness="0">
-                                <Border.StrokeShape>
-                                    <RoundRectangle CornerRadius="12" />
-                                </Border.StrokeShape>
+                            <Border Style="{StaticResource Card}" Padding="15"
+                                    Margin="0,0,0,10">
 
                                 <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
-                                    <Label Grid.Row="0" Grid.Column="0"
-                                           Text="{Binding DisplayName}"
-                                           FontSize="18"
-                                           FontAttributes="Bold" />
+                                    <Label Style="{StaticResource TypeTitleM}" Grid.Row="0" Grid.Column="0"
+                                           Text="{Binding DisplayName}" />
 
-                                    <Label Grid.Row="1" Grid.Column="0"
+                                    <Label Style="{StaticResource TypeBodyS}" Grid.Row="1" Grid.Column="0"
                                            Text="{Binding SignalStrengthDisplay}"
-                                           FontSize="14"
-                                           TextColor="{StaticResource TextMuted}" />
+                                           TextColor="{DynamicResource InkMuted}" />
 
                                     <!-- Connect Button: x:DataType must be cleared and x:Reference used here.
                                          RelativeSource AncestorType compiles (no XC0023) but silently fails to
@@ -498,9 +448,9 @@
                 <ActivityIndicator IsRunning="{Binding ShowScanningWithResults}"
                                    HeightRequest="20"
                                    WidthRequest="20"
-                                   Color="{StaticResource Primary}" />
+                                   Color="{DynamicResource Brand}" />
                 <Label Text="Still scanning for more devices..."
-                       Style="{StaticResource SecondaryText}"
+                       Style="{StaticResource TypeBodyS}"
                        VerticalOptions="Center"
                        AutomationId="StillScanningLabel" />
             </HorizontalStackLayout>
@@ -509,7 +459,7 @@
             <Button Grid.Row="3"
                     Text="{Binding ScanButtonText}"
                     Command="{Binding ToggleScanCommand}"
-                    Style="{StaticResource SecondaryButtonGlow}"
+                    Style="{StaticResource ButtonSecondary}"
                     Margin="0,12,0,0"
                     SemanticProperties.Hint="Double tap to activate"
                     SemanticProperties.Description="{Binding ScanButtonDescription}"
@@ -518,7 +468,7 @@
 
         <!-- Connection Progress Overlay -->
         <Border Grid.Row="0" Grid.RowSpan="2"
-                BackgroundColor="{StaticResource OverlayBackground}"
+                BackgroundColor="{DynamicResource Scrim}"
                 IsVisible="{Binding IsConnecting}"
                 InputTransparent="False">
             <VerticalStackLayout Spacing="15"
@@ -526,14 +476,12 @@
                                 VerticalOptions="Center"
                                 SemanticProperties.Description="Connecting to device, please wait">
                 <ActivityIndicator IsRunning="{Binding IsConnecting}"
-                                 Color="{StaticResource White}"
+                                 Color="{DynamicResource Ink}"
                                  HeightRequest="50"
                                  WidthRequest="50"
                                  SemanticProperties.Description="Connection in progress" />
-                <Label Text="Connecting to device..."
-                       TextColor="{StaticResource TextPrimary}"
-                       FontSize="18"
-                       FontAttributes="Bold"
+                <Label Style="{StaticResource TypeTitleM}" Text="Connecting to device..."
+                       TextColor="{DynamicResource Ink}"
                        HorizontalTextAlignment="Center"
                        AutomationProperties.IsInAccessibleTree="False" />
             </VerticalStackLayout>

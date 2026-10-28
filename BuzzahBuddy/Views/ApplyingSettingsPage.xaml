@@ -5,7 +5,7 @@
              x:Class="BuzzahBuddy.Views.ApplyingSettingsPage"
              x:DataType="vm:DeviceSettingsViewModel"
              Shell.NavBarIsVisible="False"
-             BackgroundColor="{StaticResource PageBackground}"
+             BackgroundColor="{DynamicResource Surface}"
              SafeAreaEdges="Container">
 
     <VerticalStackLayout Spacing="24"
@@ -14,26 +14,24 @@
         <ActivityIndicator IsRunning="True"
                            HeightRequest="56"
                            WidthRequest="56"
-                           Color="{StaticResource Primary}"
+                           Color="{DynamicResource Brand}"
                            SemanticProperties.Description="Applying settings" />
 
         <Label Text="Applying Settings…"
-               Style="{StaticResource Headline}"
+               Style="{StaticResource TypeHeadline}"
                HorizontalOptions="Center"
                SemanticProperties.HeadingLevel="Level1" />
 
-        <Label Text="Your gloves are restarting with the new settings and will reconnect automatically. This can take a few moments."
-               FontSize="16"
-               TextColor="{StaticResource TextMuted}"
+        <Label Style="{StaticResource TypeBody}" Text="Your gloves are restarting with the new settings and will reconnect automatically. This can take a few moments."
+               TextColor="{DynamicResource InkMuted}"
                HorizontalTextAlignment="Center"
                LineBreakMode="WordWrap"
                AutomationId="ApplyingSettingsLabel" />
 
         <!-- Live reconnection progress, e.g. "Reconnecting... (attempt 2/20)" -->
-        <Label Text="{Binding ConnectionInfo.ReconnectionMessage}"
+        <Label Style="{StaticResource TypeBodyS}" Text="{Binding ConnectionInfo.ReconnectionMessage}"
                IsVisible="{Binding ConnectionInfo.ReconnectionMessage, Converter={StaticResource IsNotNullConverter}}"
-               FontSize="14"
-               TextColor="{StaticResource TextMuted}"
+               TextColor="{DynamicResource InkMuted}"
                HorizontalTextAlignment="Center"
                SemanticProperties.Description="{Binding ConnectionInfo.ReconnectionMessage}" />
     </VerticalStackLayout>

@@ -14,7 +14,7 @@
 
             <!-- Header -->
             <Label Text="Custom Profile"
-                   Style="{StaticResource Headline}"
+                   Style="{StaticResource TypeHeadline}"
                    SemanticProperties.HeadingLevel="Level1"
                    HorizontalOptions="Center" />
 
@@ -26,8 +26,8 @@
             <!-- Not connected / not loaded guidance -->
             <Label Text="Connect to a BlueBuzzah glove to view and adjust the Custom profile parameters."
                    IsVisible="{Binding IsLoaded, Converter={StaticResource InvertedBoolConverter}}"
-                   Style="{StaticResource BodyText}"
-                   TextColor="{StaticResource TextMuted}"
+                   Style="{StaticResource TypeBody}"
+                   TextColor="{DynamicResource InkMuted}"
                    SemanticProperties.Description="Connect to a glove to view and adjust profile settings" />
 
             <ActivityIndicator IsRunning="{Binding IsBusy}"
@@ -35,26 +35,21 @@
                                SemanticProperties.Description="Working" />
 
             <!-- Editor -->
-            <Border Padding="15"
-                    BackgroundColor="{StaticResource CardBackground}"
-                    StrokeThickness="0"
+            <Border Style="{StaticResource Card}" Padding="15"
                     IsVisible="{Binding IsLoaded}">
-                <Border.StrokeShape>
-                    <RoundRectangle CornerRadius="12" />
-                </Border.StrokeShape>
 
                 <VerticalStackLayout Spacing="15">
 
                     <Label Text="These parameters define the Custom therapy profile. The gloves keep them after a restart."
-                           Style="{StaticResource BodyText}"
-                           TextColor="{StaticResource TextMuted}"
+                           Style="{StaticResource TypeBody}"
+                           TextColor="{DynamicResource InkMuted}"
                            SemanticProperties.Description="The gloves keep these parameters after a restart" />
 
                     <Grid ColumnDefinitions="*,140" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto"
                           ColumnSpacing="15" RowSpacing="12">
 
-                        <Label Grid.Row="0" Grid.Column="0" Text="Burst Duration (ms, 50-200)" FontSize="16" VerticalOptions="Center" LineBreakMode="WordWrap" />
-                        <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource InputBorder}">
+                        <Label Style="{StaticResource TypeBody}" Grid.Row="0" Grid.Column="0" Text="Burst Duration (ms, 50-200)" VerticalOptions="Center" LineBreakMode="WordWrap" />
+                        <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource TextFieldBorder}">
                             <Border.Behaviors>
                                 <behaviors:InputFocusBehavior />
                             </Border.Behaviors>
@@ -66,8 +61,8 @@
                                    AutomationId="TimeOnEntry" />
                         </Border>
 
-                        <Label Grid.Row="1" Grid.Column="0" Text="Gap Between Bursts (ms, 30-200)" FontSize="16" VerticalOptions="Center" LineBreakMode="WordWrap" />
-                        <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource InputBorder}">
+                        <Label Style="{StaticResource TypeBody}" Grid.Row="1" Grid.Column="0" Text="Gap Between Bursts (ms, 30-200)" VerticalOptions="Center" LineBreakMode="WordWrap" />
+                        <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource TextFieldBorder}">
                             <Border.Behaviors>
                                 <behaviors:InputFocusBehavior />
                             </Border.Behaviors>
@@ -82,13 +77,13 @@
                         <!-- Derived coordinated-reset timing, updates as the fields change -->
                         <Label Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
                                Text="{Binding DerivedTimingText}"
-                               Style="{StaticResource BodyText}"
-                               TextColor="{StaticResource TextMuted}"
+                               Style="{StaticResource TypeBody}"
+                               TextColor="{DynamicResource InkMuted}"
                                SemanticProperties.Description="{Binding DerivedTimingText}"
                                AutomationId="DerivedTimingLabel" />
 
-                        <Label Grid.Row="3" Grid.Column="0" Text="Session (min, 1-240)" FontSize="16" VerticalOptions="Center" LineBreakMode="WordWrap" />
-                        <Border Grid.Row="3" Grid.Column="1" Style="{StaticResource InputBorder}">
+                        <Label Style="{StaticResource TypeBody}" Grid.Row="3" Grid.Column="0" Text="Session (min, 1-240)" VerticalOptions="Center" LineBreakMode="WordWrap" />
+                        <Border Grid.Row="3" Grid.Column="1" Style="{StaticResource TextFieldBorder}">
                             <Border.Behaviors>
                                 <behaviors:InputFocusBehavior />
                             </Border.Behaviors>
@@ -100,8 +95,8 @@
                                    AutomationId="SessionEntry" />
                         </Border>
 
-                        <Label Grid.Row="4" Grid.Column="0" Text="Amplitude Min (%, 20-100)" FontSize="16" VerticalOptions="Center" LineBreakMode="WordWrap" />
-                        <Border Grid.Row="4" Grid.Column="1" Style="{StaticResource InputBorder}">
+                        <Label Style="{StaticResource TypeBody}" Grid.Row="4" Grid.Column="0" Text="Amplitude Min (%, 20-100)" VerticalOptions="Center" LineBreakMode="WordWrap" />
+                        <Border Grid.Row="4" Grid.Column="1" Style="{StaticResource TextFieldBorder}">
                             <Border.Behaviors>
                                 <behaviors:InputFocusBehavior />
                             </Border.Behaviors>
@@ -113,8 +108,8 @@
                                    AutomationId="AmplitudeMinEntry" />
                         </Border>
 
-                        <Label Grid.Row="5" Grid.Column="0" Text="Amplitude Max (%, 20-100)" FontSize="16" VerticalOptions="Center" LineBreakMode="WordWrap" />
-                        <Border Grid.Row="5" Grid.Column="1" Style="{StaticResource InputBorder}">
+                        <Label Style="{StaticResource TypeBody}" Grid.Row="5" Grid.Column="0" Text="Amplitude Max (%, 20-100)" VerticalOptions="Center" LineBreakMode="WordWrap" />
+                        <Border Grid.Row="5" Grid.Column="1" Style="{StaticResource TextFieldBorder}">
                             <Border.Behaviors>
                                 <behaviors:InputFocusBehavior />
                             </Border.Behaviors>
@@ -126,8 +121,8 @@
                                    AutomationId="AmplitudeMaxEntry" />
                         </Border>
 
-                        <Label Grid.Row="6" Grid.Column="0" Text="Jitter (%, 0-50)" FontSize="16" VerticalOptions="Center" LineBreakMode="WordWrap" />
-                        <Border Grid.Row="6" Grid.Column="1" Style="{StaticResource InputBorder}">
+                        <Label Style="{StaticResource TypeBody}" Grid.Row="6" Grid.Column="0" Text="Jitter (%, 0-50)" VerticalOptions="Center" LineBreakMode="WordWrap" />
+                        <Border Grid.Row="6" Grid.Column="1" Style="{StaticResource TextFieldBorder}">
                             <Border.Behaviors>
                                 <behaviors:InputFocusBehavior />
                             </Border.Behaviors>
@@ -143,15 +138,14 @@
                     <!-- Shown only when the requested jitter exceeds what this timing allows -->
                     <Label Text="{Binding EffectiveJitterCapText}"
                            IsVisible="{Binding EffectiveJitterCapText, Converter={StaticResource IsNotNullConverter}}"
-                           Style="{StaticResource BodyText}"
-                           TextColor="{StaticResource Warning}"
+                           Style="{StaticResource TypeBody}"
+                           TextColor="{DynamicResource Warning}"
                            SemanticProperties.Description="{Binding EffectiveJitterCapText}"
                            AutomationId="JitterCapLabel" />
 
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="15" MinimumHeightRequest="48">
-                        <Label Grid.Column="0"
+                        <Label Style="{StaticResource TypeBody}" Grid.Column="0"
                                Text="Mirror Pattern Between Gloves"
-                               FontSize="16"
                                VerticalOptions="Center"
                                LineBreakMode="WordWrap" />
                         <Switch Grid.Column="1"
@@ -166,15 +160,15 @@
                     <!-- Deviation from the one configuration the research validated -->
                     <Label Text="These settings differ from the parameters used in the published vibrotactile therapy study. They are within the range the gloves accept, but their therapeutic effect has not been studied."
                            IsVisible="{Binding DeviatesFromResearchDefaults}"
-                           Style="{StaticResource BodyText}"
-                           TextColor="{StaticResource Warning}"
+                           Style="{StaticResource TypeBody}"
+                           TextColor="{DynamicResource Warning}"
                            SemanticProperties.Description="These settings differ from the parameters used in the published therapy study"
                            AutomationId="ResearchDeviationLabel" />
 
                     <Button Text="Save to Gloves"
                             Command="{Binding ApplyCommand}"
                             IsEnabled="{Binding IsBusy, Converter={StaticResource InvertedBoolConverter}}"
-                            Style="{StaticResource PrimaryButton}"
+                            Style="{StaticResource ButtonPrimary}"
                             SemanticProperties.Description="Apply the edited profile settings to the connected gloves"
                             SemanticProperties.Hint="Double tap to send the settings to the gloves"
                             AutomationId="ApplyProfileSettingsButton" />
@@ -182,7 +176,7 @@
                     <Button Text="Reload from Gloves"
                             Command="{Binding LoadCommand}"
                             IsEnabled="{Binding IsBusy, Converter={StaticResource InvertedBoolConverter}}"
-                            Style="{StaticResource SecondaryButton}"
+                            Style="{StaticResource ButtonSecondary}"
                             SemanticProperties.Description="Discard edits and reload the current settings from the gloves"
                             SemanticProperties.Hint="Double tap to reload settings from the gloves"
                             AutomationId="ReloadProfileSettingsButton" />
@@ -190,7 +184,7 @@
                     <Button Text="Use Research Defaults"
                             Command="{Binding ResetToDefaultsCommand}"
                             IsEnabled="{Binding IsBusy, Converter={StaticResource InvertedBoolConverter}}"
-                            Style="{StaticResource TertiaryButton}"
+                            Style="{StaticResource ButtonQuiet}"
                             SemanticProperties.Description="Fill the form with the parameters used in the published vibrotactile therapy study"
                             SemanticProperties.Hint="Double tap to fill the form with the study parameters; nothing is sent until you save"
                             AutomationId="ResetToDefaultsButton" />

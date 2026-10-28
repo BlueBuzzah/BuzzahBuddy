@@ -139,16 +139,16 @@ public partial class ConnectionStatusBanner : ContentView
     {
         if (!IsBluetoothEnabled)
         {
-            return GetColorResource("WarningChipBackground");
+            return GetColorResource("WarningSoft");
         }
 
         return ConnectionState switch
         {
-            ConnectionState.Connected => GetColorResource("PrimaryChipBackground"),
-            ConnectionState.Connecting => GetColorResource("PrimaryChipBackground"),
-            ConnectionState.Disconnected => GetColorResource("CardBackgroundLight"),
-            ConnectionState.Error => GetColorResource("DangerChipBackground"),
-            _ => GetColorResource("CardBackgroundLight")
+            ConnectionState.Connected => GetColorResource("BrandSoft"),
+            ConnectionState.Connecting => GetColorResource("BrandSoft"),
+            ConnectionState.Disconnected => GetColorResource("NeutralSoft"),
+            ConnectionState.Error => GetColorResource("DangerSoft"),
+            _ => GetColorResource("NeutralSoft")
         };
     }
 
@@ -212,11 +212,11 @@ public partial class ConnectionStatusBanner : ContentView
 
         return ConnectionState switch
         {
-            ConnectionState.Connected => GetColorResource("Primary"),
-            ConnectionState.Connecting => GetColorResource("Primary"),
-            ConnectionState.Disconnected => GetColorResource("TextMuted"),
-            ConnectionState.Error => GetColorResource("DangerDark"),
-            _ => GetColorResource("TextMuted")
+            ConnectionState.Connected => GetColorResource("Brand"),
+            ConnectionState.Connecting => GetColorResource("Brand"),
+            ConnectionState.Disconnected => GetColorResource("InkMuted"),
+            ConnectionState.Error => GetColorResource("Danger"),
+            _ => GetColorResource("InkMuted")
         };
     }
 
@@ -233,7 +233,7 @@ public partial class ConnectionStatusBanner : ContentView
     private Color GetDetailTextColor()
     {
         // Slightly muted version of status text color
-        return GetColorResource("TextMuted");
+        return GetColorResource("InkMuted");
     }
 
     private string GetActionText()

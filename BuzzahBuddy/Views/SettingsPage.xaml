@@ -12,29 +12,21 @@
 
             <!-- Header -->
             <Label Text="Settings"
-                   Style="{StaticResource Headline}"
+                   Style="{StaticResource TypeHeadline}"
                    SemanticProperties.HeadingLevel="Level1"
                    HorizontalOptions="Center" />
 
             <!-- Preferences Section -->
             <VerticalStackLayout Spacing="15">
-                <Label Text="Preferences"
-                       FontSize="18"
-                       FontAttributes="Bold"
+                <Label Style="{StaticResource TypeTitleM}" Text="Preferences"
                        SemanticProperties.HeadingLevel="Level2" />
 
-                <Border Padding="15"
-                        BackgroundColor="{StaticResource CardBackground}"
-                        StrokeThickness="0">
-                    <Border.StrokeShape>
-                        <RoundRectangle CornerRadius="12" />
-                    </Border.StrokeShape>
+                <Border Style="{StaticResource Card}" Padding="15">
 
                     <VerticalStackLayout Spacing="15">
                         <Grid ColumnDefinitions="*,Auto" MinimumHeightRequest="48">
-                            <Label Grid.Column="0"
+                            <Label Style="{StaticResource TypeBody}" Grid.Column="0"
                                    Text="Enable Notifications"
-                                   FontSize="16"
                                    VerticalOptions="Center" />
                             <Switch Grid.Column="1"
                                     IsToggled="{Binding EnableNotifications}"
@@ -45,9 +37,8 @@
                         </Grid>
 
                         <Grid ColumnDefinitions="*,Auto" MinimumHeightRequest="48">
-                            <Label Grid.Column="0"
+                            <Label Style="{StaticResource TypeBody}" Grid.Column="0"
                                    Text="Auto-Connect to Last Device"
-                                   FontSize="16"
                                    VerticalOptions="Center"
                                    LineBreakMode="WordWrap" />
                             <Switch Grid.Column="1"
@@ -63,14 +54,12 @@
 
             <!-- Data Management -->
             <VerticalStackLayout Spacing="15">
-                <Label Text="Data Management"
-                       FontSize="18"
-                       FontAttributes="Bold"
+                <Label Style="{StaticResource TypeTitleM}" Text="Data Management"
                        SemanticProperties.HeadingLevel="Level2" />
 
                 <Button Text="Clear All Data"
                         Command="{Binding ClearDataCommand}"
-                        Style="{StaticResource WarningActionButton}"
+                        Style="{StaticResource ButtonDanger}"
                         SemanticProperties.Hint="Delete all therapy sessions and custom patterns"
                         SemanticProperties.Description="Clear all stored data"
                         AutomationId="ClearDataButton" />
@@ -78,26 +67,16 @@
 
             <!-- About Section -->
             <VerticalStackLayout Spacing="15" Margin="0,20,0,0">
-                <Label Text="About"
-                       FontSize="18"
-                       FontAttributes="Bold"
+                <Label Style="{StaticResource TypeTitleM}" Text="About"
                        SemanticProperties.HeadingLevel="Level2" />
 
-                <Border Padding="15"
-                        BackgroundColor="{StaticResource CardBackground}"
-                        StrokeThickness="0">
-                    <Border.StrokeShape>
-                        <RoundRectangle CornerRadius="12" />
-                    </Border.StrokeShape>
+                <Border Style="{StaticResource Card}" Padding="15">
 
                     <VerticalStackLayout Spacing="10">
-                        <Label Text="BuzzahBuddy"
-                               FontSize="20"
-                               FontAttributes="Bold" />
-                        <Label Text="{Binding AppVersion, StringFormat='Version {0}'}"
-                               FontSize="14"
-                               TextColor="{StaticResource TextMuted}" />
-                        <Label FontSize="14"
+                        <Label Style="{StaticResource TypeTitleM}" Text="BuzzahBuddy" />
+                        <Label Style="{StaticResource TypeBodyS}" Text="{Binding AppVersion, StringFormat='Version {0}'}"
+                               TextColor="{DynamicResource InkMuted}" />
+                        <Label Style="{StaticResource TypeBodyS}"
                                LineBreakMode="WordWrap"
                                Margin="0,10,0,0"
                                Text="Companion app for BlueBuzzah vibrotactile devices, designed to help manage Parkinson's symptoms through therapeutic vibration." />

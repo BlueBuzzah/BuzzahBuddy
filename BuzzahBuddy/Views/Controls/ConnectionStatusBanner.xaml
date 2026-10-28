@@ -25,7 +25,7 @@
                 <!-- Activity Indicator for Connecting state -->
                 <ActivityIndicator IsRunning="{Binding IsConnecting, Source={x:Reference banner}}"
                                    IsVisible="{Binding IsConnecting, Source={x:Reference banner}}"
-                                   Color="{StaticResource Primary}"
+                                   Color="{DynamicResource Brand}"
                                    WidthRequest="24"
                                    HeightRequest="24"
                                    HorizontalOptions="Center"
@@ -33,9 +33,8 @@
                                    SemanticProperties.Description="Connection in progress" />
 
                 <!-- Status Icon for other states -->
-                <Label Text="{Binding StatusIcon, Source={x:Reference banner}}"
+                <Label Style="{StaticResource TypeTitleL}" Text="{Binding StatusIcon, Source={x:Reference banner}}"
                        IsVisible="{Binding IsConnecting, Source={x:Reference banner}, Converter={StaticResource InvertedBoolConverter}}"
-                       FontSize="24"
                        HorizontalOptions="Center"
                        VerticalOptions="Center"
                        SemanticProperties.Description="{Binding StatusIconDescription, Source={x:Reference banner}}" />
@@ -45,26 +44,22 @@
             <VerticalStackLayout Grid.Column="1"
                                  VerticalOptions="Center"
                                  Spacing="2">
-                <Label Text="{Binding StatusText, Source={x:Reference banner}}"
-                       FontSize="15"
-                       FontAttributes="Bold"
+                <Label Style="{StaticResource TypeLabel}" Text="{Binding StatusText, Source={x:Reference banner}}"
                        TextColor="{Binding StatusTextColor, Source={x:Reference banner}}"
                        SemanticProperties.HeadingLevel="Level3"
                        LineBreakMode="TailTruncation" />
 
                 <!-- Detail text (battery, etc.) - only when connected -->
-                <Label Text="{Binding DetailText, Source={x:Reference banner}}"
-                       FontSize="13"
+                <Label Style="{StaticResource TypeCaption}" Text="{Binding DetailText, Source={x:Reference banner}}"
                        TextColor="{Binding DetailTextColor, Source={x:Reference banner}}"
                        IsVisible="{Binding HasDetailText, Source={x:Reference banner}}"
                        LineBreakMode="TailTruncation" />
             </VerticalStackLayout>
 
             <!-- Action Link (subtle) -->
-            <Label Grid.Column="2"
+            <Label Style="{StaticResource TypeBodyS}" Grid.Column="2"
                    Text="{Binding ActionText, Source={x:Reference banner}}"
-                   TextColor="{StaticResource Primary}"
-                   FontSize="14"
+                   TextColor="{DynamicResource Brand}"
                    TextDecorations="Underline"
                    VerticalOptions="Center"
                    IsVisible="{Binding HasAction, Source={x:Reference banner}}"

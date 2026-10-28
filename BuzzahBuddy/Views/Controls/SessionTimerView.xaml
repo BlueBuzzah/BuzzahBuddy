@@ -16,14 +16,11 @@
                              Spacing="2"
                              InputTransparent="True"
                              AutomationProperties.IsInAccessibleTree="False">
-            <Label x:Name="TimeLabel"
-                   FontSize="52"
-                   FontAttributes="Bold"
-                   TextColor="{StaticResource TextPrimary}"
+            <Label Style="{StaticResource TypeMetricXl}" x:Name="TimeLabel"
+                   TextColor="{DynamicResource Ink}"
                    HorizontalTextAlignment="Center" />
-            <Label x:Name="CaptionLabel"
-                   FontSize="14"
-                   TextColor="{StaticResource TextMuted}"
+            <Label Style="{StaticResource TypeBodyS}" x:Name="CaptionLabel"
+                   TextColor="{DynamicResource InkMuted}"
                    HorizontalTextAlignment="Center" />
         </VerticalStackLayout>
     </Grid>
