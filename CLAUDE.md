@@ -55,6 +55,7 @@ Rules:
 | Build iOS | `dotnet build BuzzahBuddy/BuzzahBuddy.csproj -f net10.0-ios -p:TargetFrameworks=net10.0-ios` |
 | Compile-check `BluetoothService` | `dotnet build BuzzahBuddy/BuzzahBuddy.csproj -f net10.0 -p:TargetFrameworks=net10.0` |
 | Run on physical iPhone | `./run-ios.sh` (env: `IOS_UDID`, `IOS_PROVISION`, `IOS_CONFIG`) |
+| Regenerate design tokens | `python3 scripts/gen_design_tokens.py` |
 
 `-p:TargetFrameworks=...` is not optional on a single-TFM build: an unpinned restore
 resolves assets for *all* TFMs and fails wherever that workload isn't installed
@@ -147,7 +148,7 @@ check both:
 `BuzzahBuddy.Tests` is plain `net10.0` with **no `ProjectReference`** — it
 `Compile Include`s app sources (`Models/**`, `Services/Glove/**`, `RxFrameAssembler`,
 `ResponseMatcher`, `BlueBuzzahConstants`, `IBluetoothService`, `MockBluetoothService`,
-`DesignColors`, `IntMatch`). A ProjectReference would force restore across every app TFM
+`DesignColors.g`, `IntMatch`). A ProjectReference would force restore across every app TFM
 and fail without mobile workloads. A new testable source needs its own `Compile Include`.
 
 - `BluetoothService.cs` is **excluded on purpose** — its ctor hits
@@ -195,12 +196,15 @@ the default to `None` and Android 16 forces edge-to-edge; `DeviceListPage`/
 `CalibrationPage` anchor primary buttons to the bottom edge, exactly where the gesture
 nav bar sits. `SoftInput` is intentionally unused.
 
-### Colors
+### Colors and tokens
 
-Values come from the design system's color tokens. The app holds hex values in three
-hand-synced places; change them together: `Resources/Styles/Colors.xaml`,
-`Helpers/DesignColors.cs` (constants; `Helpers/ColorResources.cs` falls back to them when
-app resources aren't loaded) and `Views/Controls/SessionTimerView.xaml.cs` (4 hex literals).
+`scripts/gen_design_tokens.py` generates every color and size token from the design
+system's `tokens.json` (stdlib Python; `--ds` defaults to the workspace skill path). It
+writes `Resources/Styles/Themes/*Theme.g.xaml(.cs)` (the four themes), `Tokens.g.xaml`,
+`Type.g.xaml`, `Helpers/DesignColors.g.cs` (the same colors for code that can't reach app
+resources; `ColorResources.Get` falls back to its dark theme) and
+`Platforms/Android/Resources/values{,-night}/colors.xml`. **Never hand-edit them**: rerun
+the script after the design system changes and commit the output.
 
 ## Gotchas
 

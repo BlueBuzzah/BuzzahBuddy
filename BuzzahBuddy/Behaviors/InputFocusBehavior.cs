@@ -40,7 +40,7 @@ public class InputFocusBehavior : Behavior<Border>
     {
         if (sender is VisualElement { Parent: Border border })
         {
-            border.Stroke = new SolidColorBrush(ColorResources.Get("Primary", DesignColors.Primary));
+            border.Stroke = new SolidColorBrush(ColorResources.Get("Brand"));
         }
     }
 
@@ -48,7 +48,7 @@ public class InputFocusBehavior : Behavior<Border>
     {
         if (sender is VisualElement { Parent: Border border })
         {
-            border.Stroke = new SolidColorBrush(ColorResources.Get("CardBorder", DesignColors.CardBorder));
+            border.Stroke = new SolidColorBrush(ColorResources.Get("Line"));
         }
     }
 }

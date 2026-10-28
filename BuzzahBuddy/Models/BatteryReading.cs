@@ -43,13 +43,13 @@ public static class BatteryReading
             : "—";
 
     /// <summary>
-    /// Gets display color for a battery percentage. Primary (blue) >= 60%, Warning >= 20%, DangerDark below.
+    /// Gets display color for a battery percentage. Brand >= 60%, Warning >= 20%, Danger below (dark-theme values until GloveStatus replaces this).
     /// </summary>
     public static Color GetBatteryColor(int percentage) => percentage switch
     {
-        >= 60 => DesignColors.Primary,    // brand rule: blue signals success
-        >= 20 => DesignColors.Warning,
-        _ => DesignColors.DangerDark      // text/icon on dark surfaces
+        >= 60 => DesignColors.Themes["dark"]["Brand"],
+        >= 20 => DesignColors.Themes["dark"]["Warning"],
+        _ => DesignColors.Themes["dark"]["Danger"]
     };
 
     /// <summary>
@@ -57,9 +57,9 @@ public static class BatteryReading
     /// </summary>
     public static Color GetBatteryColorFromVoltage(double voltage)
     {
-        if (voltage > BlueBuzzahConstants.BatteryGoodThreshold) return DesignColors.Primary;
-        if (voltage >= BlueBuzzahConstants.BatteryMediumThreshold) return DesignColors.Warning;
-        return DesignColors.DangerDark;
+        if (voltage > BlueBuzzahConstants.BatteryGoodThreshold) return DesignColors.Themes["dark"]["Brand"];
+        if (voltage >= BlueBuzzahConstants.BatteryMediumThreshold) return DesignColors.Themes["dark"]["Warning"];
+        return DesignColors.Themes["dark"]["Danger"];
     }
 
     /// <summary>

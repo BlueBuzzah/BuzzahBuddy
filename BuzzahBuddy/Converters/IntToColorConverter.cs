@@ -6,14 +6,14 @@ namespace BuzzahBuddy.Converters;
 
 /// <summary>
 /// Converts an integer value to a background color based on whether it matches
-/// the converter parameter. Returns Primary if matched, Secondary otherwise.
+/// the converter parameter. Returns Brand if matched, SurfaceRaised otherwise.
 /// </summary>
 public class IntToColorConverter : IValueConverter
 {
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
         IntMatch.Matches(value, parameter)
-            ? ColorResources.Get("Primary", DesignColors.Primary)
-            : ColorResources.Get("Secondary", DesignColors.Secondary);
+            ? ColorResources.Get("Brand")
+            : ColorResources.Get("SurfaceRaised");
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
         throw new NotSupportedException($"{nameof(IntToColorConverter)} is one-way only.");
