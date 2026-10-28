@@ -1,0 +1,50 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<!-- GloveStatus (GloveStatus README; bundle .bb-glove): one glove's role, link and battery,
+     read by screen readers as one sentence. Under 20% the battery turns warning and says Low. -->
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:controls="clr-namespace:BuzzahBuddy.Views.Controls"
+             x:Class="BuzzahBuddy.Views.Controls.GloveStatusView">
+    <Border x:Name="Root"
+            BackgroundColor="{DynamicResource SurfaceRaised}"
+            Stroke="{DynamicResource Line}"
+            StrokeThickness="{StaticResource BorderHairline}"
+            Padding="{StaticResource Space4}">
+        <Border.StrokeShape>
+            <RoundRectangle CornerRadius="{StaticResource RadiusLg}" />
+        </Border.StrokeShape>
+        <VerticalStackLayout Spacing="{StaticResource Space2}" AutomationProperties.ExcludedWithChildren="True">
+            <Border WidthRequest="48"
+                    HeightRequest="48"
+                    HorizontalOptions="Start"
+                    StrokeThickness="0"
+                    BackgroundColor="{DynamicResource BrandSoft}">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="{StaticResource RadiusFull}" />
+                </Border.StrokeShape>
+                <Label x:Name="HandGlyph"
+                       Style="{StaticResource IconLabel}"
+                       FontSize="32"
+                       HorizontalOptions="Center"
+                       TextColor="{DynamicResource Brand}" />
+            </Border>
+            <Label x:Name="NameText" Style="{StaticResource TypeTitleM}" Margin="0,4,0,0" />
+            <controls:StatusBadge x:Name="Badge" />
+            <HorizontalStackLayout x:Name="BatteryRow" Spacing="{StaticResource Space2}">
+                <Label x:Name="BatteryGlyph" Style="{StaticResource IconLabel}" VerticalOptions="Center" />
+                <Label x:Name="PercentText"
+                       Style="{StaticResource TypeTitleL}"
+                       FontFamily="{DynamicResource FontDisplay500}"
+                       VerticalOptions="Center" />
+                <Label x:Name="LowText"
+                       Text="Low"
+                       Style="{StaticResource TypeCaption}"
+                       FontFamily="{DynamicResource FontSans700}"
+                       TextColor="{DynamicResource Warning}"
+                       VerticalOptions="Center" />
+            </HorizontalStackLayout>
+            <Label x:Name="FirmwareText" Style="{StaticResource TypeCodeS}" TextColor="{DynamicResource InkMuted}" />
+            <Label x:Name="DetailText" Style="{StaticResource TypeCodeS}" TextColor="{DynamicResource InkMuted}" />
+        </VerticalStackLayout>
+    </Border>
+</ContentView>

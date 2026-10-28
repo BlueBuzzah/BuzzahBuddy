@@ -35,19 +35,21 @@ public static class BatteryReading
     }
 
     /// <summary>
-    /// Display string for a reading, e.g. "60% (3.72V)", or "—" when unavailable.
+    /// Display string for a reading, e.g. "60%", or "—" when unavailable.
     /// </summary>
     public static string Format(double? voltage) =>
-        voltage is { } v
-            ? string.Create(CultureInfo.InvariantCulture, $"{ToPercentage(v)}% ({v:F2}V)")
-            : "—";
+        voltage is { } v ? string.Create(CultureInfo.InvariantCulture, $"{ToPercentage(v)}%") : "—";
+
+    /// <summary>The raw voltage for technical detail, e.g. "3.72 V"; null when unavailable.</summary>
+    public static string? FormatVolts(double? voltage) =>
+        voltage is { } v ? string.Create(CultureInfo.InvariantCulture, $"{v:F2} V") : null;
 
     /// <summary>
-    /// Gets display color for a battery percentage. Brand >= 60%, Warning >= 20%, Danger below (dark-theme values until GloveStatus replaces this).
+    /// Gets display color for a battery percentage. Success >= 60%, Warning >= 20%, Danger below (dark-theme values; removed once GloveStatus replaces its last caller).
     /// </summary>
     public static Color GetBatteryColor(int percentage) => percentage switch
     {
-        >= 60 => DesignColors.Themes["dark"]["Brand"],
+        >= 60 => DesignColors.Themes["dark"]["Success"],
         >= 20 => DesignColors.Themes["dark"]["Warning"],
         _ => DesignColors.Themes["dark"]["Danger"]
     };
@@ -57,7 +59,7 @@ public static class BatteryReading
     /// </summary>
     public static Color GetBatteryColorFromVoltage(double voltage)
     {
-        if (voltage > BlueBuzzahConstants.BatteryGoodThreshold) return DesignColors.Themes["dark"]["Brand"];
+        if (voltage > BlueBuzzahConstants.BatteryGoodThreshold) return DesignColors.Themes["dark"]["Success"];
         if (voltage >= BlueBuzzahConstants.BatteryMediumThreshold) return DesignColors.Themes["dark"]["Warning"];
         return DesignColors.Themes["dark"]["Danger"];
     }
