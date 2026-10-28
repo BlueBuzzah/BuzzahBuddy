@@ -57,6 +57,7 @@ Rules:
 | Run on physical iPhone | `./run-ios.sh` (env: `IOS_UDID`, `IOS_PROVISION`, `IOS_CONFIG`) |
 | Regenerate design tokens | `python3 scripts/gen_design_tokens.py` |
 | Regenerate fonts | `scripts/gen_fonts.py` (needs fontTools + brotli; see its docstring) |
+| Regenerate Lucide icons | `scripts/gen_icons.py <lucide-static@1.55.0 package dir>` (see its docstring) |
 
 `-p:TargetFrameworks=...` is not optional on a single-TFM build: an unpinned restore
 resolves assets for *all* TFMs and fails wherever that workload isn't installed
@@ -149,7 +150,7 @@ check both:
 `BuzzahBuddy.Tests` is plain `net10.0` with **no `ProjectReference`** — it
 `Compile Include`s app sources (`Models/**`, `Services/Glove/**`, `RxFrameAssembler`,
 `ResponseMatcher`, `BlueBuzzahConstants`, `IBluetoothService`, `MockBluetoothService`,
-`DesignColors.g`, `IntMatch`). A ProjectReference would force restore across every app TFM
+`DesignColors.g`, `LucideIcons.g`, `IntMatch`). A ProjectReference would force restore across every app TFM
 and fail without mobile workloads. A new testable source needs its own `Compile Include`.
 
 - `BluetoothService.cs` is **excluded on purpose** — its ctor hits

@@ -61,6 +61,7 @@ public static class MauiProgram
 				fonts.AddFont("AtkinsonHyperlegibleNext-ExtraBold.ttf", "AtkinsonExtraBold");
 				fonts.AddFont("AtkinsonHyperlegibleMono-Regular.ttf", "AtkinsonMonoRegular");
 				fonts.AddFont("AtkinsonHyperlegibleMono-Bold.ttf", "AtkinsonMonoBold");
+				fonts.AddFont("lucide.ttf", "Lucide");
 			});
 
 		StripNativeInputChrome();
