@@ -25,7 +25,7 @@ public partial class FingerButtonItem : ObservableObject
     /// <summary>AutomationId for UI testing (e.g. "PrimaryIndexButton").</summary>
     public string AutomationId { get; }
 
-    /// <summary>"Primary glove" or "Secondary glove".</summary>
+    /// <summary>"Primary Glove" or "Secondary Glove".</summary>
     public string Glove { get; }
 
     /// <summary>Tested fingers show a Lucide check on the button (bound in XAML).</summary>
@@ -92,8 +92,8 @@ public partial class CalibrationViewModel : BaseViewModel
     [ObservableProperty]
     private string _selectedFingerName = string.Empty;
 
-    /// <summary>StatusBadge text while a finger buzzes, e.g. "Buzzing index".</summary>
-    public string BuzzingText => $"Buzzing {SelectedFingerName.Split(' ').Last().ToLowerInvariant()}";
+    /// <summary>StatusBadge text while a finger buzzes, e.g. "Buzzing Index".</summary>
+    public string BuzzingText => $"Buzzing {SelectedFingerName.Split(' ').Last()}";
 
     partial void OnSelectedFingerNameChanged(string value) => OnPropertyChanged(nameof(BuzzingText));
 
@@ -114,7 +114,7 @@ public partial class CalibrationViewModel : BaseViewModel
     private string _stepCaption = "Step 1 of 3";
 
     [ObservableProperty]
-    private string _stepTitle = "Pick a strength";
+    private string _stepTitle = "Pick a Strength";
 
     [ObservableProperty]
     private string _stepDescription = "Start low. Go higher if you can't feel it.";
@@ -187,7 +187,7 @@ public partial class CalibrationViewModel : BaseViewModel
                 : fullLabel;
 
             var item = new FingerButtonItem(i, shortLabel, fullLabel.Replace(" ", "") + "Button",
-                i < count ? "Primary glove" : "Secondary glove");
+                i < count ? "Primary Glove" : "Secondary Glove");
 
             if (i < count)
                 PrimaryFingers.Add(item);
@@ -200,7 +200,7 @@ public partial class CalibrationViewModel : BaseViewModel
     private async Task EnterCalibrationModeAsync()
     {
         if (!ConnectionInfo.IsConnected)
-            return; // the "Connect your primary glove" banner says what to do
+            return; // the "Connect Your Primary Glove" banner says what to do
 
         IsBusy = true;
 
@@ -213,7 +213,7 @@ public partial class CalibrationViewModel : BaseViewModel
             RebuildFingerButtons();
 
             EndedByDisconnect = false;
-            SemanticScreenReader.Announce("Test mode on");
+            SemanticScreenReader.Announce("Test Mode On");
         }
         catch (BlueBuzzahCommandException ex)
         {
@@ -245,7 +245,7 @@ public partial class CalibrationViewModel : BaseViewModel
             IsInCalibrationMode = false;
             SelectedFingerIndex = -1;
             SelectedFingerName = string.Empty;
-            SemanticScreenReader.Announce("Test mode off");
+            SemanticScreenReader.Announce("Test Mode Off");
         }
         catch (BlueBuzzahCommandException ex)
         {
@@ -299,9 +299,9 @@ public partial class CalibrationViewModel : BaseViewModel
     private async Task SkipCalibrationAsync()
     {
         var skip = await _confirmation.ConfirmAsync(new ConfirmRequest(
-            "Skip the motor test?",
+            "Skip the Motor Test?",
             "We'll use 50% strength and 200 ms buzzes. You can test the motors any time.",
-            "Skip test"));
+            "Skip Test"));
         if (!skip)
             return; // Cancel leaves strength and length as they were
 
@@ -316,8 +316,8 @@ public partial class CalibrationViewModel : BaseViewModel
         if (!IsInCalibrationMode)
         {
             await Shell.Current.DisplayAlert(
-                "Start test mode first",
-                "Tap Start test mode, then try again.",
+                "Start Test Mode First",
+                "Tap Start Test Mode, then try again.",
                 "OK");
             return;
         }
@@ -326,7 +326,7 @@ public partial class CalibrationViewModel : BaseViewModel
         if (fingerIndex < 0 || fingerIndex > maxFingerIndex)
         {
             await Shell.Current.DisplayAlert(
-                "That finger isn't available",
+                "That Finger Isn't Available",
                 "Pick one of the finger buttons on this screen.",
                 "OK");
             return;
@@ -434,17 +434,17 @@ public partial class CalibrationViewModel : BaseViewModel
         {
             case 1:
                 StepCaption = "Step 1 of 3";
-                StepTitle = "Pick a strength";
+                StepTitle = "Pick a Strength";
                 StepDescription = "Start low. Go higher if you can't feel it.";
                 break;
             case 2:
                 StepCaption = "Step 2 of 3";
-                StepTitle = "Pick a buzz length";
+                StepTitle = "Pick a Buzz Length";
                 StepDescription = "Longer buzzes are easier to notice.";
                 break;
             case 3:
                 StepCaption = "Step 3 of 3";
-                StepTitle = "Test each finger";
+                StepTitle = "Test Each Finger";
                 StepDescription = "Tap a finger to make it buzz. A check shows it's done.";
                 break;
         }

@@ -278,7 +278,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         if (SelectedProfile?.IsCustom != true)
         {
             await Shell.Current.DisplayAlert(
-                "Select Custom first",
+                "Select Custom First",
                 "Tap the Custom profile to select it, then edit its settings.",
                 "OK");
             return;
@@ -287,7 +287,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         if (!ConnectionInfo.IsConnected)
         {
             await Shell.Current.DisplayAlert(
-                "Connect your primary glove",
+                "Connect Your Primary Glove",
                 "Connect on the Gloves tab to see and change these settings.",
                 "OK");
             return;
@@ -298,7 +298,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         if (IsSessionActive)
         {
             await Shell.Current.DisplayAlert(
-                "Stop your session first",
+                "Stop Your Session First",
                 "Settings can't change while a session runs.",
                 "OK");
             return;
@@ -310,8 +310,8 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         if (_gloveControlService.DeviceProfileId != TherapyProfile.CustomProfileId)
         {
             await Shell.Current.DisplayAlert(
-                "Apply Custom first",
-                "Tap Apply settings to load the Custom profile onto your gloves, then edit its settings.",
+                "Apply Custom First",
+                "Tap Apply Settings to load the Custom profile onto your gloves, then edit its settings.",
                 "OK");
             return;
         }
@@ -338,7 +338,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         if (IsSessionActive)
         {
             await Shell.Current.DisplayAlert(
-                "Stop your session first",
+                "Stop Your Session First",
                 "Settings can't change while a session runs.",
                 "OK");
             return;
@@ -348,9 +348,9 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         if (applyProfile)
         {
             var confirm = await _confirmation.ConfirmAsync(new ConfirmRequest(
-                "Restart gloves to apply?",
+                "Restart Gloves to Apply?",
                 $"Switching to \u201c{SelectedProfile!.Name}\u201d restarts both gloves. They usually reconnect on their own in under a minute.",
-                "Apply and restart"));
+                "Apply and Restart"));
             if (!confirm)
                 return;
         }
@@ -446,8 +446,8 @@ public partial class DeviceSettingsViewModel : BaseViewModel
             var success = await _gloveControlService.PingAsync();
 
             _resultBanner = success
-                ? (StatusTone.Success, "Connection works", "Your primary glove buzzed once.")
-                : (StatusTone.Danger, "Connection test failed", "Move your phone closer to your primary glove, then try again.");
+                ? (StatusTone.Success, "Connection Works", "Your primary glove buzzed once.")
+                : (StatusTone.Danger, "Connection Test Failed", "Move your phone closer to your primary glove, then try again.");
             ResolveBanner();
         }
         finally
@@ -510,7 +510,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     {
         (StatusTone Tone, string Title, string Message)? banner =
             IsSessionActive && ConnectionInfo.IsConnected
-                ? (StatusTone.Warning, "Stop your session to change settings", "Glove settings are locked while a session runs.")
+                ? (StatusTone.Warning, "Stop Your Session to Change Settings", "Glove settings are locked while a session runs.")
                 : _resultBanner;
         BannerVisible = banner is not null;
         if (banner is { } b)
@@ -831,7 +831,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
             // The apply modal blocks back navigation, so voice the reconnect for
             // screen-reader users parked on it; once, then the result (D11b).
             MainThread.BeginInvokeOnMainThread(() =>
-                SemanticScreenReader.Announce("Reconnecting to your primary glove"));
+                SemanticScreenReader.Announce("Reconnecting to Your Primary Glove"));
         }
     }
 

@@ -15,16 +15,16 @@
     <Grid RowDefinitions="*,Auto" Padding="16,16,16,16">
         <ScrollView>
             <VerticalStackLayout Spacing="{StaticResource Space6}" Padding="0,0,0,16">
-                <Label Text="Test motors" Style="{StaticResource TypeHeadline}" SemanticProperties.HeadingLevel="Level1" />
+                <Label Text="Test Motors" Style="{StaticResource TypeHeadline}" SemanticProperties.HeadingLevel="Level1" />
                 <Label Text="Check that each finger motor buzzes. Pick a strength and a buzz length, then tap each finger." />
 
                 <controls:Banner IsVisible="{Binding ShowNotConnected}"
                                  Tone="Info"
-                                 Title="Connect your primary glove"
+                                 Title="Connect Your Primary Glove"
                                  Message="Connect on the Gloves tab to test the motors." />
                 <controls:Banner IsVisible="{Binding EndedByDisconnect}"
                                  Tone="Warning"
-                                 Title="Test mode ended"
+                                 Title="Test Mode Ended"
                                  Message="Your primary glove disconnected. Connect again on the Gloves tab."
                                  Announce="True" />
 
@@ -48,7 +48,7 @@
 
                         <controls:SegmentedControl IsVisible="{Binding IsStep2}"
                                                    IsEnabled="{Binding CanCalibrate}"
-                                                   Label="Buzz length"
+                                                   Label="Buzz Length"
                                                    Options="{Binding DurationOptions}"
                                                    SelectedValue="{Binding Duration}" />
 
@@ -56,7 +56,7 @@
                             <controls:StatusBadge Tone="Brand" Text="{Binding BuzzingText}" IsVisible="{Binding IsBuzzing}" />
                             <Label Text="Wait for the buzz to finish." Style="{StaticResource TypeCaption}"
                                    TextColor="{DynamicResource InkMuted}" IsVisible="{Binding IsBuzzing}" />
-                        <Label Text="Primary glove" Style="{StaticResource TypeTitleS}" SemanticProperties.HeadingLevel="Level3" />
+                        <Label Text="Primary Glove" Style="{StaticResource TypeTitleS}" SemanticProperties.HeadingLevel="Level3" />
                         <FlexLayout Wrap="Wrap" Margin="-6,0" BindableLayout.ItemsSource="{Binding PrimaryFingers}">
                             <BindableLayout.ItemTemplate>
                                 <DataTemplate x:DataType="vm:FingerButtonItem">
@@ -81,7 +81,7 @@
                                 </DataTemplate>
                             </BindableLayout.ItemTemplate>
                         </FlexLayout>
-                        <Label Text="Secondary glove" Style="{StaticResource TypeTitleS}" SemanticProperties.HeadingLevel="Level3" />
+                        <Label Text="Secondary Glove" Style="{StaticResource TypeTitleS}" SemanticProperties.HeadingLevel="Level3" />
                         <FlexLayout Wrap="Wrap" Margin="-6,0" BindableLayout.ItemsSource="{Binding SecondaryFingers}">
                             <BindableLayout.ItemTemplate>
                                 <DataTemplate x:DataType="vm:FingerButtonItem">
@@ -130,28 +130,28 @@
 
         <!-- Bottom zone: test mode controls in easy reach -->
         <VerticalStackLayout Grid.Row="1" Spacing="{StaticResource TargetGap}">
-            <controls:StatusBadge Tone="Brand" Text="Test mode on" IsVisible="{Binding IsInCalibrationMode}" AutomationId="CalibrationStatusLabel" />
-            <controls:StatusBadge Tone="Neutral" Text="Test mode off"
+            <controls:StatusBadge Tone="Brand" Text="Test Mode On" IsVisible="{Binding IsInCalibrationMode}" AutomationId="CalibrationStatusLabel" />
+            <controls:StatusBadge Tone="Neutral" Text="Test Mode Off"
                                   IsVisible="{Binding IsInCalibrationMode, Converter={StaticResource InvertedBoolConverter}}" />
-            <Button Text="Start test mode"
+            <Button Text="Start Test Mode"
                     Style="{StaticResource ButtonPrimary}"
                     Command="{Binding EnterCalibrationModeCommand}"
                     IsVisible="{Binding IsInCalibrationMode, Converter={StaticResource InvertedBoolConverter}}"
                     IsEnabled="{Binding ConnectionInfo.IsConnected}"
-                    SemanticProperties.Description="Start test mode"
+                    SemanticProperties.Description="Start Test Mode"
                     AutomationId="EnterCalibrationButton" />
-            <Button Text="End test mode"
+            <Button Text="End Test Mode"
                     Style="{StaticResource ButtonSecondary}"
                     Command="{Binding ExitCalibrationModeCommand}"
                     IsVisible="{Binding IsInCalibrationMode}"
-                    SemanticProperties.Description="End test mode"
+                    SemanticProperties.Description="End Test Mode"
                     AutomationId="ExitCalibrationButton" />
-            <Button Text="Skip and use defaults"
+            <Button Text="Skip and Use Defaults"
                     Style="{StaticResource ButtonQuiet}"
                     Command="{Binding SkipCalibrationCommand}"
                     IsVisible="{Binding IsInCalibrationMode}"
                     IsEnabled="{Binding ConnectionInfo.IsConnected}"
-                    SemanticProperties.Description="Skip and use defaults"
+                    SemanticProperties.Description="Skip and Use Defaults"
                     AutomationId="SkipCalibrationButton" />
         </VerticalStackLayout>
     </Grid>

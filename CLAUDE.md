@@ -41,6 +41,12 @@ Rules:
 - **Copy, don't link.** Copy fonts, icons and the app-icon files from the design system's
   `assets/` (`iOS`, `Android`) into this repo. Never reference the workspace path at build
   time, because this repo builds and ships on its own.
+- **Title Case labels (owner override of the design system's sentence case).** Buttons,
+  screen, card, sheet, alert and banner titles, tab names, field and switch labels,
+  segment options, badges and profile names use Title Case, with articles, conjunctions
+  and prepositions lowercase mid-title ("Scan for Gloves", "Skip the Motor Test?").
+  Messages, hints, errors and screen-reader announcements stay sentence case; a message
+  that names a button uses its label as written ("tap Apply Settings").
 - **Don't invent rules.** If the design system doesn't cover something, ask rather than
   inventing a rule.
 - **Full migrations:** a whole-app pass is the `/implement-design-system` command, run from

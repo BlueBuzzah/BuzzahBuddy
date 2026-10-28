@@ -125,7 +125,7 @@ public class ConnectionStateService : IConnectionStateService, IDisposable
                 ReconnectionState.Reconnecting => $"Reconnecting, try {e.Attempt} of {e.MaxAttempts}",
                 // Succeeded intentionally maps to null: recovery needs no lingering
                 // warning banner (screen readers get "Device connected" already).
-                ReconnectionState.Failed => "Couldn't reconnect. Go to Gloves and tap Scan for gloves.",
+                ReconnectionState.Failed => "Couldn't reconnect. Go to Gloves and tap Scan for Gloves.",
                 _ => null
             };
         });

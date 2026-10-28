@@ -211,7 +211,7 @@ public class TherapyProfile
             new TherapyProfile
             {
                 ProfileId = 6,
-                Name = "Quick test",
+                Name = "Quick Test",
                 Description = "A 5-minute session to check that your gloves work.",
                 ActuatorType = "LRA",
                 ActuatorFrequency = 250,

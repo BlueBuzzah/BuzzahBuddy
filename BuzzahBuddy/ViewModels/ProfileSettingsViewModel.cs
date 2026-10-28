@@ -157,10 +157,10 @@ public partial class ProfileSettingsViewModel : BaseViewModel
     {
         (StatusTone Tone, string Title, string Message, string? Detail)? banner =
             !IsLoaded || !ConnectionInfo.IsConnected
-                ? (StatusTone.Info, "Connect your primary glove", "Connect on the Gloves tab to see and change these settings.", null)
+                ? (StatusTone.Info, "Connect Your Primary Glove", "Connect on the Gloves tab to see and change these settings.", null)
             : _saveResult is { } result ? result
             : DeviatesFromResearchDefaults
-                ? (StatusTone.Warning, "These settings differ from the study",
+                ? (StatusTone.Warning, "These Settings Differ from the Study",
                     "They're within what the gloves accept, but no study has tested them.", null)
             : null;
         BannerVisible = banner is not null;
@@ -221,9 +221,9 @@ public partial class ProfileSettingsViewModel : BaseViewModel
         // confirmation (BlueBuzzah design system, accessibility.md) because an accidental tap is a real hazard
         // for tremor-prone users, and there is no undo once the fields are replaced.
         var confirmed = await _confirmation.ConfirmAsync(new ConfirmRequest(
-            "Use the study settings?",
-            "This fills the form with the settings from the published study. Nothing changes on your gloves until you tap Save to gloves.",
-            "Use study settings"));
+            "Use the Study Settings?",
+            "This fills the form with the settings from the published study. Nothing changes on your gloves until you tap Save to Gloves.",
+            "Use Study Settings"));
 
         if (confirmed)
             PopulateFrom(ResearchDefaults.For(MotorCount));
@@ -240,7 +240,7 @@ public partial class ProfileSettingsViewModel : BaseViewModel
 
         if (!IsLoaded || !ConnectionInfo.IsConnected)
         {
-            ResolveBanner(); // "Connect your primary glove"
+            ResolveBanner(); // "Connect Your Primary Glove"
             return;
         }
 
@@ -254,7 +254,7 @@ public partial class ProfileSettingsViewModel : BaseViewModel
         JitterError = errors.GetValueOrDefault(CustomProfileField.Jitter);
         if (errors.Count > 0 || !CurrentForm().TryBuildProfile(out var desired))
         {
-            SemanticScreenReader.Announce(errors.Values.FirstOrDefault() ?? "Something went wrong");
+            SemanticScreenReader.Announce(errors.Values.FirstOrDefault() ?? "Something Went Wrong");
             return;
         }
 
@@ -297,7 +297,7 @@ public partial class ProfileSettingsViewModel : BaseViewModel
             }
             else
             {
-                _saveResult = (StatusTone.Info, "Saved until the gloves restart",
+                _saveResult = (StatusTone.Info, "Saved until the Gloves Restart",
                     "This firmware doesn't store Custom settings. Update it with the BlueBuzzah Updater to keep them.", null);
             }
         }

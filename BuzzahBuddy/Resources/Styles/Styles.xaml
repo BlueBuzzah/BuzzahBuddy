@@ -209,7 +209,7 @@
         <Setter Property="MinimumHeightRequest" Value="{StaticResource Target}" />
     </Style>
 
-    <!-- Numbered step marker (Session "Get started"): a 32px brand-soft circle, brand number. -->
+    <!-- Numbered step marker (Session "Get Started"): a 32px brand-soft circle, brand number. -->
     <Style x:Key="StepNumber" TargetType="Border">
         <Setter Property="WidthRequest" Value="32" />
         <Setter Property="HeightRequest" Value="32" />

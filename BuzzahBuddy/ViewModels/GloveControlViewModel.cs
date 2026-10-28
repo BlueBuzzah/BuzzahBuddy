@@ -71,7 +71,7 @@ public partial class GloveControlViewModel : BaseViewModel
     /// <summary>
     /// Display name of the current therapy profile, or a prompt when none is selected.
     /// </summary>
-    public string SelectedProfileName => SelectedProfile?.Name ?? "Choose a profile first";
+    public string SelectedProfileName => SelectedProfile?.Name ?? "Choose a Profile First";
 
     /// <summary>One-line summary of the current profile, e.g. "2 h sessions".</summary>
     public string ProfileSummary => SelectedProfile is { } p
@@ -238,7 +238,7 @@ public partial class GloveControlViewModel : BaseViewModel
         if (!ConnectionInfo.IsConnected)
         {
             await Shell.Current.DisplayAlert(
-                "Connection lost",
+                "Connection Lost",
                 "Connect again on the Gloves tab, then try again.",
                 "OK");
             return;
@@ -247,8 +247,8 @@ public partial class GloveControlViewModel : BaseViewModel
         if (!IsSessionActive && SelectedProfile == null)
         {
             await Shell.Current.DisplayAlert(
-                "Choose a profile first",
-                "Go to Gloves, pick a therapy profile, then tap Apply settings.",
+                "Choose a Profile First",
+                "Go to Gloves, pick a therapy profile, then tap Apply Settings.",
                 "OK");
             return;
         }
@@ -264,8 +264,8 @@ public partial class GloveControlViewModel : BaseViewModel
                     SelectedProfile.ProfileId != _gloveControlService.DeviceProfileId)
                 {
                     await Shell.Current.DisplayAlert(
-                        "Apply your profile first",
-                        $"Your gloves are still using another profile. Go to Gloves and tap Apply settings to use \u201c{SelectedProfile.Name}\u201d.",
+                        "Apply Your Profile First",
+                        $"Your gloves are still using another profile. Go to Gloves and tap Apply Settings to use \u201c{SelectedProfile.Name}\u201d.",
                         "OK");
                     return;
                 }
@@ -342,10 +342,10 @@ public partial class GloveControlViewModel : BaseViewModel
         // Ending a session always confirms (buzzahbuddy.md Session screen). Dismissing
         // the sheet any other way, Android back included, keeps the session going.
         var stop = await _confirmation.ConfirmAsync(new ConfirmRequest(
-            "Stop this session?",
+            "Stop This Session?",
             "Your gloves stop buzzing. The time so far is saved.",
-            "Stop session",
-            "Keep going",
+            "Stop Session",
+            "Keep Going",
             Destructive: true));
         if (!stop || !IsSessionActive)
             return;
@@ -450,34 +450,34 @@ public partial class GloveControlViewModel : BaseViewModel
         static bool Low(double? v) => v is { } volts && volts < BlueBuzzahConstants.BatteryLowThreshold;
         var primaryLow = Low(BatteryPrimaryVoltage);
         var secondaryLow = Low(BatterySecondaryVoltage);
-        string? lowGlove = primaryLow && !secondaryLow ? "primary" : secondaryLow && !primaryLow ? "secondary" : null;
+        string? lowGlove = primaryLow && !secondaryLow ? "Primary" : secondaryLow && !primaryLow ? "Secondary" : null;
 
         (StatusTone Tone, string Title, string Message, bool GoToGloves)? banner = null;
         if (_sessionEndedMessage is { } ended)
-            banner = (StatusTone.Danger, "Your session stopped", ended, _sessionEndedByConnection);
+            banner = (StatusTone.Danger, "Your Session Stopped", ended, _sessionEndedByConnection);
         else if (ConnectionInfo.IsReconnecting)
-            banner = (StatusTone.Warning, "Reconnecting to your primary glove",
+            banner = (StatusTone.Warning, "Reconnecting to Your Primary Glove",
                 _reconnectAttempt.Max > 0
                     ? $"Keep your phone near the glove. Try {_reconnectAttempt.Attempt} of {_reconnectAttempt.Max}."
                     : "Keep your phone near the glove.",
                 true);
         else if (SessionWarningMessage == ConnectionUnstableWarning)
-            banner = (StatusTone.Warning, "Connection is unstable",
+            banner = (StatusTone.Warning, "Connection Is Unstable",
                 "Keep your phone close to your primary glove. The session keeps running.", false);
         else if (SessionStatus.Status == SessionState.LOW_BATTERY)
             banner = (StatusTone.Warning,
-                lowGlove is null ? "A glove battery is low" : $"Your {lowGlove} glove battery is low",
+                lowGlove is null ? "A Glove Battery Is Low" : $"Your {lowGlove} Glove Battery Is Low",
                 "The session keeps running. Charge the glove after this session.", false);
         else if (!IsSessionActive && ConnectionInfo.IsConnected && (primaryLow || secondaryLow))
             banner = primaryLow && secondaryLow
-                ? (StatusTone.Warning, "Charge both gloves",
+                ? (StatusTone.Warning, "Charge Both Gloves",
                     $"Primary is at {BatteryReading.ToPercentage(BatteryPrimaryVoltage!.Value)}% and secondary at {BatteryReading.ToPercentage(BatterySecondaryVoltage!.Value)}%, which may not last a full session.", false)
-                : (StatusTone.Warning, $"Charge your {lowGlove} glove",
+                : (StatusTone.Warning, $"Charge Your {lowGlove} Glove",
                     $"It's at {BatteryReading.ToPercentage((primaryLow ? BatteryPrimaryVoltage : BatterySecondaryVoltage)!.Value)}%, which may not last a full session.", false);
         else if (SessionWarningMessage is not null)
-            banner = (StatusTone.Info, "Session time may be behind", "We're waiting for an update from your primary glove.", false);
+            banner = (StatusTone.Info, "Session Time May Be Behind", "We're waiting for an update from your primary glove.", false);
         else if (_showComplete)
-            banner = (StatusTone.Success, "Session complete", "Your session is saved.", false);
+            banner = (StatusTone.Success, "Session Complete", "Your session is saved.", false);
 
         BannerVisible = banner is not null;
         if (banner is { } b)
@@ -986,7 +986,7 @@ public partial class GloveControlViewModel : BaseViewModel
             {
                 ConnectionState.Connected when _wasReconnecting => "Gloves reconnected",
                 ConnectionState.Disconnected or ConnectionState.Error => "Gloves disconnected",
-                ConnectionState.Reconnecting when !_wasReconnecting => "Reconnecting to your primary glove",
+                ConnectionState.Reconnecting when !_wasReconnecting => "Reconnecting to Your Primary Glove",
                 _ => null
             };
             _wasReconnecting = state == ConnectionState.Reconnecting
@@ -1089,9 +1089,9 @@ public partial class GloveControlViewModel : BaseViewModel
             // One optional note in the person's own words (no effectiveness rating:
             // the app makes no outcome claims).
             var notes = await Shell.Current.DisplayPromptAsync(
-                "Add a note?",
+                "Add a Note?",
                 "Write anything you want to remember about this session. It stays on this phone.",
-                accept: "Save note",
+                accept: "Save Note",
                 cancel: "Skip",
                 placeholder: "For example: Tremor felt lighter after lunch",
                 maxLength: 500,

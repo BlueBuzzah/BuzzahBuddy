@@ -38,8 +38,8 @@ public class GloveStatusTextTests
     {
         Assert.Equal((StatusTone.Success, "Connected"), GloveStatusText.Badge(GloveLinkStatus.Connected));
         Assert.Equal((StatusTone.Brand, "Connecting"), GloveStatusText.Badge(GloveLinkStatus.Connecting));
-        Assert.Equal((StatusTone.Danger, "Not connected"), GloveStatusText.Badge(GloveLinkStatus.Disconnected));
-        Assert.Equal((StatusTone.Neutral, "No reading"), GloveStatusText.Badge(GloveLinkStatus.NoReading));
+        Assert.Equal((StatusTone.Danger, "Not Connected"), GloveStatusText.Badge(GloveLinkStatus.Disconnected));
+        Assert.Equal((StatusTone.Neutral, "No Reading"), GloveStatusText.Badge(GloveLinkStatus.NoReading));
     }
 
     [Fact]

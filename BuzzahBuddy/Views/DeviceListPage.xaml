@@ -30,13 +30,13 @@
 
                 <VerticalStackLayout Spacing="{StaticResource Space3}">
                     <controls:GloveStatusPair Primary="{Binding Settings.PrimaryGlove}" Secondary="{Binding Settings.SecondaryGlove}" />
-                    <Button Text="Refresh battery"
+                    <Button Text="Refresh Battery"
                             Style="{StaticResource ButtonQuiet}"
                             HorizontalOptions="Start"
                             ContentLayout="Left,8"
                             Command="{Binding Settings.RefreshBatteryCommand}"
                             IsEnabled="{Binding Settings.IsNotRefreshingBattery}"
-                            SemanticProperties.Description="Refresh battery"
+                            SemanticProperties.Description="Refresh Battery"
                             AutomationId="RefreshBatteryButton">
                         <Button.ImageSource>
                             <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.RefreshCw}" Size="20" Color="{DynamicResource Brand}" />
@@ -46,8 +46,8 @@
 
                 <!-- Therapy profile: a single-choice list (plan choice PC27) -->
                 <VerticalStackLayout Spacing="{StaticResource Space3}">
-                    <Label Text="Therapy profile" Style="{StaticResource TypeTitleL}" SemanticProperties.HeadingLevel="Level2" />
-                    <Label Text="Pick a profile, then tap Apply settings. Your gloves restart to use it."
+                    <Label Text="Therapy Profile" Style="{StaticResource TypeTitleL}" SemanticProperties.HeadingLevel="Level2" />
+                    <Label Text="Pick a profile, then tap Apply Settings. Your gloves restart to use it."
                            Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
                     <VerticalStackLayout BindableLayout.ItemsSource="{Binding Settings.AvailableProfiles}" Spacing="{StaticResource Space3}">
                         <BindableLayout.ItemTemplate>
@@ -94,12 +94,12 @@
                                             <Label Text="{Binding Description}" Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
                                         </VerticalStackLayout>
                                         <Button Grid.Row="1" Grid.Column="1"
-                                                Text="Edit settings"
+                                                Text="Edit Settings"
                                                 Style="{StaticResource ButtonQuiet}"
                                                 HorizontalOptions="Start"
                                                 Margin="0,12,0,0"
                                                 IsVisible="{Binding CanEditParameters}"
-                                                SemanticProperties.Description="Edit settings"
+                                                SemanticProperties.Description="Edit Settings"
                                                 AutomationId="{Binding EditParametersAutomationId}">
                                             <Button.Command>
                                                 <Binding Source="{x:Reference page}" Path="BindingContext.Settings.EditCustomParametersCommand" x:DataType="{x:Null}" />
@@ -114,26 +114,26 @@
 
                 <!-- Glove options -->
                 <VerticalStackLayout Spacing="{StaticResource Space3}">
-                    <Label Text="Glove options" Style="{StaticResource TypeTitleL}" SemanticProperties.HeadingLevel="Level2" />
+                    <Label Text="Glove Options" Style="{StaticResource TypeTitleL}" SemanticProperties.HeadingLevel="Level2" />
                     <Border Style="{StaticResource Card}" Padding="0,8" IsVisible="{Binding Settings.TherapyLedLoaded}">
-                        <controls:SwitchRow Label="Turn off the glove light during sessions"
+                        <controls:SwitchRow Label="Turn Off the Glove Light during Sessions"
                                             Description="The status light stays dark so it won't distract you."
                                             IsToggled="{Binding Settings.TherapyLedOff}"
                                             IsEnabled="{Binding Settings.TherapyLedBusy, Converter={StaticResource InvertedBoolConverter}}"
                                             AutomationId="TherapyLedOffSwitch" />
                     </Border>
-                    <Button Text="Test connection"
+                    <Button Text="Test Connection"
                             Style="{StaticResource ButtonSecondary}"
                             Command="{Binding Settings.TestConnectionCommand}"
                             IsEnabled="{Binding Settings.IsNotTestingConnection}"
-                            SemanticProperties.Description="Test connection"
+                            SemanticProperties.Description="Test Connection"
                             AutomationId="TestConnectionButton" />
-                    <Button Text="Test motors"
+                    <Button Text="Test Motors"
                             Style="{StaticResource ButtonSecondary}"
                             ContentLayout="Right,8"
                             Command="{Binding Settings.NavigateToCalibrationCommand}"
                             IsEnabled="{Binding Settings.IsSessionInactive}"
-                            SemanticProperties.Description="Test motors"
+                            SemanticProperties.Description="Test Motors"
                             AutomationId="CalibrateMotorsButton">
                         <Button.ImageSource>
                             <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.ChevronRight}" Size="20" Color="{DynamicResource Brand}" />
@@ -143,10 +143,10 @@
 
                 <!-- Apply: the screen's one primary action -->
                 <VerticalStackLayout Spacing="{StaticResource Space2}">
-                    <Button Text="Apply settings"
+                    <Button Text="Apply Settings"
                             Style="{StaticResource ButtonPrimary}"
                             Command="{Binding Settings.ApplySettingsCommand}"
-                            SemanticProperties.Description="Apply settings"
+                            SemanticProperties.Description="Apply Settings"
                             AutomationId="ApplyDeviceSettingsButton">
                         <Button.IsEnabled>
                             <MultiBinding Converter="{StaticResource AllTrueConverter}">
@@ -157,7 +157,7 @@
                             </MultiBinding>
                         </Button.IsEnabled>
                     </Button>
-                    <controls:StatusBadge Tone="Success" Text="Saved to both gloves" IsVisible="{Binding Settings.SavedBadgeVisible}" />
+                    <controls:StatusBadge Tone="Success" Text="Saved to Both Gloves" IsVisible="{Binding Settings.SavedBadgeVisible}" />
                     <Label Text="{Binding Settings.ApplyDisabledReason}"
                            Style="{StaticResource TypeCaption}"
                            TextColor="{DynamicResource InkMuted}"
@@ -193,19 +193,19 @@
                             <VerticalStackLayout Spacing="{StaticResource Space3}" VerticalOptions="Center" IsVisible="{Binding ShowReadyState}">
                                 <Label Style="{StaticResource IconLabel}" FontSize="32" HorizontalOptions="Center"
                                        Text="{x:Static helpers:LucideIcons.Bluetooth}" TextColor="{DynamicResource Brand}" />
-                                <Label Text="Find your gloves" Style="{StaticResource TypeTitleM}" HorizontalTextAlignment="Center" SemanticProperties.HeadingLevel="Level2" />
-                                <Label Text="Turn on both gloves, then tap Scan for gloves." HorizontalTextAlignment="Center" />
+                                <Label Text="Find Your Gloves" Style="{StaticResource TypeTitleM}" HorizontalTextAlignment="Center" SemanticProperties.HeadingLevel="Level2" />
+                                <Label Text="Turn on both gloves, then tap Scan for Gloves." HorizontalTextAlignment="Center" />
                             </VerticalStackLayout>
                             <VerticalStackLayout Spacing="{StaticResource Space3}" VerticalOptions="Center" IsVisible="{Binding IsScanning}">
                                 <ActivityIndicator IsRunning="{Binding IsScanning}" HeightRequest="32" WidthRequest="32"
                                                    AutomationProperties.IsInAccessibleTree="False" />
-                                <Label Text="Looking for gloves…" Style="{StaticResource TypeTitleM}" HorizontalTextAlignment="Center" SemanticProperties.HeadingLevel="Level2" />
+                                <Label Text="Looking for Gloves…" Style="{StaticResource TypeTitleM}" HorizontalTextAlignment="Center" SemanticProperties.HeadingLevel="Level2" />
                                 <Label Text="This can take up to 10 seconds." HorizontalTextAlignment="Center" TextColor="{DynamicResource InkMuted}" />
                             </VerticalStackLayout>
                             <VerticalStackLayout Spacing="{StaticResource Space3}" VerticalOptions="Center" IsVisible="{Binding ShowNoResultsState}">
                                 <Label Style="{StaticResource IconLabel}" FontSize="32" HorizontalOptions="Center"
                                        Text="{x:Static helpers:LucideIcons.Bluetooth}" TextColor="{DynamicResource Brand}" />
-                                <Label Text="No gloves found" Style="{StaticResource TypeTitleM}" HorizontalTextAlignment="Center" SemanticProperties.HeadingLevel="Level2" />
+                                <Label Text="No Gloves Found" Style="{StaticResource TypeTitleM}" HorizontalTextAlignment="Center" SemanticProperties.HeadingLevel="Level2" />
                                 <Border Style="{StaticResource Card}" Shadow="{x:Null}">
                                     <VerticalStackLayout Spacing="{StaticResource Space2}">
                                         <Label Text="Check these, then scan again:" Style="{StaticResource TypeBodyStrong}" />
@@ -248,7 +248,7 @@
                                    IsVisible="{Binding ShowScanningWithResults}">
                 <ActivityIndicator IsRunning="{Binding ShowScanningWithResults}" HeightRequest="20" WidthRequest="20"
                                    AutomationProperties.IsInAccessibleTree="False" />
-                <Label Text="Still looking for more gloves…" Style="{StaticResource TypeBodyS}" VerticalOptions="Center" AutomationId="StillScanningLabel" />
+                <Label Text="Still Looking for More Gloves…" Style="{StaticResource TypeBodyS}" VerticalOptions="Center" AutomationId="StillScanningLabel" />
             </HorizontalStackLayout>
         </Grid>
 
@@ -269,7 +269,7 @@
                 <VerticalStackLayout Spacing="{StaticResource Space3}">
                     <ActivityIndicator IsRunning="{Binding IsConnecting}" HeightRequest="32" WidthRequest="32"
                                        AutomationProperties.IsInAccessibleTree="False" />
-                    <Label Text="Connecting to your glove…" Style="{StaticResource TypeTitleM}" HorizontalTextAlignment="Center" />
+                    <Label Text="Connecting to Your Glove…" Style="{StaticResource TypeTitleM}" HorizontalTextAlignment="Center" />
                     <Label Text="This can take up to 15 seconds." Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" HorizontalTextAlignment="Center" />
                 </VerticalStackLayout>
             </Border>

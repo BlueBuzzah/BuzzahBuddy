@@ -71,9 +71,9 @@ public partial class SettingsViewModel : BaseViewModel
 	private async Task ClearDataAsync()
 	{
 		var confirm = await _confirmation.ConfirmAsync(new ConfirmRequest(
-			"Delete all data?",
+			"Delete All Data?",
 			"This deletes your saved sessions and notes and forgets your last glove and profile. It can't be undone.",
-			"Delete all data",
+			"Delete All Data",
 			Destructive: true));
 		if (!confirm)
 			return;

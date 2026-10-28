@@ -33,7 +33,7 @@
                                  IsVisible="{Binding ConnectionInfo.IsConnected, Converter={StaticResource InvertedBoolConverter}}">
                 <Border Style="{StaticResource Card}">
                     <VerticalStackLayout Spacing="{StaticResource Space4}">
-                        <Label Text="Get started"
+                        <Label Text="Get Started"
                                Style="{StaticResource TypeTitleM}"
                                SemanticProperties.HeadingLevel="Level2" />
                         <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto"
@@ -42,31 +42,31 @@
                                 <Label Text="1" Style="{StaticResource StepNumberText}" />
                             </Border>
                             <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
-                                <Label Text="Turn on both gloves" Style="{StaticResource TypeBodyStrong}" />
+                                <Label Text="Turn On Both Gloves" Style="{StaticResource TypeBodyStrong}" />
                                 <Label Text="Press the button on each glove." Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
                             </VerticalStackLayout>
                             <Border Grid.Row="1" Style="{StaticResource StepNumber}">
                                 <Label Text="2" Style="{StaticResource StepNumberText}" />
                             </Border>
                             <VerticalStackLayout Grid.Row="1" Grid.Column="1" VerticalOptions="Center">
-                                <Label Text="Connect your primary glove" Style="{StaticResource TypeBodyStrong}" />
-                                <Label Text="Go to Gloves and tap Scan for gloves." Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
+                                <Label Text="Connect Your Primary Glove" Style="{StaticResource TypeBodyStrong}" />
+                                <Label Text="Go to Gloves and tap Scan for Gloves." Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
                             </VerticalStackLayout>
                             <Border Grid.Row="2" Style="{StaticResource StepNumber}">
                                 <Label Text="3" Style="{StaticResource StepNumberText}" />
                             </Border>
                             <VerticalStackLayout Grid.Row="2" Grid.Column="1" VerticalOptions="Center">
-                                <Label Text="Start your session" Style="{StaticResource TypeBodyStrong}" />
-                                <Label Text="Come back here and tap Start session." Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
+                                <Label Text="Start Your Session" Style="{StaticResource TypeBodyStrong}" />
+                                <Label Text="Come back here and tap Start Session." Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
                             </VerticalStackLayout>
                         </Grid>
                     </VerticalStackLayout>
                 </Border>
 
-                <Button Text="Find gloves"
+                <Button Text="Find Gloves"
                         Style="{StaticResource ButtonPrimary}"
                         Command="{Binding NavigateToDevicesCommand}"
-                        SemanticProperties.Description="Find gloves"
+                        SemanticProperties.Description="Find Gloves"
                         AutomationId="FindDevicesButton" />
             </VerticalStackLayout>
 
@@ -86,7 +86,7 @@
                 <Border Style="{StaticResource Card}">
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{StaticResource Space3}">
                         <VerticalStackLayout Spacing="2" VerticalOptions="Center">
-                            <Label Text="Therapy profile"
+                            <Label Text="Therapy Profile"
                                    Style="{StaticResource TypeBodyS}"
                                    TextColor="{DynamicResource InkMuted}"
                                    SemanticProperties.HeadingLevel="Level2" />
@@ -110,13 +110,13 @@
 
                 <!-- Session controls: xl, full width; Start alone, or Pause/Resume over Stop -->
                 <VerticalStackLayout Spacing="{StaticResource TargetGap}">
-                    <Button Text="Start session"
+                    <Button Text="Start Session"
                             Style="{StaticResource ButtonPrimaryXl}"
                             Command="{Binding StartSessionCommand}"
                             IsVisible="{Binding IsSessionActive, Converter={StaticResource InvertedBoolConverter}}"
                             IsEnabled="{Binding IsNotBusy}"
                             ContentLayout="Left,8"
-                            SemanticProperties.Description="Start session"
+                            SemanticProperties.Description="Start Session"
                             AutomationId="SessionControlButton">
                         <Button.ImageSource>
                             <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Play}" Size="24" Color="{DynamicResource OnBrand}" />

@@ -18,14 +18,14 @@ public sealed record GloveStatusInfo(GloveRole Role, GloveLinkStatus Status, int
 /// <summary>GloveStatus words and thresholds, after the design system's bundle.js GloveStatus.</summary>
 public static class GloveStatusText
 {
-    public static string Name(GloveRole role) => role == GloveRole.Primary ? "Primary glove" : "Secondary glove";
+    public static string Name(GloveRole role) => role == GloveRole.Primary ? "Primary Glove" : "Secondary Glove";
 
     public static (StatusTone Tone, string Text) Badge(GloveLinkStatus status) => status switch
     {
         GloveLinkStatus.Connected => (StatusTone.Success, "Connected"),
         GloveLinkStatus.Connecting => (StatusTone.Brand, "Connecting"),
-        GloveLinkStatus.NoReading => (StatusTone.Neutral, "No reading"),
-        _ => (StatusTone.Danger, "Not connected"),
+        GloveLinkStatus.NoReading => (StatusTone.Neutral, "No Reading"),
+        _ => (StatusTone.Danger, "Not Connected"),
     };
 
     /// <summary>Under 20% the battery turns warning and says "Low".</summary>
@@ -37,7 +37,8 @@ public static class GloveStatusText
     /// <summary>One sentence for screen readers: "Primary glove, connected, battery 87 percent".</summary>
     public static string Describe(GloveStatusInfo info)
     {
-        var text = $"{Name(info.Role)}, {Badge(info.Status).Text.ToLowerInvariant()}";
+        var name = Name(info.Role);
+        var text = $"{name[..1]}{name[1..].ToLowerInvariant()}, {Badge(info.Status).Text.ToLowerInvariant()}";
         if (info.Status == GloveLinkStatus.Connected && info.BatteryPercent is { } percent)
             text += $", battery {percent} percent{(IsLow(percent) ? ", low" : "")}";
         return text;

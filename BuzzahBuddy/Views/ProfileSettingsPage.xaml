@@ -16,7 +16,7 @@
 
     <ScrollView>
         <VerticalStackLayout Padding="16,16,16,24" Spacing="{StaticResource Space6}">
-            <Label Text="Custom profile" Style="{StaticResource TypeHeadline}" SemanticProperties.HeadingLevel="Level1" />
+            <Label Text="Custom Profile" Style="{StaticResource TypeHeadline}" SemanticProperties.HeadingLevel="Level1" />
             <Label Text="These settings make up your Custom profile. Your gloves keep them after a restart." />
 
             <controls:Banner IsVisible="{Binding BannerVisible}"
@@ -31,14 +31,14 @@
 
             <VerticalStackLayout Spacing="{StaticResource Space6}" IsVisible="{Binding IsLoaded}">
                     <VerticalStackLayout Spacing="{StaticResource Space2}">
-                        <Label Text="Buzz length" Style="{StaticResource TypeLabel}" AutomationProperties.IsInAccessibleTree="False" />
+                        <Label Text="Buzz Length" Style="{StaticResource TypeLabel}" AutomationProperties.IsInAccessibleTree="False" />
                         <Border Style="{StaticResource TextFieldBorder}">
                             <Border.Behaviors>
                                 <behaviors:InputFocusBehavior HasError="{Binding TimeOnError, Converter={StaticResource IsNotNullConverter}}" />
                             </Border.Behaviors>
                             <Entry Text="{Binding TimeOnMsText}"
                                    Keyboard="Numeric"
-                                   SemanticProperties.Description="Buzz length"
+                                   SemanticProperties.Description="Buzz Length"
                                    SemanticProperties.Hint="{Binding TimeOnError}"
                                    AutomationId="TimeOnEntry" />
                         </Border>
@@ -52,14 +52,14 @@
                     </VerticalStackLayout>
 
                     <VerticalStackLayout Spacing="{StaticResource Space2}">
-                        <Label Text="Pause between buzzes" Style="{StaticResource TypeLabel}" AutomationProperties.IsInAccessibleTree="False" />
+                        <Label Text="Pause between Buzzes" Style="{StaticResource TypeLabel}" AutomationProperties.IsInAccessibleTree="False" />
                         <Border Style="{StaticResource TextFieldBorder}">
                             <Border.Behaviors>
                                 <behaviors:InputFocusBehavior HasError="{Binding TimeOffError, Converter={StaticResource IsNotNullConverter}}" />
                             </Border.Behaviors>
                             <Entry Text="{Binding TimeOffMsText}"
                                    Keyboard="Numeric"
-                                   SemanticProperties.Description="Pause between buzzes"
+                                   SemanticProperties.Description="Pause between Buzzes"
                                    SemanticProperties.Hint="{Binding TimeOffError}"
                                    AutomationId="TimeOffEntry" />
                         </Border>
@@ -78,14 +78,14 @@
                            AutomationId="DerivedTimingLabel" />
 
                     <VerticalStackLayout Spacing="{StaticResource Space2}">
-                        <Label Text="Session length" Style="{StaticResource TypeLabel}" AutomationProperties.IsInAccessibleTree="False" />
+                        <Label Text="Session Length" Style="{StaticResource TypeLabel}" AutomationProperties.IsInAccessibleTree="False" />
                         <Border Style="{StaticResource TextFieldBorder}">
                             <Border.Behaviors>
                                 <behaviors:InputFocusBehavior HasError="{Binding SessionError, Converter={StaticResource IsNotNullConverter}}" />
                             </Border.Behaviors>
                             <Entry Text="{Binding SessionMinutesText}"
                                    Keyboard="Numeric"
-                                   SemanticProperties.Description="Session length"
+                                   SemanticProperties.Description="Session Length"
                                    SemanticProperties.Hint="{Binding SessionError}"
                                    AutomationId="SessionEntry" />
                         </Border>
@@ -99,14 +99,14 @@
                     </VerticalStackLayout>
 
                     <VerticalStackLayout Spacing="{StaticResource Space2}">
-                        <Label Text="Softest buzz" Style="{StaticResource TypeLabel}" AutomationProperties.IsInAccessibleTree="False" />
+                        <Label Text="Softest Buzz" Style="{StaticResource TypeLabel}" AutomationProperties.IsInAccessibleTree="False" />
                         <Border Style="{StaticResource TextFieldBorder}">
                             <Border.Behaviors>
                                 <behaviors:InputFocusBehavior HasError="{Binding AmplitudeMinError, Converter={StaticResource IsNotNullConverter}}" />
                             </Border.Behaviors>
                             <Entry Text="{Binding AmplitudeMinText}"
                                    Keyboard="Numeric"
-                                   SemanticProperties.Description="Softest buzz"
+                                   SemanticProperties.Description="Softest Buzz"
                                    SemanticProperties.Hint="{Binding AmplitudeMinError}"
                                    AutomationId="AmplitudeMinEntry" />
                         </Border>
@@ -120,14 +120,14 @@
                     </VerticalStackLayout>
 
                     <VerticalStackLayout Spacing="{StaticResource Space2}">
-                        <Label Text="Strongest buzz" Style="{StaticResource TypeLabel}" AutomationProperties.IsInAccessibleTree="False" />
+                        <Label Text="Strongest Buzz" Style="{StaticResource TypeLabel}" AutomationProperties.IsInAccessibleTree="False" />
                         <Border Style="{StaticResource TextFieldBorder}">
                             <Border.Behaviors>
                                 <behaviors:InputFocusBehavior HasError="{Binding AmplitudeMaxError, Converter={StaticResource IsNotNullConverter}}" />
                             </Border.Behaviors>
                             <Entry Text="{Binding AmplitudeMaxText}"
                                    Keyboard="Numeric"
-                                   SemanticProperties.Description="Strongest buzz"
+                                   SemanticProperties.Description="Strongest Buzz"
                                    SemanticProperties.Hint="{Binding AmplitudeMaxError}"
                                    AutomationId="AmplitudeMaxEntry" />
                         </Border>
@@ -141,14 +141,14 @@
                     </VerticalStackLayout>
 
                     <VerticalStackLayout Spacing="{StaticResource Space2}">
-                        <Label Text="Timing variation" Style="{StaticResource TypeLabel}" AutomationProperties.IsInAccessibleTree="False" />
+                        <Label Text="Timing Variation" Style="{StaticResource TypeLabel}" AutomationProperties.IsInAccessibleTree="False" />
                         <Border Style="{StaticResource TextFieldBorder}">
                             <Border.Behaviors>
                                 <behaviors:InputFocusBehavior HasError="{Binding JitterError, Converter={StaticResource IsNotNullConverter}}" />
                             </Border.Behaviors>
                             <Entry Text="{Binding JitterText}"
                                    Keyboard="Numeric"
-                                   SemanticProperties.Description="Timing variation"
+                                   SemanticProperties.Description="Timing Variation"
                                    SemanticProperties.Hint="{Binding JitterError}"
                                    AutomationId="JitterEntry" />
                         </Border>
@@ -169,31 +169,31 @@
                     </VerticalStackLayout>
 
                 <Border Style="{StaticResource Card}" Padding="0,8">
-                    <controls:SwitchRow Label="Same pattern on both gloves"
+                    <controls:SwitchRow Label="Same Pattern on Both Gloves"
                                         Description="Both gloves buzz the same fingers at the same time."
                                         IsToggled="{Binding Mirror}"
                                         AutomationId="MirrorSwitch" />
                 </Border>
 
                 <VerticalStackLayout Spacing="{StaticResource TargetGap}">
-                    <Button Text="Save to gloves"
+                    <Button Text="Save to Gloves"
                             Style="{StaticResource ButtonPrimary}"
                             Command="{Binding ApplyCommand}"
                             IsEnabled="{Binding IsNotBusy}"
-                            SemanticProperties.Description="Save to gloves"
+                            SemanticProperties.Description="Save to Gloves"
                             AutomationId="ApplyProfileSettingsButton" />
-                    <controls:StatusBadge Tone="Success" Text="Saved to both gloves" IsVisible="{Binding SavedBadgeVisible}" />
-                    <Button Text="Reload from gloves"
+                    <controls:StatusBadge Tone="Success" Text="Saved to Both Gloves" IsVisible="{Binding SavedBadgeVisible}" />
+                    <Button Text="Reload from Gloves"
                             Style="{StaticResource ButtonSecondary}"
                             Command="{Binding LoadCommand}"
                             IsEnabled="{Binding IsNotBusy}"
-                            SemanticProperties.Description="Reload from gloves"
+                            SemanticProperties.Description="Reload from Gloves"
                             AutomationId="ReloadProfileSettingsButton" />
-                    <Button Text="Use study settings"
+                    <Button Text="Use Study Settings"
                             Style="{StaticResource ButtonQuiet}"
                             Command="{Binding ResetToDefaultsCommand}"
                             IsEnabled="{Binding IsNotBusy}"
-                            SemanticProperties.Description="Use study settings"
+                            SemanticProperties.Description="Use Study Settings"
                             AutomationId="ResetToDefaultsButton" />
                 </VerticalStackLayout>
             </VerticalStackLayout>

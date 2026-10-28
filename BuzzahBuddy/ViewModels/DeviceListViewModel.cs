@@ -60,7 +60,7 @@ public partial class DeviceListViewModel : BaseViewModel
     private string? _connectingDeviceId;
 
     [ObservableProperty]
-    private string _scanButtonText = "Scan for gloves";
+    private string _scanButtonText = "Scan for Gloves";
 
     // The scan view's one banner: Bluetooth off > last connect/scan failure > apply
     // that never reconnected (Banner README).
@@ -204,7 +204,7 @@ public partial class DeviceListViewModel : BaseViewModel
 
             if (!BluetoothEnabled)
             {
-                // The "Bluetooth is off" banner (OnBluetoothEnabledChanged) says what to do.
+                // The "Bluetooth Is Off" banner (OnBluetoothEnabledChanged) says what to do.
                 return;
             }
 
@@ -318,10 +318,10 @@ public partial class DeviceListViewModel : BaseViewModel
             return true;
 
         var openSettings = await Shell.Current.DisplayAlert(
-            "Bluetooth isn't allowed",
+            "Bluetooth Isn't Allowed",
             "Turn on Bluetooth for BuzzahBuddy in your phone's settings, then scan again.",
-            "Open settings",
-            "Not now");
+            "Open Settings",
+            "Not Now");
         if (openSettings)
             AppInfo.Current.ShowSettingsUI();
 
@@ -335,11 +335,11 @@ public partial class DeviceListViewModel : BaseViewModel
     {
         if (IsScanning)
         {
-            ScanButtonText = "Stop scanning";
+            ScanButtonText = "Stop Scanning";
         }
         else
         {
-            ScanButtonText = "Scan for gloves";
+            ScanButtonText = "Scan for Gloves";
         }
     }
 
@@ -350,7 +350,7 @@ public partial class DeviceListViewModel : BaseViewModel
             return;
 
         var confirm = await _confirmation.ConfirmAsync(new ConfirmRequest(
-            "Disconnect your gloves?",
+            "Disconnect Your Gloves?",
             "Your phone stops controlling the gloves. A running session keeps going on the gloves.",
             "Disconnect",
             Destructive: true));
@@ -385,9 +385,9 @@ public partial class DeviceListViewModel : BaseViewModel
     private void ResolveBanner()
     {
         (StatusTone Tone, string Title, string Message, string? Detail, string? Action)? banner =
-            !BluetoothEnabled ? (StatusTone.Warning, "Bluetooth is off", "Turn on Bluetooth to find your gloves.", null, "Open settings")
+            !BluetoothEnabled ? (StatusTone.Warning, "Bluetooth Is Off", "Turn on Bluetooth to find your gloves.", null, "Open Settings")
             : _lastError is { } e ? (StatusTone.Danger, e.Title, e.Message, e.Detail, null)
-            : Settings.ApplyReconnectFailed ? (StatusTone.Warning, "Your gloves haven't reconnected",
+            : Settings.ApplyReconnectFailed ? (StatusTone.Warning, "Your Gloves Haven't Reconnected",
                 "The settings were sent. Make sure both gloves are on, then connect again below.", null, null)
             : null;
         BannerVisible = banner is not null;

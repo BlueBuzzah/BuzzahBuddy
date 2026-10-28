@@ -23,7 +23,7 @@
                                                    Options="{Binding ThemeOptions}"
                                                    SelectedValue="{Binding SelectedTheme}"
                                                    AutomationId="ThemeControl" />
-                        <controls:SwitchRow Label="High contrast"
+                        <controls:SwitchRow Label="High Contrast"
                                             Description="Stronger colors and edges. When this is off, BuzzahBuddy follows your phone's setting."
                                             IsToggled="{Binding HighContrast}"
                                             Margin="-16,0"
@@ -35,12 +35,12 @@
             <VerticalStackLayout Spacing="{StaticResource Space3}">
                 <Label Text="Data" Style="{StaticResource TypeTitleL}" SemanticProperties.HeadingLevel="Level2" />
                 <Label Text="Saved sessions and notes stay on this phone." Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
-                <Button Text="Clear all data"
+                <Button Text="Clear All Data"
                         Style="{StaticResource ButtonDanger}"
                         Command="{Binding ClearDataCommand}"
-                        SemanticProperties.Description="Clear all data"
+                        SemanticProperties.Description="Clear All Data"
                         AutomationId="ClearDataButton" />
-                <controls:StatusBadge Tone="Success" Text="Data cleared" IsVisible="{Binding DataClearedVisible}" />
+                <controls:StatusBadge Tone="Success" Text="Data Cleared" IsVisible="{Binding DataClearedVisible}" />
             </VerticalStackLayout>
 
             <VerticalStackLayout Spacing="{StaticResource Space3}">
