@@ -4,6 +4,7 @@ using BuzzahBuddy.Services.AppLifecycle;
 using BuzzahBuddy.Services.Bluetooth;
 using BuzzahBuddy.Services.Glove;
 using BuzzahBuddy.Services.ConnectionStateManagement;
+using BuzzahBuddy.Services.Dialogs;
 using BuzzahBuddy.Services.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -21,6 +22,17 @@ public partial class GloveControlViewModel : BaseViewModel
     private readonly IBluetoothService _bluetoothService;
     private readonly IDataStorageService _storageService;
     private readonly IReconnectionService _reconnectionService;
+    private readonly IConfirmationService _confirmation;
+    // One guard for Start, Pause/Resume and Stop: they replace each other in the same
+    // spot, so a tremor's second tap must not land on the next control (Review focus 1).
+    private readonly RepeatGuard _sessionControls = new(RepeatGuard.SessionControlWindow);
+    private readonly AnnouncementThrottle _ringSpeech = new(TimeSpan.FromMinutes(1));
+    private bool _showComplete;
+    private int _completedTotalSeconds;
+    private string? _sessionEndedMessage;
+    private bool _sessionEndedByConnection;
+    private bool _wasReconnecting;
+    private (int Attempt, int Max) _reconnectAttempt;
     private TherapySession? _currentSession;
     // Set when the link dropped mid-session and an auto-reconnect is running: the
     // gloves keep the session going without the phone, so _currentSession is kept
@@ -54,16 +66,16 @@ public partial class GloveControlViewModel : BaseViewModel
     [NotifyPropertyChangedFor(nameof(ProfileSummary))]
     private TherapyProfile? _selectedProfile;
 
+    partial void OnSelectedProfileChanged(TherapyProfile? value) => UpdateTimerDisplay(updateSemantics: true);
+
     /// <summary>
     /// Display name of the current therapy profile, or a prompt when none is selected.
     /// </summary>
-    public string SelectedProfileName => SelectedProfile?.Name ?? "No profile selected";
+    public string SelectedProfileName => SelectedProfile?.Name ?? "Choose a profile first";
 
-    /// <summary>
-    /// One-line summary of the current profile, e.g. "120 min session • 250 Hz".
-    /// </summary>
+    /// <summary>One-line summary of the current profile, e.g. "2 h sessions".</summary>
     public string ProfileSummary => SelectedProfile is { } p
-        ? $"{p.TimeSession} min session • {p.ActuatorFrequency} Hz"
+        ? $"{DurationText.Short(p.TimeSession * 60)} sessions"
         : string.Empty;
 
     [ObservableProperty]
@@ -79,72 +91,51 @@ public partial class GloveControlViewModel : BaseViewModel
     private bool _isSessionPaused;
 
     [ObservableProperty]
-    private double _timerProgressFraction;
+    private SessionRingState _ringState = SessionRingState.Idle;
 
     [ObservableProperty]
-    private string _timerRemainingText = "00:00";
+    private double _ringProgress;
 
     [ObservableProperty]
-    private string? _timerElapsedText;
+    private string _ringTimeText = string.Empty;
 
     [ObservableProperty]
-    private string _timerCaption = string.Empty;
+    private string _ringAccessibleText = string.Empty;
 
     [ObservableProperty]
-    private string _timerSemanticDescription = string.Empty;
+    private GloveStatusInfo _primaryGlove = new(GloveRole.Primary, GloveLinkStatus.Disconnected, null);
+
+    [ObservableProperty]
+    private GloveStatusInfo _secondaryGlove = new(GloveRole.Secondary, GloveLinkStatus.Disconnected, null);
+
+    // One banner slot, highest priority wins (plan choice PC13; Banner README).
+    [ObservableProperty]
+    private bool _bannerVisible;
+
+    [ObservableProperty]
+    private StatusTone _bannerTone = StatusTone.Info;
+
+    [ObservableProperty]
+    private string? _bannerTitle;
+
+    [ObservableProperty]
+    private string? _bannerMessage;
+
+    [ObservableProperty]
+    private string? _bannerActionText;
 
     // Null voltage = no reading available (missing key or firmware 0.00 sentinel)
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(BatteryPrimaryText))]
-    [NotifyPropertyChangedFor(nameof(BatteryPrimaryDescription))]
     private double? _batteryPrimaryVoltage;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(BatterySecondaryText))]
-    [NotifyPropertyChangedFor(nameof(BatterySecondaryDescription))]
     private double? _batterySecondaryVoltage;
-
-    // Gray = no reading yet; real thresholds apply after the first battery poll
-    [ObservableProperty]
-    private Color _batteryPrimaryColor = Colors.Gray;
-
-    [ObservableProperty]
-    private Color _batterySecondaryColor = Colors.Gray;
-
-    /// <summary>
-    /// Display text for the primary battery, e.g. "60% (3.72V)" or "—".
-    /// </summary>
-    public string BatteryPrimaryText => BatteryReading.Format(BatteryPrimaryVoltage);
-
-    /// <summary>
-    /// Display text for the secondary battery, e.g. "58% (3.68V)" or "—".
-    /// </summary>
-    public string BatterySecondaryText => BatteryReading.Format(BatterySecondaryVoltage);
-
-    /// <summary>
-    /// Accessibility description for the primary battery status.
-    /// </summary>
-    public string BatteryPrimaryDescription =>
-        BatteryPrimaryVoltage is { } v
-            ? $"Primary battery: {BatteryReading.ToPercentage(v)} percent, {BatteryReading.GetBatteryStatusText(v)}"
-            : "Primary battery: status unavailable";
-
-    /// <summary>
-    /// Accessibility description for the secondary battery status.
-    /// </summary>
-    public string BatterySecondaryDescription =>
-        BatterySecondaryVoltage is { } v
-            ? $"Secondary battery: {BatteryReading.ToPercentage(v)} percent, {BatteryReading.GetBatteryStatusText(v)}"
-            : "Secondary battery: status unavailable";
 
     [ObservableProperty]
     private string? _sessionWarningMessage;
 
     [ObservableProperty]
-    private string _sessionButtonText = "Start Session";
-
-    [ObservableProperty]
-    private string _sessionButtonDescription = "Starts a new therapy session";
+    private string _pauseResumeText = "Pause";
 
     [ObservableProperty]
     private bool _isConnectionHealthy = true;
@@ -157,20 +148,16 @@ public partial class GloveControlViewModel : BaseViewModel
     /// </summary>
     public IConnectionStateService ConnectionInfo { get; }
 
-    /// <summary>
-    /// Whether to show the reconnection banner (reconnecting or has a message like "Connection lost").
-    /// </summary>
-    public bool ShowReconnectionBanner =>
-        ConnectionInfo.IsReconnecting || !string.IsNullOrEmpty(ConnectionInfo.ReconnectionMessage);
-
     public GloveControlViewModel(
         IGloveControlService gloveControlService,
         IBluetoothService bluetoothService,
         IDataStorageService storageService,
         IReconnectionService reconnectionService,
         IConnectionStateService connectionStateService,
-        IAppLifecycleService appLifecycleService)
+        IAppLifecycleService appLifecycleService,
+        IConfirmationService confirmation)
     {
+        _confirmation = confirmation;
         _gloveControlService = gloveControlService;
         _bluetoothService = bluetoothService;
         _storageService = storageService;
@@ -203,6 +190,8 @@ public partial class GloveControlViewModel : BaseViewModel
         // Initialize
         LoadSelectedProfileAsync().SafeFireAndForget("[GLOVECONTROL]");
         UpdateConnectionState();
+        UpdateGloves();
+        UpdateTimerDisplay(updateSemantics: true);
     }
 
     /// <summary>
@@ -226,14 +215,31 @@ public partial class GloveControlViewModel : BaseViewModel
         }
     }
 
+    /// <summary>Start session (the xl primary button while idle).</summary>
     [RelayCommand]
+    private async Task StartSessionAsync()
+    {
+        if (IsSessionActive || !_sessionControls.TryAcquire())
+            return;
+        await ToggleSessionAsync();
+    }
+
+    /// <summary>Pause or Resume (the xl secondary button while a session runs).</summary>
+    [RelayCommand]
+    private async Task PauseResumeAsync()
+    {
+        if (!IsSessionActive || !_sessionControls.TryAcquire())
+            return;
+        await ToggleSessionAsync();
+    }
+
     private async Task ToggleSessionAsync()
     {
         if (!ConnectionInfo.IsConnected)
         {
             await Shell.Current.DisplayAlert(
-                "Not Connected",
-                "Please connect to a BlueBuzzah glove first.",
+                "Connection lost",
+                "Connect again on the Gloves tab, then try again.",
                 "OK");
             return;
         }
@@ -241,8 +247,8 @@ public partial class GloveControlViewModel : BaseViewModel
         if (!IsSessionActive && SelectedProfile == null)
         {
             await Shell.Current.DisplayAlert(
-                "No Profile Selected",
-                "Please select a therapy profile first.",
+                "Choose a profile first",
+                "Go to Gloves, pick a therapy profile, then tap Apply settings.",
                 "OK");
             return;
         }
@@ -258,8 +264,8 @@ public partial class GloveControlViewModel : BaseViewModel
                     SelectedProfile.ProfileId != _gloveControlService.DeviceProfileId)
                 {
                     await Shell.Current.DisplayAlert(
-                        "Profile Not Applied",
-                        $"The gloves are still using a different profile. Go to the Devices page and apply \"{SelectedProfile.Name}\" before starting.",
+                        "Apply your profile first",
+                        $"Your gloves are still using another profile. Go to Gloves and tap Apply settings to use \u201c{SelectedProfile.Name}\u201d.",
                         "OK");
                     return;
                 }
@@ -290,9 +296,11 @@ public partial class GloveControlViewModel : BaseViewModel
                     Status = SessionState.RUNNING
                 };
 
+                _showComplete = false;
+                _sessionEndedMessage = null;
                 StartStatusPolling();
                 await UpdateSessionStatusAsync();
-                SemanticScreenReader.Announce("Therapy session started");
+                SemanticScreenReader.Announce("Session started");
             }
             else if (IsSessionRunning)
             {
@@ -328,28 +336,19 @@ public partial class GloveControlViewModel : BaseViewModel
     [RelayCommand]
     private async Task StopSessionAsync()
     {
-        if (!IsSessionActive)
+        if (!IsSessionActive || !_sessionControls.TryAcquire())
             return;
 
-        // Check if session is less than 2 minutes and show confirmation
-        var elapsed = SessionStatus.ElapsedTimeSeconds;
-        if (elapsed < 120) // Less than 2 minutes
-        {
-            var minutes = (int)(elapsed / 60);
-            var seconds = (int)(elapsed % 60);
-            var timeString = minutes > 0
-                ? $"{minutes} minute{(minutes > 1 ? "s" : "")} and {seconds} second{(seconds != 1 ? "s" : "")}"
-                : $"{seconds} second{(seconds != 1 ? "s" : "")}";
-
-            var confirm = await Shell.Current.DisplayAlert(
-                "Stop Session?",
-                $"You've only been in this session for {timeString}. Your progress will be saved. Do you want to stop?",
-                "Keep Going",
-                "Stop Session");
-
-            if (confirm) // "Keep Going" was selected
-                return;
-        }
+        // Ending a session always confirms (buzzahbuddy.md Session screen). Dismissing
+        // the sheet any other way, Android back included, keeps the session going.
+        var stop = await _confirmation.ConfirmAsync(new ConfirmRequest(
+            "Stop this session?",
+            "Your gloves stop buzzing. The time so far is saved.",
+            "Stop session",
+            "Keep going",
+            Destructive: true));
+        if (!stop || !IsSessionActive)
+            return;
 
         IsBusy = true;
 
@@ -415,13 +414,78 @@ public partial class GloveControlViewModel : BaseViewModel
     {
         BatteryPrimaryVoltage = primaryVoltage;
         BatterySecondaryVoltage = secondaryVoltage;
-        BatteryPrimaryColor = BatteryReading.GetBatteryColor(primaryVoltage);
-        BatterySecondaryColor = BatteryReading.GetBatteryColor(secondaryVoltage);
+        UpdateGloves();
+        // The pre-session low-battery banner replaces the old on-connect alerts; it shows
+        // whenever a reading is low, so warnIfLow no longer gates anything here.
+        ResolveBanner();
+        await Task.CompletedTask;
+    }
 
-        // Check for low battery warnings (on connect, not on every tab visit)
-        if (warnIfLow)
+    /// <summary>
+    /// GloveStatus for both gloves. The app only links to the primary; the secondary's
+    /// state comes from the primary's report of its battery (plan choice PC15).
+    /// </summary>
+    private void UpdateGloves()
+    {
+        var link = ConnectionInfo.ConnectionState switch
         {
-            await CheckBatteryWarningAsync();
+            ConnectionState.Connected => GloveLinkStatus.Connected,
+            ConnectionState.Connecting or ConnectionState.Reconnecting => GloveLinkStatus.Connecting,
+            _ => GloveLinkStatus.Disconnected,
+        };
+        int? Percent(double? v) => v is { } volts ? BatteryReading.ToPercentage(volts) : null;
+        PrimaryGlove = new GloveStatusInfo(GloveRole.Primary, link, Percent(BatteryPrimaryVoltage));
+        var secondaryLink = link != GloveLinkStatus.Connected ? GloveLinkStatus.Disconnected
+            : BatterySecondaryVoltage is null ? GloveLinkStatus.NoReading
+            : GloveLinkStatus.Connected;
+        SecondaryGlove = new GloveStatusInfo(GloveRole.Secondary, secondaryLink, Percent(BatterySecondaryVoltage));
+    }
+
+    /// <summary>
+    /// Picks the one banner the Session screen shows (plan choice PC13): session ended >
+    /// reconnecting > connection unstable > low battery > status behind > session saved.
+    /// </summary>
+    private void ResolveBanner()
+    {
+        static bool Low(double? v) => v is { } volts && volts < BlueBuzzahConstants.BatteryLowThreshold;
+        var primaryLow = Low(BatteryPrimaryVoltage);
+        var secondaryLow = Low(BatterySecondaryVoltage);
+        string? lowGlove = primaryLow && !secondaryLow ? "primary" : secondaryLow && !primaryLow ? "secondary" : null;
+
+        (StatusTone Tone, string Title, string Message, bool GoToGloves)? banner = null;
+        if (_sessionEndedMessage is { } ended)
+            banner = (StatusTone.Danger, "Your session stopped", ended, _sessionEndedByConnection);
+        else if (ConnectionInfo.IsReconnecting)
+            banner = (StatusTone.Warning, "Reconnecting to your primary glove",
+                _reconnectAttempt.Max > 0
+                    ? $"Keep your phone near the glove. Try {_reconnectAttempt.Attempt} of {_reconnectAttempt.Max}."
+                    : "Keep your phone near the glove.",
+                true);
+        else if (SessionWarningMessage == ConnectionUnstableWarning)
+            banner = (StatusTone.Warning, "Connection is unstable",
+                "Keep your phone close to your primary glove. The session keeps running.", false);
+        else if (SessionStatus.Status == SessionState.LOW_BATTERY)
+            banner = (StatusTone.Warning,
+                lowGlove is null ? "A glove battery is low" : $"Your {lowGlove} glove battery is low",
+                "The session keeps running. Charge the glove after this session.", false);
+        else if (!IsSessionActive && ConnectionInfo.IsConnected && (primaryLow || secondaryLow))
+            banner = primaryLow && secondaryLow
+                ? (StatusTone.Warning, "Charge both gloves",
+                    $"Primary is at {BatteryReading.ToPercentage(BatteryPrimaryVoltage!.Value)}% and secondary at {BatteryReading.ToPercentage(BatterySecondaryVoltage!.Value)}%, which may not last a full session.", false)
+                : (StatusTone.Warning, $"Charge your {lowGlove} glove",
+                    $"It's at {BatteryReading.ToPercentage((primaryLow ? BatteryPrimaryVoltage : BatterySecondaryVoltage)!.Value)}%, which may not last a full session.", false);
+        else if (SessionWarningMessage is not null)
+            banner = (StatusTone.Info, "Session time may be behind", "We're waiting for an update from your primary glove.", false);
+        else if (_showComplete)
+            banner = (StatusTone.Success, "Session complete", "Your session is saved.", false);
+
+        BannerVisible = banner is not null;
+        if (banner is { } b)
+        {
+            BannerTone = b.Tone;
+            BannerTitle = b.Title;
+            BannerMessage = b.Message;
+            BannerActionText = b.GoToGloves ? "Go to Gloves" : null;
         }
     }
 
@@ -500,22 +564,19 @@ public partial class GloveControlViewModel : BaseViewModel
             bool wasActive = _previousSessionState is SessionState.RUNNING or SessionState.PAUSED or SessionState.LOW_BATTERY or SessionState.STOPPING;
             string? endReason = SessionStatus.Status switch
             {
-                SessionState.ERROR => "The gloves reported an error and stopped the session.",
-                SessionState.CONNECTION_LOST => "The gloves lost connection and stopped the session.",
-                SessionState.CRITICAL_BATTERY => "A glove battery is critically low. The session was stopped — please charge the gloves.",
-                SessionState.IDLE when SessionStatus.Progress < 100 => "The therapy session stopped unexpectedly. The secondary glove may have disconnected.",
+                SessionState.ERROR => "Your gloves reported a problem and stopped. Restart both gloves, then start a new session.",
+                SessionState.CONNECTION_LOST => "Your phone lost its connection to the gloves. Move closer and connect again on the Gloves tab.",
+                SessionState.CRITICAL_BATTERY => "A glove battery is almost empty. Charge both gloves, then start a new session.",
+                SessionState.IDLE when SessionStatus.Progress < 100 => "Your secondary glove may have disconnected. Turn it off and on, then start a new session.",
                 _ => null
             };
 
             if (wasActive && endReason != null && !_userRequestedStop)
             {
-                await MainThread.InvokeOnMainThreadAsync(async () =>
-                {
-                    await Shell.Current.DisplayAlert(
-                        "Session Ended Unexpectedly",
-                        endReason,
-                        "OK");
-                });
+                // A danger banner, not a modal: it stays until the next session starts.
+                _sessionEndedMessage = endReason;
+                _sessionEndedByConnection = SessionStatus.Status == SessionState.CONNECTION_LOST;
+                ResolveBanner();
             }
 
             var previousState = _previousSessionState;
@@ -539,21 +600,12 @@ public partial class GloveControlViewModel : BaseViewModel
             UpdateSessionState();
 
             _consecutivePollFailures = 0;
-            if (SessionStatus.Status == SessionState.LOW_BATTERY)
-            {
-                const string lowBatteryMessage = "Glove battery is low — session will continue.";
-                SessionWarningMessage = lowBatteryMessage;
-
-                // Announce once on transition into LOW_BATTERY, not on every poll.
-                if (previousState != SessionState.LOW_BATTERY)
-                {
-                    SemanticScreenReader.Announce(lowBatteryMessage);
-                }
-            }
-            else
+            // The low-battery banner (ResolveBanner) announces itself on transition.
+            if (SessionStatus.Status != SessionState.LOW_BATTERY)
             {
                 SessionWarningMessage = null;
             }
+            ResolveBanner();
         }
         catch (Exception ex)
         {
@@ -594,6 +646,7 @@ public partial class GloveControlViewModel : BaseViewModel
         {
             SessionWarningMessage = "Session data may be outdated";
         }
+        ResolveBanner();
     }
 
     private void UpdateSessionState()
@@ -604,22 +657,7 @@ public partial class GloveControlViewModel : BaseViewModel
         IsSessionRunning = SessionStatus.IsRunning;
         IsSessionPaused = SessionStatus.IsPaused;
 
-        // Update button text and description based on current state
-        if (!IsSessionActive)
-        {
-            SessionButtonText = "Start Session";
-            SessionButtonDescription = "Starts a new therapy session";
-        }
-        else if (IsSessionRunning)
-        {
-            SessionButtonText = "Pause Session";
-            SessionButtonDescription = "Pauses the active therapy session";
-        }
-        else if (IsSessionPaused)
-        {
-            SessionButtonText = "Resume Session";
-            SessionButtonDescription = "Resumes the paused therapy session";
-        }
+        PauseResumeText = IsSessionPaused ? "Resume" : "Pause";
 
         UpdateTimerDisplay(updateSemantics: true);
 
@@ -689,31 +727,38 @@ public partial class GloveControlViewModel : BaseViewModel
 
     private void UpdateTimerDisplay(bool updateSemantics)
     {
-        var reading = _sessionClock.TickTo(DateTime.UtcNow);
-        TimerProgressFraction = reading.HasKnownTotal ? reading.Fraction : 0;
-        TimerRemainingText = reading.HasKnownTotal ? reading.RemainingFormatted : reading.ElapsedFormatted;
-        TimerCaption = IsSessionPaused ? "Paused" : (reading.HasKnownTotal ? "remaining" : "elapsed");
-        TimerElapsedText = reading.HasKnownTotal
-            ? $"{reading.ElapsedFormatted} elapsed • {SessionStatus.TotalTimeFormatted} total"
-            : null;
-
-        // Screen-reader description updates only on re-anchor (~5s), not every tick,
-        // to avoid VoiceOver/TalkBack spam.
-        if (updateSemantics)
+        string spoken;
+        if (IsSessionActive)
         {
-            var state = IsSessionPaused ? "session paused" : "session running";
+            var reading = _sessionClock.TickTo(DateTime.UtcNow);
+            RingState = IsSessionPaused ? SessionRingState.Paused : SessionRingState.Running;
+            RingProgress = reading.HasKnownTotal ? reading.Fraction : 0;
             if (reading.HasKnownTotal)
             {
-                var remaining = TimeSpan.FromSeconds(Math.Ceiling(reading.Remaining.TotalSeconds));
-                TimerSemanticDescription =
-                    $"{(int)remaining.TotalMinutes} minutes {remaining.Seconds} seconds remaining, {state}";
+                var remaining = (int)Math.Ceiling(reading.Remaining.TotalSeconds);
+                RingTimeText = DurationText.Clock(remaining);
+                spoken = SessionRingText.Accessible(RingState, remaining);
             }
             else
             {
-                TimerSemanticDescription =
-                    $"{(int)reading.Elapsed.TotalMinutes} minutes {reading.Elapsed.Seconds} seconds elapsed, {state}";
+                var elapsed = (int)reading.Elapsed.TotalSeconds;
+                RingTimeText = DurationText.Clock(elapsed);
+                spoken = IsSessionPaused ? "Session paused" : SessionRingText.AccessibleCountUp(elapsed);
             }
         }
+        else
+        {
+            // Idle shows the profile's length; Complete holds until the next start.
+            var total = (SelectedProfile?.TimeSession ?? 0) * 60;
+            RingState = _showComplete ? SessionRingState.Complete : SessionRingState.Idle;
+            RingProgress = _showComplete ? 1 : 0;
+            RingTimeText = DurationText.Clock(_showComplete ? _completedTotalSeconds : total);
+            spoken = SessionRingText.Accessible(RingState, total);
+        }
+
+        // A running countdown speaks at most once a minute; other states change rarely.
+        if (RingState != SessionRingState.Running || _ringSpeech.ShouldUpdate(spoken, RingState))
+            RingAccessibleText = spoken;
     }
 
     private void StartConnectionHealthCheck()
@@ -935,18 +980,29 @@ public partial class GloveControlViewModel : BaseViewModel
                 }
             }
 
+            // The first connect is announced by the Gloves tab; this covers drops and
+            // reconnects. Reconnect attempts announce once, then the result (D11b).
             var announcement = state switch
             {
-                ConnectionState.Connected => "Device connected",
-                ConnectionState.Disconnected => "Device disconnected",
-                ConnectionState.Error => "Device connection lost",
-                ConnectionState.Reconnecting => "Attempting to reconnect",
+                ConnectionState.Connected when _wasReconnecting => "Gloves reconnected",
+                ConnectionState.Disconnected or ConnectionState.Error => "Gloves disconnected",
+                ConnectionState.Reconnecting when !_wasReconnecting => "Reconnecting to your primary glove",
                 _ => null
             };
+            _wasReconnecting = state == ConnectionState.Reconnecting
+                || (_wasReconnecting && state is not (ConnectionState.Connected or ConnectionState.Disconnected));
             if (announcement != null)
             {
                 SemanticScreenReader.Announce(announcement);
             }
+            if (isConnected && _sessionEndedByConnection)
+            {
+                // Reconnected: the connection-lost banner has done its job.
+                _sessionEndedMessage = null;
+                _sessionEndedByConnection = false;
+            }
+            UpdateGloves();
+            ResolveBanner();
         });
     }
 
@@ -971,6 +1027,15 @@ public partial class GloveControlViewModel : BaseViewModel
 
     private void OnReconnectionStateChanged(object? sender, ReconnectionStateEventArgs e)
     {
+        if (e.State == ReconnectionState.Reconnecting)
+        {
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                _reconnectAttempt = (e.Attempt, e.MaxAttempts);
+                ResolveBanner();
+            });
+        }
+
         if (e.State is not (ReconnectionState.Failed or ReconnectionState.Cancelled))
             return;
 
@@ -1019,84 +1084,41 @@ public partial class GloveControlViewModel : BaseViewModel
         // Run on UI thread
         await MainThread.InvokeOnMainThreadAsync(async () =>
         {
-            // Show completion dialog with rating option
-            var ratingOptions = new[] { "Skip", "1 - Not Effective", "2", "3 - Somewhat Effective", "4", "5 - Very Effective" };
-            var rating = await Shell.Current.DisplayActionSheet(
-                "Session Complete!",
-                null,
-                null,
-                ratingOptions);
+            SemanticScreenReader.Announce("Session complete");
 
-            // Parse rating
-            int? effectivenessRating = null;
-            if (rating != null && rating != "Skip" && char.IsDigit(rating[0]))
-            {
-                effectivenessRating = int.Parse(rating[0].ToString());
-            }
+            // One optional note in the person's own words (no effectiveness rating:
+            // the app makes no outcome claims).
+            var notes = await Shell.Current.DisplayPromptAsync(
+                "Add a note?",
+                "Write anything you want to remember about this session. It stays on this phone.",
+                accept: "Save note",
+                cancel: "Skip",
+                placeholder: "For example: Tremor felt lighter after lunch",
+                maxLength: 500,
+                keyboard: Keyboard.Text);
 
-            // Ask for notes if they rated the session
-            string? notes = null;
-            if (effectivenessRating.HasValue)
-            {
-                notes = await Shell.Current.DisplayPromptAsync(
-                    "Session Notes",
-                    "Any notes about this session? (Optional)",
-                    placeholder: "e.g., felt good, reduced tremors...",
-                    maxLength: 500,
-                    keyboard: Keyboard.Text);
-            }
-
-            // Save session with rating and notes
             if (_currentSession != null)
             {
-                _currentSession.EffectivenessRating = effectivenessRating;
-                _currentSession.Notes = notes;
+                _currentSession.Notes = string.IsNullOrWhiteSpace(notes) ? null : notes;
                 await _storageService.SaveSessionAsync(_currentSession);
             }
 
-            // Show completion message
-            await Shell.Current.DisplayAlert(
-                "Therapy Complete",
-                "Your therapy session has been saved. Great job!",
-                "OK");
-
-            // Reset session
+            // Reset session; the ring holds Complete and a success banner confirms the save.
             _currentSession = null;
+            _completedTotalSeconds = SessionStatus.TotalTimeSeconds;
+            _showComplete = true;
             SessionStatus = SessionStatus.CreateIdle();
             UpdateSessionState();
+            ResolveBanner();
         });
-    }
-
-    private async Task CheckBatteryWarningAsync()
-    {
-        if (BatteryPrimaryVoltage is { } primary && primary < BlueBuzzahConstants.BatteryLowThreshold)
-        {
-            await MainThread.InvokeOnMainThreadAsync(async () =>
-            {
-                await Shell.Current.DisplayAlert(
-                    "Low Battery Warning",
-                    $"Primary device battery is low ({primary:F2}V). Consider charging before starting a session.",
-                    "OK");
-            });
-        }
-
-        if (BatterySecondaryVoltage is { } secondary && secondary < BlueBuzzahConstants.BatteryLowThreshold)
-        {
-            await MainThread.InvokeOnMainThreadAsync(async () =>
-            {
-                await Shell.Current.DisplayAlert(
-                    "Low Battery Warning",
-                    $"Second glove battery is low ({secondary:F2}V). Consider charging before starting a session.",
-                    "OK");
-            });
-        }
     }
 
     private void OnConnectionInfoPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(IConnectionStateService.IsReconnecting) or nameof(IConnectionStateService.ReconnectionMessage))
+        if (e.PropertyName is nameof(IConnectionStateService.IsReconnecting) or nameof(IConnectionStateService.ConnectionState))
         {
-            OnPropertyChanged(nameof(ShowReconnectionBanner));
+            UpdateGloves();
+            ResolveBanner();
         }
 
         // GloveControl-specific: manage polling during reconnection

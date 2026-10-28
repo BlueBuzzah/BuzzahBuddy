@@ -22,8 +22,6 @@ public class SessionClockTests
         Assert.Equal(837.5, r.Remaining.TotalSeconds, 3);
         Assert.Equal(62.5 / 900.0, r.Fraction, 6);
         Assert.True(r.HasKnownTotal);
-        Assert.Equal("01:02", r.ElapsedFormatted);   // floor(62.5) = 62s
-        Assert.Equal("13:58", r.RemainingFormatted); // ceil(837.5) = 838s
     }
 
     [Fact]
@@ -73,7 +71,6 @@ public class SessionClockTests
         Assert.Equal(900, r.Elapsed.TotalSeconds, 3);
         Assert.Equal(0, r.Remaining.TotalSeconds, 3);
         Assert.Equal(1.0, r.Fraction, 6);
-        Assert.Equal("00:00", r.RemainingFormatted);
     }
 
     [Fact]

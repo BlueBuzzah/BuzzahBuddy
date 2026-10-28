@@ -209,6 +209,25 @@
         <Setter Property="MinimumHeightRequest" Value="{StaticResource Target}" />
     </Style>
 
+    <!-- Numbered step marker (Session "Get started"): a 32px brand-soft circle, brand number. -->
+    <Style x:Key="StepNumber" TargetType="Border">
+        <Setter Property="WidthRequest" Value="32" />
+        <Setter Property="HeightRequest" Value="32" />
+        <Setter Property="VerticalOptions" Value="Start" />
+        <Setter Property="StrokeThickness" Value="0" />
+        <Setter Property="BackgroundColor" Value="{DynamicResource BrandSoft}" />
+        <Setter Property="StrokeShape">
+            <RoundRectangle CornerRadius="{StaticResource RadiusFull}" />
+        </Setter>
+        <Setter Property="AutomationProperties.IsInAccessibleTree" Value="False" />
+    </Style>
+
+    <Style x:Key="StepNumberText" TargetType="Label" BasedOn="{StaticResource TypeLabel}">
+        <Setter Property="TextColor" Value="{DynamicResource Brand}" />
+        <Setter Property="HorizontalOptions" Value="Center" />
+        <Setter Property="VerticalOptions" Value="Center" />
+    </Style>
+
     <!-- A Lucide glyph drawn in the label's TextColor (README Iconography). Decorative:
          pair it with words, which carry the meaning for screen readers. -->
     <Style x:Key="IconLabel" TargetType="Label">

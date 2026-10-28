@@ -137,20 +137,8 @@ public class SessionStatus
     /// </summary>
     public TimeSpan RemainingTime => TimeSpan.FromSeconds(Math.Max(0, TotalTimeSeconds - ElapsedTimeSeconds));
 
-    /// <summary>
-    /// Gets the elapsed time formatted as MM:SS.
-    /// </summary>
-    public string ElapsedTimeFormatted => $"{(int)ElapsedTime.TotalMinutes:D2}:{ElapsedTime.Seconds:D2}";
 
-    /// <summary>
-    /// Gets the remaining time formatted as MM:SS.
-    /// </summary>
-    public string RemainingTimeFormatted => $"{(int)RemainingTime.TotalMinutes:D2}:{RemainingTime.Seconds:D2}";
 
-    /// <summary>
-    /// Gets the total time formatted as MM:SS.
-    /// </summary>
-    public string TotalTimeFormatted => $"{(int)TotalTime.TotalMinutes:D2}:{TotalTime.Seconds:D2}";
 
     /// <summary>
     /// Parses a CommandResponse into a SessionStatus object.
