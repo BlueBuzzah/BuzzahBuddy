@@ -22,6 +22,26 @@ public static class OsAccessibility
         }
     }
 
+    /// <summary>
+    /// iOS Increase Contrast; Android 14+ contrast level above default. Older Android
+    /// has no public API, so only the in-app switch applies there.
+    /// </summary>
+    public static bool HighContrast
+    {
+        get
+        {
+#if IOS
+            return UIKit.UIAccessibility.DarkerSystemColorsEnabled;
+#elif ANDROID
+            return OperatingSystem.IsAndroidVersionAtLeast(34)
+                && Android.App.Application.Context.GetSystemService(Android.Content.Context.UiModeService)
+                    is Android.App.UiModeManager { Contrast: > 0 };
+#else
+            return false;
+#endif
+        }
+    }
+
     /// <summary>The OS text-size multiplier (1 = default, 2 = 200%).</summary>
     public static double TextScale
     {
