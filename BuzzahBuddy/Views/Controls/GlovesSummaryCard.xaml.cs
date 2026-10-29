@@ -37,7 +37,10 @@ public partial class GlovesSummaryCard : ContentView
         var primary = Primary ?? new GloveStatusInfo(GloveRole.Primary, GloveLinkStatus.Disconnected, null);
         var secondary = Secondary ?? new GloveStatusInfo(GloveRole.Secondary, GloveLinkStatus.Disconnected, null);
         var (tone, title, detail) = GloveStatusText.Summary(primary, secondary);
-        var (ground, ink, glyph) = StatusToneStyle.For(tone);
+        // Connected reads as Bluetooth in brand blue (owner's choice), not the success check.
+        var (ground, ink, glyph) = tone == StatusTone.Success
+            ? ("BrandSoft", "Brand", LucideIcons.Bluetooth)
+            : StatusToneStyle.For(tone);
         IconGround.SetDynamicResource(BackgroundColorProperty, ground);
         GlyphLabel.SetDynamicResource(Label.TextColorProperty, ink);
         GlyphLabel.Text = glyph ?? LucideIcons.Hand;

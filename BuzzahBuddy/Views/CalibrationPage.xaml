@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
-<!-- Motor test: a three-step guide (strength, buzz length, each finger), with test mode
-     started and ended from the bottom of the screen (accessibility.md: one-handed reach). -->
+<!-- Motor test: a three-step guide (strength, buzz length, each finger). Test mode starts when
+     the page opens and ends when it closes, so there are no test mode buttons (owner's choice). -->
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:BuzzahBuddy.ViewModels"
@@ -12,7 +12,7 @@
              Title="{Binding Title}"
              SafeAreaEdges="Container">
 
-    <Grid RowDefinitions="*,Auto" Padding="16,16,16,16">
+    <Grid Padding="16,16,16,16">
         <ScrollView>
             <VerticalStackLayout Spacing="{StaticResource Space6}" Padding="0,0,0,16">
                 <Label Text="Check that each finger motor buzzes. Pick a strength and a buzz length, then tap each finger." />
@@ -52,9 +52,6 @@
                                                    SelectedValue="{Binding Duration}" />
 
                         <VerticalStackLayout Spacing="{StaticResource Space3}" IsVisible="{Binding IsStep3}">
-                            <controls:StatusBadge Tone="Brand" Text="{Binding BuzzingText}" IsVisible="{Binding IsBuzzing}" />
-                            <Label Text="Wait for the buzz to finish." Style="{StaticResource TypeCaption}"
-                                   TextColor="{DynamicResource InkMuted}" IsVisible="{Binding IsBuzzing}" />
                         <Label Text="Primary Glove" Style="{StaticResource TypeTitleS}" SemanticProperties.HeadingLevel="Level3" />
                         <FlexLayout Wrap="Wrap" Margin="-6,0" BindableLayout.ItemsSource="{Binding PrimaryFingers}">
                             <BindableLayout.ItemTemplate>
@@ -68,7 +65,13 @@
                                                 SemanticProperties.Description="{Binding AccessibleText}"
                                                 AutomationId="{Binding AutomationId}"
                                                 IsEnabled="{Binding Source={RelativeSource AncestorType={x:Type vm:CalibrationViewModel}}, Path=CanBuzzFingers}">
+                                            <!-- Vibrate while this finger buzzes, then a check if the test worked. -->
                                             <Button.Triggers>
+                                                <DataTrigger TargetType="Button" Binding="{Binding IsBuzzing}" Value="True">
+                                                    <Setter Property="ImageSource">
+                                                        <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Vibrate}" Size="20" Color="{DynamicResource Brand}" />
+                                                    </Setter>
+                                                </DataTrigger>
                                                 <DataTrigger TargetType="Button" Binding="{Binding IsTested}" Value="True">
                                                     <Setter Property="ImageSource">
                                                         <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Check}" Size="20" Color="{DynamicResource Brand}" />
@@ -93,7 +96,13 @@
                                                 SemanticProperties.Description="{Binding AccessibleText}"
                                                 AutomationId="{Binding AutomationId}"
                                                 IsEnabled="{Binding Source={RelativeSource AncestorType={x:Type vm:CalibrationViewModel}}, Path=CanBuzzFingers}">
+                                            <!-- Vibrate while this finger buzzes, then a check if the test worked. -->
                                             <Button.Triggers>
+                                                <DataTrigger TargetType="Button" Binding="{Binding IsBuzzing}" Value="True">
+                                                    <Setter Property="ImageSource">
+                                                        <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Vibrate}" Size="20" Color="{DynamicResource Brand}" />
+                                                    </Setter>
+                                                </DataTrigger>
                                                 <DataTrigger TargetType="Button" Binding="{Binding IsTested}" Value="True">
                                                     <Setter Property="ImageSource">
                                                         <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Check}" Size="20" Color="{DynamicResource Brand}" />
@@ -126,32 +135,5 @@
                 </Border>
             </VerticalStackLayout>
         </ScrollView>
-
-        <!-- Bottom zone: test mode controls in easy reach -->
-        <VerticalStackLayout Grid.Row="1" Spacing="{StaticResource TargetGap}">
-            <controls:StatusBadge Tone="Brand" Text="Test Mode On" IsVisible="{Binding IsInCalibrationMode}" AutomationId="CalibrationStatusLabel" />
-            <controls:StatusBadge Tone="Neutral" Text="Test Mode Off"
-                                  IsVisible="{Binding IsInCalibrationMode, Converter={StaticResource InvertedBoolConverter}}" />
-            <Button Text="Start Test Mode"
-                    Style="{StaticResource ButtonPrimary}"
-                    Command="{Binding EnterCalibrationModeCommand}"
-                    IsVisible="{Binding IsInCalibrationMode, Converter={StaticResource InvertedBoolConverter}}"
-                    IsEnabled="{Binding ConnectionInfo.IsConnected}"
-                    SemanticProperties.Description="Start Test Mode"
-                    AutomationId="EnterCalibrationButton" />
-            <Button Text="End Test Mode"
-                    Style="{StaticResource ButtonSecondary}"
-                    Command="{Binding ExitCalibrationModeCommand}"
-                    IsVisible="{Binding IsInCalibrationMode}"
-                    SemanticProperties.Description="End Test Mode"
-                    AutomationId="ExitCalibrationButton" />
-            <Button Text="Skip and Use Defaults"
-                    Style="{StaticResource ButtonQuiet}"
-                    Command="{Binding SkipCalibrationCommand}"
-                    IsVisible="{Binding IsInCalibrationMode}"
-                    IsEnabled="{Binding ConnectionInfo.IsConnected}"
-                    SemanticProperties.Description="Skip and Use Defaults"
-                    AutomationId="SkipCalibrationButton" />
-        </VerticalStackLayout>
     </Grid>
 </ContentPage>

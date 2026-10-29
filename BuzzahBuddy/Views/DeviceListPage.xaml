@@ -160,8 +160,9 @@
                     </Button>
                 </VerticalStackLayout>
 
-                <!-- Apply: the screen's one primary action. Always available (owner's choice): with
-                     nothing changed it applies everything again, which helps when troubleshooting. -->
+                <!-- Apply: the screen's one primary action. Available whenever no session is running or
+                     paused (owner's choice): with nothing changed it applies everything again, which
+                     helps when troubleshooting. -->
                 <VerticalStackLayout Spacing="{StaticResource Space2}">
                     <Button Text="Apply Settings"
                             Style="{StaticResource ButtonPrimary}"
@@ -171,11 +172,11 @@
                         <Button.IsEnabled>
                             <MultiBinding Converter="{StaticResource AllTrueConverter}">
                                 <Binding Path="ConnectionInfo.IsConnected" />
+                                <Binding Path="Settings.IsSessionInactive" />
                                 <Binding Path="Settings.IsNotBusy" />
                             </MultiBinding>
                         </Button.IsEnabled>
                     </Button>
-                    <controls:StatusBadge Tone="Success" Text="Saved to Both Gloves" IsVisible="{Binding Settings.SavedBadgeVisible}" />
                 </VerticalStackLayout>
 
                 <Button Text="Disconnect"

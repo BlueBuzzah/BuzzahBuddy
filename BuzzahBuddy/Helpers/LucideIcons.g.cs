@@ -29,4 +29,5 @@ public static class LucideIcons
     public const string SignalMedium = "\uE262";
     public const string SignalHigh = "\uE260";
     public const string Save = "\uE14D";
+    public const string Vibrate = "\uE223";
 }

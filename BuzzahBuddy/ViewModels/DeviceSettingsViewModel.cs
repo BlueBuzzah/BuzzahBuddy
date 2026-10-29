@@ -124,10 +124,6 @@ public partial class DeviceSettingsViewModel : BaseViewModel
 
     private (StatusTone Tone, string Title, string Message)? _resultBanner;
 
-    /// <summary>Shown under Apply settings once the gloves have the new settings.</summary>
-    [ObservableProperty]
-    private bool _savedBadgeVisible;
-
     /// <summary>
     /// True after an apply whose gloves never reconnected; the Gloves scan view shows a
     /// warning banner for it until the next connect.
@@ -504,19 +500,10 @@ public partial class DeviceSettingsViewModel : BaseViewModel
             (BannerTone, BannerTitle, BannerMessage) = b;
     }
 
-    /// <summary>Pending changes moved: refresh Apply and its reason; a new change retires "Saved".</summary>
-    private void NotifyPendingChanged()
-    {
-        if (HasPendingChanges)
-            SavedBadgeVisible = false;
-        OnPropertyChanged(nameof(HasPendingChanges));
-    }
+    private void NotifyPendingChanged() => OnPropertyChanged(nameof(HasPendingChanges));
 
-    private void ConfirmSaved()
-    {
-        SavedBadgeVisible = true;
-        SemanticScreenReader.Announce("Settings saved to both gloves");
-    }
+    // No badge (owner's choice); screen readers still hear it.
+    private static void ConfirmSaved() => SemanticScreenReader.Announce("Settings saved to both gloves");
 
     /// <summary>
     /// INFO carries both batteries; the service sends one right after every
@@ -843,7 +830,6 @@ public partial class DeviceSettingsViewModel : BaseViewModel
             else
             {
                 TherapyLedLoaded = false;
-                SavedBadgeVisible = false;
                 _resultBanner = null;
                 FirmwareVersion = null;
                 // Readings from the old link say nothing about the next one

@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using BuzzahBuddy.Helpers;
 using BuzzahBuddy.ViewModels;
 
 namespace BuzzahBuddy.Views;
@@ -15,6 +16,19 @@ public partial class CalibrationPage : ContentPage
 
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
         Unloaded += OnPageUnloaded;
+    }
+
+    // Test mode lasts exactly as long as this page is on screen.
+    protected override void OnAppearing()
+    {
+        base.OnAppearing();
+        _viewModel.OpenAsync().SafeFireAndForget("[CALIBRATION]");
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        _viewModel.CloseAsync().SafeFireAndForget("[CALIBRATION]");
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)

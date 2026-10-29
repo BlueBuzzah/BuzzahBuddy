@@ -208,9 +208,9 @@ TalkBack.
 ### Safe area
 
 **Every `ContentPage` must set `SafeAreaEdges="Container"`** (all 8 do). .NET 10 changed
-the default to `None` and Android 16 forces edge-to-edge; `DeviceListPage`/
-`CalibrationPage` anchor primary buttons to the bottom edge, exactly where the gesture
-nav bar sits. `SoftInput` is intentionally unused.
+the default to `None` and Android 16 forces edge-to-edge; `DeviceListPage` anchors its
+primary button to the bottom edge, exactly where the gesture nav bar sits. `SoftInput` is
+intentionally unused.
 
 ### Colors and tokens
 

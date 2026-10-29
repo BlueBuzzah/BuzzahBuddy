@@ -101,6 +101,7 @@
                                 VerticalOptions="Center"
                                 ContentLayout="Right,6"
                                 Command="{Binding NavigateToDevicesCommand}"
+                                IsEnabled="{Binding IsSessionActive, Converter={StaticResource InvertedBoolConverter}}"
                                 SemanticProperties.Description="Change"
                                 AutomationId="ChangeProfileButton">
                             <Button.ImageSource>
@@ -157,10 +158,6 @@
                     </Button>
                 </VerticalStackLayout>
             </VerticalStackLayout>
-
-            <controls:Banner Tone="Info"
-                             Message="BlueBuzzah devices are not FDA approved medical devices and not intended to diagnose, treat, cure, or prevent any disease. The information provided through BlueBuzzah is for general wellness purposes only and not a substitute for professional medical advice, diagnosis, or treatment."
-                             AutomationId="SessionDisclaimer" />
         </VerticalStackLayout>
     </ScrollView>
 
