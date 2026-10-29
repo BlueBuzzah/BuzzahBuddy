@@ -16,7 +16,6 @@
 
     <ScrollView>
         <VerticalStackLayout Padding="16,16,16,24" Spacing="{StaticResource Space6}">
-            <Label Text="Custom Profile" Style="{StaticResource TypeHeadline}" SemanticProperties.HeadingLevel="Level1" />
             <Label Text="These settings make up your Custom profile. Your gloves keep them after a restart." />
 
             <controls:Banner IsVisible="{Binding BannerVisible}"

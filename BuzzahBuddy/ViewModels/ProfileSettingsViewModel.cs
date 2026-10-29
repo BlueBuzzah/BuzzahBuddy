@@ -95,8 +95,8 @@ public partial class ProfileSettingsViewModel : BaseViewModel
         _confirmation = confirmation;
         ConnectionInfo = connectionStateService;
 
-        // The page's own headline is the title; the native bar only carries Back.
-        Title = string.Empty;
+        // Pushed screens title the native bar beside Back (owner's choice over the DS headline).
+        Title = "Custom Profile";
         ConnectionInfo.PropertyChanged += OnConnectionInfoChanged;
         ResolveBanner();
     }

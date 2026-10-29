@@ -47,6 +47,9 @@ Rules:
   and prepositions lowercase mid-title ("Scan for Gloves", "Skip the Motor Test?").
   Messages, hints, errors and screen-reader announcements stay sentence case; a message
   that names a button uses its label as written ("tap Apply Settings").
+- **Pushed screens title the nav bar (owner override of the design system's in-page
+  headline).** Screens with a Back bar (Test Motors, Custom Profile) set the view model's
+  `Title` and have no headline in the page. Tab screens hide the bar and keep the headline.
 - **Don't invent rules.** If the design system doesn't cover something, ask rather than
   inventing a rule.
 - **Full migrations:** a whole-app pass is the `/implement-design-system` command, run from

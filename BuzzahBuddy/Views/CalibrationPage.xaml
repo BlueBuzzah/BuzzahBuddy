@@ -15,7 +15,6 @@
     <Grid RowDefinitions="*,Auto" Padding="16,16,16,16">
         <ScrollView>
             <VerticalStackLayout Spacing="{StaticResource Space6}" Padding="0,0,0,16">
-                <Label Text="Test Motors" Style="{StaticResource TypeHeadline}" SemanticProperties.HeadingLevel="Level1" />
                 <Label Text="Check that each finger motor buzzes. Pick a strength and a buzz length, then tap each finger." />
 
                 <controls:Banner IsVisible="{Binding ShowNotConnected}"
