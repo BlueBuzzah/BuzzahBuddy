@@ -7,7 +7,7 @@
 	     ponytail: stopgap with a known ceiling - the opt-out is deprecated and Android
 	     will eventually ignore it. Real fix is an OnBackInvokedCallback registered here
 	     for API 33+, once MAUI's predictive-back support is verified on device. -->
-	<application android:allowBackup="true" android:icon="@mipmap/appicon" android:roundIcon="@mipmap/appicon_round" android:supportsRtl="true" android:enableOnBackInvokedCallback="false"></application>
+	<application android:allowBackup="true" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round" android:supportsRtl="true" android:enableOnBackInvokedCallback="false"></application>
 	<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 	<uses-permission android:name="android.permission.INTERNET" />
 

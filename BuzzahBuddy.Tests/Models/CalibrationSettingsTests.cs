@@ -7,9 +7,9 @@ public class CalibrationSettingsTests
 {
     [Theory]
     [InlineData(0, 4, "Primary Index")]
-    [InlineData(3, 4, "Primary Pinky")]
+    [InlineData(3, 4, "Primary Little")]
     [InlineData(4, 4, "Secondary Index")]
-    [InlineData(7, 4, "Secondary Pinky")]
+    [InlineData(7, 4, "Secondary Little")]
     [InlineData(4, 5, "Primary Thumb")]
     [InlineData(9, 5, "Secondary Thumb")]
     public void GetFingerLabel_MatchesFirmwareMap(int index, int perGlove, string expected)

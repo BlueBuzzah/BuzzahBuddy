@@ -1,0 +1,54 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<!-- Both gloves at a glance on the Session screen: a status icon, "Gloves Connected" and each
+     battery. The whole card is one tap target that opens the Gloves tab, where the full
+     GloveStatus cards live. Read by screen readers as one element with a hint. -->
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:helpers="clr-namespace:BuzzahBuddy.Helpers"
+             x:Class="BuzzahBuddy.Views.Controls.GlovesSummaryCard">
+    <Border x:Name="Root" Style="{StaticResource Card}">
+        <Border.GestureRecognizers>
+            <TapGestureRecognizer Tapped="OnTapped" />
+        </Border.GestureRecognizers>
+        <!-- At large text sizes the icon moves above the title so the title gets the full width. -->
+        <Grid x:Name="CardGrid"
+              ColumnDefinitions="Auto,*,Auto"
+              ColumnSpacing="{StaticResource Space2}"
+              RowSpacing="{StaticResource Space2}"
+              AutomationProperties.ExcludedWithChildren="True">
+            <Border x:Name="IconGround"
+                    WidthRequest="40"
+                    HeightRequest="40"
+                    StrokeThickness="0"
+                    VerticalOptions="Center">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="{StaticResource RadiusFull}" />
+                </Border.StrokeShape>
+                <Label x:Name="GlyphLabel" Style="{StaticResource IconInShape}" HorizontalOptions="Center" />
+            </Border>
+            <VerticalStackLayout x:Name="TextBlock" Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                <Label x:Name="TitleText" Style="{StaticResource TypeTitleM}" />
+                <!-- One battery icon for the line, showing the lower of the two levels. At line height 1
+                     a text line is the icon's height, so top alignment keeps the icon on the first
+                     line when the text wraps on narrow phones. -->
+                <Grid x:Name="DetailRow" ColumnDefinitions="Auto,*" ColumnSpacing="{StaticResource Space1}">
+                    <Label x:Name="BatteryGlyph"
+                           Style="{StaticResource IconLabel}"
+                           FontSize="18"
+                           VerticalOptions="Start" />
+                    <Label x:Name="DetailText"
+                           Grid.Column="1"
+                           Style="{StaticResource TypeBodyS}"
+                           TextColor="{DynamicResource InkMuted}"
+                           LineHeight="1"
+                           VerticalOptions="Start" />
+                </Grid>
+            </VerticalStackLayout>
+            <Label Grid.Column="2"
+                   Style="{StaticResource IconLabel}"
+                   Text="{x:Static helpers:LucideIcons.ChevronRight}"
+                   TextColor="{DynamicResource InkMuted}"
+                   VerticalOptions="Center" />
+        </Grid>
+    </Border>
+</ContentView>

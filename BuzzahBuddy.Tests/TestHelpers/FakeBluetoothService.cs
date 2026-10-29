@@ -90,7 +90,13 @@ public class FakeBluetoothService : IBluetoothService
         => Task.FromResult(Enumerable.Empty<GloveDevice>());
     public Task StopScanAsync() => Task.CompletedTask;
     public Task<bool> ConnectToDeviceAsync(GloveDevice device, CancellationToken cancellationToken = default) => Task.FromResult(true);
-    public Task DisconnectAsync() => Task.CompletedTask;
+    /// <summary>Drops the link and says so, as the transport does.</summary>
+    public Task DisconnectAsync()
+    {
+        if (CurrentConnectionState != ConnectionState.Disconnected)
+            RaiseConnectionStateChanged(ConnectionState.Disconnected);
+        return Task.CompletedTask;
+    }
     public Task<bool> ConnectToLastKnownDeviceAsync(CancellationToken ct = default) => Task.FromResult(true);
     public int DisconnectForReconnectCalls { get; private set; }
 

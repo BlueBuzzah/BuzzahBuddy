@@ -1,0 +1,48 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<!-- First run: the medical disclaimer and the implanted-device notice, verbatim (the owner's
+     legal text), before anything else. Shown once; back and swipe can't skip it. -->
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:controls="clr-namespace:BuzzahBuddy.Views.Controls"
+             x:Class="BuzzahBuddy.Views.WelcomePage"
+             Shell.NavBarIsVisible="False"
+             SafeAreaEdges="Container">
+    <Grid RowDefinitions="*,Auto" Padding="{StaticResource Space4}">
+        <ScrollView>
+            <VerticalStackLayout Spacing="{StaticResource Space6}" Padding="0,0,0,24">
+                <!-- Headline left, the mark right, centered on each other. The mark comes from
+                     assets/Logos, never recolored; clear space ≥ a quarter of its width. -->
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{StaticResource Space6}">
+                    <Label Text="Welcome to BuzzahBuddy"
+                           Style="{StaticResource TypeHeadline}"
+                           VerticalOptions="Center"
+                           SemanticProperties.HeadingLevel="Level1" />
+                    <Image Grid.Column="1"
+                           Source="bluebuzzah_mark.png"
+                           HeightRequest="77"
+                           WidthRequest="80"
+                           VerticalOptions="Center"
+                           AutomationProperties.IsInAccessibleTree="False" />
+                </Grid>
+                <Label Text="BuzzahBuddy runs sessions on your BlueBuzzah gloves. Read these two notes before your first session."
+                       Style="{StaticResource TypeBodyL}" />
+                <controls:Banner Tone="Info" AutomationId="WelcomeDisclaimer">
+                    <controls:Banner.FormattedMessage>
+                        <FormattedString>
+                            <Span Text="BlueBuzzah devices are not FDA approved medical devices and not intended to diagnose, treat, cure, or prevent any disease. The information provided through BlueBuzzah is for general wellness purposes only and not a substitute for professional medical advice, diagnosis, or treatment.&#10;&#10;" />
+                            <Span Text="Important:" FontFamily="{DynamicResource FontSans700}" />
+                            <Span Text=" People with implanted electrodes from deep brain stimulation (DBS), heart pacemakers, or other internal electronic devices should take special precautions around all electronic devices, including BlueBuzzah. Consult your physician before use." />
+                        </FormattedString>
+                    </controls:Banner.FormattedMessage>
+                </controls:Banner>
+            </VerticalStackLayout>
+        </ScrollView>
+        <Button Grid.Row="1"
+                Text="Continue"
+                Style="{StaticResource ButtonPrimary}"
+                Margin="0,12,0,0"
+                Clicked="OnContinueClicked"
+                SemanticProperties.Description="Continue"
+                AutomationId="WelcomeContinueButton" />
+    </Grid>
+</ContentPage>

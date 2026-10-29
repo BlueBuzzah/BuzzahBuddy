@@ -1,0 +1,73 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<!-- GloveStatus (GloveStatus README; bundle .bb-glove): one glove's role, link and battery,
+     read by screen readers as one sentence. Under 20% the battery turns warning and says Low. -->
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:controls="clr-namespace:BuzzahBuddy.Views.Controls"
+             x:Class="BuzzahBuddy.Views.Controls.GloveStatusView">
+    <Border x:Name="Root"
+            BackgroundColor="{DynamicResource SurfaceRaised}"
+            Stroke="{DynamicResource Line}"
+            StrokeThickness="{StaticResource BorderHairline}"
+            Padding="{StaticResource Space4}">
+        <Border.StrokeShape>
+            <RoundRectangle CornerRadius="{StaticResource RadiusLg}" />
+        </Border.StrokeShape>
+        <VerticalStackLayout Spacing="{StaticResource Space2}" AutomationProperties.ExcludedWithChildren="True">
+            <!-- Name beside the hand (the DS's Updater card layout) so "Secondary" fits on one
+                 line on 402pt-wide phones and up; narrower phones wrap it, still centered. At large
+                 text sizes the hand moves above the name and the voltage below the battery. -->
+            <Grid x:Name="NameRow" ColumnDefinitions="Auto,*" ColumnSpacing="{StaticResource Space2}" RowSpacing="{StaticResource Space2}">
+                <Border WidthRequest="28"
+                        HeightRequest="28"
+                        VerticalOptions="Center"
+                        StrokeThickness="0"
+                        BackgroundColor="{DynamicResource BrandSoft}">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="{StaticResource RadiusFull}" />
+                    </Border.StrokeShape>
+                    <Label x:Name="HandGlyph"
+                           Style="{StaticResource IconInShape}"
+                           FontSize="18"
+                           HorizontalOptions="Center"
+                           TextColor="{DynamicResource Brand}" />
+                </Border>
+                <!-- Line height 1: the title line height would sit the name below the icon on iOS. -->
+                <Label x:Name="NameText"
+                       Grid.Column="1"
+                       Style="{StaticResource TypeTitleM}"
+                       LineHeight="1"
+                       VerticalOptions="Center" />
+            </Grid>
+            <controls:StatusBadge x:Name="Badge" />
+            <!-- The voltage (Gloves page only) shares the battery line, right-aligned, on one line:
+                 "100%" leaves little room on a narrow card, and a wrapped "V" reads badly. "Low"
+                 shares the percent's column so its hidden column costs no spacing. -->
+            <Grid x:Name="BatteryRow" ColumnDefinitions="Auto,Auto,*" ColumnSpacing="{StaticResource Space2}" RowSpacing="{StaticResource Space1}">
+                <Label x:Name="BatteryGlyph" Style="{StaticResource IconLabel}" VerticalOptions="Center" />
+                <HorizontalStackLayout Grid.Column="1" Spacing="{StaticResource Space2}">
+                    <Label x:Name="PercentText"
+                           Style="{StaticResource TypeTitleL}"
+                           FontFamily="{DynamicResource FontDisplay500}"
+                           LineHeight="1"
+                           VerticalOptions="Center" />
+                    <Label x:Name="LowText"
+                           Text="Low"
+                           Style="{StaticResource TypeCaption}"
+                           FontFamily="{DynamicResource FontSans700}"
+                           TextColor="{DynamicResource Warning}"
+                           LineHeight="1"
+                           VerticalOptions="Center" />
+                </HorizontalStackLayout>
+                <Label x:Name="DetailText"
+                       Grid.Column="2"
+                       Style="{StaticResource TypeCodeS}"
+                       TextColor="{DynamicResource InkMuted}"
+                       LineHeight="1"
+                       LineBreakMode="NoWrap"
+                       HorizontalOptions="End"
+                       VerticalOptions="Center" />
+            </Grid>
+        </VerticalStackLayout>
+    </Border>
+</ContentView>

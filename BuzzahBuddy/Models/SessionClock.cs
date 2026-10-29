@@ -4,16 +4,7 @@ namespace BuzzahBuddy.Models;
 /// One reading from a <see cref="SessionClock"/> tick.
 /// </summary>
 public readonly record struct SessionClockReading(
-    TimeSpan Elapsed, TimeSpan Remaining, double Fraction, bool HasKnownTotal)
-{
-    /// <summary>Elapsed as MM:SS (floored to whole seconds).</summary>
-    public string ElapsedFormatted => Format((int)Elapsed.TotalSeconds);
-
-    /// <summary>Remaining as MM:SS (ceiling, so the countdown reaches 00:00 exactly at the end).</summary>
-    public string RemainingFormatted => Format((int)Math.Ceiling(Remaining.TotalSeconds));
-
-    private static string Format(int totalSeconds) => $"{totalSeconds / 60:D2}:{totalSeconds % 60:D2}";
-}
+    TimeSpan Elapsed, TimeSpan Remaining, double Fraction, bool HasKnownTotal);
 
 /// <summary>
 /// Local display clock for the therapy session timer. The device is authoritative:

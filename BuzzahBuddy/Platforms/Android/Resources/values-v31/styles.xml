@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 12+ masks the splash icon to a circle two thirds of its size. -->
+    <style name="BuzzahBuddy.SplashTheme" parent="Maui.SplashTheme">
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
+    </style>
+</resources>

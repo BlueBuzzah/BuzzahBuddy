@@ -1,0 +1,48 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<!-- Stepper (Stepper README; bundle .bb-stepper): big minus and plus buttons instead of a
+     slider, the value in metric in a sunken well, the unit spelled out. -->
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="BuzzahBuddy.Views.Controls.ValueStepper">
+    <VerticalStackLayout Spacing="{StaticResource Space2}">
+        <Label x:Name="LabelText" Style="{StaticResource TypeLabel}" AutomationProperties.IsInAccessibleTree="False" />
+        <Grid ColumnDefinitions="56,*,56" ColumnSpacing="{StaticResource TargetGap}">
+            <Button x:Name="MinusButton"
+                    Style="{StaticResource ButtonQuiet}"
+                    BackgroundColor="{DynamicResource SurfaceRaised}"
+                    FontFamily="Lucide"
+                    FontSize="28"
+                    Padding="0"
+                    WidthRequest="{StaticResource TargetLg}"
+                    HeightRequest="{StaticResource TargetLg}"
+                    Clicked="OnMinusClicked"
+                    AutomationId="StepperDecrease" />
+            <Border x:Name="Well"
+                    Grid.Column="1"
+                    BackgroundColor="{DynamicResource SurfaceSunken}"
+                    StrokeThickness="0"
+                    MinimumWidthRequest="96"
+                    Padding="12,0">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="{StaticResource RadiusMd}" />
+                </Border.StrokeShape>
+                <HorizontalStackLayout Spacing="6" HorizontalOptions="Center" VerticalOptions="Center">
+                    <Label x:Name="NumberText" Style="{StaticResource TypeMetric}" VerticalOptions="Center" />
+                    <Label x:Name="UnitText" TextColor="{DynamicResource InkMuted}" VerticalOptions="Center" />
+                </HorizontalStackLayout>
+            </Border>
+            <Button x:Name="PlusButton"
+                    Grid.Column="2"
+                    Style="{StaticResource ButtonQuiet}"
+                    BackgroundColor="{DynamicResource SurfaceRaised}"
+                    FontFamily="Lucide"
+                    FontSize="28"
+                    Padding="0"
+                    WidthRequest="{StaticResource TargetLg}"
+                    HeightRequest="{StaticResource TargetLg}"
+                    Clicked="OnPlusClicked"
+                    AutomationId="StepperIncrease" />
+        </Grid>
+        <Label x:Name="HintText" Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
+    </VerticalStackLayout>
+</ContentView>

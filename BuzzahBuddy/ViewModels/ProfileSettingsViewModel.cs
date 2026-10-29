@@ -1,16 +1,18 @@
-using System.Globalization;
+using BuzzahBuddy.Messages;
 using BuzzahBuddy.Models;
-using BuzzahBuddy.Services.ConnectionStateManagement;
+using BuzzahBuddy.Services.Dialogs;
 using BuzzahBuddy.Services.Glove;
+using BuzzahBuddy.Services.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using static BuzzahBuddy.Services.Glove.ErrorMessageHelper;
+using CommunityToolkit.Mvvm.Messaging;
 
 namespace BuzzahBuddy.ViewModels;
 
 /// <summary>
-/// ViewModel for editing the Custom therapy profile's parameters
-/// (PROFILE_GET / PROFILE_CUSTOM).
+/// ViewModel for editing the Custom therapy profile's parameters. The settings are
+/// saved on the phone, with no glove needed; the Gloves page sends them
+/// (PROFILE_CUSTOM) when the user applies the Custom profile.
 /// <para>
 /// Only the eight parameters the firmware persists for the Custom slot are
 /// editable. Actuator type, drive frequency and pattern type are fixed: the
@@ -21,11 +23,8 @@ namespace BuzzahBuddy.ViewModels;
 public partial class ProfileSettingsViewModel : BaseViewModel
 {
     private readonly IGloveControlService _gloveControlService;
-
-    /// <summary>
-    /// Centralized connection state service exposed for XAML binding.
-    /// </summary>
-    public IConnectionStateService ConnectionInfo { get; }
+    private readonly IDataStorageService _storageService;
+    private readonly IConfirmationService _confirmation;
 
     [ObservableProperty]
     private string _timeOnMsText = string.Empty;
@@ -48,37 +47,47 @@ public partial class ProfileSettingsViewModel : BaseViewModel
     [ObservableProperty]
     private bool _mirror;
 
-    /// <summary>
-    /// Active fingers as reported by the device. Not editable: every glove already
-    /// drives all of its motors, and the count is a compile-time board constant
-    /// (4 on BlueBuzzah, 5 on PentaBuzzer). It is carried here because the derived
-    /// coordinated-reset timing depends on it, and round-tripped unchanged so the
-    /// diff against the baseline never sends it.
-    /// </summary>
-    private int _deviceFingers = ResearchDefaults.Fingers;
-
-    /// <summary>True once the current settings have been read from the device.</summary>
+    /// <summary>True once the saved settings are in the form.</summary>
     [ObservableProperty]
     private bool _isLoaded;
 
+    // Per-field errors, set when Save is tapped (not while typing; TextField README) and
+    // cleared as soon as that field changes.
+    [ObservableProperty] private string? _timeOnError;
+    [ObservableProperty] private string? _timeOffError;
+    [ObservableProperty] private string? _sessionError;
+    [ObservableProperty] private string? _amplitudeMinError;
+    [ObservableProperty] private string? _amplitudeMaxError;
+    [ObservableProperty] private string? _jitterError;
+
+    /// <summary>Shown when the settings differ from the study's.</summary>
+    [ObservableProperty]
+    private bool _deviatesBannerVisible;
+
     public ProfileSettingsViewModel(
         IGloveControlService gloveControlService,
-        IConnectionStateService connectionStateService)
+        IDataStorageService storageService,
+        IConfirmationService confirmation)
     {
         _gloveControlService = gloveControlService;
-        ConnectionInfo = connectionStateService;
+        _storageService = storageService;
+        _confirmation = confirmation;
 
+        // Pushed screens title the native bar beside Back (owner's choice over the DS headline).
         Title = "Custom Profile";
     }
 
-    /// <summary>Motors per glove on the connected device (4 on v2, 5 on v3).</summary>
+    /// <summary>
+    /// Motors per glove on the last connected device (4 on v2, 5 on v3; 4 until a glove
+    /// reports). The derived timing and the study comparison use it; it is never sent.
+    /// </summary>
     public int MotorCount => _gloveControlService.DeviceActuatorCount;
 
     // ========== Derived, read-only guidance ==========
 
     /// <summary>
-    /// Coordinated-reset period and frequency implied by the current field values,
-    /// e.g. "CR period 668 ms · 1.50 Hz". The studied protocol runs at 1.50 Hz.
+    /// Cycle length implied by the current field values, e.g. "One full cycle takes
+    /// 668 ms, about 1.5 times a second." The studied protocol runs at 1.5 a second.
     /// </summary>
     public string DerivedTimingText => CurrentForm().DerivedTimingText;
 
@@ -105,15 +114,15 @@ public partial class ProfileSettingsViewModel : BaseViewModel
         AmplitudeMaxText = AmplitudeMaxText,
         JitterText = JitterText,
         Mirror = Mirror,
-        Fingers = _deviceFingers,
+        Fingers = MotorCount,
     };
 
-    partial void OnTimeOnMsTextChanged(string value) => RaiseDerived();
-    partial void OnTimeOffMsTextChanged(string value) => RaiseDerived();
-    partial void OnJitterTextChanged(string value) => RaiseDerived();
-    partial void OnSessionMinutesTextChanged(string value) => RaiseDerived();
-    partial void OnAmplitudeMinTextChanged(string value) => RaiseDerived();
-    partial void OnAmplitudeMaxTextChanged(string value) => RaiseDerived();
+    partial void OnTimeOnMsTextChanged(string value) { TimeOnError = null; RaiseDerived(); }
+    partial void OnTimeOffMsTextChanged(string value) { TimeOffError = null; RaiseDerived(); }
+    partial void OnJitterTextChanged(string value) { JitterError = null; RaiseDerived(); }
+    partial void OnSessionMinutesTextChanged(string value) { SessionError = null; RaiseDerived(); }
+    partial void OnAmplitudeMinTextChanged(string value) { AmplitudeMinError = null; AmplitudeMaxError = null; RaiseDerived(); }
+    partial void OnAmplitudeMaxTextChanged(string value) { AmplitudeMaxError = null; RaiseDerived(); }
     partial void OnMirrorChanged(bool value) => RaiseDerived();
 
     private void RaiseDerived()
@@ -121,52 +130,28 @@ public partial class ProfileSettingsViewModel : BaseViewModel
         OnPropertyChanged(nameof(DerivedTimingText));
         OnPropertyChanged(nameof(EffectiveJitterCapText));
         OnPropertyChanged(nameof(DeviatesFromResearchDefaults));
+        DeviatesBannerVisible = DeviatesFromResearchDefaults;
     }
 
     // ========== Commands ==========
 
     /// <summary>
-    /// Reads the current profile parameters from the device and populates the form.
-    /// Called from the page's OnAppearing.
+    /// Fills the form with the saved settings, or the study's until the user saves any.
+    /// Called once, from the page's OnAppearing.
     /// </summary>
     [RelayCommand]
     private async Task LoadAsync()
     {
-        if (IsBusy)
+        if (IsLoaded)
             return;
 
-        if (!ConnectionInfo.IsConnected)
-        {
-            IsLoaded = false;
-            return;
-        }
-
-        IsBusy = true;
-        try
-        {
-            var profile = await _gloveControlService.GetCurrentProfileAsync();
-            PopulateFromDevice(profile);
-            IsLoaded = true;
-            OnPropertyChanged(nameof(MotorCount));
-        }
-        catch (BlueBuzzahCommandException ex)
-        {
-            var (title, message) = GetFriendlyError(ex.Message);
-            await Shell.Current.DisplayAlert(title, message, "OK");
-        }
-        catch (Exception ex)
-        {
-            await Shell.Current.DisplayAlert(GetErrorTitle(ex), GetErrorMessage(ex), "OK");
-        }
-        finally
-        {
-            IsBusy = false;
-        }
+        PopulateFrom(await _storageService.GetCustomProfileAsync() ?? ResearchDefaults.For(MotorCount));
+        IsLoaded = true;
     }
 
     /// <summary>
-    /// Populates the form with the validated research configuration. Local only —
-    /// nothing reaches the gloves until Apply.
+    /// Populates the form with the validated research configuration. Nothing is
+    /// kept until Save.
     /// </summary>
     [RelayCommand]
     private async Task ResetToDefaultsAsync()
@@ -174,130 +159,42 @@ public partial class ProfileSettingsViewModel : BaseViewModel
         // Discards whatever the user has tuned. Destructive actions require a
         // confirmation (BlueBuzzah design system, accessibility.md) because an accidental tap is a real hazard
         // for tremor-prone users, and there is no undo once the fields are replaced.
-        var confirmed = await Shell.Current.DisplayAlert(
-            "Use Research Defaults?",
-            "This replaces the values in the form with the settings used in the published "
-            + "vibrotactile therapy study. Nothing is sent to the gloves until you save.",
-            "Use Defaults",
-            "Cancel");
+        var confirmed = await _confirmation.ConfirmAsync(new ConfirmRequest(
+            "Use the Study Settings?",
+            "This fills the form with the settings from the published study. Nothing is kept until you tap Save.",
+            "Use Study Settings"));
 
         if (confirmed)
             PopulateFrom(ResearchDefaults.For(MotorCount));
     }
 
     /// <summary>
-    /// Validates the form and sends the changed parameters to the device.
+    /// Validates the form, saves it on the phone and goes back. The Gloves page sends it
+    /// when the user applies the Custom profile.
     /// </summary>
     [RelayCommand]
-    private async Task ApplyAsync()
+    private async Task SaveAsync()
     {
-        if (IsBusy)
-            return;
-
-        if (!IsLoaded || !ConnectionInfo.IsConnected)
+        // Each bad field gets its own message beside it; nothing is saved.
+        var form = CurrentForm();
+        var errors = form.Validate();
+        TimeOnError = errors.GetValueOrDefault(CustomProfileField.TimeOn);
+        TimeOffError = errors.GetValueOrDefault(CustomProfileField.TimeOff);
+        SessionError = errors.GetValueOrDefault(CustomProfileField.Session);
+        AmplitudeMinError = errors.GetValueOrDefault(CustomProfileField.AmplitudeMin);
+        AmplitudeMaxError = errors.GetValueOrDefault(CustomProfileField.AmplitudeMax);
+        JitterError = errors.GetValueOrDefault(CustomProfileField.Jitter);
+        if (errors.Count > 0 || !form.TryBuildProfile(out var profile))
         {
-            await Shell.Current.DisplayAlert(
-                "Not Connected",
-                "Connect to a BlueBuzzah glove and load the current settings first.",
-                "OK");
-            return;
-        }
-
-        if (!CurrentForm().TryBuildProfile(out var desired))
-        {
-            await Shell.Current.DisplayAlert(
-                "Invalid Value",
-                "One or more fields contain an invalid number. Please check the values and try again.",
-                "OK");
+            SemanticScreenReader.Announce(errors.Values.FirstOrDefault() ?? "Something Went Wrong");
             return;
         }
 
-        IsBusy = true;
-        var applyStarted = false;
-        try
-        {
-            // Read the baseline fresh so the diff isn't computed against stale
-            // values (another profile may have been loaded, or the device
-            // rebooted, while this page was open).
-            var baseline = await _gloveControlService.GetCurrentProfileAsync();
-
-            // Re-sync the finger count from the device we are about to write to.
-            // Without this, a silent reconnect to different hardware while this page
-            // stayed on screen would send the previous glove's count — on a 5-motor
-            // device that silently drops it to 4 active fingers.
-            _deviceFingers = baseline.Fingers;
-
-            // Range-check before flagging the send. This is pure string building
-            // that touches no hardware, so an out-of-range value throws here with
-            // applyStarted still false — which is what lets the catch blocks tell
-            // "nothing was written" apart from "a batch was interrupted".
-            GloveControlService.BuildCustomProfileParameters(
-                desired, baseline, _gloveControlService.DeviceActuatorCount);
-
-            applyStarted = true;
-            await _gloveControlService.ApplyCustomProfileAsync(desired, baseline);
-
-            // Re-read from the device so the form reflects what it accepted.
-            var confirmed = await _gloveControlService.GetCurrentProfileAsync();
-            PopulateFromDevice(confirmed);
-
-            // Only promise persistence when the firmware actually provides it.
-            await Shell.Current.DisplayAlert(
-                "Settings Saved",
-                _gloveControlService.PersistsCustomProfile
-                    ? "The gloves are now using these settings, and will keep them after a restart."
-                    : "The gloves are now using these settings. This firmware does not store them, "
-                      + "so they will return to the previous values when the gloves restart.",
-                "OK");
-        }
-        catch (ArgumentException ex)
-        {
-            // Parameter validation runs before the first send, so in the reachable
-            // case nothing has been written and the form is still accurate. Resync
-            // anyway when a send had already begun: the command-length guard also
-            // throws ArgumentException, and it fires mid-batch. That guard is
-            // unreachable at present (worst-case command is ~98 of 255 chars), so
-            // this costs nothing today and stops a future ninth parameter from
-            // turning a partial write into a silently stale form.
-            await Shell.Current.DisplayAlert(
-                "Invalid Value", await AppendResyncNoteAsync(ex.Message, applyStarted), "OK");
-        }
-        catch (BlueBuzzahCommandException ex)
-        {
-            var (title, message) = GetFriendlyError(ex.Message);
-            await Shell.Current.DisplayAlert(title, await AppendResyncNoteAsync(message, applyStarted), "OK");
-        }
-        catch (Exception ex)
-        {
-            await Shell.Current.DisplayAlert(
-                GetErrorTitle(ex), await AppendResyncNoteAsync(GetErrorMessage(ex), applyStarted), "OK");
-        }
-        finally
-        {
-            IsBusy = false;
-        }
-    }
-
-    /// <summary>
-    /// After a failed apply, some parameters may already be on the device (chunked
-    /// sends aren't atomic). Best-effort re-read so the form shows the gloves'
-    /// actual state, and extend the error message accordingly.
-    /// </summary>
-    private async Task<string> AppendResyncNoteAsync(string message, bool applyStarted)
-    {
-        if (!applyStarted)
-            return message;
-
-        try
-        {
-            var current = await _gloveControlService.GetCurrentProfileAsync();
-            PopulateFromDevice(current);
-            return message + "\n\nSome changes may have been applied. The form now shows the gloves' current settings.";
-        }
-        catch
-        {
-            return message + "\n\nSome changes may have been applied. Reload from the gloves to see their current settings.";
-        }
+        profile.Name = "Custom";
+        await _storageService.SaveCustomProfileAsync(profile);
+        WeakReferenceMessenger.Default.Send(new CustomProfileSavedMessage());
+        SemanticScreenReader.Announce("Custom settings saved");
+        await Shell.Current.GoToAsync("..");
     }
 
     private void PopulateFrom(TherapyProfile profile)
@@ -313,24 +210,4 @@ public partial class ProfileSettingsViewModel : BaseViewModel
         JitterText = form.JitterText;
         Mirror = form.Mirror;
     }
-
-    /// <summary>
-    /// Populates the form from a profile read off the device, including the
-    /// non-editable finger count. Only device reads may change that count —
-    /// "Use Research Defaults" must not silently alter it, since the form shows
-    /// no field the user could see it change in.
-    /// </summary>
-    private void PopulateFromDevice(TherapyProfile profile)
-    {
-        _deviceFingers = profile.Fingers;
-        PopulateFrom(profile);
-
-        // The derived timing depends on _deviceFingers, which is not observable.
-        // PopulateFrom's property setters usually raise it as a side effect, but
-        // only when a string value actually changes — a re-read that returns
-        // identical text with a different finger count would otherwise leave the
-        // displayed CR period stale.
-        RaiseDerived();
-    }
-
 }

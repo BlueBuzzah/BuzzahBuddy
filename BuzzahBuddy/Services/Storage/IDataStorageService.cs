@@ -46,6 +46,17 @@ public interface IDataStorageService
     Task<int> GetLastProfileAsync();
 
     /// <summary>
+    /// Saves the Custom profile's settings on this phone. They reach the gloves when
+    /// the user applies the Custom profile.
+    /// </summary>
+    Task SaveCustomProfileAsync(TherapyProfile profile);
+
+    /// <summary>
+    /// Gets the Custom profile's saved settings, or null if the user hasn't saved any.
+    /// </summary>
+    Task<TherapyProfile?> GetCustomProfileAsync();
+
+    /// <summary>
     /// Saves the last connected device information.
     /// </summary>
     /// <param name="device">The device to save.</param>

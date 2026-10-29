@@ -296,7 +296,62 @@ public class GloveControlService : IGloveControlService
             DeviceProfileChanged?.Invoke(this, info.ProfileId);
         }
         DeviceInfoReceived?.Invoke(this, info);
+        if (info.BatterySecondaryVoltage is null)
+            WatchForSecondaryBattery();
         return info;
+    }
+
+    /// <summary>
+    /// Waits before each re-ask for the secondary's battery; the last one repeats.
+    /// Settable so tests don't wait out real time.
+    /// </summary>
+    internal TimeSpan[] SecondaryBatteryRetryDelays { get; set; } =
+        [TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(30)];
+
+    private int _secondaryBatteryWatchRunning;
+
+    /// <summary>
+    /// The primary reports no secondary battery (BATS:0.00) until the secondary has
+    /// rejoined it, which after a restart can be seconds after the phone reconnects.
+    /// Re-sends INFO on a backoff so every page's DeviceInfoReceived handler picks the
+    /// reading up, and stops once it arrives or the link drops. Skips turns during a
+    /// session: each INFO costs a GET_BATTERY round trip on the gloves' sync link.
+    /// </summary>
+    // ponytail: with the secondary switched off this asks every 30s for as long as the
+    // primary stays connected; INFO answers at once then, so add a cap only if that shows up.
+    private void WatchForSecondaryBattery()
+    {
+        if (Interlocked.Exchange(ref _secondaryBatteryWatchRunning, 1) == 1)
+            return;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var delays = SecondaryBatteryRetryDelays;
+                for (var attempt = 0; ; attempt++)
+                {
+                    await Task.Delay(delays[Math.Min(attempt, delays.Length - 1)]);
+                    if (_bluetoothService.CurrentConnectionState != ConnectionState.Connected)
+                        return;
+                    if (_currentSessionStatus.IsActive)
+                        continue;
+                    try
+                    {
+                        if ((await GetDeviceInfoAsync()).BatterySecondaryVoltage is not null)
+                            return;
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[GLOVE_SERVICE] Secondary battery re-ask failed: {ex.Message}");
+                    }
+                }
+            }
+            finally
+            {
+                Volatile.Write(ref _secondaryBatteryWatchRunning, 0);
+            }
+        });
     }
 
     public async Task<(double? primaryVoltage, double? secondaryVoltage)> GetBatteryAsync()
@@ -595,6 +650,25 @@ public class GloveControlService : IGloveControlService
             await SetCustomProfileAsync(
                 parameters.Skip(i).Take(8).ToDictionary(p => p.Key, p => p.Value));
         }
+    }
+
+    public async Task SendSavedCustomProfileAsync(TherapyProfile saved)
+    {
+        var baseline = await GetCurrentProfileAsync();
+        // Fingers is a board constant, not a setting: never let a saved value change it.
+        var desired = new TherapyProfile
+        {
+            ProfileId = TherapyProfile.CustomProfileId,
+            TimeOn = saved.TimeOn,
+            TimeOff = saved.TimeOff,
+            TimeSession = saved.TimeSession,
+            AmplitudeMin = saved.AmplitudeMin,
+            AmplitudeMax = saved.AmplitudeMax,
+            Jitter = saved.Jitter,
+            Mirror = saved.Mirror,
+            Fingers = baseline.Fingers,
+        };
+        await ApplyCustomProfileAsync(desired, baseline);
     }
 
     /// <summary>

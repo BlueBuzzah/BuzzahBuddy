@@ -100,7 +100,7 @@ public class TherapyProfile
     public bool IsCustom => ProfileId == CustomProfileId;
 
     /// <summary>
-    /// Creates the three predefined therapy profiles.
+    /// Creates the predefined therapy profiles, in display order (Custom last).
     /// </summary>
     /// <returns>List of preset profiles</returns>
     public static List<TherapyProfile> GetPresetProfiles()
@@ -112,7 +112,7 @@ public class TherapyProfile
             {
                 ProfileId = 1,
                 Name = "Regular",
-                Description = "Standard vibrotactile continuous reset pattern with consistent timing",
+                Description = "Steady timing. Each glove uses its own random finger order.",
                 ActuatorType = "LRA",
                 ActuatorFrequency = 250,
                 ActuatorVoltage = 2.5,
@@ -132,7 +132,7 @@ public class TherapyProfile
             {
                 ProfileId = 2,
                 Name = "Noisy",
-                Description = "Pattern with jitter and mirrored patterns - recommended default",
+                Description = "Slightly varied timing. Both gloves use the same finger order.",
                 ActuatorType = "LRA",
                 ActuatorFrequency = 250,
                 ActuatorVoltage = 2.5,
@@ -152,7 +152,7 @@ public class TherapyProfile
             {
                 ProfileId = 3,
                 Name = "Hybrid",
-                Description = "Mixed frequency stimulation pattern",
+                Description = "Slightly varied timing. Each glove uses its own finger order.",
                 ActuatorType = "LRA",
                 ActuatorFrequency = 250,
                 ActuatorVoltage = 2.5,
@@ -167,38 +167,18 @@ public class TherapyProfile
                 Fingers = 4
             },
 
-            // Profile 4: Custom (per BLE protocol v2.0.0)
-            new TherapyProfile
-            {
-                ProfileId = 4,
-                Name = "Custom",
-                Description = "Variable amplitude and frequency for personalized therapy",
-                ActuatorType = "LRA",
-                ActuatorFrequency = 250,
-                ActuatorVoltage = 2.5,
-                TimeOn = 0.100,
-                TimeOff = 0.067,
-                TimeSession = 120,
-                AmplitudeMin = 50,
-                AmplitudeMax = 100,
-                Jitter = 0,
-                Mirror = false,
-                PatternType = "RNDP",
-                Fingers = 4
-            },
-
             // Profile 5: Gentle (per BLE protocol v2.0.0)
             new TherapyProfile
             {
                 ProfileId = 5,
                 Name = "Gentle",
-                Description = "Lower amplitude therapy with sequential pattern for sensitive users",
+                Description = "Softer buzzes in a fixed finger order. 1-hour sessions.",
                 ActuatorType = "LRA",
                 ActuatorFrequency = 250,
                 ActuatorVoltage = 2.0,
                 TimeOn = 0.100,
                 TimeOff = 0.067,
-                TimeSession = 120,
+                TimeSession = 60,
                 AmplitudeMin = 30,
                 AmplitudeMax = 60,
                 Jitter = 0,
@@ -212,7 +192,7 @@ public class TherapyProfile
             {
                 ProfileId = 6,
                 Name = "Quick Test",
-                Description = "5-minute test session for quick device verification",
+                Description = "A 5-minute session to check that your gloves work.",
                 ActuatorType = "LRA",
                 ActuatorFrequency = 250,
                 ActuatorVoltage = 2.5,
@@ -220,6 +200,26 @@ public class TherapyProfile
                 TimeOff = 0.067,
                 TimeSession = 5,
                 AmplitudeMin = 100,
+                AmplitudeMax = 100,
+                Jitter = 0,
+                Mirror = false,
+                PatternType = "RNDP",
+                Fingers = 4
+            },
+
+            // Profile 4: Custom (per BLE protocol v2.0.0)
+            new TherapyProfile
+            {
+                ProfileId = 4,
+                Name = "Custom",
+                Description = "Your own settings. The only profile you can edit.",
+                ActuatorType = "LRA",
+                ActuatorFrequency = 250,
+                ActuatorVoltage = 2.5,
+                TimeOn = 0.100,
+                TimeOff = 0.067,
+                TimeSession = 120,
+                AmplitudeMin = 50,
                 AmplitudeMax = 100,
                 Jitter = 0,
                 Mirror = false,
@@ -239,7 +239,7 @@ public class TherapyProfile
         {
             ProfileId = CustomProfileId,
             Name = $"Custom ({Name})",
-            Description = "User-customized therapy profile",
+            Description = "Your own settings. The only profile you can edit.",
             ActuatorType = ActuatorType,
             ActuatorFrequency = ActuatorFrequency,
             ActuatorVoltage = ActuatorVoltage,

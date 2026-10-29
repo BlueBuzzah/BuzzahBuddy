@@ -1,111 +1,90 @@
-<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<!-- Settings (buzzahbuddy.md Settings): appearance override (design system README "Color"),
+     data, and About with the safety notices verbatim. -->
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:BuzzahBuddy.ViewModels"
+             xmlns:controls="clr-namespace:BuzzahBuddy.Views.Controls"
              x:Class="BuzzahBuddy.Views.SettingsPage"
              x:DataType="vm:SettingsViewModel"
              Title="{Binding Title}"
+             Shell.NavBarIsVisible="False"
              SafeAreaEdges="Container">
 
     <ScrollView>
-        <VerticalStackLayout Padding="20" Spacing="25">
+        <VerticalStackLayout Padding="16,16,16,24" Spacing="{StaticResource Space8}">
+            <Label Text="Settings" Style="{StaticResource TypeHeadline}" SemanticProperties.HeadingLevel="Level1" />
 
-            <!-- Header -->
-            <Label Text="Settings"
-                   Style="{StaticResource Headline}"
-                   SemanticProperties.HeadingLevel="Level1"
-                   HorizontalOptions="Center" />
-
-            <!-- Preferences Section -->
-            <VerticalStackLayout Spacing="15">
-                <Label Text="Preferences"
-                       FontSize="18"
-                       FontAttributes="Bold"
-                       SemanticProperties.HeadingLevel="Level2" />
-
-                <Border Padding="15"
-                        BackgroundColor="{StaticResource CardBackground}"
-                        StrokeThickness="0">
-                    <Border.StrokeShape>
-                        <RoundRectangle CornerRadius="12" />
-                    </Border.StrokeShape>
-
-                    <VerticalStackLayout Spacing="15">
-                        <Grid ColumnDefinitions="*,Auto" MinimumHeightRequest="48">
-                            <Label Grid.Column="0"
-                                   Text="Enable Notifications"
-                                   FontSize="16"
-                                   VerticalOptions="Center" />
-                            <Switch Grid.Column="1"
-                                    IsToggled="{Binding EnableNotifications}"
-                                    VerticalOptions="Center"
-                                    SemanticProperties.Description="Enable notifications"
-                                    SemanticProperties.Hint="Double tap to toggle notifications on or off"
-                                    AutomationId="NotificationsSwitch" />
-                        </Grid>
-
-                        <Grid ColumnDefinitions="*,Auto" MinimumHeightRequest="48">
-                            <Label Grid.Column="0"
-                                   Text="Auto-Connect to Last Device"
-                                   FontSize="16"
-                                   VerticalOptions="Center"
-                                   LineBreakMode="WordWrap" />
-                            <Switch Grid.Column="1"
-                                    IsToggled="{Binding AutoConnect}"
-                                    VerticalOptions="Center"
-                                    SemanticProperties.Description="Auto-connect to last device"
-                                    SemanticProperties.Hint="Double tap to toggle automatic connection to last used device"
-                                    AutomationId="AutoConnectSwitch" />
-                        </Grid>
+            <VerticalStackLayout Spacing="{StaticResource Space3}">
+                <Label Text="Appearance" Style="{StaticResource TypeTitleL}" SemanticProperties.HeadingLevel="Level2" />
+                <Border Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="{StaticResource Space4}">
+                        <controls:SegmentedControl Label="Theme"
+                                                   Options="{Binding ThemeOptions}"
+                                                   SelectedValue="{Binding SelectedTheme}"
+                                                   AutomationId="ThemeControl" />
+                        <controls:SwitchRow Label="High Contrast"
+                                            Description="Stronger colors and edges. When this is off, BuzzahBuddy follows your phone's setting."
+                                            IsToggled="{Binding HighContrast}"
+                                            Margin="-16,0"
+                                            AutomationId="HighContrastSwitch" />
                     </VerticalStackLayout>
                 </Border>
             </VerticalStackLayout>
 
-            <!-- Data Management -->
-            <VerticalStackLayout Spacing="15">
-                <Label Text="Data Management"
-                       FontSize="18"
-                       FontAttributes="Bold"
-                       SemanticProperties.HeadingLevel="Level2" />
+            <VerticalStackLayout Spacing="{StaticResource Space3}">
+                <Label Text="Demo" Style="{StaticResource TypeTitleL}" SemanticProperties.HeadingLevel="Level2" />
+                <Border Style="{StaticResource Card}" Padding="0,8">
+                    <controls:SwitchRow Label="Demo Mode"
+                                        Description="Uses pretend gloves, so you can try BuzzahBuddy without real ones. You can't change this during a session."
+                                        IsToggled="{Binding DemoMode}"
+                                        IsEnabled="{Binding CanChangeDemoMode}"
+                                        AutomationId="DemoModeSwitch" />
+                </Border>
+            </VerticalStackLayout>
 
+            <VerticalStackLayout Spacing="{StaticResource Space3}">
+                <Label Text="Data" Style="{StaticResource TypeTitleL}" SemanticProperties.HeadingLevel="Level2" />
+                <Label Text="Saved sessions and notes stay on this phone." Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
                 <Button Text="Clear All Data"
+                        Style="{StaticResource ButtonDanger}"
                         Command="{Binding ClearDataCommand}"
-                        Style="{StaticResource WarningActionButton}"
-                        SemanticProperties.Hint="Delete all therapy sessions and custom patterns"
-                        SemanticProperties.Description="Clear all stored data"
+                        SemanticProperties.Description="Clear All Data"
                         AutomationId="ClearDataButton" />
+                <controls:StatusBadge Tone="Success" Text="Data Cleared" IsVisible="{Binding DataClearedVisible}" />
             </VerticalStackLayout>
 
-            <!-- About Section -->
-            <VerticalStackLayout Spacing="15" Margin="0,20,0,0">
-                <Label Text="About"
-                       FontSize="18"
-                       FontAttributes="Bold"
-                       SemanticProperties.HeadingLevel="Level2" />
-
-                <Border Padding="15"
-                        BackgroundColor="{StaticResource CardBackground}"
-                        StrokeThickness="0">
-                    <Border.StrokeShape>
-                        <RoundRectangle CornerRadius="12" />
-                    </Border.StrokeShape>
-
-                    <VerticalStackLayout Spacing="10">
-                        <Label Text="BuzzahBuddy"
-                               FontSize="20"
-                               FontAttributes="Bold" />
-                        <Label Text="{Binding AppVersion, StringFormat='Version {0}'}"
-                               FontSize="14"
-                               TextColor="{StaticResource TextMuted}" />
-                        <Label FontSize="14"
-                               LineBreakMode="WordWrap"
-                               Margin="0,10,0,0"
-                               Text="Companion app for BlueBuzzah vibrotactile devices, designed to help manage Parkinson's symptoms through therapeutic vibration." />
+            <VerticalStackLayout Spacing="{StaticResource Space3}">
+                <Label Text="About" Style="{StaticResource TypeTitleL}" SemanticProperties.HeadingLevel="Level2" />
+                <Border Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="{StaticResource Space3}">
+                        <!-- Name and version left, the mark right, centered on each other. The mark comes
+                             from assets/Logos, never recolored; clear space ≥ a quarter of its width. -->
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{StaticResource Space4}">
+                            <VerticalStackLayout VerticalOptions="Center">
+                                <Label Text="BuzzahBuddy" Style="{StaticResource TypeTitleM}" />
+                                <Label Text="{Binding AppVersion, StringFormat='Version {0}'}" Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
+                            </VerticalStackLayout>
+                            <Image Grid.Column="1"
+                                   Source="bluebuzzah_mark.png"
+                                   HeightRequest="48"
+                                   WidthRequest="50"
+                                   VerticalOptions="Center"
+                                   AutomationProperties.IsInAccessibleTree="False" />
+                        </Grid>
+                        <Label Text="BuzzahBuddy is the companion app for BlueBuzzah, open-source vibrotactile gloves for people living with Parkinson's. It runs sessions and changes glove settings." />
+                        <controls:Banner Tone="Info" AutomationId="SettingsDisclaimer">
+                            <controls:Banner.FormattedMessage>
+                                <FormattedString>
+                                    <Span Text="BlueBuzzah devices are not FDA approved medical devices and not intended to diagnose, treat, cure, or prevent any disease. The information provided through BlueBuzzah is for general wellness purposes only and not a substitute for professional medical advice, diagnosis, or treatment.&#10;&#10;" />
+                                    <Span Text="Important:" FontFamily="{DynamicResource FontSans700}" />
+                                    <Span Text=" People with implanted electrodes from deep brain stimulation (DBS), heart pacemakers, or other internal electronic devices should take special precautions around all electronic devices, including BlueBuzzah. Consult your physician before use." />
+                                </FormattedString>
+                            </controls:Banner.FormattedMessage>
+                        </controls:Banner>
                     </VerticalStackLayout>
                 </Border>
             </VerticalStackLayout>
-
         </VerticalStackLayout>
     </ScrollView>
-
 </ContentPage>

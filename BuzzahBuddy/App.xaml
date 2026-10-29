@@ -3,11 +3,15 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:local="clr-namespace:BuzzahBuddy"
              xmlns:converters="clr-namespace:BuzzahBuddy.Converters"
+             xmlns:themes="clr-namespace:BuzzahBuddy.Resources.Styles.Themes"
              x:Class="BuzzahBuddy.App">
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="Resources/Styles/Colors.xaml" />
+                <ResourceDictionary Source="Resources/Styles/Tokens.g.xaml" />
+                <!-- Initial theme; ThemeService swaps this entry at runtime. -->
+                <themes:DarkTheme />
+                <ResourceDictionary Source="Resources/Styles/Type.g.xaml" />
                 <ResourceDictionary Source="Resources/Styles/Styles.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
@@ -15,8 +19,6 @@
             <converters:InvertedBoolConverter x:Key="InvertedBoolConverter" />
             <converters:IsNotNullConverter x:Key="IsNotNullConverter" />
             <converters:ContinuousModeConverter x:Key="ContinuousModeConverter" />
-            <converters:IntToColorConverter x:Key="IntToColorConverter" />
-            <converters:IntToTextColorConverter x:Key="IntToTextColorConverter" />
             <converters:AllTrueConverter x:Key="AllTrueConverter" />
         </ResourceDictionary>
     </Application.Resources>

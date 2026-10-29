@@ -2,6 +2,9 @@ using System.Globalization;
 
 namespace BuzzahBuddy.Models;
 
+/// <summary>The editable fields of the Custom profile form.</summary>
+public enum CustomProfileField { TimeOn, TimeOff, Session, AmplitudeMin, AmplitudeMax, Jitter }
+
 /// <summary>
 /// The Custom profile editor's field values, as typed. Pure and MAUI-free so the
 /// parsing, unit conversion, and deviation logic can be unit tested — the view
@@ -56,7 +59,8 @@ public class CustomProfileForm
             !int.TryParse(SessionMinutesText, NumberStyles.Integer, inv, out var session) ||
             !int.TryParse(AmplitudeMinText, NumberStyles.Integer, inv, out var ampMin) ||
             !int.TryParse(AmplitudeMaxText, NumberStyles.Integer, inv, out var ampMax) ||
-            !double.TryParse(JitterText, NumberStyles.Float, inv, out var jitter))
+            !double.TryParse(JitterText, NumberStyles.Float, inv, out var jitter) ||
+            !double.IsFinite(onMs) || !double.IsFinite(offMs) || !double.IsFinite(jitter))
         {
             return false;
         }
@@ -76,6 +80,44 @@ public class CustomProfileForm
         return true;
     }
 
+    /// <summary>
+    /// Checks every field against the firmware's limits and returns one message per bad
+    /// field, so each error sits next to its own field (accessibility.md Vision). Empty
+    /// when the form can be saved.
+    /// </summary>
+    public IReadOnlyDictionary<CustomProfileField, string> Validate()
+    {
+        var inv = CultureInfo.InvariantCulture;
+        var errors = new Dictionary<CustomProfileField, string>();
+        static string Range(double min, double max) =>
+            string.Create(CultureInfo.InvariantCulture, $"Enter a number from {min:0.#} to {max:0.#}.");
+
+        void Decimal(CustomProfileField field, string text, double min, double max)
+        {
+            // NaN fails every comparison, so it needs its own check
+            if (!double.TryParse(text, NumberStyles.Float, inv, out var v) || !double.IsFinite(v) || v < min || v > max)
+                errors[field] = Range(min, max);
+        }
+
+        int? Whole(CustomProfileField field, string text, int min, int max)
+        {
+            if (int.TryParse(text, NumberStyles.Integer, inv, out var v) && v >= min && v <= max)
+                return v;
+            errors[field] = Range(min, max);
+            return null;
+        }
+
+        Decimal(CustomProfileField.TimeOn, TimeOnMsText, TherapyParameterBounds.TimeOnMsMin, TherapyParameterBounds.TimeOnMsMax);
+        Decimal(CustomProfileField.TimeOff, TimeOffMsText, TherapyParameterBounds.TimeOffMsMin, TherapyParameterBounds.TimeOffMsMax);
+        Whole(CustomProfileField.Session, SessionMinutesText, TherapyParameterBounds.SessionMinutesMin, TherapyParameterBounds.SessionMinutesMax);
+        var ampMin = Whole(CustomProfileField.AmplitudeMin, AmplitudeMinText, TherapyParameterBounds.AmplitudeMin, TherapyParameterBounds.AmplitudeMax);
+        var ampMax = Whole(CustomProfileField.AmplitudeMax, AmplitudeMaxText, TherapyParameterBounds.AmplitudeMin, TherapyParameterBounds.AmplitudeMax);
+        if (ampMin is { } lo && ampMax is { } hi && lo > hi)
+            errors[CustomProfileField.AmplitudeMax] = "Strongest buzz can't be lower than softest buzz.";
+        Decimal(CustomProfileField.Jitter, JitterText, TherapyParameterBounds.JitterMin, TherapyParameterBounds.JitterMax);
+        return errors;
+    }
+
     /// <summary>Parses the burst timing in milliseconds. False if either field is unparseable.</summary>
     public bool TryParseTiming(out double onMs, out double offMs)
     {
@@ -86,12 +128,12 @@ public class CustomProfileForm
     }
 
     /// <summary>
-    /// Derived coordinated-reset timing for display, e.g. "CR period 668 ms · 1.50 Hz".
+    /// Derived cycle timing for display, e.g. "One full cycle takes 668 ms, about 1.5 times a second."
     /// </summary>
     public string DerivedTimingText =>
         TryParseTiming(out var onMs, out var offMs)
             ? TherapyTiming.CrTimingLabel(Fingers, onMs, offMs)
-            : "CR period unavailable";
+            : "Enter both times above to see the cycle length.";
 
     /// <summary>
     /// Warning text when the entered jitter exceeds what this burst timing can
@@ -110,8 +152,7 @@ public class CustomProfileForm
             if (jitter <= cap)
                 return null;
 
-            return $"At this timing the gloves cap jitter near {cap.ToString("0.#", inv)}% " +
-                   "so bursts don't run together.";
+            return $"With these times, the gloves can vary timing by about {cap.ToString("0.#", inv)}% at most.";
         }
     }
 

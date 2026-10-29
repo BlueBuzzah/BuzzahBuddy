@@ -1,72 +1,153 @@
+using BuzzahBuddy.Helpers;
+using BuzzahBuddy.Messages;
+using BuzzahBuddy.Models;
+using BuzzahBuddy.Services.Bluetooth;
+using BuzzahBuddy.Services.Dialogs;
+using BuzzahBuddy.Services.Glove;
 using BuzzahBuddy.Services.Storage;
+using BuzzahBuddy.Services.Theme;
+using BuzzahBuddy.Views.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 
 namespace BuzzahBuddy.ViewModels;
 
 /// <summary>
 /// ViewModel for the settings page.
-/// Handles app-level preferences only — device settings live on the Device page.
+/// Handles app-level preferences only — device settings live on the Gloves page.
 /// </summary>
 public partial class SettingsViewModel : BaseViewModel
 {
 	private readonly IDataStorageService _storageService;
+	private readonly IThemeService _theme;
+	private readonly IConfirmationService _confirmation;
+	private readonly SwitchableBluetoothService _bluetooth;
+	private readonly IReconnectionService _reconnection;
+
+	/// <summary>Set while a cancelled confirmation puts the switch back, so it isn't applied.</summary>
+	private bool _revertingDemoMode;
+
+	/// <summary>System / Light / Dark, valued as <see cref="ThemePreference"/>.</summary>
+	public IList<SegmentOption> ThemeOptions { get; } = new[]
+	{
+		new SegmentOption((int)ThemePreference.System, "System"),
+		new SegmentOption((int)ThemePreference.Light, "Light"),
+		new SegmentOption((int)ThemePreference.Dark, "Dark"),
+	};
 
 	[ObservableProperty]
-	private bool _enableNotifications = true;
+	private int _selectedTheme;
 
 	[ObservableProperty]
-	private bool _autoConnect = false;
+	private bool _highContrast;
 
 	[ObservableProperty]
-	private string _appVersion = "0.1.1";
+	private bool _dataClearedVisible;
 
-	public SettingsViewModel(IDataStorageService storageService)
+	[ObservableProperty]
+	private string _appVersion = string.Empty;
+
+	/// <summary>Pretend gloves instead of real ones, for testing and demonstrations.</summary>
+	[ObservableProperty]
+	private bool _demoMode;
+
+	/// <summary>Demo Mode can't switch while a session runs or is paused.</summary>
+	[ObservableProperty]
+	[NotifyPropertyChangedFor(nameof(CanChangeDemoMode))]
+	private bool _isSessionActive;
+
+	public bool CanChangeDemoMode => !IsSessionActive;
+
+	public SettingsViewModel(
+		IDataStorageService storageService,
+		IThemeService theme,
+		IConfirmationService confirmation,
+		SwitchableBluetoothService bluetooth,
+		IReconnectionService reconnection,
+		IGloveControlService gloveControl)
 	{
 		_storageService = storageService;
+		_theme = theme;
+		_confirmation = confirmation;
+		_bluetooth = bluetooth;
+		_reconnection = reconnection;
+		_demoMode = bluetooth.IsDemoMode;
+		_isSessionActive = gloveControl.CurrentSessionStatus.IsActive;
+		// ponytail: never unsubscribed; this VM is a singleton living as long as the service.
+		gloveControl.SessionStateChanged += (_, status) =>
+			MainThread.BeginInvokeOnMainThread(() => IsSessionActive = status.IsActive);
 
 		Title = "Settings";
 
-		// Load settings
-		LoadSettings();
+		// Read without applying (setting the fields directly skips the change handlers).
+		_selectedTheme = (int)theme.Preference;
+		_highContrast = theme.HighContrast;
+		AppVersion = AppInfo.Current.VersionString;
+
+		// The old "Enable notifications" and "Auto-connect" switches did nothing; drop
+		// what they stored.
+		Preferences.Default.Remove("EnableNotifications");
+		Preferences.Default.Remove("AutoConnect");
+	}
+
+	partial void OnSelectedThemeChanged(int value)
+	{
+		var preference = (ThemePreference)value;
+		_theme.Preference = preference;
+		SemanticScreenReader.Announce($"Theme set to {preference}");
+	}
+
+	// SwitchRow already announces "On"/"Off" for the toggle itself.
+	partial void OnHighContrastChanged(bool value) => _theme.HighContrast = value;
+
+	partial void OnDemoModeChanged(bool value)
+	{
+		if (!_revertingDemoMode)
+			ApplyDemoModeAsync(value).SafeFireAndForget("[SETTINGS]");
+	}
+
+	/// <summary>
+	/// Switches between real and pretend gloves. Turning it on while real gloves are
+	/// connected asks first, because it disconnects them.
+	/// </summary>
+	private async Task ApplyDemoModeAsync(bool on)
+	{
+		if (on && _bluetooth.CurrentConnectionState == ConnectionState.Connected)
+		{
+			var confirm = await _confirmation.ConfirmAsync(new ConfirmRequest(
+				"Turn On Demo Mode?",
+				"This disconnects your gloves. Demo Mode uses pretend gloves, so you can try BuzzahBuddy without real ones.",
+				"Disconnect and Turn On"));
+			if (!confirm)
+			{
+				_revertingDemoMode = true;
+				DemoMode = false;
+				_revertingDemoMode = false;
+				return;
+			}
+		}
+
+		// A reconnect loop still looking for the other service's gloves would never find them.
+		_reconnection.CancelReconnect();
+		await _bluetooth.SetDemoModeAsync(on);
+		Preferences.Default.Set(SwitchableBluetoothService.DemoModeKey, on);
+		WeakReferenceMessenger.Default.Send(new DemoModeChangedMessage(on));
 	}
 
 	[RelayCommand]
 	private async Task ClearDataAsync()
 	{
-		var confirm = await Shell.Current.DisplayAlert(
-				"Clear All Data",
-				"This will delete all therapy sessions and custom patterns. Are you sure?",
-				"Yes",
-				"No");
+		var confirm = await _confirmation.ConfirmAsync(new ConfirmRequest(
+			"Delete All Data?",
+			"This deletes your saved sessions and notes and forgets your last glove and profile. It can't be undone.",
+			"Delete All Data",
+			Destructive: true));
+		if (!confirm)
+			return;
 
-		if (confirm)
-		{
-			await _storageService.ClearAllDataAsync();
-
-			await Shell.Current.DisplayAlert(
-					"Data Cleared",
-					"All data has been cleared successfully.",
-					"OK");
-		}
-	}
-
-	partial void OnEnableNotificationsChanged(bool value)
-	{
-		Preferences.Default.Set("EnableNotifications", value);
-	}
-
-	partial void OnAutoConnectChanged(bool value)
-	{
-		Preferences.Default.Set("AutoConnect", value);
-	}
-
-	private void LoadSettings()
-	{
-		EnableNotifications = Preferences.Default.Get("EnableNotifications", true);
-		AutoConnect = Preferences.Default.Get("AutoConnect", false);
-
-		// Get app version from assembly
-		AppVersion = AppInfo.Current.VersionString;
+		await _storageService.ClearAllDataAsync();
+		DataClearedVisible = true;
+		SemanticScreenReader.Announce("Data cleared");
 	}
 }

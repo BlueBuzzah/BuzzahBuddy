@@ -105,14 +105,17 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<!-- App Icon -->
-		<MauiIcon Include="Resources\AppIcon\appicon.svg" />
+		<!-- App icon: the design system's iOS icon (assets/iOS). Android uses the design
+		     system's adaptive mipmaps under Platforms/Android/Resources instead. -->
+		<MauiIcon Include="Resources\AppIcon\appicon.png" Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'" />
 
-		<!-- Splash Screen -->
-		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#35B6F2" BaseSize="456,456" />
+		<!-- Splash: the mark on abyss (#011F5F); a launch screen shows before the app can read its theme. -->
+		<MauiSplashScreen Include="Resources\Splash\splash.png" Color="#011F5F" BaseSize="128,123" />
 
 		<!-- Images -->
 		<MauiImage Include="Resources\Images\*" />
+		<!-- The 512px mark is shown at 48 tall; a 96px base keeps the generated densities small. -->
+		<MauiImage Update="Resources\Images\bluebuzzah_mark.png" BaseSize="96,92" />
 
 		<!-- Custom Fonts -->
 		<MauiFont Include="Resources\Fonts\*" />
