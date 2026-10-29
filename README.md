@@ -1,4 +1,4 @@
-![BuzzahBuddy](readme-logo.svg)
+# BuzzahBuddy
 
 ## Overview
 
