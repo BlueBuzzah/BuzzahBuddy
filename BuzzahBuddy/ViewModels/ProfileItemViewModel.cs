@@ -12,7 +12,11 @@ public partial class ProfileItemViewModel : ObservableObject
     private static readonly int[] PrimaryProfileIds = { 2, 1, 6 };
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AccessibleText))]
     private bool _isSelected;
+
+    /// <summary>The row read as one item, with its selected state (a single-choice list).</summary>
+    public string AccessibleText => $"{DisplayName}, {Description}{(IsSelected ? ", selected" : "")}";
 
     public TherapyProfile Profile { get; }
 
@@ -32,9 +36,9 @@ public partial class ProfileItemViewModel : ObservableObject
     public bool IsRecommended => ProfileId == 2;
 
     /// <summary>
-    /// Display name including "(Recommended)" suffix if applicable.
+    /// Display name including "(recommended)" suffix if applicable.
     /// </summary>
-    public string DisplayName => IsRecommended ? $"{Name} (Recommended)" : Name;
+    public string DisplayName => IsRecommended ? $"{Name} (recommended)" : Name;
 
     /// <summary>
     /// Whether this is a primary profile (shown by default).

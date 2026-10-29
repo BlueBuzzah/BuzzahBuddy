@@ -8,7 +8,7 @@ public class MockParityTests
 {
     private static async Task<MockBluetoothService> ConnectedMock()
     {
-        var mock = new MockBluetoothService();
+        var mock = new MockBluetoothService { TransitionDelay = TimeSpan.Zero };
         await mock.ConnectToDeviceAsync(new GloveDevice { Id = "M1", Name = "BlueBuzzah" });
         return mock;
     }

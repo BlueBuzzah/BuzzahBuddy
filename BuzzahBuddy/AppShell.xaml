@@ -5,29 +5,43 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:local="clr-namespace:BuzzahBuddy"
     xmlns:views="clr-namespace:BuzzahBuddy.Views"
+    xmlns:helpers="clr-namespace:BuzzahBuddy.Helpers"
     Title="BuzzahBuddy">
 
+    <!-- Three tabs (owner decision; buzzahbuddy.md lists History too, deferred). Routes keep
+         their original names; the tab titles are what people see. -->
+    <!-- No Color on the icons: the tab bar tints them like the titles (brand when selected,
+         ink-muted otherwise) and re-tints on a theme change. A fixed color is baked in. -->
     <TabBar>
         <ShellContent
-            Title="Control"
-            Icon="glove"
+            Title="Session"
             ContentTemplate="{DataTemplate views:GloveControlPage}"
             Route="control"
-            AutomationId="ControlTab" />
+            AutomationId="ControlTab">
+            <ShellContent.Icon>
+                <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Activity}" Size="24" />
+            </ShellContent.Icon>
+        </ShellContent>
 
         <ShellContent
-            Title="Devices"
-            Icon="bluetooth"
+            Title="Gloves"
             ContentTemplate="{DataTemplate views:DeviceListPage}"
             Route="devices"
-            AutomationId="DevicesTab" />
+            AutomationId="DevicesTab">
+            <ShellContent.Icon>
+                <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Hand}" Size="24" />
+            </ShellContent.Icon>
+        </ShellContent>
 
         <ShellContent
             Title="Settings"
-            Icon="gear"
             ContentTemplate="{DataTemplate views:SettingsPage}"
             Route="settings"
-            AutomationId="SettingsTab" />
+            AutomationId="SettingsTab">
+            <ShellContent.Icon>
+                <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Settings}" Size="24" />
+            </ShellContent.Icon>
+        </ShellContent>
     </TabBar>
 
 </Shell>

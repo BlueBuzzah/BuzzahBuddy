@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 11 and older show MAUI's splash as it is; values-v31 overrides the icon. -->
+    <style name="BuzzahBuddy.SplashTheme" parent="Maui.SplashTheme" />
+</resources>

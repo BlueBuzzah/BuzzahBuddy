@@ -29,6 +29,7 @@ namespace BuzzahBuddy.Services.Storage;
 [JsonSourceGenerationOptions(WriteIndented = true, PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(GloveDevice))]
 [JsonSerializable(typeof(List<TherapySession>))]
+[JsonSerializable(typeof(TherapyProfile))]
 internal partial class StorageJsonContext : JsonSerializerContext
 {
 }

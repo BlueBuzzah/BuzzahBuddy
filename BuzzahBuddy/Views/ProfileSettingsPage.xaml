@@ -1,204 +1,194 @@
-<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<!-- Custom profile editor. Labeled fields with the range as a hint and errors tied to each
+     field (TextField README). Text fields, not steppers: the firmware takes 1 ms / 1% steps,
+     so every range is far over ~20 steps (plan choice PC20). Ranges mirror firmware
+     include/config.h PARAM_* (cross-repo contract). -->
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:BuzzahBuddy.ViewModels"
              xmlns:controls="clr-namespace:BuzzahBuddy.Views.Controls"
              xmlns:behaviors="clr-namespace:BuzzahBuddy.Behaviors"
+             xmlns:helpers="clr-namespace:BuzzahBuddy.Helpers"
              x:Class="BuzzahBuddy.Views.ProfileSettingsPage"
              x:DataType="vm:ProfileSettingsViewModel"
              Title="{Binding Title}"
              SafeAreaEdges="Container">
 
     <ScrollView>
-        <VerticalStackLayout Padding="20" Spacing="20">
+        <VerticalStackLayout Padding="16,16,16,24" Spacing="{StaticResource Space6}">
+            <Label Text="These settings make up your Custom profile. They're saved on this phone, and your gloves get them when you pick Custom and tap Apply Settings." />
 
-            <!-- Header -->
-            <Label Text="Custom Profile"
-                   Style="{StaticResource Headline}"
-                   SemanticProperties.HeadingLevel="Level1"
-                   HorizontalOptions="Center" />
+            <controls:Banner IsVisible="{Binding DeviatesBannerVisible}"
+                             Tone="Warning"
+                             Title="These Settings Differ from the Study"
+                             Message="They're within what the gloves accept, but no study has tested them."
+                             Announce="True" />
 
-            <!-- Connection Status Banner -->
-            <controls:ConnectionStatusBanner
-                ConnectionState="{Binding ConnectionInfo.ConnectionState}"
-                DeviceName="{Binding ConnectionInfo.ConnectedDeviceName}" />
-
-            <!-- Not connected / not loaded guidance -->
-            <Label Text="Connect to a BlueBuzzah glove to view and adjust the Custom profile parameters."
-                   IsVisible="{Binding IsLoaded, Converter={StaticResource InvertedBoolConverter}}"
-                   Style="{StaticResource BodyText}"
-                   TextColor="{StaticResource TextMuted}"
-                   SemanticProperties.Description="Connect to a glove to view and adjust profile settings" />
-
-            <ActivityIndicator IsRunning="{Binding IsBusy}"
-                               IsVisible="{Binding IsBusy}"
-                               SemanticProperties.Description="Working" />
-
-            <!-- Editor -->
-            <Border Padding="15"
-                    BackgroundColor="{StaticResource CardBackground}"
-                    StrokeThickness="0"
-                    IsVisible="{Binding IsLoaded}">
-                <Border.StrokeShape>
-                    <RoundRectangle CornerRadius="12" />
-                </Border.StrokeShape>
-
-                <VerticalStackLayout Spacing="15">
-
-                    <Label Text="These parameters define the Custom therapy profile. The gloves keep them after a restart."
-                           Style="{StaticResource BodyText}"
-                           TextColor="{StaticResource TextMuted}"
-                           SemanticProperties.Description="The gloves keep these parameters after a restart" />
-
-                    <Grid ColumnDefinitions="*,140" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto"
-                          ColumnSpacing="15" RowSpacing="12">
-
-                        <Label Grid.Row="0" Grid.Column="0" Text="Burst Duration (ms, 50-200)" FontSize="16" VerticalOptions="Center" LineBreakMode="WordWrap" />
-                        <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource InputBorder}">
+            <VerticalStackLayout Spacing="{StaticResource Space6}" IsVisible="{Binding IsLoaded}">
+                    <VerticalStackLayout Spacing="{StaticResource Space2}">
+                        <Label Text="Buzz Length" Style="{StaticResource TypeLabel}" AutomationProperties.IsInAccessibleTree="False" />
+                        <Border Style="{StaticResource TextFieldBorder}">
                             <Border.Behaviors>
-                                <behaviors:InputFocusBehavior />
+                                <behaviors:InputFocusBehavior HasError="{Binding TimeOnError, Converter={StaticResource IsNotNullConverter}}" />
                             </Border.Behaviors>
                             <Entry Text="{Binding TimeOnMsText}"
                                    Keyboard="Numeric"
-                                   MinimumHeightRequest="48"
-                                   HorizontalTextAlignment="End"
-                                   SemanticProperties.Description="Vibration burst duration in milliseconds, 50 to 200"
+                                   SemanticProperties.Description="Buzz Length"
+                                   SemanticProperties.Hint="{Binding TimeOnError}"
                                    AutomationId="TimeOnEntry" />
                         </Border>
+                        <Label Text="50 to 200 ms" Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
+                        <HorizontalStackLayout Spacing="{StaticResource Space2}"
+                                               IsVisible="{Binding TimeOnError, Converter={StaticResource IsNotNullConverter}}">
+                            <Label Style="{StaticResource IconLabel}" FontSize="20" VerticalOptions="Start"
+                                   Text="{x:Static helpers:LucideIcons.OctagonAlert}" TextColor="{DynamicResource Danger}" />
+                            <Label Text="{Binding TimeOnError}" Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource Danger}" />
+                        </HorizontalStackLayout>
+                    </VerticalStackLayout>
 
-                        <Label Grid.Row="1" Grid.Column="0" Text="Gap Between Bursts (ms, 30-200)" FontSize="16" VerticalOptions="Center" LineBreakMode="WordWrap" />
-                        <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource InputBorder}">
+                    <VerticalStackLayout Spacing="{StaticResource Space2}">
+                        <Label Text="Pause between Buzzes" Style="{StaticResource TypeLabel}" AutomationProperties.IsInAccessibleTree="False" />
+                        <Border Style="{StaticResource TextFieldBorder}">
                             <Border.Behaviors>
-                                <behaviors:InputFocusBehavior />
+                                <behaviors:InputFocusBehavior HasError="{Binding TimeOffError, Converter={StaticResource IsNotNullConverter}}" />
                             </Border.Behaviors>
                             <Entry Text="{Binding TimeOffMsText}"
                                    Keyboard="Numeric"
-                                   MinimumHeightRequest="48"
-                                   HorizontalTextAlignment="End"
-                                   SemanticProperties.Description="Gap between vibration bursts in milliseconds, 30 to 200"
+                                   SemanticProperties.Description="Pause between Buzzes"
+                                   SemanticProperties.Hint="{Binding TimeOffError}"
                                    AutomationId="TimeOffEntry" />
                         </Border>
+                        <Label Text="30 to 200 ms" Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
+                        <HorizontalStackLayout Spacing="{StaticResource Space2}"
+                                               IsVisible="{Binding TimeOffError, Converter={StaticResource IsNotNullConverter}}">
+                            <Label Style="{StaticResource IconLabel}" FontSize="20" VerticalOptions="Start"
+                                   Text="{x:Static helpers:LucideIcons.OctagonAlert}" TextColor="{DynamicResource Danger}" />
+                            <Label Text="{Binding TimeOffError}" Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource Danger}" />
+                        </HorizontalStackLayout>
+                    </VerticalStackLayout>
 
-                        <!-- Derived coordinated-reset timing, updates as the fields change -->
-                        <Label Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
-                               Text="{Binding DerivedTimingText}"
-                               Style="{StaticResource BodyText}"
-                               TextColor="{StaticResource TextMuted}"
-                               SemanticProperties.Description="{Binding DerivedTimingText}"
-                               AutomationId="DerivedTimingLabel" />
+                    <Label Text="{Binding DerivedTimingText}"
+                           Style="{StaticResource TypeBodyS}"
+                           TextColor="{DynamicResource InkMuted}"
+                           AutomationId="DerivedTimingLabel" />
 
-                        <Label Grid.Row="3" Grid.Column="0" Text="Session (min, 1-240)" FontSize="16" VerticalOptions="Center" LineBreakMode="WordWrap" />
-                        <Border Grid.Row="3" Grid.Column="1" Style="{StaticResource InputBorder}">
+                    <VerticalStackLayout Spacing="{StaticResource Space2}">
+                        <Label Text="Session Length" Style="{StaticResource TypeLabel}" AutomationProperties.IsInAccessibleTree="False" />
+                        <Border Style="{StaticResource TextFieldBorder}">
                             <Border.Behaviors>
-                                <behaviors:InputFocusBehavior />
+                                <behaviors:InputFocusBehavior HasError="{Binding SessionError, Converter={StaticResource IsNotNullConverter}}" />
                             </Border.Behaviors>
                             <Entry Text="{Binding SessionMinutesText}"
                                    Keyboard="Numeric"
-                                   MinimumHeightRequest="48"
-                                   HorizontalTextAlignment="End"
-                                   SemanticProperties.Description="Session duration in minutes, 1 to 240"
+                                   SemanticProperties.Description="Session Length"
+                                   SemanticProperties.Hint="{Binding SessionError}"
                                    AutomationId="SessionEntry" />
                         </Border>
+                        <Label Text="1 to 240 minutes" Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
+                        <HorizontalStackLayout Spacing="{StaticResource Space2}"
+                                               IsVisible="{Binding SessionError, Converter={StaticResource IsNotNullConverter}}">
+                            <Label Style="{StaticResource IconLabel}" FontSize="20" VerticalOptions="Start"
+                                   Text="{x:Static helpers:LucideIcons.OctagonAlert}" TextColor="{DynamicResource Danger}" />
+                            <Label Text="{Binding SessionError}" Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource Danger}" />
+                        </HorizontalStackLayout>
+                    </VerticalStackLayout>
 
-                        <Label Grid.Row="4" Grid.Column="0" Text="Amplitude Min (%, 20-100)" FontSize="16" VerticalOptions="Center" LineBreakMode="WordWrap" />
-                        <Border Grid.Row="4" Grid.Column="1" Style="{StaticResource InputBorder}">
+                    <VerticalStackLayout Spacing="{StaticResource Space2}">
+                        <Label Text="Softest Buzz" Style="{StaticResource TypeLabel}" AutomationProperties.IsInAccessibleTree="False" />
+                        <Border Style="{StaticResource TextFieldBorder}">
                             <Border.Behaviors>
-                                <behaviors:InputFocusBehavior />
+                                <behaviors:InputFocusBehavior HasError="{Binding AmplitudeMinError, Converter={StaticResource IsNotNullConverter}}" />
                             </Border.Behaviors>
                             <Entry Text="{Binding AmplitudeMinText}"
                                    Keyboard="Numeric"
-                                   MinimumHeightRequest="48"
-                                   HorizontalTextAlignment="End"
-                                   SemanticProperties.Description="Minimum amplitude percentage, 20 to 100"
+                                   SemanticProperties.Description="Softest Buzz"
+                                   SemanticProperties.Hint="{Binding AmplitudeMinError}"
                                    AutomationId="AmplitudeMinEntry" />
                         </Border>
+                        <Label Text="20 to 100%" Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
+                        <HorizontalStackLayout Spacing="{StaticResource Space2}"
+                                               IsVisible="{Binding AmplitudeMinError, Converter={StaticResource IsNotNullConverter}}">
+                            <Label Style="{StaticResource IconLabel}" FontSize="20" VerticalOptions="Start"
+                                   Text="{x:Static helpers:LucideIcons.OctagonAlert}" TextColor="{DynamicResource Danger}" />
+                            <Label Text="{Binding AmplitudeMinError}" Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource Danger}" />
+                        </HorizontalStackLayout>
+                    </VerticalStackLayout>
 
-                        <Label Grid.Row="5" Grid.Column="0" Text="Amplitude Max (%, 20-100)" FontSize="16" VerticalOptions="Center" LineBreakMode="WordWrap" />
-                        <Border Grid.Row="5" Grid.Column="1" Style="{StaticResource InputBorder}">
+                    <VerticalStackLayout Spacing="{StaticResource Space2}">
+                        <Label Text="Strongest Buzz" Style="{StaticResource TypeLabel}" AutomationProperties.IsInAccessibleTree="False" />
+                        <Border Style="{StaticResource TextFieldBorder}">
                             <Border.Behaviors>
-                                <behaviors:InputFocusBehavior />
+                                <behaviors:InputFocusBehavior HasError="{Binding AmplitudeMaxError, Converter={StaticResource IsNotNullConverter}}" />
                             </Border.Behaviors>
                             <Entry Text="{Binding AmplitudeMaxText}"
                                    Keyboard="Numeric"
-                                   MinimumHeightRequest="48"
-                                   HorizontalTextAlignment="End"
-                                   SemanticProperties.Description="Maximum amplitude percentage, 20 to 100"
+                                   SemanticProperties.Description="Strongest Buzz"
+                                   SemanticProperties.Hint="{Binding AmplitudeMaxError}"
                                    AutomationId="AmplitudeMaxEntry" />
                         </Border>
+                        <Label Text="20 to 100%" Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
+                        <HorizontalStackLayout Spacing="{StaticResource Space2}"
+                                               IsVisible="{Binding AmplitudeMaxError, Converter={StaticResource IsNotNullConverter}}">
+                            <Label Style="{StaticResource IconLabel}" FontSize="20" VerticalOptions="Start"
+                                   Text="{x:Static helpers:LucideIcons.OctagonAlert}" TextColor="{DynamicResource Danger}" />
+                            <Label Text="{Binding AmplitudeMaxError}" Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource Danger}" />
+                        </HorizontalStackLayout>
+                    </VerticalStackLayout>
 
-                        <Label Grid.Row="6" Grid.Column="0" Text="Jitter (%, 0-50)" FontSize="16" VerticalOptions="Center" LineBreakMode="WordWrap" />
-                        <Border Grid.Row="6" Grid.Column="1" Style="{StaticResource InputBorder}">
+                    <VerticalStackLayout Spacing="{StaticResource Space2}">
+                        <Label Text="Timing Variation" Style="{StaticResource TypeLabel}" AutomationProperties.IsInAccessibleTree="False" />
+                        <Border Style="{StaticResource TextFieldBorder}">
                             <Border.Behaviors>
-                                <behaviors:InputFocusBehavior />
+                                <behaviors:InputFocusBehavior HasError="{Binding JitterError, Converter={StaticResource IsNotNullConverter}}" />
                             </Border.Behaviors>
                             <Entry Text="{Binding JitterText}"
                                    Keyboard="Numeric"
-                                   MinimumHeightRequest="48"
-                                   HorizontalTextAlignment="End"
-                                   SemanticProperties.Description="Timing jitter percentage, 0 to 50"
+                                   SemanticProperties.Description="Timing Variation"
+                                   SemanticProperties.Hint="{Binding JitterError}"
                                    AutomationId="JitterEntry" />
                         </Border>
-                    </Grid>
+                        <Label Text="0 to 50%" Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
+                        <HorizontalStackLayout Spacing="{StaticResource Space2}"
+                                               IsVisible="{Binding JitterError, Converter={StaticResource IsNotNullConverter}}">
+                            <Label Style="{StaticResource IconLabel}" FontSize="20" VerticalOptions="Start"
+                                   Text="{x:Static helpers:LucideIcons.OctagonAlert}" TextColor="{DynamicResource Danger}" />
+                            <Label Text="{Binding JitterError}" Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource Danger}" />
+                        </HorizontalStackLayout>
+                        <HorizontalStackLayout Spacing="{StaticResource Space2}"
+                                               IsVisible="{Binding EffectiveJitterCapText, Converter={StaticResource IsNotNullConverter}}">
+                            <Label Style="{StaticResource IconLabel}" FontSize="20" VerticalOptions="Start"
+                                   Text="{x:Static helpers:LucideIcons.TriangleAlert}" TextColor="{DynamicResource Warning}" />
+                            <Label Text="{Binding EffectiveJitterCapText}" Style="{StaticResource TypeBodyS}"
+                                   TextColor="{DynamicResource Warning}" AutomationId="JitterCapLabel" />
+                        </HorizontalStackLayout>
+                    </VerticalStackLayout>
 
-                    <!-- Shown only when the requested jitter exceeds what this timing allows -->
-                    <Label Text="{Binding EffectiveJitterCapText}"
-                           IsVisible="{Binding EffectiveJitterCapText, Converter={StaticResource IsNotNullConverter}}"
-                           Style="{StaticResource BodyText}"
-                           TextColor="{StaticResource Warning}"
-                           SemanticProperties.Description="{Binding EffectiveJitterCapText}"
-                           AutomationId="JitterCapLabel" />
+                <Border Style="{StaticResource Card}" Padding="0,8">
+                    <controls:SwitchRow Label="Same Pattern on Both Gloves"
+                                        Description="Both gloves buzz the same fingers at the same time."
+                                        IsToggled="{Binding Mirror}"
+                                        AutomationId="MirrorSwitch" />
+                </Border>
 
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="15" MinimumHeightRequest="48">
-                        <Label Grid.Column="0"
-                               Text="Mirror Pattern Between Gloves"
-                               FontSize="16"
-                               VerticalOptions="Center"
-                               LineBreakMode="WordWrap" />
-                        <Switch Grid.Column="1"
-                                IsToggled="{Binding Mirror}"
-                                HorizontalOptions="End"
-                                VerticalOptions="Center"
-                                SemanticProperties.Description="Mirror pattern between primary and secondary glove"
-                                SemanticProperties.Hint="Double tap to toggle pattern mirroring"
-                                AutomationId="MirrorSwitch" />
-                    </Grid>
-
-                    <!-- Deviation from the one configuration the research validated -->
-                    <Label Text="These settings differ from the parameters used in the published vibrotactile therapy study. They are within the range the gloves accept, but their therapeutic effect has not been studied."
-                           IsVisible="{Binding DeviatesFromResearchDefaults}"
-                           Style="{StaticResource BodyText}"
-                           TextColor="{StaticResource Warning}"
-                           SemanticProperties.Description="These settings differ from the parameters used in the published therapy study"
-                           AutomationId="ResearchDeviationLabel" />
-
-                    <Button Text="Save to Gloves"
-                            Command="{Binding ApplyCommand}"
-                            IsEnabled="{Binding IsBusy, Converter={StaticResource InvertedBoolConverter}}"
-                            Style="{StaticResource PrimaryButton}"
-                            SemanticProperties.Description="Apply the edited profile settings to the connected gloves"
-                            SemanticProperties.Hint="Double tap to send the settings to the gloves"
-                            AutomationId="ApplyProfileSettingsButton" />
-
-                    <Button Text="Reload from Gloves"
-                            Command="{Binding LoadCommand}"
-                            IsEnabled="{Binding IsBusy, Converter={StaticResource InvertedBoolConverter}}"
-                            Style="{StaticResource SecondaryButton}"
-                            SemanticProperties.Description="Discard edits and reload the current settings from the gloves"
-                            SemanticProperties.Hint="Double tap to reload settings from the gloves"
-                            AutomationId="ReloadProfileSettingsButton" />
-
-                    <Button Text="Use Research Defaults"
+                <VerticalStackLayout Spacing="{StaticResource TargetGap}">
+                    <Button Text="Use Study Settings"
+                            Style="{StaticResource ButtonQuiet}"
                             Command="{Binding ResetToDefaultsCommand}"
-                            IsEnabled="{Binding IsBusy, Converter={StaticResource InvertedBoolConverter}}"
-                            Style="{StaticResource TertiaryButton}"
-                            SemanticProperties.Description="Fill the form with the parameters used in the published vibrotactile therapy study"
-                            SemanticProperties.Hint="Double tap to fill the form with the study parameters; nothing is sent until you save"
+                            SemanticProperties.Description="Use Study Settings"
                             AutomationId="ResetToDefaultsButton" />
-
+                    <!-- Saving goes back to the Gloves page, so no "Saved" badge. -->
+                    <Button Text="Save"
+                            Style="{StaticResource ButtonPrimary}"
+                            ContentLayout="Left,8"
+                            Command="{Binding SaveCommand}"
+                            SemanticProperties.Description="Save"
+                            AutomationId="SaveProfileSettingsButton">
+                        <Button.ImageSource>
+                            <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Save}" Size="20" Color="{DynamicResource OnBrand}" />
+                        </Button.ImageSource>
+                    </Button>
                 </VerticalStackLayout>
-            </Border>
-
+            </VerticalStackLayout>
         </VerticalStackLayout>
     </ScrollView>
-
 </ContentPage>

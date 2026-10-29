@@ -1,334 +1,166 @@
-<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<!-- Session screen (buzzahbuddy.md Session screen): a tappable summary of both gloves (the
+     full cards are on Gloves), SessionRing, then the session controls at the bottom (Start,
+     or Pause/Resume and Stop). One banner slot. -->
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:BuzzahBuddy.ViewModels"
-             xmlns:models="clr-namespace:BuzzahBuddy.Models"
              xmlns:controls="clr-namespace:BuzzahBuddy.Views.Controls"
+             xmlns:helpers="clr-namespace:BuzzahBuddy.Helpers"
              x:Class="BuzzahBuddy.Views.GloveControlPage"
              x:DataType="vm:GloveControlViewModel"
              Title="{Binding Title}"
+             Shell.NavBarIsVisible="False"
              SafeAreaEdges="Container">
 
     <ScrollView>
-        <VerticalStackLayout Padding="20" Spacing="20">
+        <VerticalStackLayout Padding="16,48,16,24" Spacing="{StaticResource Space6}">
 
-            <!-- App Logo/Header -->
-            <Image Source="titledark"
-                   HeightRequest="60"
-                   HorizontalOptions="Center"
-                   Margin="0,20,0,0"
-                   SemanticProperties.Description="BuzzahBuddy Logo"
-                   Aspect="AspectFit" />
-
-            <!-- Page Heading -->
-            <Label Text="Therapy Control"
-                   Style="{StaticResource Headline}"
-                   HorizontalOptions="Center"
+            <Label Text="Session"
+                   Style="{StaticResource TypeHeadline}"
                    SemanticProperties.HeadingLevel="Level1" />
 
-            <!-- Reconnection Banner -->
-            <Border IsVisible="{Binding ShowReconnectionBanner}"
-                    BackgroundColor="{StaticResource Warning}"
-                    StrokeThickness="0"
-                    Padding="12,8"
-                    Margin="0,0,0,8"
-                    SemanticProperties.Description="{Binding ConnectionInfo.ReconnectionMessage}"
-                    SemanticProperties.Hint="Tap to go to device page"
-                    AutomationId="ReconnectionBanner">
-                <Border.StrokeShape>
-                    <RoundRectangle CornerRadius="8" />
-                </Border.StrokeShape>
-                <Border.GestureRecognizers>
-                    <TapGestureRecognizer Command="{Binding NavigateToDevicesCommand}" />
-                </Border.GestureRecognizers>
-                <Label Text="{Binding ConnectionInfo.ReconnectionMessage}"
-                       TextColor="{StaticResource Black}"
-                       FontSize="14"
-                       HorizontalTextAlignment="Center"
-                       AutomationProperties.IsInAccessibleTree="False" />
-            </Border>
+            <controls:Banner IsVisible="{Binding BannerVisible}"
+                             Tone="{Binding BannerTone}"
+                             Title="{Binding BannerTitle}"
+                             Message="{Binding BannerMessage}"
+                             ActionText="{Binding BannerActionText}"
+                             ActionCommand="{Binding NavigateToDevicesCommand}"
+                             Announce="True"
+                             AutomationId="SessionBanner" />
 
-            <!-- Disconnected State: Getting Started Guide -->
-            <VerticalStackLayout Spacing="20"
+            <!-- Not connected: how to get started -->
+            <VerticalStackLayout Spacing="{StaticResource Space6}"
                                  IsVisible="{Binding ConnectionInfo.IsConnected, Converter={StaticResource InvertedBoolConverter}}">
-
-                <Border Padding="24"
-                        BackgroundColor="{StaticResource CardBackground}"
-                        StrokeThickness="1"
-                        Stroke="{StaticResource CardBorder}">
-                    <Border.StrokeShape>
-                        <RoundRectangle CornerRadius="16" />
-                    </Border.StrokeShape>
-                    <Border.Shadow>
-                        <Shadow Brush="{StaticResource GlowBrush}"
-                                Offset="0,0"
-                                Radius="15"
-                                Opacity="0.15" />
-                    </Border.Shadow>
-
-                    <VerticalStackLayout Spacing="20">
-                        <Label Text="Getting Started"
-                               FontSize="20"
-                               FontAttributes="Bold"
-                               HorizontalOptions="Center"
+                <Border Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="{StaticResource Space4}">
+                        <Label Text="Get Started"
+                               Style="{StaticResource TypeTitleM}"
                                SemanticProperties.HeadingLevel="Level2" />
-
-                        <!-- Step 1 -->
-                        <HorizontalStackLayout Spacing="16">
-                            <Border WidthRequest="40"
-                                    HeightRequest="40"
-                                    BackgroundColor="{StaticResource Primary}"
-                                    StrokeThickness="0"
-                                    AutomationProperties.IsInAccessibleTree="False">
-                                <Border.StrokeShape>
-                                    <RoundRectangle CornerRadius="20" />
-                                </Border.StrokeShape>
-                                <Label Text="1"
-                                       FontSize="18"
-                                       FontAttributes="Bold"
-                                       TextColor="{StaticResource Black}"
-                                       HorizontalOptions="Center"
-                                       VerticalOptions="Center" />
+                        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto"
+                              ColumnSpacing="{StaticResource Space4}" RowSpacing="{StaticResource Space4}">
+                            <Border Style="{StaticResource StepNumber}">
+                                <Label Text="1" Style="{StaticResource StepNumberText}" />
                             </Border>
-                            <VerticalStackLayout VerticalOptions="Center" Spacing="2">
-                                <Label Text="Power on your gloves"
-                                       FontSize="16"
-                                       FontAttributes="Bold" />
-                                <Label Text="Press the button on each glove"
-                                       FontSize="14"
-                                       TextColor="{StaticResource TextMuted}" />
-                            </VerticalStackLayout>
-                        </HorizontalStackLayout>
-
-                        <!-- Step 2 -->
-                        <HorizontalStackLayout Spacing="16">
-                            <Border WidthRequest="40"
-                                    HeightRequest="40"
-                                    BackgroundColor="{StaticResource Primary}"
-                                    StrokeThickness="0"
-                                    AutomationProperties.IsInAccessibleTree="False">
-                                <Border.StrokeShape>
-                                    <RoundRectangle CornerRadius="20" />
-                                </Border.StrokeShape>
-                                <Label Text="2"
-                                       FontSize="18"
-                                       FontAttributes="Bold"
-                                       TextColor="{StaticResource Black}"
-                                       HorizontalOptions="Center"
-                                       VerticalOptions="Center" />
+                            <!-- LineHeight 1 matches StepNumberText (same font and size), so the text and
+                                 the digit center the same way on both platforms. -->
+                            <Label Grid.Column="1" Text="Turn On Both Gloves" Style="{StaticResource TypeBodyStrong}" LineHeight="1" VerticalOptions="Center" />
+                            <Border Grid.Row="1" Style="{StaticResource StepNumber}">
+                                <Label Text="2" Style="{StaticResource StepNumberText}" />
                             </Border>
-                            <VerticalStackLayout VerticalOptions="Center" Spacing="2">
-                                <Label Text="Connect via Bluetooth"
-                                       FontSize="16"
-                                       FontAttributes="Bold" />
-                                <Label Text="Tap below to find your gloves"
-                                       FontSize="14"
-                                       TextColor="{StaticResource TextMuted}" />
-                            </VerticalStackLayout>
-                        </HorizontalStackLayout>
-
-                        <!-- Step 3 -->
-                        <HorizontalStackLayout Spacing="16">
-                            <Border WidthRequest="40"
-                                    HeightRequest="40"
-                                    BackgroundColor="{StaticResource Primary}"
-                                    StrokeThickness="0"
-                                    AutomationProperties.IsInAccessibleTree="False">
-                                <Border.StrokeShape>
-                                    <RoundRectangle CornerRadius="20" />
-                                </Border.StrokeShape>
-                                <Label Text="3"
-                                       FontSize="18"
-                                       FontAttributes="Bold"
-                                       TextColor="{StaticResource Black}"
-                                       HorizontalOptions="Center"
-                                       VerticalOptions="Center" />
+                            <Label Grid.Row="1" Grid.Column="1" Text="Connect to Your Gloves" Style="{StaticResource TypeBodyStrong}" LineHeight="1" VerticalOptions="Center" />
+                            <Border Grid.Row="2" Style="{StaticResource StepNumber}">
+                                <Label Text="3" Style="{StaticResource StepNumberText}" />
                             </Border>
-                            <VerticalStackLayout VerticalOptions="Center" Spacing="2">
-                                <Label Text="Start your therapy session"
-                                       FontSize="16"
-                                       FontAttributes="Bold" />
-                                <Label Text="Come back here and press Start"
-                                       FontSize="14"
-                                       TextColor="{StaticResource TextMuted}" />
-                            </VerticalStackLayout>
-                        </HorizontalStackLayout>
+                            <Label Grid.Row="2" Grid.Column="1" Text="Start a Session" Style="{StaticResource TypeBodyStrong}" LineHeight="1" VerticalOptions="Center" />
+                        </Grid>
                     </VerticalStackLayout>
                 </Border>
 
-                <Button Text="Find Devices"
-                        Command="{Binding NavigateToDevicesCommand}"
-                        Style="{StaticResource PrimaryButtonGlow}"
-                        SemanticProperties.Description="Go to the device page to scan for gloves"
-                        SemanticProperties.Hint="Double tap to activate"
-                        AutomationId="FindDevicesButton" />
+                <Button Text="Scan for Gloves"
+                        Style="{StaticResource ButtonPrimaryXl}"
+                        ContentLayout="Left,8"
+                        Command="{Binding ScanForGlovesCommand}"
+                        SemanticProperties.Description="Scan for Gloves"
+                        AutomationId="FindDevicesButton">
+                    <Button.ImageSource>
+                        <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Radar}" Size="24" Color="{DynamicResource OnBrand}" />
+                    </Button.ImageSource>
+                </Button>
             </VerticalStackLayout>
 
-            <!-- Connected State -->
-            <VerticalStackLayout Spacing="20"
+            <!-- Connected -->
+            <VerticalStackLayout Spacing="{StaticResource Space6}"
                                  IsVisible="{Binding ConnectionInfo.IsConnected}">
 
-                <!-- Session Status Card (visible during active/paused session) -->
-                <Border Style="{StaticResource CardWithGlow}"
-                        Padding="20"
-                        IsVisible="{Binding IsSessionActive}">
-                    <Border.StrokeShape>
-                        <RoundRectangle CornerRadius="16" />
-                    </Border.StrokeShape>
+                <controls:GlovesSummaryCard Primary="{Binding PrimaryGlove}"
+                                            Secondary="{Binding SecondaryGlove}"
+                                            Command="{Binding NavigateToDevicesCommand}"
+                                            AutomationId="GlovesSummary" />
 
-                    <VerticalStackLayout Spacing="16">
-                        <HorizontalStackLayout Spacing="10" HorizontalOptions="Center">
-                            <Label Text="Status:"
-                                   FontSize="14"
-                                   VerticalOptions="Center" />
-                            <Label Text="{Binding SessionStatus.Status}"
-                                   FontSize="14"
-                                   FontAttributes="Bold"
-                                   VerticalOptions="Center" />
-                        </HorizontalStackLayout>
+                <controls:SessionRing IsVisible="{Binding ConnectionInfo.IsConnected}"
+                                      State="{Binding RingState}"
+                                      Progress="{Binding RingProgress}"
+                                      Time="{Binding RingTimeText}"
+                                      AccessibleText="{Binding RingAccessibleText}"
+                                      AutomationId="SessionTimerRing" />
 
-                        <controls:SessionTimerView Progress="{Binding TimerProgressFraction}"
-                                                   TimeText="{Binding TimerRemainingText}"
-                                                   Caption="{Binding TimerCaption}"
-                                                   IsPaused="{Binding IsSessionPaused}"
-                                                   HeightRequest="270"
-                                                   SemanticProperties.Description="{Binding TimerSemanticDescription}"
-                                                   AutomationId="SessionTimerRing" />
-
-                        <Label Text="{Binding TimerElapsedText}"
-                               FontSize="14"
-                               TextColor="{StaticResource TextMuted}"
-                               HorizontalTextAlignment="Center"
-                               IsVisible="{Binding TimerElapsedText, Converter={StaticResource IsNotNullConverter}}"
-                               AutomationProperties.IsInAccessibleTree="False" />
-                    </VerticalStackLayout>
-                </Border>
-
-                <Label Text="{Binding SessionWarningMessage}"
-                       IsVisible="{Binding SessionWarningMessage, Converter={StaticResource IsNotNullConverter}}"
-                       TextColor="{StaticResource Warning}"
-                       FontSize="14"
-                       HorizontalTextAlignment="Center"
-                       SemanticProperties.Description="{Binding SessionWarningMessage}"
-                       AutomationId="SessionWarningLabel" />
-
-                <!-- Current Profile Card (read-only, tap to change on Device page) -->
-                <Border Padding="20"
-                        BackgroundColor="{StaticResource CardBackground}"
-                        StrokeThickness="1"
-                        Stroke="{StaticResource CardBorder}"
-                        SemanticProperties.Description="{Binding SelectedProfileName, StringFormat='Current therapy profile: {0}'}"
-                        SemanticProperties.Hint="Double tap to change the profile on the device page"
-                        AutomationId="CurrentProfileCard">
-                    <Border.StrokeShape>
-                        <RoundRectangle CornerRadius="12" />
-                    </Border.StrokeShape>
-                    <Border.GestureRecognizers>
-                        <TapGestureRecognizer Command="{Binding NavigateToDevicesCommand}" />
-                    </Border.GestureRecognizers>
-
-                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" RowSpacing="4">
-                        <Label Grid.Row="0" Grid.Column="0"
-                               Text="Therapy Profile"
-                               FontSize="14"
-                               TextColor="{StaticResource TextMuted}"
-                               AutomationProperties.IsInAccessibleTree="False" />
-                        <Label Grid.Row="1" Grid.Column="0"
-                               Text="{Binding SelectedProfileName}"
-                               FontSize="20"
-                               FontAttributes="Bold"
-                               AutomationProperties.IsInAccessibleTree="False" />
-                        <Label Grid.Row="2" Grid.Column="0"
-                               Text="{Binding ProfileSummary}"
-                               FontSize="14"
-                               TextColor="{StaticResource TextMuted}"
-                               AutomationProperties.IsInAccessibleTree="False" />
-                        <Label Grid.Row="0" Grid.RowSpan="3" Grid.Column="1"
-                               Text="Change ›"
-                               FontSize="16"
-                               TextColor="{StaticResource Primary}"
-                               VerticalOptions="Center"
-                               AutomationProperties.IsInAccessibleTree="False" />
+                <!-- At large text sizes Change moves under the profile so the name keeps the width. -->
+                <Border Style="{StaticResource Card}">
+                    <Grid x:Name="ProfileRow" ColumnDefinitions="*,Auto" ColumnSpacing="{StaticResource Space3}" RowSpacing="{StaticResource Space3}">
+                        <VerticalStackLayout Spacing="2" VerticalOptions="Center">
+                            <Label Text="Therapy Profile"
+                                   Style="{StaticResource TypeBodyS}"
+                                   TextColor="{DynamicResource InkMuted}"
+                                   SemanticProperties.HeadingLevel="Level2" />
+                            <Label Text="{Binding SelectedProfileName}" Style="{StaticResource TypeTitleM}" />
+                            <Label Text="{Binding ProfileSummary}" Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
+                        </VerticalStackLayout>
+                        <Button x:Name="ChangeButton"
+                                Grid.Column="1"
+                                Text="Change"
+                                Style="{StaticResource ButtonQuiet}"
+                                VerticalOptions="Center"
+                                ContentLayout="Right,6"
+                                Command="{Binding NavigateToDevicesCommand}"
+                                IsEnabled="{Binding IsSessionActive, Converter={StaticResource InvertedBoolConverter}}"
+                                SemanticProperties.Description="Change"
+                                AutomationId="ChangeProfileButton">
+                            <Button.ImageSource>
+                                <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.ChevronRight}" Size="20" Color="{DynamicResource Brand}" />
+                            </Button.ImageSource>
+                        </Button>
                     </Grid>
                 </Border>
 
-                <!-- Battery: one row per glove (dot | name | value), columns aligned -->
-                <Grid ColumnDefinitions="Auto,Auto,*"
-                      RowDefinitions="Auto,Auto"
-                      ColumnSpacing="8"
-                      RowSpacing="10">
-                    <Label Grid.Row="0" Grid.Column="0"
-                           Text="●"
-                           FontSize="16"
-                           TextColor="{Binding BatteryPrimaryColor}"
-                           VerticalOptions="Center"
-                           AutomationProperties.IsInAccessibleTree="False" />
-                    <Label Grid.Row="0" Grid.Column="1"
-                           Text="Primary:"
-                           FontSize="14"
-                           VerticalOptions="Center"
-                           AutomationProperties.IsInAccessibleTree="False" />
-                    <Label Grid.Row="0" Grid.Column="2"
-                           Text="{Binding BatteryPrimaryText}"
-                           FontSize="16"
-                           FontAttributes="Bold"
-                           HorizontalOptions="End"
-                           VerticalOptions="Center"
-                           SemanticProperties.Description="{Binding BatteryPrimaryDescription}" />
-
-                    <Label Grid.Row="1" Grid.Column="0"
-                           Text="●"
-                           FontSize="16"
-                           TextColor="{Binding BatterySecondaryColor}"
-                           VerticalOptions="Center"
-                           AutomationProperties.IsInAccessibleTree="False" />
-                    <Label Grid.Row="1" Grid.Column="1"
-                           Text="Secondary:"
-                           FontSize="14"
-                           VerticalOptions="Center"
-                           AutomationProperties.IsInAccessibleTree="False" />
-                    <Label Grid.Row="1" Grid.Column="2"
-                           Text="{Binding BatterySecondaryText}"
-                           FontSize="16"
-                           FontAttributes="Bold"
-                           HorizontalOptions="End"
-                           VerticalOptions="Center"
-                           SemanticProperties.Description="{Binding BatterySecondaryDescription}" />
-                </Grid>
-
-                <!-- Primary Session Control Button (Start/Pause/Resume) -->
-                <Button Text="{Binding SessionButtonText}"
-                        Command="{Binding ToggleSessionCommand}"
-                        Style="{StaticResource PrimaryButtonGlow}"
-                        SemanticProperties.Hint="Double tap to activate"
-                        SemanticProperties.Description="{Binding SessionButtonDescription}"
-                        AutomationId="SessionControlButton">
-                    <Button.IsEnabled>
-                        <MultiBinding Converter="{StaticResource AllTrueConverter}">
-                            <Binding Path="IsNotBusy" />
-                            <Binding Path="ConnectionInfo.IsConnected" />
-                        </MultiBinding>
-                    </Button.IsEnabled>
-                </Button>
-
-                <!-- Stop Session Button (only visible when session is active) -->
-                <Button Text="Stop Session"
-                        Command="{Binding StopSessionCommand}"
-                        Style="{StaticResource DangerActionButton}"
-                        IsVisible="{Binding IsSessionActive}"
-                        SemanticProperties.Hint="Double tap to stop the current session"
-                        SemanticProperties.Description="Stops the active therapy session"
-                        AutomationId="StopSessionButton">
-                    <Button.IsEnabled>
-                        <MultiBinding Converter="{StaticResource AllTrueConverter}">
-                            <Binding Path="IsNotBusy" />
-                            <Binding Path="ConnectionInfo.IsConnected" />
-                        </MultiBinding>
-                    </Button.IsEnabled>
-                </Button>
-
+                <!-- Session controls: xl; Start alone, full width, or Pause/Resume and Stop side by side -->
+                <VerticalStackLayout Spacing="{StaticResource TargetGap}">
+                    <Button Text="Start Session"
+                            Style="{StaticResource ButtonPrimaryXl}"
+                            Command="{Binding StartSessionCommand}"
+                            IsVisible="{Binding IsSessionActive, Converter={StaticResource InvertedBoolConverter}}"
+                            IsEnabled="{Binding IsNotBusy}"
+                            ContentLayout="Left,8"
+                            SemanticProperties.Description="Start Session"
+                            AutomationId="SessionControlButton">
+                        <Button.ImageSource>
+                            <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Play}" Size="24" Color="{DynamicResource OnBrand}" />
+                        </Button.ImageSource>
+                    </Button>
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="{StaticResource TargetGap}" IsVisible="{Binding IsSessionActive}">
+                        <Button Text="{Binding PauseResumeText}"
+                                Style="{StaticResource ButtonSecondaryXl}"
+                                Command="{Binding PauseResumeCommand}"
+                                IsEnabled="{Binding IsNotBusy}"
+                                ContentLayout="Left,8"
+                                SemanticProperties.Description="{Binding PauseResumeText}"
+                                AutomationId="PauseResumeButton">
+                            <Button.Triggers>
+                                <DataTrigger TargetType="Button" Binding="{Binding IsSessionPaused}" Value="True">
+                                    <Setter Property="ImageSource">
+                                        <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Play}" Size="24" Color="{DynamicResource Brand}" />
+                                    </Setter>
+                                </DataTrigger>
+                            </Button.Triggers>
+                            <Button.ImageSource>
+                                <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Pause}" Size="24" Color="{DynamicResource Brand}" />
+                            </Button.ImageSource>
+                        </Button>
+                        <Button Grid.Column="1"
+                                Text="Stop"
+                                Style="{StaticResource ButtonDangerXl}"
+                                Command="{Binding StopSessionCommand}"
+                                IsEnabled="{Binding IsNotBusy}"
+                                ContentLayout="Left,8"
+                                SemanticProperties.Description="Stop"
+                                AutomationId="StopSessionButton">
+                            <Button.ImageSource>
+                                <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Square}" Size="24" Color="{DynamicResource OnStatus}" />
+                            </Button.ImageSource>
+                        </Button>
+                    </Grid>
+                </VerticalStackLayout>
             </VerticalStackLayout>
-
         </VerticalStackLayout>
     </ScrollView>
 

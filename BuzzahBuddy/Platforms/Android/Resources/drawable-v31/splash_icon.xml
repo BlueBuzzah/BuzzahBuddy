@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+ scales the splash icon up (about 1.34x) and masks it to a circle. The mark
+     at 80dp on a 288dp transparent canvas stays wholly inside that circle. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:width="288dp" android:height="288dp">
+        <shape android:shape="rectangle">
+            <solid android:color="@android:color/transparent" />
+        </shape>
+    </item>
+    <item android:width="80dp" android:height="77dp" android:gravity="center"
+          android:drawable="@drawable/splash" />
+</layer-list>

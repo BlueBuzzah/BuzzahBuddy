@@ -10,12 +10,6 @@ namespace BuzzahBuddy;
 public static class MauiProgram
 {
 	/// <summary>
-	/// Set to true to use mock Bluetooth service for testing without hardware.
-	/// Set to false to use real Bluetooth hardware.
-	/// </summary>
-	private static readonly bool UseMockBluetooth = false;
-
-	/// <summary>
 	/// Removes the platform's own input decoration so the design system's
 	/// <c>InputBorder</c> wrapper is the only border drawn.
 	/// </summary>
@@ -46,36 +40,71 @@ public static class MauiProgram
 #endif
 	}
 
+	/// <summary>
+	/// Gives every button icon its button's current text color, so the icon follows
+	/// pressed and disabled states and theme changes the way the text does. A
+	/// <c>FontImageSource</c> color is otherwise fixed: a disabled button showed grey
+	/// text beside a white or blue icon.
+	/// </summary>
+	private static void TintButtonIconsWithText()
+	{
+		static void Tint(Microsoft.Maui.IButton view)
+		{
+			if (view is Button { ImageSource: FontImageSource icon, TextColor: { } color } && icon.Color != color)
+				icon.Color = color;
+		}
+
+		// Text color changes with each visual state; the icon can be swapped by a trigger.
+		Microsoft.Maui.Handlers.ButtonHandler.Mapper.AppendToMapping(nameof(Button.TextColor), (_, view) => Tint(view));
+		Microsoft.Maui.Handlers.ButtonHandler.Mapper.AppendToMapping(nameof(Button.ImageSource), (_, view) => Tint(view));
+	}
+
 	public static MauiApp CreateMauiApp()
 	{
 		var builder = MauiApp.CreateBuilder();
 		builder
-			.UseMauiApp<App>();
+			.UseMauiApp<App>()
+			.ConfigureFonts(fonts =>
+			{
+				fonts.AddFont("Lexend-Medium.ttf", "LexendMedium");
+				fonts.AddFont("Lexend-SemiBold.ttf", "LexendSemiBold");
+				fonts.AddFont("Lexend-Bold.ttf", "LexendBold");
+				fonts.AddFont("AtkinsonHyperlegibleNext-Regular.ttf", "AtkinsonRegular");
+				fonts.AddFont("AtkinsonHyperlegibleNext-Bold.ttf", "AtkinsonBold");
+				fonts.AddFont("AtkinsonHyperlegibleNext-ExtraBold.ttf", "AtkinsonExtraBold");
+				fonts.AddFont("AtkinsonHyperlegibleMono-Regular.ttf", "AtkinsonMonoRegular");
+				fonts.AddFont("AtkinsonHyperlegibleMono-Bold.ttf", "AtkinsonMonoBold");
+				fonts.AddFont("lucide.ttf", "Lucide");
+			});
 
 		StripNativeInputChrome();
+		TintButtonIconsWithText();
+#if IOS
+		builder.ConfigureMauiHandlers(handlers => handlers.AddHandler<Shell, TabBarShellRenderer>());
+#endif
+		BuzzahBuddy.Helpers.Typography.RegisterHandlers();
 
 #if DEBUG
 		builder.Logging.AddDebug();
 #endif
 
 		// Register Services
-		// Toggle between mock and real Bluetooth service
-		if (UseMockBluetooth)
-		{
-			builder.Services.AddSingleton<IBluetoothService, MockBluetoothService>();
-			System.Diagnostics.Debug.WriteLine("🔧 Using MOCK Bluetooth Service (no hardware required)");
-		}
-		else
-		{
-			builder.Services.AddSingleton<IBluetoothService, BluetoothService>();
-			System.Diagnostics.Debug.WriteLine("📡 Using REAL Bluetooth Service (hardware required)");
-		}
+		// Real gloves, or the pretend ones while Demo Mode (Settings) is on; switchable at runtime.
+		builder.Services.AddSingleton<BluetoothService>();
+		builder.Services.AddSingleton<MockBluetoothService>();
+		builder.Services.AddSingleton(sp => new SwitchableBluetoothService(
+			sp.GetRequiredService<BluetoothService>(),
+			sp.GetRequiredService<MockBluetoothService>(),
+			Preferences.Default.Get(SwitchableBluetoothService.DemoModeKey, false)));
+		builder.Services.AddSingleton<IBluetoothService>(sp => sp.GetRequiredService<SwitchableBluetoothService>());
 
 		builder.Services.AddSingleton<IGloveControlService, GloveControlService>();
 		builder.Services.AddSingleton<IReconnectionService, ReconnectionService>();
 		builder.Services.AddSingleton<BuzzahBuddy.Services.ConnectionStateManagement.IConnectionStateService, BuzzahBuddy.Services.ConnectionStateManagement.ConnectionStateService>();
 		builder.Services.AddSingleton<IDataStorageService, PreferencesStorageService>();
 		builder.Services.AddSingleton<BuzzahBuddy.Services.AppLifecycle.IAppLifecycleService, BuzzahBuddy.Services.AppLifecycle.AppLifecycleService>();
+		builder.Services.AddSingleton<BuzzahBuddy.Services.Theme.IThemeService, BuzzahBuddy.Services.Theme.ThemeService>();
+		builder.Services.AddSingleton<BuzzahBuddy.Services.Dialogs.IConfirmationService, BuzzahBuddy.Services.Dialogs.ConfirmationService>();
 
 		// Register ViewModels
 		// Tab pages and their ViewModels live for the app's lifetime (Shell caches TabBar content)

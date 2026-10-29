@@ -23,6 +23,52 @@ public class GloveControlServiceTests
         Assert.Equal(2, service.DeviceProfileId);
     }
 
+    private const string InfoWithoutSecondary =
+        "ROLE:PRIMARY\nNAME:BlueBuzzah\nFW:2.1.0\nMOTORS:4\nPROFILE:2:noisy_vcr\nBATP:3.7\nBATS:0.00\nSTATUS:IDLE\n\x04";
+    private const string InfoWithSecondary =
+        "ROLE:PRIMARY\nNAME:BlueBuzzah\nFW:2.1.0\nMOTORS:4\nPROFILE:2:noisy_vcr\nBATP:3.7\nBATS:3.8\nSTATUS:IDLE\n\x04";
+
+    private static async Task WaitUntil(Func<bool> condition)
+    {
+        for (var i = 0; i < 200 && !condition(); i++)
+            await Task.Delay(10);
+    }
+
+    // After a restart the secondary rejoins the primary a few seconds after the phone
+    // connects, so the first INFO has no secondary battery. The service asks again.
+    [Fact]
+    public async Task MissingSecondaryBattery_IsAskedForAgainUntilItArrives()
+    {
+        var fake = new FakeBluetoothService();
+        foreach (var reply in new[] { InfoWithoutSecondary, InfoWithoutSecondary, InfoWithSecondary })
+            fake.QueuedResponses.Enqueue(reply);
+        var service = new GloveControlService(fake) { SecondaryBatteryRetryDelays = [TimeSpan.FromMilliseconds(5)] };
+        var readings = new List<double?>();
+        service.DeviceInfoReceived += (_, info) => { lock (readings) readings.Add(info.BatterySecondaryVoltage); };
+
+        await service.GetDeviceInfoAsync();
+        await WaitUntil(() => { lock (readings) return readings.Count >= 3; });
+        await Task.Delay(50);
+
+        lock (readings)
+            Assert.Equal(new double?[] { null, null, 3.8 }, readings);
+        Assert.Equal(3, fake.SentCommands.Count(c => c == "INFO"));
+    }
+
+    [Fact]
+    public async Task MissingSecondaryBattery_StopsAskingOnceDisconnected()
+    {
+        var fake = new FakeBluetoothService();
+        fake.CannedResponses["INFO"] = InfoWithoutSecondary;
+        var service = new GloveControlService(fake) { SecondaryBatteryRetryDelays = [TimeSpan.FromMilliseconds(20)] };
+
+        await service.GetDeviceInfoAsync();
+        fake.CurrentConnectionState = ConnectionState.Disconnected;
+        await Task.Delay(150);
+
+        Assert.Single(fake.SentCommands, c => c == "INFO");
+    }
+
     [Fact]
     public async Task BuzzFingerAsync_FiveMotorBoard_AcceptsIndexNine()
     {
@@ -433,6 +479,27 @@ public class GloveControlServiceTests
         await service.LoadProfileAsync(1);
 
         Assert.Equal(1, service.DeviceProfileId);
+    }
+
+    // Settings saved on the phone carry whatever finger count they were seeded with
+    // (another glove's, or the study's 4); the device's own count must always win.
+    [Fact]
+    public async Task SendSavedCustomProfile_KeepsTheDeviceFingersAndSendsOnlyChanges()
+    {
+        var fake = new FakeBluetoothService();
+        fake.CannedResponses["PROFILE_GET"] =
+            "TYPE:LRA\nFREQ:250\nON:100.0\nOFF:67.0\nSESSION:120\n" +
+            "AMPMIN:100\nAMPMAX:100\nPATTERN:rndp\nMIRROR:0\nJITTER:0\nFINGERS:4\n\x04";
+        fake.CannedResponses["PROFILE_CUSTOM"] = "STATUS:CUSTOM_LOADED\n\x04";
+        var service = new GloveControlService(fake);
+
+        var saved = MakeProfile();
+        saved.Fingers = 5;
+        saved.Jitter = 15.5;
+
+        await service.SendSavedCustomProfileAsync(saved);
+
+        Assert.Equal(new[] { "PROFILE_GET", "PROFILE_CUSTOM:JITTER:15.5" }, fake.SentCommands);
     }
 
     // FINGERS in PROFILE_GET marks firmware that also persists Custom edits. If it

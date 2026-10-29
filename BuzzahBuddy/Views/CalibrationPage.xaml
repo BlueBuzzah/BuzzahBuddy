@@ -1,404 +1,139 @@
-<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<!-- Motor test: a three-step guide (strength, buzz length, each finger). Test mode starts when
+     the page opens and ends when it closes, so there are no test mode buttons (owner's choice). -->
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:BuzzahBuddy.ViewModels"
+             xmlns:controls="clr-namespace:BuzzahBuddy.Views.Controls"
+             xmlns:helpers="clr-namespace:BuzzahBuddy.Helpers"
              x:Class="BuzzahBuddy.Views.CalibrationPage"
              x:Name="CalibrationPageRoot"
              x:DataType="vm:CalibrationViewModel"
              Title="{Binding Title}"
              SafeAreaEdges="Container">
 
-    <ScrollView>
-        <VerticalStackLayout Padding="20" Spacing="25">
+    <Grid Padding="16,16,16,16">
+        <ScrollView>
+            <VerticalStackLayout Spacing="{StaticResource Space6}" Padding="0,0,0,16">
+                <Label Text="Check that each finger motor buzzes. Pick a strength and a buzz length, then tap each finger." />
 
-            <!-- Header -->
-            <Label Text="Motor Calibration"
-                   Style="{StaticResource Headline}"
-                   SemanticProperties.HeadingLevel="Level1"
-                   HorizontalOptions="Center" />
+                <controls:Banner IsVisible="{Binding ShowNotConnected}"
+                                 Tone="Info"
+                                 Title="Connect Your Primary Glove"
+                                 Message="Connect on the Gloves tab to test the motors." />
+                <controls:Banner IsVisible="{Binding EndedByDisconnect}"
+                                 Tone="Warning"
+                                 Title="Test Mode Ended"
+                                 Message="Your primary glove disconnected. Connect again on the Gloves tab."
+                                 Announce="True" />
 
-            <!-- Not Connected Banner -->
-            <Border Padding="16"
-                    BackgroundColor="{StaticResource CardBackground}"
-                    StrokeThickness="0"
-                    IsVisible="{Binding ConnectionInfo.IsConnected, Converter={StaticResource InvertedBoolConverter}}"
-                    Margin="0,0,0,12">
-                <Border.StrokeShape>
-                    <RoundRectangle CornerRadius="8" />
-                </Border.StrokeShape>
-                <HorizontalStackLayout Spacing="12">
-                    <Label Text="ℹ"
-                           FontSize="24"
-                           VerticalOptions="Center"
-                           AutomationProperties.IsInAccessibleTree="False" />
-                    <Label Text="Connect to a BlueBuzzah device to begin calibration."
-                           Style="{StaticResource BodyText}"
-                           TextColor="{StaticResource TextMuted}"
-                           LineBreakMode="WordWrap"
-                           VerticalOptions="Center" />
-                </HorizontalStackLayout>
-            </Border>
-
-            <!-- Calibration Mode Controls -->
-            <Border Padding="15"
-                    BackgroundColor="{StaticResource CardBackground}"
-                    StrokeThickness="0">
-                <Border.StrokeShape>
-                    <RoundRectangle CornerRadius="12" />
-                </Border.StrokeShape>
-
-                <VerticalStackLayout Spacing="15">
-                    <Label Text="Calibration Mode"
-                           Style="{StaticResource Heading2}"
-                           SemanticProperties.HeadingLevel="Level2" />
-
-                    <Label Text="Test individual finger motors to verify proper operation and adjust intensity."
-                           Style="{StaticResource SecondaryText}"
-                           LineBreakMode="WordWrap" />
-
-                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
-                        <Button Grid.Column="0"
-                                Text="Enter Calibration"
-                                Command="{Binding EnterCalibrationModeCommand}"
-                                IsEnabled="{Binding ConnectionInfo.IsConnected}"
-                                Style="{StaticResource PrimaryButton}"
-                                SemanticProperties.Description="Enter calibration mode to test and adjust finger motors"
-                                SemanticProperties.Hint="Double tap to enter calibration mode"
-                                AutomationId="EnterCalibrationButton" />
-
-                        <Button Grid.Column="1"
-                                Text="Exit Calibration"
-                                Command="{Binding ExitCalibrationModeCommand}"
-                                IsEnabled="{Binding IsInCalibrationMode}"
-                                Style="{StaticResource SecondaryButton}"
-                                BackgroundColor="{StaticResource Secondary}"
-                                SemanticProperties.Description="Exit calibration mode and return to normal operation"
-                                SemanticProperties.Hint="Double tap to exit calibration mode"
-                                AutomationId="ExitCalibrationButton" />
-                    </Grid>
-
-                    <Label Text="{Binding IsInCalibrationMode, StringFormat='Status: {0}'}"
-                           FontSize="14"
-                           FontAttributes="Bold"
-                           HorizontalOptions="Center"
-                           TextColor="{StaticResource Primary}"
-                           SemanticProperties.Description="{Binding IsInCalibrationMode, StringFormat='Calibration mode is {0}'}"
-                           AutomationId="CalibrationStatusLabel" />
-                </VerticalStackLayout>
-            </Border>
-
-            <!-- Guided Wizard (Only visible when in calibration mode) -->
-            <Border Padding="20"
-                    BackgroundColor="{StaticResource CardBackground}"
-                    StrokeThickness="0"
-                    IsVisible="{Binding IsInCalibrationMode}">
-                <Border.StrokeShape>
-                    <RoundRectangle CornerRadius="12" />
-                </Border.StrokeShape>
-
-                <VerticalStackLayout Spacing="20">
-                    <!-- Step Title & Description -->
-                    <VerticalStackLayout Spacing="8">
-                        <Label x:Name="StepTitleLabel"
-                               Text="{Binding StepTitle}"
-                               Style="{StaticResource Heading2}"
-                               HorizontalOptions="Center"
-                               SemanticProperties.HeadingLevel="Level2" />
-
-                        <Label Text="{Binding StepDescription}"
-                               Style="{StaticResource BodyText}"
-                               HorizontalTextAlignment="Center"
-                               LineBreakMode="WordWrap" />
-                    </VerticalStackLayout>
-
-                    <!-- Step 1: Intensity Selection (Stepped Buttons) -->
-                    <VerticalStackLayout Spacing="12" IsVisible="{Binding IsStep1}">
-                        <Label Text="Select Intensity Level"
-                               Style="{StaticResource Heading3}"
-                               HorizontalOptions="Center"
-                               SemanticProperties.HeadingLevel="Level3" />
-
-                        <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="10" RowSpacing="10">
-                            <!-- 20% Intensity -->
-                            <Button Grid.Row="0" Grid.Column="0"
-                                    Text="20%"
-                                    Command="{Binding SetIntensityCommand}"
-                                    CommandParameter="20"
-                                    Style="{StaticResource TertiaryButton}"
-                                    BackgroundColor="{Binding Intensity, Converter={StaticResource IntToColorConverter}, ConverterParameter=20}"
-                                    TextColor="{Binding Intensity, Converter={StaticResource IntToTextColorConverter}, ConverterParameter=20}"
-                                    SemanticProperties.Description="Set intensity to 20 percent, gentle"
-                                    AutomationId="Intensity20Button">
-                                <Button.IsEnabled>
-                                    <Binding Path="CanCalibrate" />
-                                </Button.IsEnabled>
-                            </Button>
-
-                            <!-- 40% Intensity -->
-                            <Button Grid.Row="0" Grid.Column="1"
-                                    Text="40%"
-                                    Command="{Binding SetIntensityCommand}"
-                                    CommandParameter="40"
-                                    Style="{StaticResource TertiaryButton}"
-                                    BackgroundColor="{Binding Intensity, Converter={StaticResource IntToColorConverter}, ConverterParameter=40}"
-                                    TextColor="{Binding Intensity, Converter={StaticResource IntToTextColorConverter}, ConverterParameter=40}"
-                                    SemanticProperties.Description="Set intensity to 40 percent, light"
-                                    AutomationId="Intensity40Button">
-                                <Button.IsEnabled>
-                                    <Binding Path="CanCalibrate" />
-                                </Button.IsEnabled>
-                            </Button>
-
-                            <!-- 60% Intensity -->
-                            <Button Grid.Row="1" Grid.Column="0"
-                                    Text="60%"
-                                    Command="{Binding SetIntensityCommand}"
-                                    CommandParameter="60"
-                                    Style="{StaticResource TertiaryButton}"
-                                    BackgroundColor="{Binding Intensity, Converter={StaticResource IntToColorConverter}, ConverterParameter=60}"
-                                    TextColor="{Binding Intensity, Converter={StaticResource IntToTextColorConverter}, ConverterParameter=60}"
-                                    SemanticProperties.Description="Set intensity to 60 percent, moderate"
-                                    AutomationId="Intensity60Button">
-                                <Button.IsEnabled>
-                                    <Binding Path="CanCalibrate" />
-                                </Button.IsEnabled>
-                            </Button>
-
-                            <!-- 80% Intensity -->
-                            <Button Grid.Row="1" Grid.Column="1"
-                                    Text="80%"
-                                    Command="{Binding SetIntensityCommand}"
-                                    CommandParameter="80"
-                                    Style="{StaticResource TertiaryButton}"
-                                    BackgroundColor="{Binding Intensity, Converter={StaticResource IntToColorConverter}, ConverterParameter=80}"
-                                    TextColor="{Binding Intensity, Converter={StaticResource IntToTextColorConverter}, ConverterParameter=80}"
-                                    SemanticProperties.Description="Set intensity to 80 percent, strong"
-                                    AutomationId="Intensity80Button">
-                                <Button.IsEnabled>
-                                    <Binding Path="CanCalibrate" />
-                                </Button.IsEnabled>
-                            </Button>
-
-                            <!-- 100% Intensity -->
-                            <Button Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
-                                    Text="100%"
-                                    Command="{Binding SetIntensityCommand}"
-                                    CommandParameter="100"
-                                    Style="{StaticResource TertiaryButton}"
-                                    BackgroundColor="{Binding Intensity, Converter={StaticResource IntToColorConverter}, ConverterParameter=100}"
-                                    TextColor="{Binding Intensity, Converter={StaticResource IntToTextColorConverter}, ConverterParameter=100}"
-                                    SemanticProperties.Description="Set intensity to 100 percent, maximum"
-                                    AutomationId="Intensity100Button">
-                                <Button.IsEnabled>
-                                    <Binding Path="CanCalibrate" />
-                                </Button.IsEnabled>
-                            </Button>
-                        </Grid>
-
-                        <Label Text="{Binding Intensity, StringFormat='Selected: {0}%'}"
-                               FontSize="16"
-                               FontAttributes="Bold"
-                               HorizontalOptions="Center"
-                               TextColor="{StaticResource Primary}" />
-                    </VerticalStackLayout>
-
-                    <!-- Step 2: Duration Selection (Stepped Buttons) -->
-                    <VerticalStackLayout Spacing="12" IsVisible="{Binding IsStep2}">
-                        <Label Text="Select Pulse Duration"
-                               Style="{StaticResource Heading3}"
-                               HorizontalOptions="Center"
-                               SemanticProperties.HeadingLevel="Level3" />
-
-                        <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="10">
-                            <!-- 100ms Duration -->
-                            <Button Grid.Row="0" Grid.Column="0"
-                                    Text="100ms"
-                                    Command="{Binding SetDurationCommand}"
-                                    CommandParameter="100"
-                                    Style="{StaticResource TertiaryButton}"
-                                    BackgroundColor="{Binding Duration, Converter={StaticResource IntToColorConverter}, ConverterParameter=100}"
-                                    TextColor="{Binding Duration, Converter={StaticResource IntToTextColorConverter}, ConverterParameter=100}"
-                                    SemanticProperties.Description="Set duration to 100 milliseconds, very brief"
-                                    AutomationId="Duration100Button">
-                                <Button.IsEnabled>
-                                    <Binding Path="CanCalibrate" />
-                                </Button.IsEnabled>
-                            </Button>
-
-                            <!-- 500ms Duration -->
-                            <Button Grid.Row="0" Grid.Column="1"
-                                    Text="500ms"
-                                    Command="{Binding SetDurationCommand}"
-                                    CommandParameter="500"
-                                    Style="{StaticResource TertiaryButton}"
-                                    BackgroundColor="{Binding Duration, Converter={StaticResource IntToColorConverter}, ConverterParameter=500}"
-                                    TextColor="{Binding Duration, Converter={StaticResource IntToTextColorConverter}, ConverterParameter=500}"
-                                    SemanticProperties.Description="Set duration to 500 milliseconds, brief"
-                                    AutomationId="Duration500Button">
-                                <Button.IsEnabled>
-                                    <Binding Path="CanCalibrate" />
-                                </Button.IsEnabled>
-                            </Button>
-
-                            <!-- 1000ms Duration -->
-                            <Button Grid.Row="1" Grid.Column="0"
-                                    Text="1000ms"
-                                    Command="{Binding SetDurationCommand}"
-                                    CommandParameter="1000"
-                                    Style="{StaticResource TertiaryButton}"
-                                    BackgroundColor="{Binding Duration, Converter={StaticResource IntToColorConverter}, ConverterParameter=1000}"
-                                    TextColor="{Binding Duration, Converter={StaticResource IntToTextColorConverter}, ConverterParameter=1000}"
-                                    SemanticProperties.Description="Set duration to 1000 milliseconds, 1 second"
-                                    AutomationId="Duration1000Button">
-                                <Button.IsEnabled>
-                                    <Binding Path="CanCalibrate" />
-                                </Button.IsEnabled>
-                            </Button>
-
-                            <!-- 2000ms Duration -->
-                            <Button Grid.Row="1" Grid.Column="1"
-                                    Text="2000ms"
-                                    Command="{Binding SetDurationCommand}"
-                                    CommandParameter="2000"
-                                    Style="{StaticResource TertiaryButton}"
-                                    BackgroundColor="{Binding Duration, Converter={StaticResource IntToColorConverter}, ConverterParameter=2000}"
-                                    TextColor="{Binding Duration, Converter={StaticResource IntToTextColorConverter}, ConverterParameter=2000}"
-                                    SemanticProperties.Description="Set duration to 2000 milliseconds, 2 seconds"
-                                    AutomationId="Duration2000Button">
-                                <Button.IsEnabled>
-                                    <Binding Path="CanCalibrate" />
-                                </Button.IsEnabled>
-                            </Button>
-                        </Grid>
-
-                        <Label Text="{Binding Duration, StringFormat='Selected: {0}ms'}"
-                               FontSize="16"
-                               FontAttributes="Bold"
-                               HorizontalOptions="Center"
-                               TextColor="{StaticResource Primary}" />
-                    </VerticalStackLayout>
-
-                    <!-- Step 3: Test Fingers -->
-                    <VerticalStackLayout Spacing="15" IsVisible="{Binding IsStep3}">
-                        <!-- Selected Finger Display -->
-                        <Border Padding="10"
-                                BackgroundColor="{StaticResource Primary}"
-                                StrokeThickness="0"
-                                IsVisible="{Binding IsBuzzing}"
-                                SemanticProperties.Description="{Binding SelectedFingerName, StringFormat='Currently testing: {0}'}"
-                                AutomationId="TestingFingerBanner">
-                            <Border.StrokeShape>
-                                <RoundRectangle CornerRadius="8" />
-                            </Border.StrokeShape>
-                            <Label Text="{Binding SelectedFingerName, StringFormat='Testing: {0}'}"
-                                   FontSize="16"
-                                   FontAttributes="Bold"
-                                   TextColor="{StaticResource PrimaryDarkText}"
-                                   HorizontalOptions="Center"
-                                   AutomationProperties.IsInAccessibleTree="False" />
-                        </Border>
-
-                        <!-- Primary glove -->
-                        <VerticalStackLayout Spacing="10">
-                            <Label Text="Primary Glove"
-                                   Style="{StaticResource Heading3}"
-                                   HorizontalOptions="Center"
-                                   SemanticProperties.HeadingLevel="Level3" />
-
-                            <FlexLayout Wrap="Wrap"
-                                        JustifyContent="Center"
-                                        BindableLayout.ItemsSource="{Binding PrimaryFingers}">
-                                <BindableLayout.ItemTemplate>
-                                    <DataTemplate x:DataType="vm:FingerButtonItem">
-                                        <Button Text="{Binding DisplayLabel}"
-                                                Command="{Binding BindingContext.BuzzFingerCommand, Source={x:Reference CalibrationPageRoot}}"
-                                                CommandParameter="{Binding Index}"
-                                                Style="{StaticResource FingerTestButton}"
-                                                SemanticProperties.Description="{Binding Label, StringFormat='Primary glove {0}'}"
-                                                SemanticProperties.Hint="Tests this finger's motor"
-                                                AutomationId="{Binding AutomationId}"
-                                                IsEnabled="{Binding Source={RelativeSource AncestorType={x:Type vm:CalibrationViewModel}}, Path=CanBuzzFingers}" />
-                                    </DataTemplate>
-                                </BindableLayout.ItemTemplate>
-                            </FlexLayout>
+                <Border Style="{StaticResource Card}" IsVisible="{Binding IsInCalibrationMode}">
+                    <VerticalStackLayout Spacing="{StaticResource Space4}">
+                        <VerticalStackLayout Spacing="{StaticResource Space1}">
+                            <Label Text="{Binding StepCaption}" Style="{StaticResource TypeCaption}" TextColor="{DynamicResource InkMuted}" />
+                            <Label x:Name="StepTitleLabel"
+                                   Text="{Binding StepTitle}"
+                                   Style="{StaticResource TypeTitleM}"
+                                   SemanticProperties.HeadingLevel="Level2" />
+                            <Label Text="{Binding StepDescription}" />
                         </VerticalStackLayout>
 
-                        <!-- Secondary glove -->
-                        <VerticalStackLayout Spacing="10">
-                            <Label Text="Secondary Glove"
-                                   Style="{StaticResource Heading3}"
-                                   HorizontalOptions="Center"
-                                   SemanticProperties.HeadingLevel="Level3" />
+                        <controls:ValueStepper IsVisible="{Binding IsStep1}"
+                                               IsEnabled="{Binding CanCalibrate}"
+                                               Label="Strength"
+                                               Minimum="20" Maximum="100" Step="20"
+                                               Unit="%"
+                                               Value="{Binding Intensity}" />
 
-                            <FlexLayout Wrap="Wrap"
-                                        JustifyContent="Center"
-                                        BindableLayout.ItemsSource="{Binding SecondaryFingers}">
-                                <BindableLayout.ItemTemplate>
-                                    <DataTemplate x:DataType="vm:FingerButtonItem">
-                                        <Button Text="{Binding DisplayLabel}"
+                        <controls:SegmentedControl IsVisible="{Binding IsStep2}"
+                                                   IsEnabled="{Binding CanCalibrate}"
+                                                   Label="Buzz Length"
+                                                   Options="{Binding DurationOptions}"
+                                                   SelectedValue="{Binding Duration}" />
+
+                        <VerticalStackLayout Spacing="{StaticResource Space3}" IsVisible="{Binding IsStep3}">
+                        <Label Text="Primary Glove" Style="{StaticResource TypeTitleS}" SemanticProperties.HeadingLevel="Level3" />
+                        <FlexLayout Wrap="Wrap" Margin="-6,0" BindableLayout.ItemsSource="{Binding PrimaryFingers}">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate x:DataType="vm:FingerButtonItem">
+                                    <ContentView FlexLayout.Basis="50%" Padding="6">
+                                        <Button Text="{Binding Label}"
+                                                Style="{StaticResource ButtonSecondary}"
+                                                ContentLayout="Left,8"
                                                 Command="{Binding BindingContext.BuzzFingerCommand, Source={x:Reference CalibrationPageRoot}}"
                                                 CommandParameter="{Binding Index}"
-                                                Style="{StaticResource FingerTestButton}"
-                                                BackgroundColor="{StaticResource Secondary}"
-                                                TextColor="{StaticResource TextPrimary}"
-                                                SemanticProperties.Description="{Binding Label, StringFormat='Secondary glove {0}'}"
-                                                SemanticProperties.Hint="Tests this finger's motor"
+                                                SemanticProperties.Description="{Binding AccessibleText}"
                                                 AutomationId="{Binding AutomationId}"
-                                                IsEnabled="{Binding Source={RelativeSource AncestorType={x:Type vm:CalibrationViewModel}}, Path=CanBuzzFingers}" />
-                                    </DataTemplate>
-                                </BindableLayout.ItemTemplate>
-                            </FlexLayout>
+                                                IsEnabled="{Binding Source={RelativeSource AncestorType={x:Type vm:CalibrationViewModel}}, Path=CanBuzzFingers}">
+                                            <!-- Vibrate while this finger buzzes, then a check if the test worked. -->
+                                            <Button.Triggers>
+                                                <DataTrigger TargetType="Button" Binding="{Binding IsBuzzing}" Value="True">
+                                                    <Setter Property="ImageSource">
+                                                        <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Vibrate}" Size="20" Color="{DynamicResource Brand}" />
+                                                    </Setter>
+                                                </DataTrigger>
+                                                <DataTrigger TargetType="Button" Binding="{Binding IsTested}" Value="True">
+                                                    <Setter Property="ImageSource">
+                                                        <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Check}" Size="20" Color="{DynamicResource Brand}" />
+                                                    </Setter>
+                                                </DataTrigger>
+                                            </Button.Triggers>
+                                        </Button>
+                                    </ContentView>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </FlexLayout>
+                        <Label Text="Secondary Glove" Style="{StaticResource TypeTitleS}" SemanticProperties.HeadingLevel="Level3" />
+                        <FlexLayout Wrap="Wrap" Margin="-6,0" BindableLayout.ItemsSource="{Binding SecondaryFingers}">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate x:DataType="vm:FingerButtonItem">
+                                    <ContentView FlexLayout.Basis="50%" Padding="6">
+                                        <Button Text="{Binding Label}"
+                                                Style="{StaticResource ButtonSecondary}"
+                                                ContentLayout="Left,8"
+                                                Command="{Binding BindingContext.BuzzFingerCommand, Source={x:Reference CalibrationPageRoot}}"
+                                                CommandParameter="{Binding Index}"
+                                                SemanticProperties.Description="{Binding AccessibleText}"
+                                                AutomationId="{Binding AutomationId}"
+                                                IsEnabled="{Binding Source={RelativeSource AncestorType={x:Type vm:CalibrationViewModel}}, Path=CanBuzzFingers}">
+                                            <!-- Vibrate while this finger buzzes, then a check if the test worked. -->
+                                            <Button.Triggers>
+                                                <DataTrigger TargetType="Button" Binding="{Binding IsBuzzing}" Value="True">
+                                                    <Setter Property="ImageSource">
+                                                        <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Vibrate}" Size="20" Color="{DynamicResource Brand}" />
+                                                    </Setter>
+                                                </DataTrigger>
+                                                <DataTrigger TargetType="Button" Binding="{Binding IsTested}" Value="True">
+                                                    <Setter Property="ImageSource">
+                                                        <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Check}" Size="20" Color="{DynamicResource Brand}" />
+                                                    </Setter>
+                                                </DataTrigger>
+                                            </Button.Triggers>
+                                        </Button>
+                                    </ContentView>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </FlexLayout>
                         </VerticalStackLayout>
+
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="{StaticResource TargetGap}">
+                            <Button Text="Back"
+                                    Style="{StaticResource ButtonQuiet}"
+                                    Command="{Binding PreviousStepCommand}"
+                                    IsEnabled="{Binding CanGoPrevious}"
+                                    SemanticProperties.Description="Back"
+                                    AutomationId="PreviousStepButton" />
+                            <Button Grid.Column="1"
+                                    Text="Next"
+                                    Style="{StaticResource ButtonSecondary}"
+                                    Command="{Binding NextStepCommand}"
+                                    IsEnabled="{Binding CanGoNext}"
+                                    SemanticProperties.Description="Next"
+                                    AutomationId="NextStepButton" />
+                        </Grid>
                     </VerticalStackLayout>
-
-                    <!-- Navigation Buttons -->
-                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10" Margin="0,10,0,0">
-                        <Button Grid.Column="0"
-                                Text="← Previous"
-                                Command="{Binding PreviousStepCommand}"
-                                IsEnabled="{Binding CanGoPrevious}"
-                                Style="{StaticResource TertiaryButton}"
-                                BackgroundColor="{StaticResource Secondary}"
-                                SemanticProperties.Description="Go to previous calibration step"
-                                SemanticProperties.Hint="Double tap to go back"
-                                AutomationId="PreviousStepButton" />
-
-                        <Button Grid.Column="1"
-                                Text="Next →"
-                                Command="{Binding NextStepCommand}"
-                                IsEnabled="{Binding CanGoNext}"
-                                Style="{StaticResource PrimaryButton}"
-                                SemanticProperties.Description="Go to next calibration step"
-                                SemanticProperties.Hint="Double tap to advance"
-                                AutomationId="NextStepButton" />
-                    </Grid>
-                </VerticalStackLayout>
-            </Border>
-
-            <!-- Skip Calibration Option (BOTTOM ZONE - Easy reach) -->
-            <Button Text="Skip Calibration (Use Defaults)"
-                    Command="{Binding SkipCalibrationCommand}"
-                    IsVisible="{Binding IsInCalibrationMode}"
-                    IsEnabled="{Binding ConnectionInfo.IsConnected}"
-                    Style="{StaticResource TertiaryButton}"
-                    SemanticProperties.Description="Skip calibration and use safe default settings"
-                    SemanticProperties.Hint="Bypasses testing and uses 50% intensity, 200ms duration"
-                    AutomationId="SkipCalibrationButton" />
-
-            <!-- Info Card -->
-            <Border Padding="15"
-                    BackgroundColor="{StaticResource CardBackground}"
-                    StrokeThickness="0">
-                <Border.StrokeShape>
-                    <RoundRectangle CornerRadius="12" />
-                </Border.StrokeShape>
-
-                <Label Style="{StaticResource SecondaryText}"
-                       LineBreakMode="WordWrap"
-                       Text="Follow the guided steps to calibrate your gloves: (1) Select intensity, (2) Select duration, (3) Test each finger motor. Or skip to use safe defaults." />
-            </Border>
-
-        </VerticalStackLayout>
-    </ScrollView>
-
+                </Border>
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
 </ContentPage>

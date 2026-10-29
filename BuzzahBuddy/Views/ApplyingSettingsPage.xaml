@@ -1,41 +1,56 @@
-<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<!-- Blocking wait while the gloves restart with new settings. No silent time limit: after
+     two minutes it asks whether to keep waiting (accessibility.md Motor; plan choice PC22). -->
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:BuzzahBuddy.ViewModels"
              x:Class="BuzzahBuddy.Views.ApplyingSettingsPage"
              x:DataType="vm:DeviceSettingsViewModel"
              Shell.NavBarIsVisible="False"
-             BackgroundColor="{StaticResource PageBackground}"
              SafeAreaEdges="Container">
 
-    <VerticalStackLayout Spacing="24"
-                         VerticalOptions="Center"
-                         Padding="32">
-        <ActivityIndicator IsRunning="True"
-                           HeightRequest="56"
-                           WidthRequest="56"
-                           Color="{StaticResource Primary}"
-                           SemanticProperties.Description="Applying settings" />
+    <!-- Scrolls so Keep Waiting and Stop Waiting stay reachable at large text sizes: the page
+         blocks back and swipe, so they are the only way out. -->
+    <ScrollView>
+    <VerticalStackLayout Spacing="{StaticResource Space6}" VerticalOptions="Center" Padding="{StaticResource Space8}">
+        <!-- Waiting -->
+        <VerticalStackLayout Spacing="{StaticResource Space4}"
+                             IsVisible="{Binding IsWaitingLong, Converter={StaticResource InvertedBoolConverter}}">
+            <ActivityIndicator IsRunning="True" HeightRequest="48" WidthRequest="48"
+                               AutomationProperties.IsInAccessibleTree="False" />
+            <Label Text="Applying Settings"
+                   Style="{StaticResource TypeHeadline}"
+                   HorizontalTextAlignment="Center"
+                   SemanticProperties.HeadingLevel="Level1" />
+            <Label Text="Your gloves are restarting with the new settings. They reconnect on their own. This usually takes under a minute."
+                   HorizontalTextAlignment="Center"
+                   AutomationId="ApplyingSettingsLabel" />
+            <Label Text="{Binding ConnectionInfo.ReconnectionMessage}"
+                   IsVisible="{Binding ConnectionInfo.ReconnectionMessage, Converter={StaticResource IsNotNullConverter}}"
+                   Style="{StaticResource TypeBodyS}"
+                   TextColor="{DynamicResource InkMuted}"
+                   HorizontalTextAlignment="Center" />
+        </VerticalStackLayout>
 
-        <Label Text="Applying Settings…"
-               Style="{StaticResource Headline}"
-               HorizontalOptions="Center"
-               SemanticProperties.HeadingLevel="Level1" />
-
-        <Label Text="Your gloves are restarting with the new settings and will reconnect automatically. This can take a few moments."
-               FontSize="16"
-               TextColor="{StaticResource TextMuted}"
-               HorizontalTextAlignment="Center"
-               LineBreakMode="WordWrap"
-               AutomationId="ApplyingSettingsLabel" />
-
-        <!-- Live reconnection progress, e.g. "Reconnecting... (attempt 2/20)" -->
-        <Label Text="{Binding ConnectionInfo.ReconnectionMessage}"
-               IsVisible="{Binding ConnectionInfo.ReconnectionMessage, Converter={StaticResource IsNotNullConverter}}"
-               FontSize="14"
-               TextColor="{StaticResource TextMuted}"
-               HorizontalTextAlignment="Center"
-               SemanticProperties.Description="{Binding ConnectionInfo.ReconnectionMessage}" />
+        <!-- Still waiting after two minutes -->
+        <VerticalStackLayout Spacing="{StaticResource Space4}" IsVisible="{Binding IsWaitingLong}">
+            <Label Text="Still Waiting for Your Gloves"
+                   Style="{StaticResource TypeHeadline}"
+                   SemanticProperties.HeadingLevel="Level1" />
+            <Label Text="Make sure both gloves are on and near your phone." />
+            <Button Text="Keep Waiting"
+                    Style="{StaticResource ButtonPrimary}"
+                    Command="{Binding KeepWaitingCommand}"
+                    Margin="0,12,0,0"
+                    SemanticProperties.Description="Keep Waiting"
+                    AutomationId="KeepWaitingButton" />
+            <Button Text="Stop Waiting"
+                    Style="{StaticResource ButtonQuiet}"
+                    Command="{Binding StopWaitingCommand}"
+                    Margin="0,20,0,0"
+                    SemanticProperties.Description="Stop Waiting"
+                    AutomationId="StopWaitingButton" />
+        </VerticalStackLayout>
     </VerticalStackLayout>
-
+    </ScrollView>
 </ContentPage>

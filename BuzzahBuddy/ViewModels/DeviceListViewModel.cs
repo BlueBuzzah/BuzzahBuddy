@@ -1,10 +1,14 @@
 using BuzzahBuddy.Helpers;
+using BuzzahBuddy.Messages;
 using BuzzahBuddy.Models;
 using BuzzahBuddy.Services.Bluetooth;
 using BuzzahBuddy.Services.ConnectionStateManagement;
+using BuzzahBuddy.Services.Dialogs;
+using BuzzahBuddy.Services.Glove;
 using BuzzahBuddy.Services.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using System.Collections.ObjectModel;
 
 namespace BuzzahBuddy.ViewModels;
@@ -13,12 +17,19 @@ namespace BuzzahBuddy.ViewModels;
 /// ViewModel for the device list page.
 /// Handles scanning for and connecting to BlueBuzzah gloves.
 /// </summary>
-public partial class DeviceListViewModel : BaseViewModel
+public partial class DeviceListViewModel : BaseViewModel, IQueryAttributable
 {
+    /// <summary>Navigation parameter: start a scan on arrival (Session's Scan for Gloves).</summary>
+    public const string ScanQueryKey = "scan";
+
     private readonly IBluetoothService _bluetoothService;
     private readonly IDataStorageService _storageService;
     private readonly IReconnectionService _reconnectionService;
     private CancellationTokenSource? _scanCancellationTokenSource;
+    private readonly IConfirmationService _confirmation;
+    // Scan start and stop share one spot; ignore a tremor's second tap within 400 ms.
+    private readonly RepeatGuard _scanToggle = new(RepeatGuard.SessionControlWindow);
+    private (string Title, string Message, string? Detail)? _lastError;
 
     /// <summary>
     /// Centralized connection state service exposed for XAML binding.
@@ -42,6 +53,8 @@ public partial class DeviceListViewModel : BaseViewModel
     [ObservableProperty]
     private bool _bluetoothEnabled = true;
 
+    partial void OnBluetoothEnabledChanged(bool value) => ResolveBanner();
+
     [ObservableProperty]
     private GloveDevice? _selectedDevice;
 
@@ -52,33 +65,49 @@ public partial class DeviceListViewModel : BaseViewModel
     private string? _connectingDeviceId;
 
     [ObservableProperty]
-    private string _scanButtonText = "Scan for Devices";
+    private string _scanButtonText = "Scan for Gloves";
+
+    // The scan view's one banner: Bluetooth off > last connect/scan failure > apply
+    // that never reconnected (Banner README).
+    [ObservableProperty]
+    private bool _bannerVisible;
 
     [ObservableProperty]
-    private string _scanButtonDescription = "Start scanning for BlueBuzzah gloves";
+    private StatusTone _bannerTone = StatusTone.Warning;
+
+    [ObservableProperty]
+    private string? _bannerTitle;
+
+    [ObservableProperty]
+    private string? _bannerMessage;
+
+    [ObservableProperty]
+    private string? _bannerDetail;
+
+    [ObservableProperty]
+    private string? _bannerActionText;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowReadyState))]
     [NotifyPropertyChangedFor(nameof(ShowNoResultsState))]
     private bool _hasCompletedScan;
 
-    [ObservableProperty]
-    private string? _scanStatusMessage;
-
     public DeviceListViewModel(
         IBluetoothService bluetoothService,
         IDataStorageService storageService,
         IReconnectionService reconnectionService,
         IConnectionStateService connectionStateService,
-        DeviceSettingsViewModel deviceSettingsViewModel)
+        DeviceSettingsViewModel deviceSettingsViewModel,
+        IConfirmationService confirmation)
     {
+        _confirmation = confirmation;
         _bluetoothService = bluetoothService;
         _storageService = storageService;
         _reconnectionService = reconnectionService;
         ConnectionInfo = connectionStateService;
         Settings = deviceSettingsViewModel;
 
-        Title = "Devices";
+        Title = "Gloves";
 
         // Subscribe to device discovery
         _bluetoothService.DeviceDiscovered += OnDeviceDiscovered;
@@ -89,6 +118,20 @@ public partial class DeviceListViewModel : BaseViewModel
         // Subscribe to connection state changes
         _bluetoothService.ConnectionStateChanged += OnConnectionStateChanged;
 
+        // Gloves found before Demo Mode switched belong to the other service: forget them.
+        WeakReferenceMessenger.Default.Register<DeviceListViewModel, DemoModeChangedMessage>(this, (vm, _) =>
+        {
+            vm._scanCancellationTokenSource?.Cancel();
+            vm.AvailableDevices.Clear();
+            vm.HasCompletedScan = false;
+        });
+
+        Settings.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(DeviceSettingsViewModel.ApplyReconnectFailed))
+                ResolveBanner();
+        };
+
         // Check Bluetooth status and initial connection state
         CheckBluetoothStatusAsync().SafeFireAndForget("[DEVICELIST]");
         UpdateConnectionState();
@@ -97,6 +140,9 @@ public partial class DeviceListViewModel : BaseViewModel
     [RelayCommand(AllowConcurrentExecutions = true)]
     private async Task ToggleScanAsync()
     {
+        if (!_scanToggle.TryAcquire())
+            return;
+
         if (IsScanning)
         {
             // Stop scanning
@@ -121,6 +167,12 @@ public partial class DeviceListViewModel : BaseViewModel
         CheckBluetoothStatusAsync().SafeFireAndForget("[DEVICELIST]");
         UpdateConnectionState();
         Settings.OnPageAppearing();
+    }
+
+    public void ApplyQueryAttributes(IDictionary<string, object> query)
+    {
+        if (query.ContainsKey(ScanQueryKey) && !IsScanning)
+            StartScanningAsync().SafeFireAndForget("[DEVICELIST]");
     }
 
     /// <summary>Empty-state variant: before the first scan has run.</summary>
@@ -171,13 +223,12 @@ public partial class DeviceListViewModel : BaseViewModel
 
             if (!BluetoothEnabled)
             {
-                System.Diagnostics.Debug.WriteLine("[VM] Bluetooth disabled - showing alert");
-                await Shell.Current.DisplayAlert(
-                    "Bluetooth Disabled",
-                    "Please enable Bluetooth to scan for devices.",
-                    "OK");
+                // The "Bluetooth Is Off" banner (OnBluetoothEnabledChanged) says what to do.
                 return;
             }
+
+            _lastError = null;
+            ResolveBanner();
 
             _scanCancellationTokenSource = new CancellationTokenSource();
 
@@ -202,18 +253,17 @@ public partial class DeviceListViewModel : BaseViewModel
                         }
                     }
 
-                    ScanStatusMessage = null;
-                    SemanticScreenReader.Announce($"Scan complete. {deviceList.Count} device{(deviceList.Count != 1 ? "s" : "")} found.");
+                    SemanticScreenReader.Announce(deviceList.Count == 1
+                        ? "Scan complete. 1 glove found."
+                        : $"Scan complete. {deviceList.Count} gloves found.");
                     break;
 
                 case ScanOutcome.NoDevicesFound:
-                    ScanStatusMessage = "No BlueBuzzah devices found. Make sure your gloves are powered on and in range.";
-                    SemanticScreenReader.Announce("Scan complete. No devices found.");
+                    SemanticScreenReader.Announce("Scan complete. No gloves found.");
                     break;
 
                 case ScanOutcome.ScanFailed:
-                    ScanStatusMessage = $"Scan failed: {result.ErrorMessage}. Check that Bluetooth is enabled and permissions are granted.";
-                    SemanticScreenReader.Announce("Device scan failed.");
+                    ShowError("Scan didn't work", "Turn Bluetooth off and on, then scan again.", result.ErrorMessage);
                     break;
             }
         }
@@ -225,10 +275,7 @@ public partial class DeviceListViewModel : BaseViewModel
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[VM] Scan error: {ex.GetType().Name}: {ex.Message}");
-            await Shell.Current.DisplayAlert(
-                "Scan Error",
-                $"An error occurred while scanning: {ex.Message}",
-                "OK");
+            ShowError("Scan didn't work", "Turn Bluetooth off and on, then scan again.", ex.Message);
         }
         finally
         {
@@ -277,8 +324,8 @@ public partial class DeviceListViewModel : BaseViewModel
         if (showRationale)
         {
             await Shell.Current.DisplayAlert(
-                "Bluetooth Permission Needed",
-                "BuzzahBuddy needs Bluetooth permission to find and connect to your BlueBuzzah gloves.",
+                "Allow Bluetooth",
+                "BuzzahBuddy needs Bluetooth to find and connect to your gloves.",
                 "OK");
         }
 
@@ -290,8 +337,8 @@ public partial class DeviceListViewModel : BaseViewModel
             return true;
 
         var openSettings = await Shell.Current.DisplayAlert(
-            "Permission Denied",
-            "Bluetooth permission is required to scan for gloves. You can grant it in the app settings.",
+            "Bluetooth Isn't Allowed",
+            "Turn on Bluetooth for BuzzahBuddy in your phone's settings, then scan again.",
             "Open Settings",
             "Not Now");
         if (openSettings)
@@ -308,12 +355,10 @@ public partial class DeviceListViewModel : BaseViewModel
         if (IsScanning)
         {
             ScanButtonText = "Stop Scanning";
-            ScanButtonDescription = "Stop the current device scan";
         }
         else
         {
-            ScanButtonText = "Scan for Devices";
-            ScanButtonDescription = "Start scanning for BlueBuzzah gloves";
+            ScanButtonText = "Scan for Gloves";
         }
     }
 
@@ -323,11 +368,11 @@ public partial class DeviceListViewModel : BaseViewModel
         if (!ConnectionInfo.IsConnected)
             return;
 
-        var confirm = await Shell.Current.DisplayAlert(
-            "Disconnect Device",
-            $"Are you sure you want to disconnect from {ConnectionInfo.ConnectedDeviceName}?",
+        var confirm = await _confirmation.ConfirmAsync(new ConfirmRequest(
+            "Disconnect Your Gloves?",
+            "Your phone stops controlling the gloves. A running session keeps going on the gloves.",
             "Disconnect",
-            "Cancel");
+            Destructive: true));
 
         if (!confirm)
             return;
@@ -341,20 +386,35 @@ public partial class DeviceListViewModel : BaseViewModel
             // in BluetoothService where OnDeviceDisconnected fires before ConnectedDevice
             // is nulled, and the finally block's UpdateConnectionState is then a no-op.
             UpdateConnectionState();
-
-            await Shell.Current.DisplayAlert(
-                "Disconnected",
-                "Device has been disconnected.",
-                "OK");
         }
         catch (Exception ex)
         {
-            await Shell.Current.DisplayAlert(
-                "Disconnect Error",
-                $"An error occurred: {ex.Message}",
-                "OK");
+            var error = ErrorMessageHelper.FromException(ex);
+            await Shell.Current.DisplayAlert(error.Title, error.ForAlert, "OK");
         }
     }
+
+    private void ShowError(string title, string message, string? detail)
+    {
+        _lastError = (title, message, detail);
+        ResolveBanner();
+    }
+
+    private void ResolveBanner()
+    {
+        (StatusTone Tone, string Title, string Message, string? Detail, string? Action)? banner =
+            !BluetoothEnabled ? (StatusTone.Warning, "Bluetooth Is Off", "Turn on Bluetooth to find your gloves.", null, "Open Settings")
+            : _lastError is { } e ? (StatusTone.Danger, e.Title, e.Message, e.Detail, null)
+            : Settings.ApplyReconnectFailed ? (StatusTone.Warning, "Your Gloves Haven't Reconnected",
+                "The settings were sent. Make sure both gloves are on, then connect again below.", null, null)
+            : null;
+        BannerVisible = banner is not null;
+        if (banner is { } b)
+            (BannerTone, BannerTitle, BannerMessage, BannerDetail, BannerActionText) = b;
+    }
+
+    [RelayCommand]
+    private static void OpenSettings() => AppInfo.Current.ShowSettingsUI();
 
     [RelayCommand]
     private async Task NavigateToControlAsync()
@@ -388,31 +448,21 @@ public partial class DeviceListViewModel : BaseViewModel
             if (success)
             {
                 await _storageService.SaveLastDeviceAsync(device);
+                _lastError = null;
+                ResolveBanner();
                 SemanticScreenReader.Announce($"Connected to {device.DisplayName}");
 
-                await Shell.Current.DisplayAlert(
-                    "Connected",
-                    $"Successfully connected to {device.DisplayName}",
-                    "OK");
-
-                // Navigate immediately to control page
+                // Straight on to the Session tab; the announcement confirms it.
                 await Shell.Current.GoToAsync(Routes.Control);
             }
             else
             {
-                // Only show alert for failures
-                await Shell.Current.DisplayAlert(
-                    "Connection Failed",
-                    $"Could not connect to {device.DisplayName}. Please try again.",
-                    "OK");
+                ShowError($"Couldn't connect to {device.DisplayName}", "Move closer to the glove and tap Connect again.", null);
             }
         }
         catch (Exception ex)
         {
-            await Shell.Current.DisplayAlert(
-                "Connection Error",
-                $"An error occurred: {ex.Message}",
-                "OK");
+            ShowError($"Couldn't connect to {device.DisplayName}", "Move closer to the glove and tap Connect again.", ex.Message);
         }
         finally
         {
@@ -473,6 +523,7 @@ public partial class DeviceListViewModel : BaseViewModel
         {
             _bluetoothService.DeviceDiscovered -= OnDeviceDiscovered;
             _bluetoothService.ConnectionStateChanged -= OnConnectionStateChanged;
+            WeakReferenceMessenger.Default.Unregister<DemoModeChangedMessage>(this);
             _scanCancellationTokenSource?.Cancel();
             _scanCancellationTokenSource?.Dispose();
             _scanCancellationTokenSource = null;

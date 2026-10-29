@@ -17,9 +17,9 @@ public class BatteryReadingTests
     }
 
     [Fact]
-    public void Format_ValidVoltage_ShowsPercentAndVolts()
+    public void Format_ValidVoltage_ShowsPercent()
     {
-        Assert.Equal("60% (3.72V)", BatteryReading.Format(3.72));
+        Assert.Equal("60%", BatteryReading.Format(3.72));
     }
 
     [Fact]

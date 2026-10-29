@@ -27,9 +27,9 @@ public class TherapyTimingTests
 
     [Fact]
     public void CrTimingLabel_ReportsPeriodAndFrequency()
-        => Assert.Equal("CR period 668 ms · 1.50 Hz", TherapyTiming.CrTimingLabel(4, 100, 67));
+        => Assert.Equal("One full cycle takes 668 ms, about 1.5 times a second.", TherapyTiming.CrTimingLabel(4, 100, 67));
 
     [Fact]
     public void CrTimingLabel_WithDegenerateTiming_SaysUnavailable()
-        => Assert.Equal("CR period unavailable", TherapyTiming.CrTimingLabel(0, 100, 67));
+        => Assert.Equal("Enter both times above to see the cycle length.", TherapyTiming.CrTimingLabel(0, 100, 67));
 }

@@ -1,0 +1,31 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<!-- StatusBadge (StatusBadge README; bundle .bb-badge): icon (or dot) + one to three words
+     on the tone's soft ground, caption bold, one line. High contrast adds an edge. -->
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="BuzzahBuddy.Views.Controls.StatusBadge"
+             HorizontalOptions="Start">
+    <Border x:Name="Root"
+            Padding="8,0,12,0"
+            MinimumHeightRequest="32"
+            StrokeThickness="{DynamicResource HcBorderWidth}">
+        <Border.StrokeShape>
+            <RoundRectangle CornerRadius="{StaticResource RadiusFull}" />
+        </Border.StrokeShape>
+        <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
+            <Label x:Name="GlyphLabel" Style="{StaticResource IconLabel}" FontSize="18" />
+            <Ellipse x:Name="Dot"
+                     WidthRequest="10"
+                     HeightRequest="10"
+                     Margin="4,0"
+                     VerticalOptions="Center"
+                     AutomationProperties.IsInAccessibleTree="False" />
+            <Label x:Name="TextLabel"
+                   Style="{StaticResource TypeCaption}"
+                   FontFamily="{DynamicResource FontSans700}"
+                   LineBreakMode="NoWrap"
+                   VerticalOptions="Center"
+                   AutomationProperties.IsInAccessibleTree="False" />
+        </HorizontalStackLayout>
+    </Border>
+</ContentView>

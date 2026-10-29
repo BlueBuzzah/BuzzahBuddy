@@ -3,12 +3,12 @@ namespace BuzzahBuddy.Models;
 /// <summary>
 /// Represents settings for calibration mode finger testing.
 /// Finger indices follow the firmware map (config.h): 0=Index, 1=Middle,
-/// 2=Ring, 3=Pinky, 4=Thumb (5-motor boards only). Indices at and above the
+/// 2=Ring, 3=Little, 4=Thumb (5-motor boards only). Indices at and above the
 /// per-glove actuator count address the same fingers on the secondary glove.
 /// </summary>
 public class CalibrationSettings
 {
-    private static readonly string[] FingerNames = { "Index", "Middle", "Ring", "Pinky", "Thumb" };
+    private static readonly string[] FingerNames = { "Index", "Middle", "Ring", "Little", "Thumb" };
 
     /// <summary>
     /// Finger index (0 to 2*ActuatorsPerGlove-1).

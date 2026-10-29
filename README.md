@@ -1,180 +1,75 @@
-![BuzzahBuddy](readme-logo.svg)
+# BuzzahBuddy
 
 ## Overview
 
-BuzzahBuddy is a cross-platform mobile companion app for the BlueBuzzah tactile gloves, a vibrotactile therapeutic device for Parkinson's disease treatment. The app connects to BlueBuzzah gloves via Bluetooth Low Energy (BLE) to control vibration patterns, track therapy usage, and manage treatment sessions.
+BuzzahBuddy is a cross-platform mobile companion app for BlueBuzzah, open-source vibrotactile gloves for people living with Parkinson's. It connects to the gloves over Bluetooth Low Energy (BLE) to run sessions, change settings and test the motors.
+
+## Important
+
+BlueBuzzah devices are not FDA approved medical devices and not intended to diagnose, treat, cure, or prevent any disease. The information provided through BlueBuzzah is for general wellness purposes only and not a substitute for professional medical advice, diagnosis, or treatment.
+
+Important: People with implanted electrodes from deep brain stimulation (DBS), heart pacemakers, or other internal electronic devices should take special precautions around all electronic devices, including BlueBuzzah. Consult your physician before use.
 
 **Mission:** Create a highly accessible, intuitive mobile app optimized for users with Parkinson's disease, featuring tremor-friendly UI and comprehensive assistive technology support.
 
 ## Related Resources
 
 - **BlueBuzzah Project:** [HealthUnlocked Community Post](https://healthunlocked.com/cure-parkinsons/posts/151962393/the-blue-buzzah-a-new-wireless-diy-vibrotactile-glove)
+- **Firmware Repository:** [BlueBuzzah-Firmware on GitHub](https://github.com/BlueBuzzah/BlueBuzzah-Firmware)
 - **Hardware Repository:** [BlueBuzzah-Hardware on GitHub](https://github.com/BlueBuzzah/BlueBuzzah-Hardware)
 
 ## Technology Stack
 
-- **.NET 10.0** with C# 14
-- **.NET MAUI** (Multi-platform App UI)
-- **MVVM Architecture** with CommunityToolkit.Mvvm
+- **.NET 10** and **.NET MAUI**, C#
+- **MVVM** with CommunityToolkit.Mvvm
 - **Bluetooth Low Energy** via Plugin.BLE
 - **Testing:** xUnit
 
-### Target Platforms
-
-- **iOS** 15.0+
-- **Android** API 24+ (Android 7.0), targeting API 36 (Android 16)
-
-### Key Dependencies
-
-- `Microsoft.Maui.Controls` - Cross-platform UI framework
-- `Plugin.BLE` (3.2.1) - Bluetooth Low Energy communication
-- `CommunityToolkit.Mvvm` (8.4.2) - MVVM helpers and source generators
-- `Microsoft.Extensions.Logging.Debug` (10.0.10) - Debug logging
-- `xunit` (2.9.2) - Unit testing framework
+Target platforms: **iOS** 15.0+ and **Android** API 24+ (Android 7.0), targeting API 36 (Android 16).
 
 ## Prerequisites
 
-- **.NET 10.0 SDK** or later
-- **Visual Studio 2022** (Windows/Mac) or **VS Code** with C# DevKit
-- **Xcode** (for iOS development on macOS)
+- **.NET 10 SDK** ([download](https://dotnet.microsoft.com/download))
+- **MAUI workloads:** `dotnet workload install maui-android maui-ios`
+- **Xcode** (macOS, for iOS) in a version the installed `maui-ios` workload supports. CI pins the two together in `.github/workflows/`.
 - **Android SDK** (API 36 to build; API 24+ to run)
+- **make** (preinstalled on macOS)
 
-### Development Environment Setup
-
-**macOS:**
-
-```bash
-# Install .NET 10.0 SDK
-brew install dotnet
-
-# Ensure Xcode Command Line Tools are installed
-xcode-select --install
-```
-
-**Windows:**
-
-- Install Visual Studio 2022 with .NET MAUI workload
-- Install Android SDK via Visual Studio Installer
+iOS builds need a Mac. On Windows only the Android app builds.
 
 ## Setup
 
-1. **Clone the repository**
+```bash
+git clone https://github.com/BlueBuzzah/BuzzahBuddy
+cd BuzzahBuddy
+```
 
-   ```bash
-   git clone https://github.com/BlueBuzzah/BuzzahBuddy
-   cd BuzzahBuddy
-   ```
+## Common Commands
 
-2. **Verify MAUI workloads**
-   ```bash
-   dotnet workload install maui
-   ```
+| Command | What it does |
+|---------|--------------|
+| `make test` | Runs the unit tests (`BuzzahBuddy.Tests`) |
+| `make build` | Builds every target (needs both workloads) |
+| `make start:ios` | Builds and launches on the default iOS Simulator, then returns |
+| `make start:android` | Builds and launches on the running Android emulator or connected device, then returns |
 
-3. **Restore dependencies**
+The iOS Simulator may start without a window. Open it from Xcode's DeviceHub (Xcode 27+) or the Simulator app.
 
-   ```bash
-   dotnet restore
-   ```
-
-Single-platform commands below pin `-p:TargetFrameworks`: without it, restore resolves
-assets for every target and fails (NETSDK1147) wherever a workload isn't installed.
-
-## Build
-
-### iOS
+### Building one platform
 
 ```bash
 dotnet build BuzzahBuddy/BuzzahBuddy.csproj -f net10.0-ios -p:TargetFrameworks=net10.0-ios
-```
-
-### Android
-
-```bash
 dotnet build BuzzahBuddy/BuzzahBuddy.csproj -f net10.0-android -p:TargetFrameworks=net10.0-android
 ```
 
-### All Platforms
+Keep `-p:TargetFrameworks`: without it, restore resolves every target and fails (NETSDK1147) wherever a workload isn't installed.
 
-```bash
-dotnet build
-```
+## Troubleshooting
 
-## Running the App
-
-### iOS Simulator
-
-```bash
-dotnet build BuzzahBuddy/BuzzahBuddy.csproj -f net10.0-ios -p:TargetFrameworks=net10.0-ios -t:Run
-```
-
-### Physical iPhone
-
-```bash
-./run-ios.sh
-```
-
-Builds, installs, and launches on the single connected device (set `IOS_UDID` if
-more than one is attached). Don't use `-t:Run` here — its install step hangs
-indefinitely on iOS 17+ devices, so the script uses `devicectl` instead.
-
-### Android Emulator
-
-```bash
-dotnet build BuzzahBuddy/BuzzahBuddy.csproj -f net10.0-android -p:TargetFrameworks=net10.0-android -t:Run
-```
-
-### Using Visual Studio
-
-1. Open `BuzzahBuddy.slnx`
-2. Select target platform (iOS/Android)
-3. Choose device/emulator from dropdown
-4. Press F5 or click Run
-
-## Debugging
-
-- **Breakpoints:** Set breakpoints in C# code and XAML code-behind
-- **Live Visual Tree:** Inspect XAML hierarchy during runtime (Visual Studio)
-- **XAML Hot Reload:** Modify XAML and see changes instantly without rebuilding
-- **Device Logs:**
-  - iOS: Use Console.app or Xcode Devices window
-  - Android: Use `adb logcat` or Android Studio Logcat
-
-### Common Issues
-
-**iOS Simulator Not Found:**
-
-```bash
-# List available simulators
-xcrun simctl list
-```
-
-**Android Emulator Issues:**
-
-```bash
-# List Android devices
-adb devices
-
-# Restart ADB server
-adb kill-server && adb start-server
-```
-
-**Build Errors:**
-
-```bash
-# Clean build artifacts
-dotnet clean
-dotnet build --no-incremental
-```
-
-## Testing
-
-```bash
-# Run all tests
-dotnet test BuzzahBuddy.Tests
-
-# Run with detailed output
-dotnet test BuzzahBuddy.Tests --logger "console;verbosity=detailed"
-```
+- **No simulator or emulator found:** `xcrun simctl list devices` (iOS), `adb devices` (Android; `adb kill-server && adb start-server` if it's stuck).
+- **Stale build output:** `dotnet clean`, then build again with `--no-incremental`.
+- **Device logs:** Console.app or Xcode's Devices window (iOS), `adb logcat` (Android).
+- **Detailed test output:** `dotnet test BuzzahBuddy.Tests --logger "console;verbosity=detailed"`.
 
 ## Accessibility
 
@@ -183,12 +78,13 @@ This app is designed with accessibility as a core requirement, following the Blu
 - **WCAG 2.2 Level AA** compliance
 - **Large touch targets** (48x48pt minimum)
 - **High contrast ratios** (4.5:1 for text, 7:1 in high-contrast themes)
+- **Text scaling** to the largest iOS Dynamic Type and Android font sizes
 - **Semantic properties** for screen readers (VoiceOver, TalkBack)
 - **Tremor-friendly UI** optimized for Parkinson's patients
 
 ## License
 
-The BlueBuzzah project is [MIT licensed](./LICENSE).
+BuzzahBuddy is [MIT licensed](./LICENSE).
 
 ## Contributing
 

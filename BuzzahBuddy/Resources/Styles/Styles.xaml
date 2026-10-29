@@ -1,658 +1,368 @@
 ﻿<?xml version="1.0" encoding="UTF-8" ?>
 <?xaml-comp compile="true" ?>
-<ResourceDictionary 
+<ResourceDictionary
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
 
-    <!-- Legacy dark-only palette. It predates the BlueBuzzah design system (workspace
-         bluebuzzah-design-system skill), which replaces it. -->
+    <!-- Built on the BlueBuzzah design system. Colors, sizes and type come from the
+         generated Themes/*Theme.g.xaml, Tokens.g.xaml and Type.g.xaml (see
+         scripts/gen_design_tokens.py); bind colors with DynamicResource so the theme
+         can change at runtime. Control anatomy follows components/bundle.css. -->
 
-    <Style TargetType="ActivityIndicator">
-        <Setter Property="Color" Value="{StaticResource Primary}" />
+    <!-- Buttons (Button README; bundle .bb-btn). lg = target-lg 56 (BuzzahBuddy default),
+         Xl = target-xl 72 for Start / Pause / Stop. Outlined variants carry a 2px border in
+         the label color; primary and danger are solid. Focused draws a 3px focus border
+         (native controls can't draw the 2px outer gap of focus-ring). -->
+    <Style x:Key="ButtonPrimary" TargetType="Button">
+        <Setter Property="FontFamily" Value="{DynamicResource FontSans700}" />
+        <Setter Property="FontSize" Value="17" />
+        <Setter Property="MinimumHeightRequest" Value="{StaticResource TargetLg}" />
+        <Setter Property="MinimumWidthRequest" Value="{StaticResource Target}" />
+        <Setter Property="Padding" Value="24,0" />
+        <Setter Property="CornerRadius" Value="{StaticResource RadiusMdInt}" />
+        <Setter Property="BackgroundColor" Value="{DynamicResource Brand}" />
+        <Setter Property="TextColor" Value="{DynamicResource OnBrand}" />
+        <Setter Property="BorderColor" Value="{DynamicResource Brand}" />
+        <Setter Property="BorderWidth" Value="0" />
+        <!-- Wrap rather than cut the label off at large text sizes. -->
+        <Setter Property="LineBreakMode" Value="WordWrap" />
+        <Setter Property="VisualStateManager.VisualStateGroups">
+            <VisualStateGroupList>
+                <VisualStateGroup x:Name="CommonStates">
+                    <!-- Normal and PointerOver repeat the style's colors: leaving Pressed or Disabled
+                         otherwise restores a fixed snapshot that stops following theme changes. -->
+                    <VisualState x:Name="Normal">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="{DynamicResource Brand}" />
+                            <Setter Property="TextColor" Value="{DynamicResource OnBrand}" />
+                            <Setter Property="BorderColor" Value="{DynamicResource Brand}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="PointerOver">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="{DynamicResource Brand}" />
+                            <Setter Property="TextColor" Value="{DynamicResource OnBrand}" />
+                            <Setter Property="BorderColor" Value="{DynamicResource Brand}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Pressed">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="{DynamicResource BrandPressed}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Focused">
+                        <VisualState.Setters>
+                            <Setter Property="BorderColor" Value="{DynamicResource Focus}" />
+                            <Setter Property="BorderWidth" Value="3" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Disabled">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="{DynamicResource FillDisabled}" />
+                            <Setter Property="TextColor" Value="{DynamicResource InkDisabled}" />
+                            <Setter Property="BorderColor" Value="{DynamicResource InkDisabled}" />
+                            <Setter Property="BorderWidth" Value="2" />
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateGroupList>
+        </Setter>
     </Style>
 
-    <Style TargetType="IndicatorView">
-        <Setter Property="IndicatorColor" Value="{StaticResource CardBackgroundLight}"/>
-        <Setter Property="SelectedIndicatorColor" Value="{StaticResource TextPrimary}"/>
+    <Style x:Key="ButtonSecondary" TargetType="Button" BasedOn="{StaticResource ButtonPrimary}">
+        <Setter Property="BackgroundColor" Value="{DynamicResource BrandSoft}" />
+        <Setter Property="TextColor" Value="{DynamicResource Brand}" />
+        <Setter Property="BorderColor" Value="{DynamicResource Brand}" />
+        <Setter Property="BorderWidth" Value="2" />
+        <Setter Property="VisualStateManager.VisualStateGroups">
+            <VisualStateGroupList>
+                <VisualStateGroup x:Name="CommonStates">
+                    <VisualState x:Name="Normal">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="{DynamicResource BrandSoft}" />
+                            <Setter Property="TextColor" Value="{DynamicResource Brand}" />
+                            <Setter Property="BorderColor" Value="{DynamicResource Brand}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="PointerOver">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="{DynamicResource BrandSoft}" />
+                            <Setter Property="TextColor" Value="{DynamicResource Brand}" />
+                            <Setter Property="BorderColor" Value="{DynamicResource Brand}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Pressed">
+                        <VisualState.Setters>
+                            <Setter Property="TextColor" Value="{DynamicResource BrandPressed}" />
+                            <Setter Property="BorderColor" Value="{DynamicResource BrandPressed}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Focused">
+                        <VisualState.Setters>
+                            <Setter Property="BorderColor" Value="{DynamicResource Focus}" />
+                            <Setter Property="BorderWidth" Value="3" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Disabled">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="{DynamicResource FillDisabled}" />
+                            <Setter Property="TextColor" Value="{DynamicResource InkDisabled}" />
+                            <Setter Property="BorderColor" Value="{DynamicResource InkDisabled}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateGroupList>
+        </Setter>
     </Style>
 
-    <Style TargetType="Border">
-        <Setter Property="Stroke" Value="{StaticResource CardBorder}" />
-        <Setter Property="StrokeShape" Value="Rectangle"/>
-        <Setter Property="StrokeThickness" Value="1"/>
+    <Style x:Key="ButtonQuiet" TargetType="Button" BasedOn="{StaticResource ButtonPrimary}">
+        <Setter Property="BackgroundColor" Value="Transparent" />
+        <Setter Property="TextColor" Value="{DynamicResource Brand}" />
+        <Setter Property="BorderColor" Value="{DynamicResource Brand}" />
+        <Setter Property="BorderWidth" Value="2" />
+        <Setter Property="VisualStateManager.VisualStateGroups">
+            <VisualStateGroupList>
+                <VisualStateGroup x:Name="CommonStates">
+                    <VisualState x:Name="Normal">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="Transparent" />
+                            <Setter Property="TextColor" Value="{DynamicResource Brand}" />
+                            <Setter Property="BorderColor" Value="{DynamicResource Brand}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="PointerOver">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="Transparent" />
+                            <Setter Property="TextColor" Value="{DynamicResource Brand}" />
+                            <Setter Property="BorderColor" Value="{DynamicResource Brand}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Pressed">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="{DynamicResource BrandSoft}" />
+                            <Setter Property="TextColor" Value="{DynamicResource BrandPressed}" />
+                            <Setter Property="BorderColor" Value="{DynamicResource BrandPressed}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Focused">
+                        <VisualState.Setters>
+                            <Setter Property="BorderColor" Value="{DynamicResource Focus}" />
+                            <Setter Property="BorderWidth" Value="3" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Disabled">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="{DynamicResource FillDisabled}" />
+                            <Setter Property="TextColor" Value="{DynamicResource InkDisabled}" />
+                            <Setter Property="BorderColor" Value="{DynamicResource InkDisabled}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateGroupList>
+        </Setter>
     </Style>
 
-    <!-- Bordered input field wrapper for Entry/Editor/Picker.
-         Default border CardBorder (#0A3143); InputFocusBehavior swaps it to Primary (#35B6F2) on focus. -->
-    <Style x:Key="InputBorder" TargetType="Border">
-        <Setter Property="BackgroundColor" Value="{StaticResource CardBackground}" />
-        <Setter Property="Stroke" Value="{StaticResource CardBorder}" />
-        <Setter Property="StrokeThickness" Value="1" />
-        <Setter Property="StrokeShape" Value="RoundRectangle 8" />
+    <!-- Destructive actions only, always behind a confirmation sheet. Pressed uses opacity
+         0.92 in place of the bundle's brightness(0.92); MAUI has no filters. -->
+    <Style x:Key="ButtonDanger" TargetType="Button" BasedOn="{StaticResource ButtonPrimary}">
+        <Setter Property="BackgroundColor" Value="{DynamicResource Danger}" />
+        <Setter Property="TextColor" Value="{DynamicResource OnStatus}" />
+        <Setter Property="BorderColor" Value="{DynamicResource Danger}" />
+        <Setter Property="VisualStateManager.VisualStateGroups">
+            <VisualStateGroupList>
+                <VisualStateGroup x:Name="CommonStates">
+                    <VisualState x:Name="Normal">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="{DynamicResource Danger}" />
+                            <Setter Property="TextColor" Value="{DynamicResource OnStatus}" />
+                            <Setter Property="BorderColor" Value="{DynamicResource Danger}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="PointerOver">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="{DynamicResource Danger}" />
+                            <Setter Property="TextColor" Value="{DynamicResource OnStatus}" />
+                            <Setter Property="BorderColor" Value="{DynamicResource Danger}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Pressed">
+                        <VisualState.Setters>
+                            <Setter Property="Opacity" Value="0.92" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Focused">
+                        <VisualState.Setters>
+                            <Setter Property="BorderColor" Value="{DynamicResource Focus}" />
+                            <Setter Property="BorderWidth" Value="3" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Disabled">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="{DynamicResource FillDisabled}" />
+                            <Setter Property="TextColor" Value="{DynamicResource InkDisabled}" />
+                            <Setter Property="BorderColor" Value="{DynamicResource InkDisabled}" />
+                            <Setter Property="BorderWidth" Value="2" />
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateGroupList>
+        </Setter>
+    </Style>
+
+    <Style x:Key="ButtonPrimaryXl" TargetType="Button" BasedOn="{StaticResource ButtonPrimary}">
+        <Setter Property="FontFamily" Value="{DynamicResource FontDisplay600}" />
+        <Setter Property="FontSize" Value="22" />
+        <Setter Property="MinimumHeightRequest" Value="{StaticResource TargetXl}" />
+        <Setter Property="Padding" Value="32,0" />
+        <Setter Property="CornerRadius" Value="{StaticResource RadiusLgInt}" />
+    </Style>
+
+    <Style x:Key="ButtonSecondaryXl" TargetType="Button" BasedOn="{StaticResource ButtonSecondary}">
+        <Setter Property="FontFamily" Value="{DynamicResource FontDisplay600}" />
+        <Setter Property="FontSize" Value="22" />
+        <Setter Property="MinimumHeightRequest" Value="{StaticResource TargetXl}" />
+        <Setter Property="Padding" Value="32,0" />
+        <Setter Property="CornerRadius" Value="{StaticResource RadiusLgInt}" />
+    </Style>
+
+    <Style x:Key="ButtonDangerXl" TargetType="Button" BasedOn="{StaticResource ButtonDanger}">
+        <Setter Property="FontFamily" Value="{DynamicResource FontDisplay600}" />
+        <Setter Property="FontSize" Value="22" />
+        <Setter Property="MinimumHeightRequest" Value="{StaticResource TargetXl}" />
+        <Setter Property="Padding" Value="32,0" />
+        <Setter Property="CornerRadius" Value="{StaticResource RadiusLgInt}" />
+    </Style>
+
+    <!-- Unstyled Buttons get the outlined secondary look, never a bare text button. -->
+    <Style TargetType="Button" BasedOn="{StaticResource ButtonSecondary}" />
+
+    <!-- Card (Card README; bundle .bb-card): surface-raised, radius-lg, line hairline, shadow-1. -->
+    <Style x:Key="Card" TargetType="Border">
+        <Setter Property="BackgroundColor" Value="{DynamicResource SurfaceRaised}" />
+        <Setter Property="Stroke" Value="{DynamicResource Line}" />
+        <Setter Property="StrokeThickness" Value="{StaticResource BorderHairline}" />
+        <Setter Property="StrokeShape">
+            <RoundRectangle CornerRadius="{StaticResource RadiusLg}" />
+        </Setter>
+        <Setter Property="Padding" Value="{StaticResource Space4}" />
+        <Setter Property="Shadow" Value="{DynamicResource Shadow1}" />
+    </Style>
+
+    <!-- Text field well (TextField README): surface-sunken, 2px line-strong, radius-md, 48 tall.
+         InputFocusBehavior switches the edge for focus and errors. -->
+    <Style x:Key="TextFieldBorder" TargetType="Border">
+        <Setter Property="BackgroundColor" Value="{DynamicResource SurfaceSunken}" />
+        <Setter Property="Stroke" Value="{DynamicResource LineStrong}" />
+        <Setter Property="StrokeThickness" Value="{StaticResource BorderControl}" />
+        <Setter Property="StrokeShape">
+            <RoundRectangle CornerRadius="{StaticResource RadiusMd}" />
+        </Setter>
         <Setter Property="Padding" Value="12,0" />
-        <Setter Property="MinimumHeightRequest" Value="44" />
+        <Setter Property="MinimumHeightRequest" Value="{StaticResource Target}" />
     </Style>
 
-    <Style TargetType="BoxView">
-        <Setter Property="BackgroundColor" Value="{StaticResource CardBorder}" />
-    </Style>
-
-    <Style TargetType="Button">
-        <Setter Property="TextColor" Value="{StaticResource PrimaryDarkText}" />
-        <Setter Property="BackgroundColor" Value="{StaticResource Primary}" />
-        <Setter Property="FontSize" Value="16"/>
-        <Setter Property="FontAttributes" Value="Bold"/>
-        <Setter Property="BorderWidth" Value="0"/>
-        <Setter Property="CornerRadius" Value="8"/>
-        <Setter Property="Padding" Value="24,12"/>
-        <Setter Property="MinimumHeightRequest" Value="48"/>
-        <Setter Property="MinimumWidthRequest" Value="48"/>
-        <Setter Property="VisualStateManager.VisualStateGroups">
-            <VisualStateGroupList>
-                <VisualStateGroup x:Name="CommonStates">
-                    <VisualState x:Name="Normal" />
-                    <VisualState x:Name="Pressed">
-                        <VisualState.Setters>
-                            <Setter Property="BackgroundColor" Value="{StaticResource PrimaryHover}" />
-                        </VisualState.Setters>
-                    </VisualState>
-                    <VisualState x:Name="Disabled">
-                        <VisualState.Setters>
-                            <Setter Property="TextColor" Value="{StaticResource TextMuted}" />
-                            <Setter Property="BackgroundColor" Value="{StaticResource CardBackgroundLight}" />
-                        </VisualState.Setters>
-                    </VisualState>
-                    <VisualState x:Name="PointerOver" />
-                </VisualStateGroup>
-            </VisualStateGroupList>
+    <!-- Numbered step marker (Session "Get Started"): a 32px brand-soft circle, brand number. -->
+    <Style x:Key="StepNumber" TargetType="Border">
+        <Setter Property="WidthRequest" Value="32" />
+        <Setter Property="HeightRequest" Value="32" />
+        <Setter Property="VerticalOptions" Value="Start" />
+        <Setter Property="StrokeThickness" Value="0" />
+        <Setter Property="BackgroundColor" Value="{DynamicResource BrandSoft}" />
+        <Setter Property="StrokeShape">
+            <RoundRectangle CornerRadius="{StaticResource RadiusFull}" />
         </Setter>
+        <Setter Property="AutomationProperties.IsInAccessibleTree" Value="False" />
     </Style>
 
-    <!-- Visual Hierarchy: Standardized Button Styles (legacy; the design system's Button component replaces them).
-         Blue fills always take dark text (#0a0a0a) — light-on-blue is 2.0:1 and forbidden. -->
-
-    <!-- Primary Button: the one blue CTA per screen -->
-    <Style x:Key="PrimaryButton" TargetType="Button">
-        <Setter Property="TextColor" Value="{StaticResource PrimaryDarkText}" />
-        <Setter Property="BackgroundColor" Value="{StaticResource Primary}" />
-        <Setter Property="MinimumHeightRequest" Value="72" />
-        <Setter Property="FontSize" Value="20" />
-        <Setter Property="FontAttributes" Value="Bold" />
-        <Setter Property="Padding" Value="24,20" />
-        <Setter Property="CornerRadius" Value="8" />
-        <Setter Property="VisualStateManager.VisualStateGroups">
-            <VisualStateGroupList>
-                <VisualStateGroup x:Name="CommonStates">
-                    <VisualState x:Name="Normal" />
-                    <VisualState x:Name="Pressed">
-                        <VisualState.Setters>
-                            <Setter Property="BackgroundColor" Value="{StaticResource PrimaryHover}" />
-                        </VisualState.Setters>
-                    </VisualState>
-                    <VisualState x:Name="Disabled">
-                        <VisualState.Setters>
-                            <Setter Property="TextColor" Value="{StaticResource TextMuted}" />
-                            <Setter Property="BackgroundColor" Value="{StaticResource CardBackgroundLight}" />
-                        </VisualState.Setters>
-                    </VisualState>
-                </VisualStateGroup>
-            </VisualStateGroupList>
-        </Setter>
+    <Style x:Key="StepNumberText" TargetType="Label" BasedOn="{StaticResource TypeLabel}">
+        <Setter Property="TextColor" Value="{DynamicResource Brand}" />
+        <Setter Property="HorizontalOptions" Value="Center" />
+        <Setter Property="VerticalOptions" Value="Center" />
+        <!-- The label line height adds uneven space around the digit and sits it off-center. -->
+        <Setter Property="LineHeight" Value="1" />
+        <!-- The circle is a fixed size, so the digit keeps its size too; the step text scales. -->
+        <Setter Property="FontAutoScalingEnabled" Value="False" />
     </Style>
 
-    <!-- Secondary Button: outline -->
-    <Style x:Key="SecondaryButton" TargetType="Button">
-        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+    <!-- A Lucide glyph drawn in the label's TextColor (README Iconography). Decorative:
+         pair it with words, which carry the meaning for screen readers. -->
+    <Style x:Key="IconLabel" TargetType="Label">
+        <Setter Property="FontFamily" Value="Lucide" />
+        <Setter Property="FontSize" Value="{StaticResource IconM}" />
+        <Setter Property="TextColor" Value="{DynamicResource Ink}" />
+        <Setter Property="VerticalTextAlignment" Value="Center" />
+        <!-- The implicit Label style's body line height would sit the glyph low on iOS. -->
+        <Setter Property="LineHeight" Value="1" />
+        <Setter Property="AutomationProperties.IsInAccessibleTree" Value="False" />
+    </Style>
+
+    <!-- An icon inside a fixed-size shape (radio, switch thumb, status circle). It keeps its
+         size at large text sizes so it never spills out of the shape; the words beside it scale. -->
+    <Style x:Key="IconInShape" TargetType="Label" BasedOn="{StaticResource IconLabel}">
+        <Setter Property="FontAutoScalingEnabled" Value="False" />
+    </Style>
+
+    <Style TargetType="Label" BasedOn="{StaticResource TypeBody}" />
+
+    <Style TargetType="Entry">
+        <Setter Property="FontFamily" Value="{DynamicResource FontSans400}" />
+        <Setter Property="FontSize" Value="17" />
+        <Setter Property="TextColor" Value="{DynamicResource Ink}" />
+        <Setter Property="PlaceholderColor" Value="{DynamicResource InkMuted}" />
         <Setter Property="BackgroundColor" Value="Transparent" />
-        <Setter Property="BorderColor" Value="{StaticResource CardBorder}" />
-        <Setter Property="BorderWidth" Value="1" />
-        <Setter Property="MinimumHeightRequest" Value="56" />
-        <Setter Property="FontSize" Value="18" />
-        <Setter Property="FontAttributes" Value="Bold" />
-        <Setter Property="Padding" Value="20,16" />
-        <Setter Property="CornerRadius" Value="8" />
-        <Setter Property="VisualStateManager.VisualStateGroups">
-            <VisualStateGroupList>
-                <VisualStateGroup x:Name="CommonStates">
-                    <VisualState x:Name="Normal" />
-                    <VisualState x:Name="Pressed">
-                        <VisualState.Setters>
-                            <Setter Property="BackgroundColor" Value="{StaticResource CardBackground}" />
-                        </VisualState.Setters>
-                    </VisualState>
-                    <VisualState x:Name="Disabled">
-                        <VisualState.Setters>
-                            <Setter Property="TextColor" Value="{StaticResource TextMuted}" />
-                        </VisualState.Setters>
-                    </VisualState>
-                </VisualStateGroup>
-            </VisualStateGroupList>
-        </Setter>
-    </Style>
-
-    <!-- Tertiary Button: text/ghost -->
-    <Style x:Key="TertiaryButton" TargetType="Button">
-        <Setter Property="TextColor" Value="{StaticResource Primary}" />
-        <Setter Property="BackgroundColor" Value="Transparent" />
-        <Setter Property="MinimumHeightRequest" Value="48" />
-        <Setter Property="FontSize" Value="16" />
-        <Setter Property="FontAttributes" Value="Bold" />
-        <Setter Property="Padding" Value="16,12" />
-        <Setter Property="CornerRadius" Value="8" />
-        <Setter Property="VisualStateManager.VisualStateGroups">
-            <VisualStateGroupList>
-                <VisualStateGroup x:Name="CommonStates">
-                    <VisualState x:Name="Normal" />
-                    <VisualState x:Name="Pressed">
-                        <VisualState.Setters>
-                            <Setter Property="BackgroundColor" Value="{StaticResource PrimaryChipBackground}" />
-                        </VisualState.Setters>
-                    </VisualState>
-                    <VisualState x:Name="Disabled">
-                        <VisualState.Setters>
-                            <Setter Property="TextColor" Value="{StaticResource TextMuted}" />
-                        </VisualState.Setters>
-                    </VisualState>
-                </VisualStateGroup>
-            </VisualStateGroupList>
-        </Setter>
-    </Style>
-
-    <!-- Danger Button: destructive actions only, always behind a confirmation -->
-    <Style x:Key="DangerActionButton" TargetType="Button">
-        <Setter Property="TextColor" Value="{StaticResource DangerButtonText}" />
-        <Setter Property="BackgroundColor" Value="{StaticResource DangerButton}" />
-        <Setter Property="MinimumHeightRequest" Value="56" />
-        <Setter Property="FontSize" Value="18" />
-        <Setter Property="FontAttributes" Value="Bold" />
-        <Setter Property="Padding" Value="20,16" />
-        <Setter Property="CornerRadius" Value="8" />
-        <Setter Property="VisualStateManager.VisualStateGroups">
-            <VisualStateGroupList>
-                <VisualStateGroup x:Name="CommonStates">
-                    <VisualState x:Name="Normal" />
-                    <VisualState x:Name="Pressed">
-                        <VisualState.Setters>
-                            <Setter Property="BackgroundColor" Value="{StaticResource DangerButtonPressed}" />
-                        </VisualState.Setters>
-                    </VisualState>
-                    <VisualState x:Name="Disabled">
-                        <VisualState.Setters>
-                            <Setter Property="TextColor" Value="{StaticResource TextMuted}" />
-                            <Setter Property="BackgroundColor" Value="{StaticResource CardBackgroundLight}" />
-                        </VisualState.Setters>
-                    </VisualState>
-                </VisualStateGroup>
-            </VisualStateGroupList>
-        </Setter>
-    </Style>
-
-    <!-- Warning Button: caution actions (dark text on amber per contrast matrix) -->
-    <Style x:Key="WarningActionButton" TargetType="Button">
-        <Setter Property="TextColor" Value="{StaticResource WarningButtonText}" />
-        <Setter Property="BackgroundColor" Value="{StaticResource WarningButton}" />
-        <Setter Property="MinimumHeightRequest" Value="56" />
-        <Setter Property="FontSize" Value="18" />
-        <Setter Property="FontAttributes" Value="Bold" />
-        <Setter Property="Padding" Value="20,16" />
-        <Setter Property="CornerRadius" Value="8" />
-        <Setter Property="VisualStateManager.VisualStateGroups">
-            <VisualStateGroupList>
-                <VisualStateGroup x:Name="CommonStates">
-                    <VisualState x:Name="Normal" />
-                    <VisualState x:Name="Pressed">
-                        <VisualState.Setters>
-                            <Setter Property="BackgroundColor" Value="{StaticResource WarningButtonPressed}" />
-                        </VisualState.Setters>
-                    </VisualState>
-                    <VisualState x:Name="Disabled">
-                        <VisualState.Setters>
-                            <Setter Property="TextColor" Value="{StaticResource TextMuted}" />
-                            <Setter Property="BackgroundColor" Value="{StaticResource CardBackgroundLight}" />
-                        </VisualState.Setters>
-                    </VisualState>
-                </VisualStateGroup>
-            </VisualStateGroupList>
-        </Setter>
-    </Style>
-
-    <!-- Finger test buttons on CalibrationPage: large tremor-friendly targets.
-         MinimumHeightRequest (not HeightRequest) so 200% text scaling grows instead of clipping. -->
-    <Style x:Key="FingerTestButton" TargetType="Button">
-        <Setter Property="TextColor" Value="{StaticResource PrimaryDarkText}" />
-        <Setter Property="BackgroundColor" Value="{StaticResource Primary}" />
-        <Setter Property="MinimumHeightRequest" Value="64" />
-        <Setter Property="WidthRequest" Value="150" />
-        <Setter Property="Margin" Value="5" />
-        <Setter Property="FontSize" Value="18" />
-        <Setter Property="FontAttributes" Value="Bold" />
-        <Setter Property="CornerRadius" Value="8" />
-    </Style>
-
-    <Style TargetType="CheckBox">
-        <Setter Property="Color" Value="{StaticResource Primary}" />
-        <Setter Property="MinimumHeightRequest" Value="44"/>
-        <Setter Property="MinimumWidthRequest" Value="44"/>
-        <Setter Property="VisualStateManager.VisualStateGroups">
-            <VisualStateGroupList>
-                <VisualStateGroup x:Name="CommonStates">
-                    <VisualState x:Name="Normal" />
-                    <VisualState x:Name="Disabled">
-                        <VisualState.Setters>
-                            <Setter Property="Color" Value="{StaticResource CardBackgroundLight}" />
-                        </VisualState.Setters>
-                    </VisualState>
-                </VisualStateGroup>
-            </VisualStateGroupList>
-        </Setter>
-    </Style>
-
-    <Style TargetType="DatePicker">
-        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
-        <Setter Property="BackgroundColor" Value="Transparent" />
-        <Setter Property="FontSize" Value="14"/>
-        <Setter Property="MinimumHeightRequest" Value="44"/>
-        <Setter Property="MinimumWidthRequest" Value="44"/>
-        <Setter Property="VisualStateManager.VisualStateGroups">
-            <VisualStateGroupList>
-                <VisualStateGroup x:Name="CommonStates">
-                    <VisualState x:Name="Normal" />
-                    <VisualState x:Name="Disabled">
-                        <VisualState.Setters>
-                            <Setter Property="TextColor" Value="{StaticResource TextMuted}" />
-                        </VisualState.Setters>
-                    </VisualState>
-                </VisualStateGroup>
-            </VisualStateGroupList>
-        </Setter>
+        <Setter Property="MinimumHeightRequest" Value="{StaticResource Target}" />
     </Style>
 
     <Style TargetType="Editor">
-        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
-        <Setter Property="BackgroundColor" Value="Transparent" />
-        <Setter Property="FontSize" Value="14" />
-        <Setter Property="PlaceholderColor" Value="{StaticResource TextMuted}" />
-        <Setter Property="MinimumHeightRequest" Value="44"/>
-        <Setter Property="MinimumWidthRequest" Value="44"/>
-        <Setter Property="VisualStateManager.VisualStateGroups">
-            <VisualStateGroupList>
-                <VisualStateGroup x:Name="CommonStates">
-                    <VisualState x:Name="Normal" />
-                    <VisualState x:Name="Disabled">
-                        <VisualState.Setters>
-                            <Setter Property="TextColor" Value="{StaticResource TextMuted}" />
-                        </VisualState.Setters>
-                    </VisualState>
-                </VisualStateGroup>
-            </VisualStateGroupList>
-        </Setter>
-    </Style>
-
-    <Style TargetType="Entry">
-        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
-        <Setter Property="BackgroundColor" Value="Transparent" />
-        <Setter Property="FontSize" Value="14" />
-        <Setter Property="PlaceholderColor" Value="{StaticResource TextMuted}" />
-        <Setter Property="MinimumHeightRequest" Value="44"/>
-        <Setter Property="MinimumWidthRequest" Value="44"/>
-        <Setter Property="VisualStateManager.VisualStateGroups">
-            <VisualStateGroupList>
-                <VisualStateGroup x:Name="CommonStates">
-                    <VisualState x:Name="Normal" />
-                    <VisualState x:Name="Disabled">
-                        <VisualState.Setters>
-                            <Setter Property="TextColor" Value="{StaticResource TextMuted}" />
-                        </VisualState.Setters>
-                    </VisualState>
-                </VisualStateGroup>
-            </VisualStateGroupList>
-        </Setter>
-    </Style>
-
-    <Style TargetType="ImageButton">
-        <Setter Property="Opacity" Value="1" />
-        <Setter Property="BorderColor" Value="Transparent"/>
-        <Setter Property="BorderWidth" Value="0"/>
-        <Setter Property="CornerRadius" Value="0"/>
-        <Setter Property="MinimumHeightRequest" Value="44"/>
-        <Setter Property="MinimumWidthRequest" Value="44"/>
-        <Setter Property="VisualStateManager.VisualStateGroups">
-            <VisualStateGroupList>
-                <VisualStateGroup x:Name="CommonStates">
-                    <VisualState x:Name="Normal" />
-                    <VisualState x:Name="Disabled">
-                        <VisualState.Setters>
-                            <Setter Property="Opacity" Value="0.5" />
-                        </VisualState.Setters>
-                    </VisualState>
-                    <VisualState x:Name="PointerOver" />
-                </VisualStateGroup>
-            </VisualStateGroupList>
-        </Setter>
-    </Style>
-
-    <Style TargetType="Label">
-        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
-        <Setter Property="BackgroundColor" Value="Transparent" />
-        <Setter Property="FontSize" Value="14" />
-        <Setter Property="VisualStateManager.VisualStateGroups">
-            <VisualStateGroupList>
-                <VisualStateGroup x:Name="CommonStates">
-                    <VisualState x:Name="Normal" />
-                    <VisualState x:Name="Disabled">
-                        <VisualState.Setters>
-                            <Setter Property="TextColor" Value="{StaticResource TextMuted}" />
-                        </VisualState.Setters>
-                    </VisualState>
-                </VisualStateGroup>
-            </VisualStateGroupList>
-        </Setter>
-    </Style>
-
-    <!-- Typography scale (legacy: system fonts, no FontFamily set; the design system replaces it
-         with Lexend / Atkinson Hyperlegible). MAUI exposes Regular/Bold only, so where the spec
-         wants Medium/Semibold, size and color carry the hierarchy. -->
-    <Style TargetType="Label" x:Key="Headline">
-        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
-        <Setter Property="FontSize" Value="32" />
-        <Setter Property="FontAttributes" Value="Bold" />
-        <Setter Property="HorizontalOptions" Value="Center" />
-        <Setter Property="HorizontalTextAlignment" Value="Center" />
-    </Style>
-
-    <Style TargetType="Label" x:Key="Heading1">
-        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
-        <Setter Property="FontSize" Value="24" />
-        <Setter Property="FontAttributes" Value="Bold" />
-    </Style>
-
-    <Style TargetType="Label" x:Key="Heading2">
-        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
-        <Setter Property="FontSize" Value="20" />
-        <Setter Property="FontAttributes" Value="Bold" />
-    </Style>
-
-    <Style TargetType="Label" x:Key="Heading3">
-        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+        <Setter Property="FontFamily" Value="{DynamicResource FontSans400}" />
         <Setter Property="FontSize" Value="17" />
-        <Setter Property="FontAttributes" Value="Bold" />
-    </Style>
-
-    <Style TargetType="Label" x:Key="SubHeadline">
-        <Setter Property="TextColor" Value="{StaticResource TextMuted}" />
-        <Setter Property="FontSize" Value="18" />
-        <Setter Property="HorizontalOptions" Value="Center" />
-        <Setter Property="HorizontalTextAlignment" Value="Center" />
-    </Style>
-
-    <Style TargetType="Label" x:Key="BodyText">
-        <Setter Property="FontSize" Value="16" />
-        <Setter Property="LineHeight" Value="1.5" />
-    </Style>
-
-    <Style TargetType="Label" x:Key="SecondaryText">
-        <Setter Property="FontSize" Value="14" />
-        <Setter Property="TextColor" Value="{StaticResource TextMuted}" />
-    </Style>
-
-    <Style TargetType="Label" x:Key="CaptionText">
-        <Setter Property="FontSize" Value="12" />
-        <Setter Property="TextColor" Value="{StaticResource TextMuted}" />
-    </Style>
-
-    <Style TargetType="Picker">
-        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
-        <Setter Property="TitleColor" Value="{StaticResource TextMuted}" />
+        <Setter Property="TextColor" Value="{DynamicResource Ink}" />
+        <Setter Property="PlaceholderColor" Value="{DynamicResource InkMuted}" />
         <Setter Property="BackgroundColor" Value="Transparent" />
-        <Setter Property="FontSize" Value="14" />
-        <Setter Property="MinimumHeightRequest" Value="44"/>
-        <Setter Property="MinimumWidthRequest" Value="44"/>
-        <Setter Property="VisualStateManager.VisualStateGroups">
-            <VisualStateGroupList>
-                <VisualStateGroup x:Name="CommonStates">
-                    <VisualState x:Name="Normal" />
-                    <VisualState x:Name="Disabled">
-                        <VisualState.Setters>
-                            <Setter Property="TextColor" Value="{StaticResource TextMuted}" />
-                            <Setter Property="TitleColor" Value="{StaticResource TextMuted}" />
-                        </VisualState.Setters>
-                    </VisualState>
-                </VisualStateGroup>
-            </VisualStateGroupList>
-        </Setter>
-    </Style>
-
-    <Style TargetType="ProgressBar">
-        <Setter Property="ProgressColor" Value="{StaticResource Primary}" />
-        <Setter Property="VisualStateManager.VisualStateGroups">
-            <VisualStateGroupList>
-                <VisualStateGroup x:Name="CommonStates">
-                    <VisualState x:Name="Normal" />
-                    <VisualState x:Name="Disabled">
-                        <VisualState.Setters>
-                            <Setter Property="ProgressColor" Value="{StaticResource CardBackgroundLight}" />
-                        </VisualState.Setters>
-                    </VisualState>
-                </VisualStateGroup>
-            </VisualStateGroupList>
-        </Setter>
-    </Style>
-
-    <Style TargetType="RadioButton">
-        <Setter Property="BackgroundColor" Value="Transparent"/>
-        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
-        <Setter Property="FontSize" Value="14"/>
-        <Setter Property="MinimumHeightRequest" Value="44"/>
-        <Setter Property="MinimumWidthRequest" Value="44"/>
-        <Setter Property="VisualStateManager.VisualStateGroups">
-            <VisualStateGroupList>
-                <VisualStateGroup x:Name="CommonStates">
-                    <VisualState x:Name="Normal" />
-                    <VisualState x:Name="Disabled">
-                        <VisualState.Setters>
-                            <Setter Property="TextColor" Value="{StaticResource TextMuted}" />
-                        </VisualState.Setters>
-                    </VisualState>
-                </VisualStateGroup>
-            </VisualStateGroupList>
-        </Setter>
-    </Style>
-
-    <Style TargetType="RefreshView">
-        <Setter Property="RefreshColor" Value="{StaticResource Primary}" />
-    </Style>
-
-    <Style TargetType="SearchBar">
-        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
-        <Setter Property="PlaceholderColor" Value="{StaticResource TextMuted}" />
-        <Setter Property="CancelButtonColor" Value="{StaticResource TextMuted}" />
-        <Setter Property="BackgroundColor" Value="Transparent" />
-        <Setter Property="FontSize" Value="14" />
-        <Setter Property="MinimumHeightRequest" Value="44"/>
-        <Setter Property="MinimumWidthRequest" Value="44"/>
-        <Setter Property="VisualStateManager.VisualStateGroups">
-            <VisualStateGroupList>
-                <VisualStateGroup x:Name="CommonStates">
-                    <VisualState x:Name="Normal" />
-                    <VisualState x:Name="Disabled">
-                        <VisualState.Setters>
-                            <Setter Property="TextColor" Value="{StaticResource TextMuted}" />
-                            <Setter Property="PlaceholderColor" Value="{StaticResource TextMuted}" />
-                        </VisualState.Setters>
-                    </VisualState>
-                </VisualStateGroup>
-            </VisualStateGroupList>
-        </Setter>
-    </Style>
-
-    <Style TargetType="SearchHandler">
-        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
-        <Setter Property="PlaceholderColor" Value="{StaticResource TextMuted}" />
-        <Setter Property="BackgroundColor" Value="Transparent" />
-        <Setter Property="FontSize" Value="14" />
-        <Setter Property="VisualStateManager.VisualStateGroups">
-            <VisualStateGroupList>
-                <VisualStateGroup x:Name="CommonStates">
-                    <VisualState x:Name="Normal" />
-                    <VisualState x:Name="Disabled">
-                        <VisualState.Setters>
-                            <Setter Property="TextColor" Value="{StaticResource TextMuted}" />
-                            <Setter Property="PlaceholderColor" Value="{StaticResource TextMuted}" />
-                        </VisualState.Setters>
-                    </VisualState>
-                </VisualStateGroup>
-            </VisualStateGroupList>
-        </Setter>
-    </Style>
-
-    <Style TargetType="Shadow">
-        <Setter Property="Radius" Value="15" />
-        <Setter Property="Opacity" Value="0.3" />
-        <Setter Property="Brush" Value="{StaticResource GlowBrush}" />
-        <Setter Property="Offset" Value="0,0" />
-    </Style>
-
-    <Style TargetType="Slider">
-        <Setter Property="MinimumTrackColor" Value="{StaticResource Primary}" />
-        <Setter Property="MaximumTrackColor" Value="{StaticResource CardBackgroundLight}" />
-        <Setter Property="ThumbColor" Value="{StaticResource Primary}" />
-        <Setter Property="VisualStateManager.VisualStateGroups">
-            <VisualStateGroupList>
-                <VisualStateGroup x:Name="CommonStates">
-                    <VisualState x:Name="Normal" />
-                    <VisualState x:Name="Disabled">
-                        <VisualState.Setters>
-                            <Setter Property="MinimumTrackColor" Value="{StaticResource CardBackgroundLight}"/>
-                            <Setter Property="MaximumTrackColor" Value="{StaticResource CardBackgroundLight}"/>
-                            <Setter Property="ThumbColor" Value="{StaticResource CardBackgroundLight}"/>
-                        </VisualState.Setters>
-                    </VisualState>
-                </VisualStateGroup>
-            </VisualStateGroupList>
-        </Setter>
-    </Style>
-
-    <Style TargetType="SwipeItem">
-        <Setter Property="BackgroundColor" Value="{StaticResource Black}" />
+        <Setter Property="MinimumHeightRequest" Value="{StaticResource Target}" />
     </Style>
 
     <Style TargetType="Switch">
-        <Setter Property="OnColor" Value="{StaticResource Primary}" />
-        <Setter Property="ThumbColor" Value="{StaticResource Black}" />
-        <Setter Property="MinimumHeightRequest" Value="48"/>
-        <Setter Property="MinimumWidthRequest" Value="48"/>
-        <Setter Property="VisualStateManager.VisualStateGroups">
-            <VisualStateGroupList>
-                <VisualStateGroup x:Name="CommonStates">
-                    <VisualState x:Name="Normal" />
-                    <VisualState x:Name="Disabled">
-                        <VisualState.Setters>
-                            <Setter Property="OnColor" Value="{StaticResource CardBackgroundLight}" />
-                            <Setter Property="ThumbColor" Value="{StaticResource CardBackgroundLight}" />
-                        </VisualState.Setters>
-                    </VisualState>
-                    <VisualState x:Name="On">
-                        <VisualState.Setters>
-                            <Setter Property="OnColor" Value="{StaticResource Primary}" />
-                            <Setter Property="ThumbColor" Value="{StaticResource Black}" />
-                        </VisualState.Setters>
-                    </VisualState>
-                    <VisualState x:Name="Off">
-                        <VisualState.Setters>
-                            <Setter Property="ThumbColor" Value="{StaticResource TextMuted}" />
-                        </VisualState.Setters>
-                    </VisualState>
-                </VisualStateGroup>
-            </VisualStateGroupList>
-        </Setter>
+        <Setter Property="OnColor" Value="{DynamicResource Brand}" />
+        <Setter Property="ThumbColor" Value="{DynamicResource OnBrand}" />
+        <Setter Property="MinimumHeightRequest" Value="{StaticResource Target}" />
+        <Setter Property="MinimumWidthRequest" Value="{StaticResource Target}" />
     </Style>
 
-    <Style TargetType="TimePicker">
-        <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
-        <Setter Property="BackgroundColor" Value="Transparent"/>
-        <Setter Property="FontSize" Value="14"/>
-        <Setter Property="MinimumHeightRequest" Value="44"/>
-        <Setter Property="MinimumWidthRequest" Value="44"/>
-        <Setter Property="VisualStateManager.VisualStateGroups">
-            <VisualStateGroupList>
-                <VisualStateGroup x:Name="CommonStates">
-                    <VisualState x:Name="Normal" />
-                    <VisualState x:Name="Disabled">
-                        <VisualState.Setters>
-                            <Setter Property="TextColor" Value="{StaticResource TextMuted}" />
-                        </VisualState.Setters>
-                    </VisualState>
-                </VisualStateGroup>
-            </VisualStateGroupList>
-        </Setter>
+    <Style TargetType="ActivityIndicator">
+        <Setter Property="Color" Value="{DynamicResource Brand}" />
+    </Style>
+
+    <Style TargetType="RefreshView">
+        <Setter Property="RefreshColor" Value="{DynamicResource Brand}" />
+    </Style>
+
+    <Style TargetType="Border">
+        <Setter Property="Stroke" Value="{DynamicResource Line}" />
+        <Setter Property="StrokeShape" Value="Rectangle" />
+        <Setter Property="StrokeThickness" Value="1" />
+    </Style>
+
+    <Style TargetType="BoxView">
+        <Setter Property="BackgroundColor" Value="{DynamicResource Line}" />
     </Style>
 
     <Style TargetType="Page" ApplyToDerivedTypes="True">
-        <Setter Property="Padding" Value="0"/>
-        <Setter Property="BackgroundColor" Value="{StaticResource PageBackground}" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="BackgroundColor" Value="{DynamicResource Surface}" />
     </Style>
 
     <Style TargetType="Shell" ApplyToDerivedTypes="True">
-        <Setter Property="Shell.BackgroundColor" Value="{StaticResource PageBackground}" />
-        <Setter Property="Shell.ForegroundColor" Value="{StaticResource TextPrimary}" />
-        <Setter Property="Shell.TitleColor" Value="{StaticResource TextPrimary}" />
-        <Setter Property="Shell.DisabledColor" Value="{StaticResource PageBackground}" />
-        <Setter Property="Shell.UnselectedColor" Value="{StaticResource TextMuted}" />
+        <Setter Property="Shell.BackgroundColor" Value="{DynamicResource Surface}" />
+        <Setter Property="Shell.ForegroundColor" Value="{DynamicResource Ink}" />
+        <Setter Property="Shell.TitleColor" Value="{DynamicResource Ink}" />
+        <Setter Property="Shell.DisabledColor" Value="{DynamicResource InkDisabled}" />
+        <Setter Property="Shell.UnselectedColor" Value="{DynamicResource InkMuted}" />
         <Setter Property="Shell.NavBarHasShadow" Value="False" />
-        <Setter Property="Shell.TabBarBackgroundColor" Value="{StaticResource CardBackground}" />
-        <Setter Property="Shell.TabBarForegroundColor" Value="{StaticResource Primary}" />
-        <Setter Property="Shell.TabBarTitleColor" Value="{StaticResource Primary}" />
-        <Setter Property="Shell.TabBarUnselectedColor" Value="{StaticResource TextMuted}" />
-    </Style>
-
-    <Style TargetType="NavigationPage">
-        <Setter Property="BarBackgroundColor" Value="{StaticResource PageBackground}" />
-        <Setter Property="BarTextColor" Value="{StaticResource TextPrimary}" />
-        <Setter Property="IconColor" Value="{StaticResource TextPrimary}" />
-    </Style>
-
-    <Style TargetType="TabbedPage">
-        <Setter Property="BarBackgroundColor" Value="{StaticResource CardBackground}" />
-        <Setter Property="BarTextColor" Value="{StaticResource Primary}" />
-        <Setter Property="UnselectedTabColor" Value="{StaticResource PageBackground}" />
-        <Setter Property="SelectedTabColor" Value="{StaticResource Primary}" />
-    </Style>
-
-    <!-- BlueBuzzah.com Glow Styles -->
-    <Style x:Key="PrimaryButtonGlow" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
-        <Setter Property="Shadow">
-            <Setter.Value>
-                <Shadow Brush="{StaticResource GlowBrush}"
-                        Offset="0,0"
-                        Radius="20"
-                        Opacity="0.3" />
-            </Setter.Value>
-        </Setter>
-    </Style>
-
-    <Style x:Key="SecondaryButtonGlow" TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
-        <Setter Property="Shadow">
-            <Setter.Value>
-                <Shadow Brush="{StaticResource GlowBrush}"
-                        Offset="0,0"
-                        Radius="20"
-                        Opacity="0.3" />
-            </Setter.Value>
-        </Setter>
-    </Style>
-
-    <Style x:Key="CardWithGlow" TargetType="Border">
-        <Setter Property="BackgroundColor" Value="{StaticResource CardBackground}" />
-        <Setter Property="StrokeThickness" Value="1" />
-        <Setter Property="Stroke" Value="{StaticResource CardBorder}" />
-        <Setter Property="Shadow">
-            <Setter.Value>
-                <Shadow Brush="{StaticResource GlowBrush}"
-                        Offset="0,0"
-                        Radius="15"
-                        Opacity="0.2" />
-            </Setter.Value>
-        </Setter>
+        <Setter Property="Shell.TabBarBackgroundColor" Value="{DynamicResource SurfaceRaised}" />
+        <Setter Property="Shell.TabBarForegroundColor" Value="{DynamicResource Brand}" />
+        <Setter Property="Shell.TabBarTitleColor" Value="{DynamicResource Brand}" />
+        <Setter Property="Shell.TabBarUnselectedColor" Value="{DynamicResource InkMuted}" />
     </Style>
 
 </ResourceDictionary>

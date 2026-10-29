@@ -1,8 +1,4 @@
 using System.Globalization;
-using BuzzahBuddy.Helpers;
-using BuzzahBuddy.Services.Bluetooth;
-// Explicit for the plain net10.0 test build, which lacks MAUI implicit usings
-using Microsoft.Maui.Graphics;
 
 namespace BuzzahBuddy.Models;
 
@@ -35,47 +31,12 @@ public static class BatteryReading
     }
 
     /// <summary>
-    /// Display string for a reading, e.g. "60% (3.72V)", or "—" when unavailable.
+    /// Display string for a reading, e.g. "60%", or "—" when unavailable.
     /// </summary>
     public static string Format(double? voltage) =>
-        voltage is { } v
-            ? string.Create(CultureInfo.InvariantCulture, $"{ToPercentage(v)}% ({v:F2}V)")
-            : "—";
+        voltage is { } v ? string.Create(CultureInfo.InvariantCulture, $"{ToPercentage(v)}%") : "—";
 
-    /// <summary>
-    /// Gets display color for a battery percentage. Primary (blue) >= 60%, Warning >= 20%, DangerDark below.
-    /// </summary>
-    public static Color GetBatteryColor(int percentage) => percentage switch
-    {
-        >= 60 => DesignColors.Primary,    // brand rule: blue signals success
-        >= 20 => DesignColors.Warning,
-        _ => DesignColors.DangerDark      // text/icon on dark surfaces
-    };
-
-    /// <summary>
-    /// Gets display color based on battery voltage using BlueBuzzahConstants thresholds.
-    /// </summary>
-    public static Color GetBatteryColorFromVoltage(double voltage)
-    {
-        if (voltage > BlueBuzzahConstants.BatteryGoodThreshold) return DesignColors.Primary;
-        if (voltage >= BlueBuzzahConstants.BatteryMediumThreshold) return DesignColors.Warning;
-        return DesignColors.DangerDark;
-    }
-
-    /// <summary>
-    /// Display color for an optional reading: gray when there is none, otherwise the
-    /// voltage thresholds.
-    /// </summary>
-    public static Color GetBatteryColor(double? voltage) =>
-        voltage is { } v ? GetBatteryColorFromVoltage(v) : Colors.Gray;
-
-    /// <summary>
-    /// Gets human-readable status text for a battery voltage level.
-    /// </summary>
-    public static string GetBatteryStatusText(double voltage)
-    {
-        if (voltage > BlueBuzzahConstants.BatteryGoodThreshold) return "good";
-        if (voltage >= BlueBuzzahConstants.BatteryMediumThreshold) return "low";
-        return "critical";
-    }
+    /// <summary>The raw voltage for technical detail, e.g. "3.72V"; null when unavailable.</summary>
+    public static string? FormatVolts(double? voltage) =>
+        voltage is { } v ? string.Create(CultureInfo.InvariantCulture, $"{v:F2}V") : null;
 }

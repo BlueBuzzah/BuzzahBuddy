@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<!-- The primary and secondary glove side by side; stacked at large text sizes so nothing clips
+     (buzzahbuddy.md Session screen). -->
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:controls="clr-namespace:BuzzahBuddy.Views.Controls"
+             x:Class="BuzzahBuddy.Views.Controls.GloveStatusPair">
+    <Grid x:Name="Cards" ColumnSpacing="{StaticResource TargetGap}" RowSpacing="{StaticResource TargetGap}">
+        <controls:GloveStatusView x:Name="PrimaryView" />
+        <controls:GloveStatusView x:Name="SecondaryView" />
+    </Grid>
+</ContentView>

@@ -1,0 +1,45 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<!-- Banner (Banner README; bundle .bb-banner): a message that needs a sentence. Icon in the
+     tone color, title says what happened, message says what to do, optional technical detail
+     in code-s, optional action outlined in the tone. One per screen; never auto-dismissed. -->
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="BuzzahBuddy.Views.Controls.Banner">
+    <Border x:Name="Root"
+            Padding="{StaticResource Space4}"
+            Stroke="{DynamicResource Line}"
+            StrokeThickness="{DynamicResource HcBorderWidth}">
+        <Border.StrokeShape>
+            <RoundRectangle CornerRadius="{StaticResource RadiusMd}" />
+        </Border.StrokeShape>
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="{StaticResource Space3}">
+            <Label x:Name="GlyphLabel"
+                   Style="{StaticResource IconLabel}"
+                   FontSize="28"
+                   VerticalOptions="Start" />
+            <!-- Invisible one-line strut in the first line's font; AlignGlyph centers the icon on it. -->
+            <Label x:Name="StrutLabel"
+                   Grid.Column="1"
+                   Text="X"
+                   LineHeight="1"
+                   Opacity="0"
+                   InputTransparent="True"
+                   VerticalOptions="Start"
+                   AutomationProperties.IsInAccessibleTree="False" />
+            <VerticalStackLayout Grid.Column="1" Spacing="2">
+                <Label x:Name="TitleLabel" Style="{StaticResource TypeBodyStrong}" />
+                <Label x:Name="MessageLabel" Style="{StaticResource TypeBodyS}" />
+                <Label x:Name="DetailLabel"
+                       Style="{StaticResource TypeCodeS}"
+                       TextColor="{DynamicResource InkMuted}"
+                       Margin="0,4,0,0" />
+                <Button x:Name="ActionButton"
+                        Style="{StaticResource ButtonQuiet}"
+                        MinimumHeightRequest="{StaticResource Target}"
+                        HorizontalOptions="Start"
+                        Margin="0,12,0,0"
+                        AutomationId="BannerAction" />
+            </VerticalStackLayout>
+        </Grid>
+    </Border>
+</ContentView>

@@ -135,7 +135,7 @@ public class CustomProfileFormTests
 
     [Fact]
     public void DerivedTimingText_ReportsTheCoordinatedResetPeriod()
-        => Assert.Equal("CR period 668 ms · 1.50 Hz", ValidForm().DerivedTimingText);
+        => Assert.Equal("One full cycle takes 668 ms, about 1.5 times a second.", ValidForm().DerivedTimingText);
 
     [Fact]
     public void DerivedTimingText_UsesTheDeviceFingerCount()
@@ -144,7 +144,7 @@ public class CustomProfileFormTests
         form.Fingers = 5;
 
         // A five-motor glove lengthens the CR period at identical burst timing.
-        Assert.Equal("CR period 835 ms · 1.20 Hz", form.DerivedTimingText);
+        Assert.Equal("One full cycle takes 835 ms, about 1.2 times a second.", form.DerivedTimingText);
     }
 
     [Fact]
@@ -153,7 +153,7 @@ public class CustomProfileFormTests
         var form = ValidForm();
         form.TimeOffMsText = "";
 
-        Assert.Equal("CR period unavailable", form.DerivedTimingText);
+        Assert.Equal("Enter both times above to see the cycle length.", form.DerivedTimingText);
     }
 
     [Fact]
@@ -184,5 +184,63 @@ public class CustomProfileFormTests
         form.JitterText = "";
 
         Assert.Null(form.EffectiveJitterCapText);
+    }
+
+    // Per-field validation: each error names the range, tied to its own field.
+
+    [Fact]
+    public void Validate_FlagsOutOfRange()
+    {
+        var form = ValidForm();
+        form.TimeOnMsText = "20";
+        var errors = form.Validate();
+        Assert.Single(errors);
+        Assert.Equal("Enter a number from 50 to 200.", errors[CustomProfileField.TimeOn]);
+    }
+
+    [Fact]
+    public void Validate_FlagsMinOverMax()
+    {
+        var form = ValidForm();
+        form.AmplitudeMinText = "90";
+        form.AmplitudeMaxText = "50";
+        var errors = form.Validate();
+        Assert.Equal("Strongest buzz can't be lower than softest buzz.", errors[CustomProfileField.AmplitudeMax]);
+        Assert.False(errors.ContainsKey(CustomProfileField.AmplitudeMin));
+    }
+
+    [Fact]
+    public void Validate_AcceptsResearchDefaults() => Assert.Empty(ValidForm().Validate());
+
+    // double.TryParse accepts these, and every range comparison is false for NaN, so
+    // without a finite check they slipped past the field errors.
+    [Theory]
+    [InlineData("NaN")]
+    [InlineData("Infinity")]
+    [InlineData("-Infinity")]
+    public void Validate_FlagsNonFiniteNumbers(string value)
+    {
+        var form = ValidForm();
+        form.JitterText = value;
+
+        Assert.True(form.Validate().ContainsKey(CustomProfileField.Jitter));
+        Assert.False(form.TryBuildProfile(out _));
+    }
+
+    [Fact]
+    public void Validate_FlagsUnparseable()
+    {
+        var form = ValidForm();
+        form.JitterText = "abc";
+        Assert.Equal("Enter a number from 0 to 50.", form.Validate()[CustomProfileField.Jitter]);
+    }
+
+    // Amplitude and session are whole numbers on the wire; "50.5" must not slip through.
+    [Fact]
+    public void Validate_FlagsFractionalWholeNumberFields()
+    {
+        var form = ValidForm();
+        form.SessionMinutesText = "30.5";
+        Assert.Equal("Enter a number from 1 to 240.", form.Validate()[CustomProfileField.Session]);
     }
 }
