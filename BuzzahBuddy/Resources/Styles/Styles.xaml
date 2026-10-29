@@ -235,6 +235,8 @@
         <Setter Property="FontSize" Value="{StaticResource IconM}" />
         <Setter Property="TextColor" Value="{DynamicResource Ink}" />
         <Setter Property="VerticalTextAlignment" Value="Center" />
+        <!-- The implicit Label style's body line height would sit the glyph low on iOS. -->
+        <Setter Property="LineHeight" Value="1" />
         <Setter Property="AutomationProperties.IsInAccessibleTree" Value="False" />
     </Style>
 
