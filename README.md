@@ -188,7 +188,7 @@ This app is designed with accessibility as a core requirement, following the Blu
 
 ## License
 
-The BlueBuzzah project is see [MIT licensed](./LICENSE).
+The BlueBuzzah project is [MIT licensed](./LICENSE).
 
 ## Contributing
 
