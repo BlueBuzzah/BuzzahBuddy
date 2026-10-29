@@ -44,8 +44,10 @@ public sealed class RadarSweep : GraphicsView
         if (IsRunning && Handler is not null && !Motion.Reduce)
         {
             if (!this.AnimationIsRunning(SweepAnimation))
+                // Each turn re-checks Reduce Motion, which can be turned on while the app runs.
                 new Animation(t => { _drawable.Sweep = t * 360; Invalidate(); })
-                    .Commit(this, SweepAnimation, length: TurnLength, easing: Easing.Linear, repeat: () => true);
+                    .Commit(this, SweepAnimation, length: TurnLength, easing: Easing.Linear, repeat: () => !Motion.Reduce,
+                        finished: (_, cancelled) => { if (!cancelled) Apply(); });
             return;
         }
         this.AbortAnimation(SweepAnimation);

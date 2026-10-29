@@ -212,6 +212,21 @@ public class CustomProfileFormTests
     [Fact]
     public void Validate_AcceptsResearchDefaults() => Assert.Empty(ValidForm().Validate());
 
+    // double.TryParse accepts these, and every range comparison is false for NaN, so
+    // without a finite check they slipped past the field errors.
+    [Theory]
+    [InlineData("NaN")]
+    [InlineData("Infinity")]
+    [InlineData("-Infinity")]
+    public void Validate_FlagsNonFiniteNumbers(string value)
+    {
+        var form = ValidForm();
+        form.JitterText = value;
+
+        Assert.True(form.Validate().ContainsKey(CustomProfileField.Jitter));
+        Assert.False(form.TryBuildProfile(out _));
+    }
+
     [Fact]
     public void Validate_FlagsUnparseable()
     {

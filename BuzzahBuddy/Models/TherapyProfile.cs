@@ -178,7 +178,7 @@ public class TherapyProfile
                 ActuatorVoltage = 2.0,
                 TimeOn = 0.100,
                 TimeOff = 0.067,
-                TimeSession = 120,
+                TimeSession = 60,
                 AmplitudeMin = 30,
                 AmplitudeMax = 60,
                 Jitter = 0,

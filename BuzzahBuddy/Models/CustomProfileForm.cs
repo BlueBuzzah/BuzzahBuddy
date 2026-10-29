@@ -59,7 +59,8 @@ public class CustomProfileForm
             !int.TryParse(SessionMinutesText, NumberStyles.Integer, inv, out var session) ||
             !int.TryParse(AmplitudeMinText, NumberStyles.Integer, inv, out var ampMin) ||
             !int.TryParse(AmplitudeMaxText, NumberStyles.Integer, inv, out var ampMax) ||
-            !double.TryParse(JitterText, NumberStyles.Float, inv, out var jitter))
+            !double.TryParse(JitterText, NumberStyles.Float, inv, out var jitter) ||
+            !double.IsFinite(onMs) || !double.IsFinite(offMs) || !double.IsFinite(jitter))
         {
             return false;
         }
@@ -93,7 +94,8 @@ public class CustomProfileForm
 
         void Decimal(CustomProfileField field, string text, double min, double max)
         {
-            if (!double.TryParse(text, NumberStyles.Float, inv, out var v) || v < min || v > max)
+            // NaN fails every comparison, so it needs its own check
+            if (!double.TryParse(text, NumberStyles.Float, inv, out var v) || !double.IsFinite(v) || v < min || v > max)
                 errors[field] = Range(min, max);
         }
 

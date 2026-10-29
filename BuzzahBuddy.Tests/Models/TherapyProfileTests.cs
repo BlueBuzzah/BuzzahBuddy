@@ -44,6 +44,11 @@ public class TherapyProfileTests
         Assert.Equal(noisy.Fingers, copy.Fingers);
     }
 
+    // Matches the firmware's gentle profile (sessionDurationMin = 60) and its "1-hour" description.
+    [Fact]
+    public void Gentle_runs_one_hour() =>
+        Assert.Equal(60, TherapyProfile.GetPresetProfiles().Single(p => p.Name == "Gentle").TimeSession);
+
     // The Gloves page lists profiles in this order, with Custom at the bottom.
     [Fact]
     public void Custom_is_listed_last() =>

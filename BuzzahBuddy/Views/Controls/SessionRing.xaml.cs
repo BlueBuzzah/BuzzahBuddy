@@ -30,6 +30,8 @@ public partial class SessionRing : ContentView
 
     private readonly RingDrawable _drawable = new();
     private double _baseSize;
+    private double _maxSize;
+    private double _baseFont;
 
     public SessionRing()
     {
@@ -74,8 +76,10 @@ public partial class SessionRing : ContentView
         var display = DeviceDisplay.MainDisplayInfo;
         var width = display.Density > 0 ? display.Width / display.Density : 400;
         _baseSize = width > 0 && width < 360 ? 240 : 280;
+        _maxSize = Math.Max(_baseSize, width - 32); // the screen's 16pt gutters
         // bundle.js: under 300 the time shrinks to 20% of the ring.
-        TimeText.FontSize = Math.Round(_baseSize * 0.2);
+        _baseFont = Math.Round(_baseSize * 0.2);
+        TimeText.FontSize = _baseFont;
         SetSize(_baseSize);
     }
 
@@ -85,12 +89,28 @@ public partial class SessionRing : ContentView
         Root.HeightRequest = size;
     }
 
-    /// <summary>At large text sizes the ring grows to fit the time instead of clipping it.</summary>
+    /// <summary>
+    /// At large text sizes the ring grows to fit the time instead of clipping it, up to the
+    /// screen's width; past that the time shrinks to fit rather than pushing the ring off screen.
+    /// </summary>
     private void FitSize()
     {
-        var needed = Math.Max(_baseSize, Math.Ceiling(TimeText.Width + 2 * Stroke + 48));
-        if (Math.Abs(needed - Root.WidthRequest) > 1)
-            SetSize(needed);
+        const double inset = 2 * Stroke + 48;
+        // The laid-out width is already clipped to the ring, so measure the time unconstrained.
+        var natural = TimeText.Measure(double.PositiveInfinity, double.PositiveInfinity).Width;
+        if (natural <= 0)
+            return;
+        // Worked out from the base size, so the time grows back if the text size drops again.
+        var atBase = natural * _baseFont / TimeText.FontSize;
+        var font = Math.Min(_baseFont, Math.Floor(_baseFont * (_maxSize - inset) / atBase));
+        if (Math.Abs(font - TimeText.FontSize) >= 1)
+        {
+            TimeText.FontSize = font; // its SizeChanged calls back here
+            return;
+        }
+        var size = Math.Clamp(Math.Ceiling(natural + inset), _baseSize, _maxSize);
+        if (Math.Abs(size - Root.WidthRequest) > 1)
+            SetSize(size);
     }
 
     private void Apply()
@@ -114,8 +134,10 @@ public partial class SessionRing : ContentView
             {
                 var pulse = (int)Application.Current!.Resources["DurationPulse"];
                 // One breath out and back over two pulses, eased like CSS "alternate".
+                // Each cycle re-checks Reduce Motion, which can be turned on while the app runs.
                 new Animation(t => { _drawable.Breath = (1 - Math.Cos(2 * Math.PI * t)) / 2; Canvas.Invalidate(); })
-                    .Commit(this, BreathAnimation, length: (uint)(pulse * 2), repeat: () => true);
+                    .Commit(this, BreathAnimation, length: (uint)(pulse * 2), repeat: () => !Motion.Reduce,
+                        finished: (_, cancelled) => { if (!cancelled) Apply(); });
             }
         }
         else
