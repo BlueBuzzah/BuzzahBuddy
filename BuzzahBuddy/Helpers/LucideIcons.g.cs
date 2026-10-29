@@ -28,4 +28,5 @@ public static class LucideIcons
     public const string SignalLow = "\uE261";
     public const string SignalMedium = "\uE262";
     public const string SignalHigh = "\uE260";
+    public const string Save = "\uE14D";
 }

@@ -16,17 +16,13 @@
 
     <ScrollView>
         <VerticalStackLayout Padding="16,16,16,24" Spacing="{StaticResource Space6}">
-            <Label Text="These settings make up your Custom profile. Your gloves keep them after a restart." />
+            <Label Text="These settings make up your Custom profile. They're saved on this phone, and your gloves get them when you pick Custom and tap Apply Settings." />
 
-            <controls:Banner IsVisible="{Binding BannerVisible}"
-                             Tone="{Binding BannerTone}"
-                             Title="{Binding BannerTitle}"
-                             Message="{Binding BannerMessage}"
-                             Detail="{Binding BannerDetail}"
+            <controls:Banner IsVisible="{Binding DeviatesBannerVisible}"
+                             Tone="Warning"
+                             Title="These Settings Differ from the Study"
+                             Message="They're within what the gloves accept, but no study has tested them."
                              Announce="True" />
-
-            <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}"
-                               AutomationProperties.IsInAccessibleTree="False" />
 
             <VerticalStackLayout Spacing="{StaticResource Space6}" IsVisible="{Binding IsLoaded}">
                     <VerticalStackLayout Spacing="{StaticResource Space2}">
@@ -175,25 +171,22 @@
                 </Border>
 
                 <VerticalStackLayout Spacing="{StaticResource TargetGap}">
-                    <Button Text="Save to Gloves"
-                            Style="{StaticResource ButtonPrimary}"
-                            Command="{Binding ApplyCommand}"
-                            IsEnabled="{Binding IsNotBusy}"
-                            SemanticProperties.Description="Save to Gloves"
-                            AutomationId="ApplyProfileSettingsButton" />
-                    <controls:StatusBadge Tone="Success" Text="Saved to Both Gloves" IsVisible="{Binding SavedBadgeVisible}" />
-                    <Button Text="Reload from Gloves"
-                            Style="{StaticResource ButtonSecondary}"
-                            Command="{Binding LoadCommand}"
-                            IsEnabled="{Binding IsNotBusy}"
-                            SemanticProperties.Description="Reload from Gloves"
-                            AutomationId="ReloadProfileSettingsButton" />
                     <Button Text="Use Study Settings"
                             Style="{StaticResource ButtonQuiet}"
                             Command="{Binding ResetToDefaultsCommand}"
-                            IsEnabled="{Binding IsNotBusy}"
                             SemanticProperties.Description="Use Study Settings"
                             AutomationId="ResetToDefaultsButton" />
+                    <!-- Saving goes back to the Gloves page, so no "Saved" badge. -->
+                    <Button Text="Save"
+                            Style="{StaticResource ButtonPrimary}"
+                            ContentLayout="Left,8"
+                            Command="{Binding SaveCommand}"
+                            SemanticProperties.Description="Save"
+                            AutomationId="SaveProfileSettingsButton">
+                        <Button.ImageSource>
+                            <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Save}" Size="20" Color="{DynamicResource OnBrand}" />
+                        </Button.ImageSource>
+                    </Button>
                 </VerticalStackLayout>
             </VerticalStackLayout>
         </VerticalStackLayout>

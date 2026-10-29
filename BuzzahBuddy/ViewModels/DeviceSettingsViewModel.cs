@@ -1,4 +1,5 @@
 using BuzzahBuddy.Helpers;
+using BuzzahBuddy.Messages;
 using BuzzahBuddy.Models;
 using BuzzahBuddy.Services.Bluetooth;
 using BuzzahBuddy.Services.ConnectionStateManagement;
@@ -7,6 +8,7 @@ using BuzzahBuddy.Services.Glove;
 using BuzzahBuddy.Services.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using System.Collections.ObjectModel;
 using static BuzzahBuddy.Services.Glove.ErrorMessageHelper;
 
@@ -15,7 +17,7 @@ namespace BuzzahBuddy.ViewModels;
 /// <summary>
 /// ViewModel for the device-settings section of the Device page.
 /// Owns settings that live on the connected glove: therapy profile, therapy LED,
-/// battery status, and connection diagnostics. Changes are staged locally and
+/// and battery status. Changes are staged locally and
 /// written to the glove in one batch when the user presses Apply Settings;
 /// device settings are unavailable when disconnected.
 /// </summary>
@@ -69,7 +71,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     /// True when the selection on this page differs from what's on the gloves —
     /// enables the Apply Settings button.
     /// </summary>
-    public bool HasPendingChanges => IsLedDirty || IsProfileDirty;
+    public bool HasPendingChanges => IsLedDirty || IsProfileDirty || IsCustomDirty;
 
     private bool IsLedDirty => TherapyLedLoaded && TherapyLedOff != _deviceTherapyLedOff;
 
@@ -78,6 +80,20 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         && _gloveControlService.DeviceProfileId > 0
         && SelectedProfile != null
         && SelectedProfile.ProfileId != _gloveControlService.DeviceProfileId;
+
+    // ponytail: in-memory flag, so edits saved before an app restart don't light Apply
+    // while the gloves already run Custom; compare against a PROFILE_GET read if that matters.
+    /// <summary>True after the user saves Custom settings that haven't reached the gloves yet.</summary>
+    private bool _customEdited;
+
+    /// <summary>Saved Custom settings to send once the gloves are back from loading Custom.</summary>
+    private TherapyProfile? _customToSend;
+
+    private bool IsCustomDirty =>
+        _customEdited
+        && ConnectionInfo.IsConnected
+        && SelectedProfile?.IsCustom == true
+        && _gloveControlService.DeviceProfileId == TherapyProfile.CustomProfileId;
 
     // Null voltage = no reading available (missing key or firmware 0.00 sentinel)
     /// <summary>The primary glove's firmware version, shown above the glove cards.</summary>
@@ -140,14 +156,6 @@ public partial class DeviceSettingsViewModel : BaseViewModel
 
     /// <summary>Inverse of IsRefreshingBattery for XAML MultiBinding.</summary>
     public bool IsNotRefreshingBattery => !IsRefreshingBattery;
-
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsNotTestingConnection))]
-    private bool _isTestingConnection;
-
-    /// <summary>Inverse of IsTestingConnection for XAML MultiBinding.</summary>
-    public bool IsNotTestingConnection => !IsTestingConnection;
 
     /// <summary>
     /// Device setting: turn the status LED off during therapy sessions (THERAPY_LED_OFF).
@@ -215,6 +223,11 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         _gloveControlService.DeviceInfoReceived += OnDeviceInfoReceived;
         _gloveControlService.TherapyLedOffReceived += OnTherapyLedOffReceived;
         _reconnectionService.ReconnectionStateChanged += OnReconnectionStateChanged;
+        WeakReferenceMessenger.Default.Register<DeviceSettingsViewModel, CustomProfileSavedMessage>(this, (vm, _) =>
+        {
+            vm._customEdited = true;
+            vm.NotifyPendingChanged();
+        });
 
         LoadProfilesAsync().SafeFireAndForget("[DEVICESETTINGS]");
     }
@@ -272,59 +285,16 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     }
 
     /// <summary>
-    /// Opens the Custom profile's parameter editor. The Custom profile is the only
-    /// one the firmware accepts parameter edits for.
+    /// Opens the Custom profile's editor. It saves on the phone, so it needs no glove,
+    /// selection or stopped session.
     /// </summary>
     [RelayCommand]
-    private async Task EditCustomParametersAsync()
-    {
-        if (SelectedProfile?.IsCustom != true)
-        {
-            await Shell.Current.DisplayAlert(
-                "Select Custom First",
-                "Tap the Custom profile to select it, then edit its settings.",
-                "OK");
-            return;
-        }
-
-        if (!ConnectionInfo.IsConnected)
-        {
-            await Shell.Current.DisplayAlert(
-                "Connect Your Primary Glove",
-                "Connect on the Gloves tab to see and change these settings.",
-                "OK");
-            return;
-        }
-
-        // The firmware refuses parameter edits while therapy is running, so catch
-        // it here rather than letting the user fill in the whole form first.
-        if (IsSessionActive)
-        {
-            await Shell.Current.DisplayAlert(
-                "Stop Your Session First",
-                "Settings can't change while a session runs.",
-                "OK");
-            return;
-        }
-
-        // The editor reads and writes whichever profile the gloves currently have
-        // loaded. If Custom is only selected locally, editing here would show
-        // another profile's values and save them into the Custom slot.
-        if (_gloveControlService.DeviceProfileId != TherapyProfile.CustomProfileId)
-        {
-            await Shell.Current.DisplayAlert(
-                "Apply Custom First",
-                "Tap Apply Settings to load the Custom profile onto your gloves, then edit its settings.",
-                "OK");
-            return;
-        }
-
-        await Shell.Current.GoToAsync(Routes.ProfileSettings);
-    }
+    private Task EditCustomParametersAsync() => Shell.Current.GoToAsync(Routes.ProfileSettings);
 
     /// <summary>
-    /// Writes every pending device setting (therapy LED, then profile) to the gloves
-    /// in one go. The LED is written first because a profile change reboots the gloves.
+    /// Writes every pending device setting (therapy LED, then profile, then the saved
+    /// Custom settings) to the gloves in one go. The LED is written first because a
+    /// profile change reboots the gloves; Custom settings go once they're back.
     /// </summary>
     [RelayCommand]
     private async Task ApplySettingsAsync()
@@ -348,6 +318,10 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         }
 
         var applyProfile = IsProfileDirty;
+        var sendCustomNow = IsCustomDirty;
+        // The firmware takes Custom edits only while Custom is loaded, so after a load
+        // they wait for the reboot (OnDeviceProfileChanged).
+        var savedCustom = SelectedProfile?.IsCustom == true ? await _storageService.GetCustomProfileAsync() : null;
         if (applyProfile)
         {
             var confirm = await _confirmation.ConfirmAsync(new ConfirmRequest(
@@ -359,6 +333,8 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         }
 
         IsBusy = true;
+        _resultBanner = null;
+        ResolveBanner();
 
         // Show the blocking modal BEFORE any write when a profile change is part of
         // the batch: LoadProfileAsync sends PROFILE_LOAD, which reboots the gloves
@@ -368,6 +344,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         if (applyProfile)
         {
             ProfileStatusMessage = ProfileRebootWarning;
+            _customToSend = savedCustom;
             await BeginApplyReconnectWatchAsync();
         }
 
@@ -388,9 +365,13 @@ public partial class DeviceSettingsViewModel : BaseViewModel
             }
 
             // A profile change confirms after the gloves reconnect (EndApplyReconnectWatch);
-            // an LED-only change is already on the gloves.
+            // LED and Custom-settings changes are already on the gloves.
             if (!applyProfile)
+            {
+                if (sendCustomNow && savedCustom is not null && !await SendCustomAsync(savedCustom))
+                    return;
                 ConfirmSaved();
+            }
         }
         catch (BlueBuzzahCommandException ex)
         {
@@ -414,6 +395,40 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     }
 
     /// <summary>
+    /// Sends the saved Custom settings, with the outcome in the banner. On failure Apply
+    /// stays lit so the user can try again; false if they didn't all go.
+    /// </summary>
+    private async Task<bool> SendCustomAsync(TherapyProfile saved)
+    {
+        try
+        {
+            await _gloveControlService.SendSavedCustomProfileAsync(saved);
+            _customEdited = false;
+            _resultBanner = _gloveControlService.PersistsCustomProfile ? null
+                : (StatusTone.Info, "Saved until the Gloves Restart",
+                    "This firmware doesn't store Custom settings. Update it with the BlueBuzzah Updater to keep them.");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _customEdited = true;
+            _resultBanner = (StatusTone.Danger, "Couldn't Send Your Custom Settings", FromException(ex).Message);
+            return false;
+        }
+        finally
+        {
+            ResolveBanner();
+            NotifyPendingChanged();
+        }
+    }
+
+    private async Task SendCustomThenEndWatchAsync(TherapyProfile saved)
+    {
+        var sent = await SendCustomAsync(saved);
+        EndApplyReconnectWatch(succeeded: true, confirm: sent);
+    }
+
+    /// <summary>
     /// After a failed apply, re-read the LED state so the toggle shows what's actually
     /// on the device; if even the read fails, hide the toggle.
     /// </summary>
@@ -433,31 +448,6 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     private async Task NavigateToCalibrationAsync()
     {
         await Shell.Current.GoToAsync(Routes.Calibration);
-    }
-
-    [RelayCommand]
-    private async Task TestConnectionAsync()
-    {
-        if (!ConnectionInfo.IsConnected)
-            return;
-
-        IsBusy = true;
-        IsTestingConnection = true;
-
-        try
-        {
-            var success = await _gloveControlService.PingAsync();
-
-            _resultBanner = success
-                ? (StatusTone.Success, "Connection Works", "Your primary glove answered.")
-                : (StatusTone.Danger, "Connection Test Failed", "Move your phone closer to your primary glove, then try again.");
-            ResolveBanner();
-        }
-        finally
-        {
-            IsTestingConnection = false;
-            IsBusy = false;
-        }
     }
 
     [RelayCommand]
@@ -664,6 +654,13 @@ public partial class DeviceSettingsViewModel : BaseViewModel
                 ProfileStatusMessage = null;
             }
 
+            // Back from loading Custom: send the saved settings while the modal stays up.
+            if (IsApplyingSettings && _customToSend is { } saved && profileId == TherapyProfile.CustomProfileId)
+            {
+                _customToSend = null;
+                SendCustomThenEndWatchAsync(saved).SafeFireAndForget("[DEVICESETTINGS]");
+            }
+
             // Don't clobber an unsaved local selection. If the user picked a profile
             // and hasn't pressed Apply, a reconnect's INFO would otherwise silently
             // revert their choice. IsProfileDirty compares the selection to the
@@ -771,6 +768,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
             return;
 
         IsApplyingSettings = false;
+        _customToSend = null;
         _applyWatchCts?.Cancel();
         ProfileStatusMessage = null;
         MainThread.BeginInvokeOnMainThread(async () => await PopApplyModalAsync());
@@ -791,14 +789,18 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         }
     }
 
-    /// <summary>Must be called on the main thread.</summary>
-    private void EndApplyReconnectWatch(bool succeeded)
+    /// <summary>
+    /// Must be called on the main thread. <paramref name="confirm"/> false skips "Saved"
+    /// when the gloves came back but the Custom settings didn't go.
+    /// </summary>
+    private void EndApplyReconnectWatch(bool succeeded, bool confirm = true)
     {
         if (!IsApplyingSettings)
             return;
 
         IsApplyingSettings = false;
         IsWaitingLong = false;
+        _customToSend = null;
         _applyWatchCts?.Cancel();
 
         MainThread.BeginInvokeOnMainThread(async () =>
@@ -812,7 +814,8 @@ public partial class DeviceSettingsViewModel : BaseViewModel
                 {
                     ProfileStatusMessage = null;
                 }
-                ConfirmSaved();
+                if (confirm)
+                    ConfirmSaved();
             }
             else
             {
@@ -840,7 +843,9 @@ public partial class DeviceSettingsViewModel : BaseViewModel
                 // Therapy LED and battery arrive from the service's post-connect sync
                 // (OnTherapyLedOffReceived / OnDeviceInfoReceived).
                 ApplyReconnectFailed = false;
-                EndApplyReconnectWatch(succeeded: true);
+                // With Custom settings still to send, the INFO that follows ends the watch.
+                if (_customToSend is null)
+                    EndApplyReconnectWatch(succeeded: true);
             }
             else
             {
@@ -882,6 +887,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
             _gloveControlService.DeviceInfoReceived -= OnDeviceInfoReceived;
             _gloveControlService.TherapyLedOffReceived -= OnTherapyLedOffReceived;
             _reconnectionService.ReconnectionStateChanged -= OnReconnectionStateChanged;
+            WeakReferenceMessenger.Default.Unregister<CustomProfileSavedMessage>(this);
             _applyWatchCts?.Cancel();
             _applyWatchCts?.Dispose();
         }

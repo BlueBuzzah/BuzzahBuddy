@@ -36,7 +36,7 @@ public static class BatteryReading
     public static string Format(double? voltage) =>
         voltage is { } v ? string.Create(CultureInfo.InvariantCulture, $"{ToPercentage(v)}%") : "—";
 
-    /// <summary>The raw voltage for technical detail, e.g. "3.72 V"; null when unavailable.</summary>
+    /// <summary>The raw voltage for technical detail, e.g. "3.72V"; null when unavailable.</summary>
     public static string? FormatVolts(double? voltage) =>
-        voltage is { } v ? string.Create(CultureInfo.InvariantCulture, $"{v:F2} V") : null;
+        voltage is { } v ? string.Create(CultureInfo.InvariantCulture, $"{v:F2}V") : null;
 }

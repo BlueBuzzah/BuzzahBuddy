@@ -151,6 +151,9 @@ check both:
 - `SessionClock` — timer-free interpolation between `SESSION_STATUS` anchors. Device time
   is authoritative; backward drift ≤ `SnapThresholdSeconds = 3` is absorbed, not shown.
 - `TherapyProfile` — 6 presets, IDs 1–6; `CustomProfileId = 4` is the only editable slot.
+  The editor saves Custom settings on the phone (`IDataStorageService`), no glove needed;
+  Apply sends them with `SendSavedCustomProfileAsync`, after the reboot when it also loads
+  Custom, because the firmware takes `PROFILE_CUSTOM` only while Custom is loaded.
 - `BatteryReading` — `≤0.0V` is the firmware's "no reading" sentinel, surfaced as
   unavailable, not 0%. 3.0V=0% / 4.2V=100% linear.
 

@@ -43,4 +43,9 @@ public class TherapyProfileTests
         Assert.Equal(noisy.Jitter, copy.Jitter);
         Assert.Equal(noisy.Fingers, copy.Fingers);
     }
+
+    // The Gloves page lists profiles in this order, with Custom at the bottom.
+    [Fact]
+    public void Custom_is_listed_last() =>
+        Assert.True(TherapyProfile.GetPresetProfiles().Last().IsCustom);
 }

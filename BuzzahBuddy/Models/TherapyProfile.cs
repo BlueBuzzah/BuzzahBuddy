@@ -100,7 +100,7 @@ public class TherapyProfile
     public bool IsCustom => ProfileId == CustomProfileId;
 
     /// <summary>
-    /// Creates the three predefined therapy profiles.
+    /// Creates the predefined therapy profiles, in display order (Custom last).
     /// </summary>
     /// <returns>List of preset profiles</returns>
     public static List<TherapyProfile> GetPresetProfiles()
@@ -167,26 +167,6 @@ public class TherapyProfile
                 Fingers = 4
             },
 
-            // Profile 4: Custom (per BLE protocol v2.0.0)
-            new TherapyProfile
-            {
-                ProfileId = 4,
-                Name = "Custom",
-                Description = "Your own settings. The only profile you can edit.",
-                ActuatorType = "LRA",
-                ActuatorFrequency = 250,
-                ActuatorVoltage = 2.5,
-                TimeOn = 0.100,
-                TimeOff = 0.067,
-                TimeSession = 120,
-                AmplitudeMin = 50,
-                AmplitudeMax = 100,
-                Jitter = 0,
-                Mirror = false,
-                PatternType = "RNDP",
-                Fingers = 4
-            },
-
             // Profile 5: Gentle (per BLE protocol v2.0.0)
             new TherapyProfile
             {
@@ -220,6 +200,26 @@ public class TherapyProfile
                 TimeOff = 0.067,
                 TimeSession = 5,
                 AmplitudeMin = 100,
+                AmplitudeMax = 100,
+                Jitter = 0,
+                Mirror = false,
+                PatternType = "RNDP",
+                Fingers = 4
+            },
+
+            // Profile 4: Custom (per BLE protocol v2.0.0)
+            new TherapyProfile
+            {
+                ProfileId = 4,
+                Name = "Custom",
+                Description = "Your own settings. The only profile you can edit.",
+                ActuatorType = "LRA",
+                ActuatorFrequency = 250,
+                ActuatorVoltage = 2.5,
+                TimeOn = 0.100,
+                TimeOff = 0.067,
+                TimeSession = 120,
+                AmplitudeMin = 50,
                 AmplitudeMax = 100,
                 Jitter = 0,
                 Mirror = false,

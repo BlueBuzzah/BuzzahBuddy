@@ -165,6 +165,13 @@ public interface IGloveControlService
     /// <exception cref="BlueBuzzahCommandException">If a session is active or the firmware rejects a parameter.</exception>
     Task ApplyCustomProfileAsync(TherapyProfile desired, TherapyProfile? baseline = null);
 
+    /// <summary>
+    /// Sends the Custom settings saved on the phone to the gloves, which must have the
+    /// Custom profile loaded. Reads the device first so only changes go out, and keeps
+    /// the device's finger count.
+    /// </summary>
+    Task SendSavedCustomProfileAsync(TherapyProfile saved);
+
     // ========== Session Control Commands ==========
 
     /// <summary>

@@ -597,6 +597,25 @@ public class GloveControlService : IGloveControlService
         }
     }
 
+    public async Task SendSavedCustomProfileAsync(TherapyProfile saved)
+    {
+        var baseline = await GetCurrentProfileAsync();
+        // Fingers is a board constant, not a setting: never let a saved value change it.
+        var desired = new TherapyProfile
+        {
+            ProfileId = TherapyProfile.CustomProfileId,
+            TimeOn = saved.TimeOn,
+            TimeOff = saved.TimeOff,
+            TimeSession = saved.TimeSession,
+            AmplitudeMin = saved.AmplitudeMin,
+            AmplitudeMax = saved.AmplitudeMax,
+            Jitter = saved.Jitter,
+            Mirror = saved.Mirror,
+            Fingers = baseline.Fingers,
+        };
+        await ApplyCustomProfileAsync(desired, baseline);
+    }
+
     /// <summary>
     /// Maps a <see cref="TherapyProfile"/> to PROFILE_CUSTOM protocol parameters,
     /// validating against the firmware's setParameter ranges (profile_manager.cpp).

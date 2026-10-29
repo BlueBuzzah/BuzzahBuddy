@@ -435,6 +435,27 @@ public class GloveControlServiceTests
         Assert.Equal(1, service.DeviceProfileId);
     }
 
+    // Settings saved on the phone carry whatever finger count they were seeded with
+    // (another glove's, or the study's 4); the device's own count must always win.
+    [Fact]
+    public async Task SendSavedCustomProfile_KeepsTheDeviceFingersAndSendsOnlyChanges()
+    {
+        var fake = new FakeBluetoothService();
+        fake.CannedResponses["PROFILE_GET"] =
+            "TYPE:LRA\nFREQ:250\nON:100.0\nOFF:67.0\nSESSION:120\n" +
+            "AMPMIN:100\nAMPMAX:100\nPATTERN:rndp\nMIRROR:0\nJITTER:0\nFINGERS:4\n\x04";
+        fake.CannedResponses["PROFILE_CUSTOM"] = "STATUS:CUSTOM_LOADED\n\x04";
+        var service = new GloveControlService(fake);
+
+        var saved = MakeProfile();
+        saved.Fingers = 5;
+        saved.Jitter = 15.5;
+
+        await service.SendSavedCustomProfileAsync(saved);
+
+        Assert.Equal(new[] { "PROFILE_GET", "PROFILE_CUSTOM:JITTER:15.5" }, fake.SentCommands);
+    }
+
     // FINGERS in PROFILE_GET marks firmware that also persists Custom edits. If it
     // is absent, the app must not promise the settings survive a restart.
     [Fact]

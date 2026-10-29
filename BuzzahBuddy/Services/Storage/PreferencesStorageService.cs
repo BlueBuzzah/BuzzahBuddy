@@ -11,6 +11,7 @@ public class PreferencesStorageService : IDataStorageService
     private const string SessionsKey = "therapy_sessions";
     private const string LastProfileKey = "last_profile_id";
     private const string LastDeviceKey = "last_device";
+    private const string CustomProfileKey = "custom_profile";
 
     // Source-generated, not reflection-based: see StorageJsonContext for why this is
     // mandatory rather than an optimization (iOS Release AOT cannot JIT the invoke
@@ -104,6 +105,29 @@ public class PreferencesStorageService : IDataStorageService
         return await Task.FromResult(profileId);
     }
 
+    public Task SaveCustomProfileAsync(TherapyProfile profile)
+    {
+        Preferences.Default.Set(CustomProfileKey, JsonSerializer.Serialize(profile, Json.TherapyProfile));
+        return Task.CompletedTask;
+    }
+
+    public Task<TherapyProfile?> GetCustomProfileAsync()
+    {
+        var json = Preferences.Default.Get(CustomProfileKey, string.Empty);
+        if (string.IsNullOrEmpty(json))
+            return Task.FromResult<TherapyProfile?>(null);
+
+        try
+        {
+            return Task.FromResult(JsonSerializer.Deserialize(json, Json.TherapyProfile));
+        }
+        catch (JsonException ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Deserialize custom profile error: {ex.Message}");
+            return Task.FromResult<TherapyProfile?>(null);
+        }
+    }
+
     public async Task SaveLastDeviceAsync(GloveDevice device)
     {
         var json = JsonSerializer.Serialize(device, Json.GloveDevice);
@@ -137,6 +161,7 @@ public class PreferencesStorageService : IDataStorageService
         Preferences.Default.Remove(SessionsKey);
         Preferences.Default.Remove(LastProfileKey);
         Preferences.Default.Remove(LastDeviceKey);
+        Preferences.Default.Remove(CustomProfileKey);
         await Task.CompletedTask;
     }
 }
