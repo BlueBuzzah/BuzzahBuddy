@@ -303,7 +303,7 @@
                 <VerticalStackLayout Spacing="{StaticResource Space3}">
                     <ActivityIndicator IsRunning="{Binding IsConnecting}" HeightRequest="32" WidthRequest="32"
                                        AutomationProperties.IsInAccessibleTree="False" />
-                    <Label Text="Connecting to Your Glove…" Style="{StaticResource TypeTitleM}" HorizontalTextAlignment="Center" />
+                    <Label Text="Connecting to Your Gloves…" Style="{StaticResource TypeTitleM}" HorizontalTextAlignment="Center" />
                     <Label Text="This can take up to 15 seconds." Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" HorizontalTextAlignment="Center" />
                 </VerticalStackLayout>
             </Border>

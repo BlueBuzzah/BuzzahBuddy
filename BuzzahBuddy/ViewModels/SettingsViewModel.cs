@@ -1,10 +1,15 @@
+using BuzzahBuddy.Helpers;
+using BuzzahBuddy.Messages;
 using BuzzahBuddy.Models;
+using BuzzahBuddy.Services.Bluetooth;
 using BuzzahBuddy.Services.Dialogs;
+using BuzzahBuddy.Services.Glove;
 using BuzzahBuddy.Services.Storage;
 using BuzzahBuddy.Services.Theme;
 using BuzzahBuddy.Views.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 
 namespace BuzzahBuddy.ViewModels;
 
@@ -17,6 +22,11 @@ public partial class SettingsViewModel : BaseViewModel
 	private readonly IDataStorageService _storageService;
 	private readonly IThemeService _theme;
 	private readonly IConfirmationService _confirmation;
+	private readonly SwitchableBluetoothService _bluetooth;
+	private readonly IReconnectionService _reconnection;
+
+	/// <summary>Set while a cancelled confirmation puts the switch back, so it isn't applied.</summary>
+	private bool _revertingDemoMode;
 
 	/// <summary>System / Light / Dark, valued as <see cref="ThemePreference"/>.</summary>
 	public IList<SegmentOption> ThemeOptions { get; } = new[]
@@ -38,11 +48,35 @@ public partial class SettingsViewModel : BaseViewModel
 	[ObservableProperty]
 	private string _appVersion = string.Empty;
 
-	public SettingsViewModel(IDataStorageService storageService, IThemeService theme, IConfirmationService confirmation)
+	/// <summary>Pretend gloves instead of real ones, for testing and demonstrations.</summary>
+	[ObservableProperty]
+	private bool _demoMode;
+
+	/// <summary>Demo Mode can't switch while a session runs or is paused.</summary>
+	[ObservableProperty]
+	[NotifyPropertyChangedFor(nameof(CanChangeDemoMode))]
+	private bool _isSessionActive;
+
+	public bool CanChangeDemoMode => !IsSessionActive;
+
+	public SettingsViewModel(
+		IDataStorageService storageService,
+		IThemeService theme,
+		IConfirmationService confirmation,
+		SwitchableBluetoothService bluetooth,
+		IReconnectionService reconnection,
+		IGloveControlService gloveControl)
 	{
 		_storageService = storageService;
 		_theme = theme;
 		_confirmation = confirmation;
+		_bluetooth = bluetooth;
+		_reconnection = reconnection;
+		_demoMode = bluetooth.IsDemoMode;
+		_isSessionActive = gloveControl.CurrentSessionStatus.IsActive;
+		// ponytail: never unsubscribed; this VM is a singleton living as long as the service.
+		gloveControl.SessionStateChanged += (_, status) =>
+			MainThread.BeginInvokeOnMainThread(() => IsSessionActive = status.IsActive);
 
 		Title = "Settings";
 
@@ -66,6 +100,40 @@ public partial class SettingsViewModel : BaseViewModel
 
 	// SwitchRow already announces "On"/"Off" for the toggle itself.
 	partial void OnHighContrastChanged(bool value) => _theme.HighContrast = value;
+
+	partial void OnDemoModeChanged(bool value)
+	{
+		if (!_revertingDemoMode)
+			ApplyDemoModeAsync(value).SafeFireAndForget("[SETTINGS]");
+	}
+
+	/// <summary>
+	/// Switches between real and pretend gloves. Turning it on while real gloves are
+	/// connected asks first, because it disconnects them.
+	/// </summary>
+	private async Task ApplyDemoModeAsync(bool on)
+	{
+		if (on && _bluetooth.CurrentConnectionState == ConnectionState.Connected)
+		{
+			var confirm = await _confirmation.ConfirmAsync(new ConfirmRequest(
+				"Turn On Demo Mode?",
+				"This disconnects your gloves. Demo Mode uses pretend gloves, so you can try BuzzahBuddy without real ones.",
+				"Disconnect and Turn On"));
+			if (!confirm)
+			{
+				_revertingDemoMode = true;
+				DemoMode = false;
+				_revertingDemoMode = false;
+				return;
+			}
+		}
+
+		// A reconnect loop still looking for the other service's gloves would never find them.
+		_reconnection.CancelReconnect();
+		await _bluetooth.SetDemoModeAsync(on);
+		Preferences.Default.Set(SwitchableBluetoothService.DemoModeKey, on);
+		WeakReferenceMessenger.Default.Send(new DemoModeChangedMessage(on));
+	}
 
 	[RelayCommand]
 	private async Task ClearDataAsync()

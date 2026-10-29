@@ -1,4 +1,5 @@
 using BuzzahBuddy.Helpers;
+using BuzzahBuddy.Messages;
 using BuzzahBuddy.Models;
 using BuzzahBuddy.Services.Bluetooth;
 using BuzzahBuddy.Services.ConnectionStateManagement;
@@ -7,6 +8,7 @@ using BuzzahBuddy.Services.Glove;
 using BuzzahBuddy.Services.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using System.Collections.ObjectModel;
 
 namespace BuzzahBuddy.ViewModels;
@@ -115,6 +117,14 @@ public partial class DeviceListViewModel : BaseViewModel, IQueryAttributable
 
         // Subscribe to connection state changes
         _bluetoothService.ConnectionStateChanged += OnConnectionStateChanged;
+
+        // Gloves found before Demo Mode switched belong to the other service: forget them.
+        WeakReferenceMessenger.Default.Register<DeviceListViewModel, DemoModeChangedMessage>(this, (vm, _) =>
+        {
+            vm._scanCancellationTokenSource?.Cancel();
+            vm.AvailableDevices.Clear();
+            vm.HasCompletedScan = false;
+        });
 
         Settings.PropertyChanged += (_, e) =>
         {
@@ -513,6 +523,7 @@ public partial class DeviceListViewModel : BaseViewModel, IQueryAttributable
         {
             _bluetoothService.DeviceDiscovered -= OnDeviceDiscovered;
             _bluetoothService.ConnectionStateChanged -= OnConnectionStateChanged;
+            WeakReferenceMessenger.Default.Unregister<DemoModeChangedMessage>(this);
             _scanCancellationTokenSource?.Cancel();
             _scanCancellationTokenSource?.Dispose();
             _scanCancellationTokenSource = null;

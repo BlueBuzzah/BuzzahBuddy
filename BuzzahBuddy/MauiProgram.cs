@@ -10,12 +10,6 @@ namespace BuzzahBuddy;
 public static class MauiProgram
 {
 	/// <summary>
-	/// Set to true to use mock Bluetooth service for testing without hardware.
-	/// Set to false to use real Bluetooth hardware.
-	/// </summary>
-	private static readonly bool UseMockBluetooth = false;
-
-	/// <summary>
 	/// Removes the platform's own input decoration so the design system's
 	/// <c>InputBorder</c> wrapper is the only border drawn.
 	/// </summary>
@@ -75,17 +69,14 @@ public static class MauiProgram
 #endif
 
 		// Register Services
-		// Toggle between mock and real Bluetooth service
-		if (UseMockBluetooth)
-		{
-			builder.Services.AddSingleton<IBluetoothService, MockBluetoothService>();
-			System.Diagnostics.Debug.WriteLine("🔧 Using MOCK Bluetooth Service (no hardware required)");
-		}
-		else
-		{
-			builder.Services.AddSingleton<IBluetoothService, BluetoothService>();
-			System.Diagnostics.Debug.WriteLine("📡 Using REAL Bluetooth Service (hardware required)");
-		}
+		// Real gloves, or the pretend ones while Demo Mode (Settings) is on; switchable at runtime.
+		builder.Services.AddSingleton<BluetoothService>();
+		builder.Services.AddSingleton<MockBluetoothService>();
+		builder.Services.AddSingleton(sp => new SwitchableBluetoothService(
+			sp.GetRequiredService<BluetoothService>(),
+			sp.GetRequiredService<MockBluetoothService>(),
+			Preferences.Default.Get(SwitchableBluetoothService.DemoModeKey, false)));
+		builder.Services.AddSingleton<IBluetoothService>(sp => sp.GetRequiredService<SwitchableBluetoothService>());
 
 		builder.Services.AddSingleton<IGloveControlService, GloveControlService>();
 		builder.Services.AddSingleton<IReconnectionService, ReconnectionService>();

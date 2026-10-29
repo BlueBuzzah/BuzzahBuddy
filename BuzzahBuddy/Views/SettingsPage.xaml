@@ -33,6 +33,17 @@
             </VerticalStackLayout>
 
             <VerticalStackLayout Spacing="{StaticResource Space3}">
+                <Label Text="Demo" Style="{StaticResource TypeTitleL}" SemanticProperties.HeadingLevel="Level2" />
+                <Border Style="{StaticResource Card}" Padding="0,8">
+                    <controls:SwitchRow Label="Demo Mode"
+                                        Description="Uses pretend gloves, so you can try BuzzahBuddy without real ones. You can't change this during a session."
+                                        IsToggled="{Binding DemoMode}"
+                                        IsEnabled="{Binding CanChangeDemoMode}"
+                                        AutomationId="DemoModeSwitch" />
+                </Border>
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="{StaticResource Space3}">
                 <Label Text="Data" Style="{StaticResource TypeTitleL}" SemanticProperties.HeadingLevel="Level2" />
                 <Label Text="Saved sessions and notes stay on this phone." Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
                 <Button Text="Clear All Data"

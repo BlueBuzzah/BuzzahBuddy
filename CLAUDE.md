@@ -164,6 +164,7 @@ check both:
 `BuzzahBuddy.Tests` is plain `net10.0` with **no `ProjectReference`** — it
 `Compile Include`s app sources (`Models/**`, `Services/Glove/**`, `RxFrameAssembler`,
 `ResponseMatcher`, `BlueBuzzahConstants`, `IBluetoothService`, `MockBluetoothService`,
+`SwitchableBluetoothService`,
 `DesignColors.g`, `LucideIcons.g`, `RepeatGuard`, `CubicBezier`). A ProjectReference would force restore across every app TFM
 and fail without mobile workloads. A new testable source needs its own `Compile Include`.
 
@@ -175,10 +176,12 @@ and fail without mobile workloads. A new testable source needs its own `Compile 
   e.g. raw `"PONG:"` pre-parse, because `CommandResponse.Parse` normalizes both forms and
   would hide a mock drift.
 
-`MockBluetoothService` (dev without hardware) is selected by
-`MauiProgram.UseMockBluetooth`, a hardcoded `false` — hand-edit and rebuild. It simulates
-a 4-motor board only, and raises events synchronously on the caller's thread, so it
-hides a missing `MainThread` dispatch (real BLE events arrive off the UI thread).
+`MockBluetoothService` (pretend gloves) is switched on at runtime by **Settings > Demo
+Mode**: `IBluetoothService` is `SwitchableBluetoothService`, which routes every call to
+the real or mock service and forwards only the active one's events (persisted under
+`demo_mode`). It simulates a 4-motor board only, and raises events synchronously on the
+caller's thread, so it hides a missing `MainThread` dispatch (real BLE events arrive off
+the UI thread).
 
 ## UI & Navigation
 

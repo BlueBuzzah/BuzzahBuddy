@@ -111,7 +111,7 @@
                     </Grid>
                 </Border>
 
-                <!-- Session controls: xl, full width; Start alone, or Pause/Resume over Stop -->
+                <!-- Session controls: xl; Start alone, full width, or Pause/Resume and Stop side by side -->
                 <VerticalStackLayout Spacing="{StaticResource TargetGap}">
                     <Button Text="Start Session"
                             Style="{StaticResource ButtonPrimaryXl}"
@@ -125,37 +125,38 @@
                             <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Play}" Size="24" Color="{DynamicResource OnBrand}" />
                         </Button.ImageSource>
                     </Button>
-                    <Button Text="{Binding PauseResumeText}"
-                            Style="{StaticResource ButtonSecondaryXl}"
-                            Command="{Binding PauseResumeCommand}"
-                            IsVisible="{Binding IsSessionActive}"
-                            IsEnabled="{Binding IsNotBusy}"
-                            ContentLayout="Left,8"
-                            SemanticProperties.Description="{Binding PauseResumeText}"
-                            AutomationId="PauseResumeButton">
-                        <Button.Triggers>
-                            <DataTrigger TargetType="Button" Binding="{Binding IsSessionPaused}" Value="True">
-                                <Setter Property="ImageSource">
-                                    <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Play}" Size="24" Color="{DynamicResource Brand}" />
-                                </Setter>
-                            </DataTrigger>
-                        </Button.Triggers>
-                        <Button.ImageSource>
-                            <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Pause}" Size="24" Color="{DynamicResource Brand}" />
-                        </Button.ImageSource>
-                    </Button>
-                    <Button Text="Stop"
-                            Style="{StaticResource ButtonQuietXl}"
-                            Command="{Binding StopSessionCommand}"
-                            IsVisible="{Binding IsSessionActive}"
-                            IsEnabled="{Binding IsNotBusy}"
-                            ContentLayout="Left,8"
-                            SemanticProperties.Description="Stop"
-                            AutomationId="StopSessionButton">
-                        <Button.ImageSource>
-                            <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Square}" Size="24" Color="{DynamicResource Brand}" />
-                        </Button.ImageSource>
-                    </Button>
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="{StaticResource TargetGap}" IsVisible="{Binding IsSessionActive}">
+                        <Button Text="{Binding PauseResumeText}"
+                                Style="{StaticResource ButtonSecondaryXl}"
+                                Command="{Binding PauseResumeCommand}"
+                                IsEnabled="{Binding IsNotBusy}"
+                                ContentLayout="Left,8"
+                                SemanticProperties.Description="{Binding PauseResumeText}"
+                                AutomationId="PauseResumeButton">
+                            <Button.Triggers>
+                                <DataTrigger TargetType="Button" Binding="{Binding IsSessionPaused}" Value="True">
+                                    <Setter Property="ImageSource">
+                                        <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Play}" Size="24" Color="{DynamicResource Brand}" />
+                                    </Setter>
+                                </DataTrigger>
+                            </Button.Triggers>
+                            <Button.ImageSource>
+                                <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Pause}" Size="24" Color="{DynamicResource Brand}" />
+                            </Button.ImageSource>
+                        </Button>
+                        <Button Grid.Column="1"
+                                Text="Stop"
+                                Style="{StaticResource ButtonQuietXl}"
+                                Command="{Binding StopSessionCommand}"
+                                IsEnabled="{Binding IsNotBusy}"
+                                ContentLayout="Left,8"
+                                SemanticProperties.Description="Stop"
+                                AutomationId="StopSessionButton">
+                            <Button.ImageSource>
+                                <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Square}" Size="24" Color="{DynamicResource Brand}" />
+                            </Button.ImageSource>
+                        </Button>
+                    </Grid>
                 </VerticalStackLayout>
             </VerticalStackLayout>
         </VerticalStackLayout>

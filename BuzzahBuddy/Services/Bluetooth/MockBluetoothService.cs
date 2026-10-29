@@ -35,6 +35,13 @@ public class MockBluetoothService : IBluetoothService
     public event EventHandler<ConnectionState>? ConnectionStateChanged;
     public event EventHandler<CommandResponse>? ResponseReceived;
 
+    /// <summary>
+    /// How long scanning, connecting and reconnecting take, so Demo Mode shows each
+    /// in-between state (radar, "Connecting to Your Gloves…") long enough to see. The
+    /// glove turns up halfway through a scan. Settable so tests don't wait it out.
+    /// </summary>
+    internal TimeSpan TransitionDelay { get; set; } = TimeSpan.FromMilliseconds(2500);
+
     public Task<IEnumerable<GloveDevice>> ScanForDevicesAsync(
         TimeSpan timeout,
         CancellationToken cancellationToken = default)
@@ -51,8 +58,8 @@ public class MockBluetoothService : IBluetoothService
             FirmwareVersion = "2.0.0"
         };
 
-        // Raise discovery event after short delay
-        Task.Delay(500, cancellationToken).ContinueWith(_ =>
+        // Raise discovery event partway through the scan
+        Task.Delay(TransitionDelay / 2, cancellationToken).ContinueWith(_ =>
         {
             DeviceDiscovered?.Invoke(this, mockDevice);
         }, cancellationToken);
@@ -72,7 +79,7 @@ public class MockBluetoothService : IBluetoothService
         CurrentConnectionState = ConnectionState.Connecting;
         ConnectionStateChanged?.Invoke(this, ConnectionState.Connecting);
 
-        await Task.Delay(300, cancellationToken); // Simulate connection time
+        await Task.Delay(TransitionDelay, cancellationToken); // Simulate connection time
 
         _isConnected = true;
         _connectedDevice = device;
@@ -115,7 +122,7 @@ public class MockBluetoothService : IBluetoothService
         CurrentConnectionState = ConnectionState.Reconnecting;
         ConnectionStateChanged?.Invoke(this, ConnectionState.Reconnecting);
 
-        await Task.Delay(300, ct);
+        await Task.Delay(TransitionDelay, ct);
 
         var mockDevice = new GloveDevice
         {
@@ -153,6 +160,7 @@ public class MockBluetoothService : IBluetoothService
     public async Task<ScanResult> ScanForDevicesWithResultAsync(int timeoutMs = 10000, CancellationToken ct = default)
     {
         var devices = await ScanForDevicesAsync(TimeSpan.FromMilliseconds(timeoutMs), ct);
+        await Task.Delay(TransitionDelay, ct);
         var deviceList = devices.ToList();
         return deviceList.Count > 0
             ? new ScanResult(ScanOutcome.DevicesFound, deviceList)
