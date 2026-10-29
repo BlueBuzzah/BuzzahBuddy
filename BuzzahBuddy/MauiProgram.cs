@@ -65,6 +65,9 @@ public static class MauiProgram
 			});
 
 		StripNativeInputChrome();
+#if IOS
+		builder.ConfigureMauiHandlers(handlers => handlers.AddHandler<Shell, TabBarShellRenderer>());
+#endif
 		BuzzahBuddy.Helpers.Typography.RegisterHandlers();
 
 #if DEBUG
