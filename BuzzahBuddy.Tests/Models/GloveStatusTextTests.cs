@@ -6,6 +6,14 @@ namespace BuzzahBuddy.Tests.Models;
 /// <summary>GloveStatus reads as one sentence (accessibility.md Screen readers; bundle.js GloveStatus label).</summary>
 public class GloveStatusTextTests
 {
+    // The card shows the role alone; the spoken sentence still says "glove".
+    [Fact]
+    public void Card_name_is_the_role_alone()
+    {
+        Assert.Equal("Primary", GloveStatusText.Name(GloveRole.Primary));
+        Assert.Equal("Secondary", GloveStatusText.Name(GloveRole.Secondary));
+    }
+
     [Fact]
     public void Connected_with_battery() =>
         Assert.Equal("Primary glove, connected, battery 87 percent",

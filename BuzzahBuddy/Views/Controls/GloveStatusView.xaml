@@ -43,7 +43,6 @@
                        TextColor="{DynamicResource Warning}"
                        VerticalOptions="Center" />
             </HorizontalStackLayout>
-            <Label x:Name="FirmwareText" Style="{StaticResource TypeCodeS}" TextColor="{DynamicResource InkMuted}" />
             <Label x:Name="DetailText" Style="{StaticResource TypeCodeS}" TextColor="{DynamicResource InkMuted}" />
         </VerticalStackLayout>
     </Border>

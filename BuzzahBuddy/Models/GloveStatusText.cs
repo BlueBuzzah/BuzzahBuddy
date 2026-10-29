@@ -13,12 +13,12 @@ public enum GloveLinkStatus { Connected, Connecting, Disconnected, NoReading }
 
 /// <summary>What one GloveStatus shows: role, link, battery, and optional technical lines.</summary>
 public sealed record GloveStatusInfo(GloveRole Role, GloveLinkStatus Status, int? BatteryPercent,
-    string? Firmware = null, string? Detail = null);
+    string? Detail = null);
 
 /// <summary>GloveStatus words and thresholds, after the design system's bundle.js GloveStatus.</summary>
 public static class GloveStatusText
 {
-    public static string Name(GloveRole role) => role == GloveRole.Primary ? "Primary Glove" : "Secondary Glove";
+    public static string Name(GloveRole role) => role == GloveRole.Primary ? "Primary" : "Secondary";
 
     public static (StatusTone Tone, string Text) Badge(GloveLinkStatus status) => status switch
     {
@@ -40,8 +40,7 @@ public static class GloveStatusText
     /// <summary>One sentence for screen readers: "Primary glove, connected, battery 87 percent".</summary>
     public static string Describe(GloveStatusInfo info)
     {
-        var name = Name(info.Role);
-        var text = $"{name[..1]}{name[1..].ToLowerInvariant()}, {Badge(info.Status).Text.ToLowerInvariant()}";
+        var text = $"{Name(info.Role)} glove, {Badge(info.Status).Text.ToLowerInvariant()}";
         if (info.Status == GloveLinkStatus.Connected && info.BatteryPercent is { } percent)
             text += $", battery {percent} percent{(IsLow(percent) ? ", low" : "")}";
         return text;

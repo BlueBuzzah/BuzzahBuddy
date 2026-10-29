@@ -26,7 +26,6 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     private readonly IDataStorageService _storageService;
     private readonly IReconnectionService _reconnectionService;
     private readonly IConfirmationService _confirmation;
-    private string? _firmwareVersion;
 
     private const string ProfileRebootWarning = "Gloves are restarting to apply the new profile…";
 
@@ -81,6 +80,10 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         && SelectedProfile.ProfileId != _gloveControlService.DeviceProfileId;
 
     // Null voltage = no reading available (missing key or firmware 0.00 sentinel)
+    /// <summary>The primary glove's firmware version, shown above the glove cards.</summary>
+    [ObservableProperty]
+    private string? _firmwareVersion;
+
     [ObservableProperty]
     private double? _batteryPrimaryVoltage;
 
@@ -488,7 +491,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     }
 
     /// <summary>
-    /// GloveStatus for both gloves, with firmware and raw volts in code-s (design system
+    /// GloveStatus for both gloves, with raw volts in code-s (design system
     /// Principles #4). The secondary's state is inferred from the primary's report of its
     /// battery (plan choice PC15).
     /// </summary>
@@ -497,7 +500,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         var link = ConnectionInfo.IsConnected ? GloveLinkStatus.Connected : GloveLinkStatus.Disconnected;
         int? Percent(double? v) => v is { } volts ? BatteryReading.ToPercentage(volts) : null;
         PrimaryGlove = new GloveStatusInfo(GloveRole.Primary, link, Percent(BatteryPrimaryVoltage),
-            link == GloveLinkStatus.Connected ? _firmwareVersion : null, BatteryReading.FormatVolts(BatteryPrimaryVoltage));
+            BatteryReading.FormatVolts(BatteryPrimaryVoltage));
         var secondaryLink = link != GloveLinkStatus.Connected ? GloveLinkStatus.Disconnected
             : BatterySecondaryVoltage is null ? GloveLinkStatus.NoReading
             : GloveLinkStatus.Connected;
@@ -540,7 +543,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     {
         MainThread.BeginInvokeOnMainThread(() =>
         {
-            _firmwareVersion = info.FirmwareVersion is { Length: > 0 } and not "0.0.0" ? info.FirmwareVersion : null;
+            FirmwareVersion = info.FirmwareVersion is { Length: > 0 } and not "0.0.0" ? info.FirmwareVersion : null;
             ApplyBatteryReading(info.BatteryPrimaryVoltage, info.BatterySecondaryVoltage);
         });
     }
@@ -844,7 +847,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
                 TherapyLedLoaded = false;
                 SavedBadgeVisible = false;
                 _resultBanner = null;
-                _firmwareVersion = null;
+                FirmwareVersion = null;
                 // Readings from the old link say nothing about the next one
                 ApplyBatteryReading(null, null);
             }

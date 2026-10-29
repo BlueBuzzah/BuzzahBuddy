@@ -15,7 +15,7 @@
              Shell.NavBarIsVisible="False"
              SafeAreaEdges="Container">
 
-    <Grid RowDefinitions="*,Auto" Padding="16,48,16,16">
+    <Grid RowDefinitions="*,Auto" Padding="16,16,16,16">
 
         <!-- Connected -->
         <ScrollView Grid.Row="0" Grid.RowSpan="2" IsVisible="{Binding ConnectionInfo.IsConnected}">
@@ -29,10 +29,30 @@
                                  Announce="True" />
 
                 <VerticalStackLayout Spacing="{StaticResource Space3}">
+                    <!-- Only the primary reports firmware, so it sits above the pair, not in a card. -->
+                    <HorizontalStackLayout Spacing="{StaticResource Space2}"
+                                           IsVisible="{Binding Settings.FirmwareVersion, Converter={StaticResource IsNotNullConverter}}"
+                                           SemanticProperties.Description="{Binding Settings.FirmwareVersion, StringFormat='Firmware {0}'}"
+                                           AutomationId="FirmwareVersion">
+                        <Label Text="{x:Static helpers:LucideIcons.Cpu}"
+                               Style="{StaticResource IconLabel}"
+                               FontSize="{StaticResource IconS}"
+                               TextColor="{DynamicResource InkMuted}"
+                               VerticalOptions="Center" />
+                        <Label Text="Firmware"
+                               Style="{StaticResource TypeBodyS}"
+                               TextColor="{DynamicResource InkMuted}"
+                               VerticalOptions="Center"
+                               AutomationProperties.IsInAccessibleTree="False" />
+                        <Label Text="{Binding Settings.FirmwareVersion}"
+                               Style="{StaticResource TypeCodeS}"
+                               VerticalOptions="Center"
+                               AutomationProperties.IsInAccessibleTree="False" />
+                    </HorizontalStackLayout>
                     <controls:GloveStatusPair Primary="{Binding Settings.PrimaryGlove}" Secondary="{Binding Settings.SecondaryGlove}" />
                     <Button Text="Refresh Battery"
                             Style="{StaticResource ButtonQuiet}"
-                            HorizontalOptions="Start"
+                            HorizontalOptions="End"
                             ContentLayout="Left,8"
                             Command="{Binding Settings.RefreshBatteryCommand}"
                             IsEnabled="{Binding Settings.IsNotRefreshingBattery}"
@@ -96,7 +116,7 @@
                                         <Button Grid.Row="1" Grid.Column="1"
                                                 Text="Edit Settings"
                                                 Style="{StaticResource ButtonQuiet}"
-                                                HorizontalOptions="Start"
+                                                HorizontalOptions="End"
                                                 Margin="0,12,0,0"
                                                 IsVisible="{Binding CanEditParameters}"
                                                 SemanticProperties.Description="Edit Settings"
@@ -263,7 +283,7 @@
                 AutomationId="ScanToggleButton" />
 
         <!-- Connecting overlay -->
-        <Grid Grid.Row="0" Grid.RowSpan="2" Margin="-16,-48,-16,-16" BackgroundColor="{DynamicResource Scrim}" IsVisible="{Binding IsConnecting}">
+        <Grid Grid.Row="0" Grid.RowSpan="2" Margin="-16,-16,-16,-16" BackgroundColor="{DynamicResource Scrim}" IsVisible="{Binding IsConnecting}">
             <Border Style="{StaticResource Card}" BackgroundColor="{DynamicResource SurfaceOverlay}" Shadow="{DynamicResource Shadow3}"
                     Margin="32,0" VerticalOptions="Center" Padding="{StaticResource Space6}">
                 <VerticalStackLayout Spacing="{StaticResource Space3}">

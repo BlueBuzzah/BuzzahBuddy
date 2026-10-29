@@ -42,8 +42,6 @@ public partial class GloveStatusView : ContentView
             LowText.IsVisible = low;
         }
 
-        FirmwareText.Text = info.Firmware is null ? null : $"Firmware {info.Firmware}";
-        FirmwareText.IsVisible = info.Firmware is not null;
         DetailText.Text = info.Detail;
         DetailText.IsVisible = info.Detail is not null;
         SemanticProperties.SetDescription(Root, GloveStatusText.Describe(info));
