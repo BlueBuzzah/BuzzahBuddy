@@ -85,8 +85,9 @@
                                       AccessibleText="{Binding RingAccessibleText}"
                                       AutomationId="SessionTimerRing" />
 
+                <!-- At large text sizes Change moves under the profile so the name keeps the width. -->
                 <Border Style="{StaticResource Card}">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{StaticResource Space3}">
+                    <Grid x:Name="ProfileRow" ColumnDefinitions="*,Auto" ColumnSpacing="{StaticResource Space3}" RowSpacing="{StaticResource Space3}">
                         <VerticalStackLayout Spacing="2" VerticalOptions="Center">
                             <Label Text="Therapy Profile"
                                    Style="{StaticResource TypeBodyS}"
@@ -95,7 +96,8 @@
                             <Label Text="{Binding SelectedProfileName}" Style="{StaticResource TypeTitleM}" />
                             <Label Text="{Binding ProfileSummary}" Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
                         </VerticalStackLayout>
-                        <Button Grid.Column="1"
+                        <Button x:Name="ChangeButton"
+                                Grid.Column="1"
                                 Text="Change"
                                 Style="{StaticResource ButtonQuiet}"
                                 VerticalOptions="Center"

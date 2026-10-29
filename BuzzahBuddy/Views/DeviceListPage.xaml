@@ -29,29 +29,30 @@
                                  Announce="True" />
 
                 <VerticalStackLayout Spacing="{StaticResource Space3}">
-                    <!-- Only the primary reports firmware, so it sits above the pair, not in a card. -->
-                    <HorizontalStackLayout Spacing="{StaticResource Space2}"
-                                           IsVisible="{Binding Settings.FirmwareVersion, Converter={StaticResource IsNotNullConverter}}"
-                                           SemanticProperties.Description="{Binding Settings.FirmwareVersion, StringFormat='Firmware version {0}'}"
-                                           AutomationId="FirmwareVersion">
+                    <!-- Only the primary reports firmware, so it sits above the pair, not in a card. It wraps
+                         so the version moves to the next line at large text sizes instead of being cut off. -->
+                    <FlexLayout Wrap="Wrap"
+                                AlignItems="Center"
+                                IsVisible="{Binding Settings.FirmwareVersion, Converter={StaticResource IsNotNullConverter}}"
+                                SemanticProperties.Description="{Binding Settings.FirmwareVersion, StringFormat='Firmware version {0}'}"
+                                AutomationId="FirmwareVersion">
                         <Label Text="{x:Static helpers:LucideIcons.Cpu}"
                                Style="{StaticResource IconLabel}"
                                FontSize="{StaticResource IconS}"
                                TextColor="{DynamicResource InkMuted}"
-                               VerticalOptions="Center" />
+                               Margin="0,0,8,0" />
                         <!-- Line height 1 on the text: the body line height sits it below the icon on iOS. -->
                         <Label Text="Firmware"
                                Style="{StaticResource TypeBodyS}"
                                TextColor="{DynamicResource InkMuted}"
                                LineHeight="1"
-                               VerticalOptions="Center"
+                               Margin="0,0,8,0"
                                AutomationProperties.IsInAccessibleTree="False" />
                         <Label Text="{Binding Settings.FirmwareVersion, StringFormat='v{0}'}"
                                Style="{StaticResource TypeCodeS}"
                                LineHeight="1"
-                               VerticalOptions="Center"
                                AutomationProperties.IsInAccessibleTree="False" />
-                    </HorizontalStackLayout>
+                    </FlexLayout>
                     <controls:GloveStatusPair Primary="{Binding Settings.PrimaryGlove}" Secondary="{Binding Settings.SecondaryGlove}" />
                     <Button Text="Refresh Battery"
                             Style="{StaticResource ButtonQuiet}"
@@ -108,7 +109,7 @@
                                                     <Setter Property="BackgroundColor" Value="{DynamicResource Brand}" />
                                                 </DataTrigger>
                                             </Border.Triggers>
-                                            <Label Style="{StaticResource IconLabel}" FontSize="20" HorizontalOptions="Center"
+                                            <Label Style="{StaticResource IconInShape}" FontSize="20" HorizontalOptions="Center"
                                                    Text="{x:Static helpers:LucideIcons.Check}" TextColor="{DynamicResource OnBrand}"
                                                    IsVisible="{Binding IsSelected}" />
                                         </Border>

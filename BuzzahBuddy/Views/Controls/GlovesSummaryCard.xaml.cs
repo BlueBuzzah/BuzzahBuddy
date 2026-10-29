@@ -23,6 +23,18 @@ public partial class GlovesSummaryCard : ContentView
         InitializeComponent();
         SemanticProperties.SetHint(Root, "Opens the Gloves tab");
         Apply();
+        this.TrackTextScale(UpdateLayout);
+    }
+
+    private void UpdateLayout()
+    {
+        var stacked = OsAccessibility.StackForLargeText;
+        CardGrid.RowDefinitions = stacked
+            ? new RowDefinitionCollection(new RowDefinition(GridLength.Auto), new RowDefinition(GridLength.Auto))
+            : new RowDefinitionCollection(new RowDefinition(GridLength.Auto));
+        Grid.SetRow(TextBlock, stacked ? 1 : 0);
+        Grid.SetColumn(TextBlock, stacked ? 0 : 1);
+        Grid.SetColumnSpan(TextBlock, stacked ? 3 : 1);
     }
 
     public GloveStatusInfo? Primary { get => (GloveStatusInfo?)GetValue(PrimaryProperty); set => SetValue(PrimaryProperty, value); }

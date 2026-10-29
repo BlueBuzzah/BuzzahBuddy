@@ -15,6 +15,26 @@ public partial class GloveStatusView : ContentView
         InitializeComponent();
         HandGlyph.Text = LucideIcons.Hand;
         Apply();
+        this.TrackTextScale(UpdateLayout);
+    }
+
+    /// <summary>Large text: the hand above the name, and the voltage on its own line.</summary>
+    private void UpdateLayout()
+    {
+        var stacked = OsAccessibility.StackForLargeText;
+        var twoRows = new RowDefinitionCollection(new RowDefinition(GridLength.Auto), new RowDefinition(GridLength.Auto));
+        NameRow.RowDefinitions = stacked ? twoRows : new RowDefinitionCollection(new RowDefinition(GridLength.Auto));
+        Grid.SetRow(NameText, stacked ? 1 : 0);
+        Grid.SetColumn(NameText, stacked ? 0 : 1);
+        Grid.SetColumnSpan(NameText, stacked ? 2 : 1);
+
+        BatteryRow.RowDefinitions = stacked
+            ? new RowDefinitionCollection(new RowDefinition(GridLength.Auto), new RowDefinition(GridLength.Auto))
+            : new RowDefinitionCollection(new RowDefinition(GridLength.Auto));
+        Grid.SetRow(DetailText, stacked ? 1 : 0);
+        Grid.SetColumn(DetailText, stacked ? 0 : 2);
+        Grid.SetColumnSpan(DetailText, stacked ? 3 : 1);
+        DetailText.HorizontalOptions = stacked ? LayoutOptions.Start : LayoutOptions.End;
     }
 
     public GloveStatusInfo? Info

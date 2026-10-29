@@ -45,7 +45,7 @@
                     <RoundRectangle CornerRadius="{StaticResource RadiusFull}" />
                 </Border.StrokeShape>
                 <Label x:Name="CheckGlyph"
-                       Style="{StaticResource IconLabel}"
+                       Style="{StaticResource IconInShape}"
                        FontSize="18"
                        HorizontalOptions="Center"
                        TextColor="{DynamicResource Brand}" />

@@ -10,8 +10,11 @@
         <Border.GestureRecognizers>
             <TapGestureRecognizer Tapped="OnTapped" />
         </Border.GestureRecognizers>
-        <Grid ColumnDefinitions="Auto,*,Auto"
+        <!-- At large text sizes the icon moves above the title so the title gets the full width. -->
+        <Grid x:Name="CardGrid"
+              ColumnDefinitions="Auto,*,Auto"
               ColumnSpacing="{StaticResource Space2}"
+              RowSpacing="{StaticResource Space2}"
               AutomationProperties.ExcludedWithChildren="True">
             <Border x:Name="IconGround"
                     WidthRequest="40"
@@ -21,9 +24,9 @@
                 <Border.StrokeShape>
                     <RoundRectangle CornerRadius="{StaticResource RadiusFull}" />
                 </Border.StrokeShape>
-                <Label x:Name="GlyphLabel" Style="{StaticResource IconLabel}" HorizontalOptions="Center" />
+                <Label x:Name="GlyphLabel" Style="{StaticResource IconInShape}" HorizontalOptions="Center" />
             </Border>
-            <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+            <VerticalStackLayout x:Name="TextBlock" Grid.Column="1" Spacing="2" VerticalOptions="Center">
                 <Label x:Name="TitleText" Style="{StaticResource TypeTitleM}" />
                 <!-- One battery icon for the line, showing the lower of the two levels. At line height 1
                      a text line is the icon's height, so top alignment keeps the icon on the first

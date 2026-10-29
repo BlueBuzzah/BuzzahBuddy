@@ -15,8 +15,9 @@
         </Border.StrokeShape>
         <VerticalStackLayout Spacing="{StaticResource Space2}" AutomationProperties.ExcludedWithChildren="True">
             <!-- Name beside the hand (the DS's Updater card layout) so "Secondary" fits on one
-                 line on 402pt-wide phones and up; narrower phones wrap it, still centered. -->
-            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="{StaticResource Space2}">
+                 line on 402pt-wide phones and up; narrower phones wrap it, still centered. At large
+                 text sizes the hand moves above the name and the voltage below the battery. -->
+            <Grid x:Name="NameRow" ColumnDefinitions="Auto,*" ColumnSpacing="{StaticResource Space2}" RowSpacing="{StaticResource Space2}">
                 <Border WidthRequest="28"
                         HeightRequest="28"
                         VerticalOptions="Center"
@@ -26,7 +27,7 @@
                         <RoundRectangle CornerRadius="{StaticResource RadiusFull}" />
                     </Border.StrokeShape>
                     <Label x:Name="HandGlyph"
-                           Style="{StaticResource IconLabel}"
+                           Style="{StaticResource IconInShape}"
                            FontSize="18"
                            HorizontalOptions="Center"
                            TextColor="{DynamicResource Brand}" />
@@ -42,7 +43,7 @@
             <!-- The voltage (Gloves page only) shares the battery line, right-aligned, on one line:
                  "100%" leaves little room on a narrow card, and a wrapped "V" reads badly. "Low"
                  shares the percent's column so its hidden column costs no spacing. -->
-            <Grid x:Name="BatteryRow" ColumnDefinitions="Auto,Auto,*" ColumnSpacing="{StaticResource Space2}">
+            <Grid x:Name="BatteryRow" ColumnDefinitions="Auto,Auto,*" ColumnSpacing="{StaticResource Space2}" RowSpacing="{StaticResource Space1}">
                 <Label x:Name="BatteryGlyph" Style="{StaticResource IconLabel}" VerticalOptions="Center" />
                 <HorizontalStackLayout Grid.Column="1" Spacing="{StaticResource Space2}">
                     <Label x:Name="PercentText"
