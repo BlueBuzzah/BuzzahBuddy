@@ -11,7 +11,8 @@
              SafeAreaEdges="Container">
 
     <Grid RowDefinitions="*,Auto">
-        <Border Grid.Row="1"
+        <Border x:Name="Sheet"
+                Grid.Row="1"
                 BackgroundColor="{DynamicResource SurfaceOverlay}"
                 Stroke="{DynamicResource Line}"
                 StrokeThickness="{DynamicResource HcBorderWidth}"

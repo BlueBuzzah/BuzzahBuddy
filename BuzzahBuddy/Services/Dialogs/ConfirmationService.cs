@@ -1,4 +1,3 @@
-using BuzzahBuddy.Helpers;
 using BuzzahBuddy.Views;
 
 namespace BuzzahBuddy.Services.Dialogs;
@@ -11,10 +10,14 @@ public sealed class ConfirmationService : IConfirmationService
             return false;
 
         var sheet = new ConfirmSheetPage(request);
-        await root.Navigation.PushModalAsync(sheet, animated: !Motion.Reduce);
+        // Unanimated: the sheet slides itself so the scrim doesn't slide with it.
+        await root.Navigation.PushModalAsync(sheet, animated: false);
         var confirmed = await sheet.Result;
         if (root.Navigation.ModalStack.Contains(sheet))
-            await root.Navigation.PopModalAsync(animated: !Motion.Reduce);
+        {
+            await sheet.SlideOutAsync();
+            await root.Navigation.PopModalAsync(animated: false);
+        }
         return confirmed;
     }
 }

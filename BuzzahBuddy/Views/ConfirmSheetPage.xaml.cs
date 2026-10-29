@@ -1,3 +1,4 @@
+using BuzzahBuddy.Helpers;
 using BuzzahBuddy.Services.Dialogs;
 using Microsoft.Maui.Controls.PlatformConfiguration;
 using Microsoft.Maui.Controls.PlatformConfiguration.iOSSpecific;
@@ -25,10 +26,29 @@ public partial class ConfirmSheetPage : ContentPage
 
         // Screen readers start on the title. Not in OnAppearing: the label has no handler yet.
         Loaded += (_, _) => TitleLabel.SetSemanticFocus();
+        // The page is pushed without animation so the scrim shows at once; only the sheet slides.
+        Sheet.SizeChanged += SlideIn;
     }
 
     /// <summary>True only when the confirm button was tapped.</summary>
     public Task<bool> Result => _result.Task;
+
+    /// <summary>Slides the sheet back down; the caller then removes the page.</summary>
+    public Task SlideOutAsync() =>
+        Motion.Reduce ? Task.CompletedTask : Sheet.TranslateToAsync(0, Sheet.Height, Duration("DurationBase"), Motion.Standard);
+
+    private void SlideIn(object? sender, EventArgs e)
+    {
+        if (Sheet.Height <= 0)
+            return;
+        Sheet.SizeChanged -= SlideIn;
+        if (Motion.Reduce)
+            return;
+        Sheet.TranslationY = Sheet.Height;
+        _ = Sheet.TranslateToAsync(0, 0, Duration("DurationSlow"), Motion.Standard);
+    }
+
+    private static uint Duration(string key) => (uint)(int)Microsoft.Maui.Controls.Application.Current!.Resources[key];
 
     protected override void OnDisappearing()
     {
