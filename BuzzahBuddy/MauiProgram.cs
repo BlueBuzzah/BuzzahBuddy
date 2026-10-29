@@ -40,6 +40,25 @@ public static class MauiProgram
 #endif
 	}
 
+	/// <summary>
+	/// Gives every button icon its button's current text color, so the icon follows
+	/// pressed and disabled states and theme changes the way the text does. A
+	/// <c>FontImageSource</c> color is otherwise fixed: a disabled button showed grey
+	/// text beside a white or blue icon.
+	/// </summary>
+	private static void TintButtonIconsWithText()
+	{
+		static void Tint(Microsoft.Maui.IButton view)
+		{
+			if (view is Button { ImageSource: FontImageSource icon, TextColor: { } color } && icon.Color != color)
+				icon.Color = color;
+		}
+
+		// Text color changes with each visual state; the icon can be swapped by a trigger.
+		Microsoft.Maui.Handlers.ButtonHandler.Mapper.AppendToMapping(nameof(Button.TextColor), (_, view) => Tint(view));
+		Microsoft.Maui.Handlers.ButtonHandler.Mapper.AppendToMapping(nameof(Button.ImageSource), (_, view) => Tint(view));
+	}
+
 	public static MauiApp CreateMauiApp()
 	{
 		var builder = MauiApp.CreateBuilder();
@@ -59,6 +78,7 @@ public static class MauiProgram
 			});
 
 		StripNativeInputChrome();
+		TintButtonIconsWithText();
 #if IOS
 		builder.ConfigureMauiHandlers(handlers => handlers.AddHandler<Shell, TabBarShellRenderer>());
 #endif

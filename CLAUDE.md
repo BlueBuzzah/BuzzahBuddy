@@ -231,6 +231,12 @@ system's variable woff2), registered in `MauiProgram.ConfigureFonts`. Styles pic
 through `FontDisplay500`-style resource keys that `Helpers/Typography` points at heavier
 files under Bold Text.
 
+**A visual state that changes a color must be paired with `Normal`/`PointerOver` setters
+repeating the style's `DynamicResource` colors.** Leaving Pressed or Disabled otherwise
+restores a fixed snapshot, so after an in-app theme switch the button keeps the old
+theme's colors. A button icon's own color is overridden: `MauiProgram.TintButtonIconsWithText`
+gives every `FontImageSource` icon the button's current `TextColor`.
+
 ## Gotchas
 
 - **iOS Release is full AOT; Debug hides it.** Two shipped builds crashed on device in

@@ -27,8 +27,22 @@
         <Setter Property="VisualStateManager.VisualStateGroups">
             <VisualStateGroupList>
                 <VisualStateGroup x:Name="CommonStates">
-                    <VisualState x:Name="Normal" />
-                    <VisualState x:Name="PointerOver" />
+                    <!-- Normal and PointerOver repeat the style's colors: leaving Pressed or Disabled
+                         otherwise restores a fixed snapshot that stops following theme changes. -->
+                    <VisualState x:Name="Normal">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="{DynamicResource Brand}" />
+                            <Setter Property="TextColor" Value="{DynamicResource OnBrand}" />
+                            <Setter Property="BorderColor" Value="{DynamicResource Brand}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="PointerOver">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="{DynamicResource Brand}" />
+                            <Setter Property="TextColor" Value="{DynamicResource OnBrand}" />
+                            <Setter Property="BorderColor" Value="{DynamicResource Brand}" />
+                        </VisualState.Setters>
+                    </VisualState>
                     <VisualState x:Name="Pressed">
                         <VisualState.Setters>
                             <Setter Property="BackgroundColor" Value="{DynamicResource BrandPressed}" />
@@ -61,8 +75,20 @@
         <Setter Property="VisualStateManager.VisualStateGroups">
             <VisualStateGroupList>
                 <VisualStateGroup x:Name="CommonStates">
-                    <VisualState x:Name="Normal" />
-                    <VisualState x:Name="PointerOver" />
+                    <VisualState x:Name="Normal">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="{DynamicResource BrandSoft}" />
+                            <Setter Property="TextColor" Value="{DynamicResource Brand}" />
+                            <Setter Property="BorderColor" Value="{DynamicResource Brand}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="PointerOver">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="{DynamicResource BrandSoft}" />
+                            <Setter Property="TextColor" Value="{DynamicResource Brand}" />
+                            <Setter Property="BorderColor" Value="{DynamicResource Brand}" />
+                        </VisualState.Setters>
+                    </VisualState>
                     <VisualState x:Name="Pressed">
                         <VisualState.Setters>
                             <Setter Property="TextColor" Value="{DynamicResource BrandPressed}" />
@@ -95,8 +121,20 @@
         <Setter Property="VisualStateManager.VisualStateGroups">
             <VisualStateGroupList>
                 <VisualStateGroup x:Name="CommonStates">
-                    <VisualState x:Name="Normal" />
-                    <VisualState x:Name="PointerOver" />
+                    <VisualState x:Name="Normal">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="Transparent" />
+                            <Setter Property="TextColor" Value="{DynamicResource Brand}" />
+                            <Setter Property="BorderColor" Value="{DynamicResource Brand}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="PointerOver">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="Transparent" />
+                            <Setter Property="TextColor" Value="{DynamicResource Brand}" />
+                            <Setter Property="BorderColor" Value="{DynamicResource Brand}" />
+                        </VisualState.Setters>
+                    </VisualState>
                     <VisualState x:Name="Pressed">
                         <VisualState.Setters>
                             <Setter Property="BackgroundColor" Value="{DynamicResource BrandSoft}" />
@@ -131,8 +169,20 @@
         <Setter Property="VisualStateManager.VisualStateGroups">
             <VisualStateGroupList>
                 <VisualStateGroup x:Name="CommonStates">
-                    <VisualState x:Name="Normal" />
-                    <VisualState x:Name="PointerOver" />
+                    <VisualState x:Name="Normal">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="{DynamicResource Danger}" />
+                            <Setter Property="TextColor" Value="{DynamicResource OnStatus}" />
+                            <Setter Property="BorderColor" Value="{DynamicResource Danger}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="PointerOver">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="{DynamicResource Danger}" />
+                            <Setter Property="TextColor" Value="{DynamicResource OnStatus}" />
+                            <Setter Property="BorderColor" Value="{DynamicResource Danger}" />
+                        </VisualState.Setters>
+                    </VisualState>
                     <VisualState x:Name="Pressed">
                         <VisualState.Setters>
                             <Setter Property="Opacity" Value="0.92" />
