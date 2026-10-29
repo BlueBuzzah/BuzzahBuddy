@@ -265,9 +265,9 @@
 
             <HorizontalStackLayout Grid.Row="2" Spacing="{StaticResource Space2}" HorizontalOptions="Center" Margin="0,8,0,0"
                                    IsVisible="{Binding ShowScanningWithResults}">
-                <ActivityIndicator IsRunning="{Binding ShowScanningWithResults}" HeightRequest="20" WidthRequest="20"
-                                   AutomationProperties.IsInAccessibleTree="False" />
-                <Label Text="Still Scanning for More Gloves…" Style="{StaticResource TypeBodyS}" VerticalOptions="Center" AutomationId="StillScanningLabel" />
+                <controls:RadarSweep IsRunning="{Binding ShowScanningWithResults}" WidthRequest="24" HeightRequest="24" VerticalOptions="Center" />
+                <!-- Line height 1: the body line height sits the text below the radar on iOS. -->
+                <Label Text="Still Scanning for More Gloves…" Style="{StaticResource TypeBodyS}" LineHeight="1" VerticalOptions="Center" AutomationId="StillScanningLabel" />
             </HorizontalStackLayout>
         </Grid>
 

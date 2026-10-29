@@ -116,7 +116,9 @@ iOS never times out a connect on its own.
   VMs take battery via `DeviceInfoReceived` and the LED via `TherapyLedOffReceived` —
   don't add per-VM commands on `Connected`. For page-visit refreshes pass a `maxAge` to
   `GetDeviceInfoAsync`/`GetTherapyLedOffAsync`: the service joins an in-flight query and
-  caches per link instead of each VM keeping its own freshness stamp.
+  caches per link instead of each VM keeping its own freshness stamp. An `INFO` with no
+  secondary battery (it hasn't rejoined the primary yet) re-sends `INFO` at 3→5→10→30s
+  (30s repeats) until it arrives or the link drops, skipping turns during a session.
 - `RxFrameAssembler` reassembles `\x04`-terminated frames across packets and drops
   firmware-internal primary↔secondary chatter (`InternalMessagePrefixes`).
   `MaxPartialFrameLength = 4096` caps a runaway partial.

@@ -23,6 +23,52 @@ public class GloveControlServiceTests
         Assert.Equal(2, service.DeviceProfileId);
     }
 
+    private const string InfoWithoutSecondary =
+        "ROLE:PRIMARY\nNAME:BlueBuzzah\nFW:2.1.0\nMOTORS:4\nPROFILE:2:noisy_vcr\nBATP:3.7\nBATS:0.00\nSTATUS:IDLE\n\x04";
+    private const string InfoWithSecondary =
+        "ROLE:PRIMARY\nNAME:BlueBuzzah\nFW:2.1.0\nMOTORS:4\nPROFILE:2:noisy_vcr\nBATP:3.7\nBATS:3.8\nSTATUS:IDLE\n\x04";
+
+    private static async Task WaitUntil(Func<bool> condition)
+    {
+        for (var i = 0; i < 200 && !condition(); i++)
+            await Task.Delay(10);
+    }
+
+    // After a restart the secondary rejoins the primary a few seconds after the phone
+    // connects, so the first INFO has no secondary battery. The service asks again.
+    [Fact]
+    public async Task MissingSecondaryBattery_IsAskedForAgainUntilItArrives()
+    {
+        var fake = new FakeBluetoothService();
+        foreach (var reply in new[] { InfoWithoutSecondary, InfoWithoutSecondary, InfoWithSecondary })
+            fake.QueuedResponses.Enqueue(reply);
+        var service = new GloveControlService(fake) { SecondaryBatteryRetryDelays = [TimeSpan.FromMilliseconds(5)] };
+        var readings = new List<double?>();
+        service.DeviceInfoReceived += (_, info) => { lock (readings) readings.Add(info.BatterySecondaryVoltage); };
+
+        await service.GetDeviceInfoAsync();
+        await WaitUntil(() => { lock (readings) return readings.Count >= 3; });
+        await Task.Delay(50);
+
+        lock (readings)
+            Assert.Equal(new double?[] { null, null, 3.8 }, readings);
+        Assert.Equal(3, fake.SentCommands.Count(c => c == "INFO"));
+    }
+
+    [Fact]
+    public async Task MissingSecondaryBattery_StopsAskingOnceDisconnected()
+    {
+        var fake = new FakeBluetoothService();
+        fake.CannedResponses["INFO"] = InfoWithoutSecondary;
+        var service = new GloveControlService(fake) { SecondaryBatteryRetryDelays = [TimeSpan.FromMilliseconds(20)] };
+
+        await service.GetDeviceInfoAsync();
+        fake.CurrentConnectionState = ConnectionState.Disconnected;
+        await Task.Delay(150);
+
+        Assert.Single(fake.SentCommands, c => c == "INFO");
+    }
+
     [Fact]
     public async Task BuzzFingerAsync_FiveMotorBoard_AcceptsIndexNine()
     {
