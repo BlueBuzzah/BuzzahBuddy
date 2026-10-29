@@ -57,19 +57,16 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsSessionInactive))]
-    [NotifyPropertyChangedFor(nameof(ApplyDisabledReason))]
     private bool _isSessionActive;
 
     partial void OnIsSessionActiveChanged(bool value) => ResolveBanner();
-
-    partial void OnSavedBadgeVisibleChanged(bool value) => OnPropertyChanged(nameof(ApplyDisabledReason));
 
     /// <summary>Inverse of IsSessionActive for XAML binding.</summary>
     public bool IsSessionInactive => !IsSessionActive;
 
     /// <summary>
-    /// True when the selection on this page differs from what's on the gloves —
-    /// enables the Apply Settings button.
+    /// True when the selection on this page differs from what's on the gloves. Apply
+    /// sends just these; with none, it applies everything again.
     /// </summary>
     public bool HasPendingChanges => IsLedDirty || IsProfileDirty || IsCustomDirty;
 
@@ -141,14 +138,6 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     /// <summary>True when the apply wait has run past the backstop (plan choice PC22).</summary>
     [ObservableProperty]
     private bool _isWaitingLong;
-
-    /// <summary>Why Apply settings is unavailable, shown beside it; null when it isn't.</summary>
-    public string? ApplyDisabledReason =>
-        SavedBadgeVisible ? null
-        : !ConnectionInfo.IsConnected ? "Connect your primary glove first."
-        : IsSessionActive ? "Stop your session to change settings."
-        : !HasPendingChanges ? "Nothing to change yet."
-        : null;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsNotRefreshingBattery))]
@@ -294,7 +283,8 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     /// <summary>
     /// Writes every pending device setting (therapy LED, then profile, then the saved
     /// Custom settings) to the gloves in one go. The LED is written first because a
-    /// profile change reboots the gloves; Custom settings go once they're back.
+    /// profile change reboots the gloves; Custom settings go once they're back. With
+    /// nothing pending it applies all of them again, a troubleshooting aid.
     /// </summary>
     [RelayCommand]
     private async Task ApplySettingsAsync()
@@ -305,7 +295,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         if (IsBusy || IsApplyingSettings)
             return;
 
-        if (!ConnectionInfo.IsConnected || !HasPendingChanges)
+        if (!ConnectionInfo.IsConnected || SelectedProfile is not { } profile)
             return;
 
         if (IsSessionActive)
@@ -317,16 +307,20 @@ public partial class DeviceSettingsViewModel : BaseViewModel
             return;
         }
 
-        var applyProfile = IsProfileDirty;
+        var reapply = !HasPendingChanges;
+        var applyProfile = IsProfileDirty || reapply;
+        var writeLed = IsLedDirty || (reapply && TherapyLedLoaded);
         var sendCustomNow = IsCustomDirty;
         // The firmware takes Custom edits only while Custom is loaded, so after a load
         // they wait for the reboot (OnDeviceProfileChanged).
-        var savedCustom = SelectedProfile?.IsCustom == true ? await _storageService.GetCustomProfileAsync() : null;
+        var savedCustom = profile.IsCustom ? await _storageService.GetCustomProfileAsync() : null;
         if (applyProfile)
         {
             var confirm = await _confirmation.ConfirmAsync(new ConfirmRequest(
                 "Restart Gloves to Apply?",
-                $"Switching to \u201c{SelectedProfile!.Name}\u201d restarts both gloves. They usually reconnect on their own in under a minute.",
+                reapply
+                    ? $"Applying \u201c{profile.Name}\u201d again restarts both gloves. They usually reconnect on their own in under a minute."
+                    : $"Switching to \u201c{profile.Name}\u201d restarts both gloves. They usually reconnect on their own in under a minute.",
                 "Apply and Restart"));
             if (!confirm)
                 return;
@@ -350,7 +344,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
 
         try
         {
-            if (IsLedDirty)
+            if (writeLed)
             {
                 await _gloveControlService.SetTherapyLedOffAsync(TherapyLedOff);
                 _deviceTherapyLedOff = TherapyLedOff;
@@ -361,7 +355,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
                 // Returns normally when the reboot is expected; the running watch
                 // ends when the gloves reconnect. Only throws on a genuine, still-
                 // connected failure (handled below — no reboot happened).
-                await _gloveControlService.LoadProfileAsync(SelectedProfile!.ProfileId);
+                await _gloveControlService.LoadProfileAsync(profile.ProfileId);
             }
 
             // A profile change confirms after the gloves reconnect (EndApplyReconnectWatch);
@@ -516,7 +510,6 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         if (HasPendingChanges)
             SavedBadgeVisible = false;
         OnPropertyChanged(nameof(HasPendingChanges));
-        OnPropertyChanged(nameof(ApplyDisabledReason));
     }
 
     private void ConfirmSaved()
@@ -857,8 +850,6 @@ public partial class DeviceSettingsViewModel : BaseViewModel
                 ApplyBatteryReading(null, null);
             }
             ResolveBanner();
-            OnPropertyChanged(nameof(ApplyDisabledReason));
-
             OnPropertyChanged(nameof(ShowDisconnectedView));
             // IsProfileDirty reads IsConnected, so pending-change state can shift
             // with the connection even though no setting changed.

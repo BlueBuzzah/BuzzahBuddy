@@ -9,6 +9,12 @@ namespace BuzzahBuddy.Views.Controls;
 /// Lucide's radar drawn from its own paths so only the sweep line turns, once every 2.5
 /// seconds while running, and each blip lights as the sweep passes it. Under reduced motion
 /// it is the still Lucide icon. Decorative: the text beside it says what's happening.
+/// <para>
+/// The sweep runs for exactly as long as <see cref="IsRunning"/>, never gated on Loaded:
+/// iOS detects Loaded for this view only through a frame change, so when the scan list's
+/// empty view is detached and re-attached at the same size, Loaded never fires again
+/// and a Loaded-gated sweep stayed still on every scan after the first.
+/// </para>
 /// </summary>
 public sealed class RadarSweep : GraphicsView
 {
@@ -24,28 +30,18 @@ public sealed class RadarSweep : GraphicsView
     {
         Drawable = _drawable;
         AutomationProperties.SetIsInAccessibleTree(this, false);
-        Loaded += (_, _) =>
-        {
-            WeakReferenceMessenger.Default.Register<RadarSweep, ThemeChangedMessage>(this, (radar, _) => radar.Invalidate());
-            Apply();
-        };
-        Unloaded += (_, _) =>
-        {
-            WeakReferenceMessenger.Default.Unregister<ThemeChangedMessage>(this);
-            this.AbortAnimation(SweepAnimation);
-        };
-        PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName == nameof(IsVisible))
-                Apply();
-        };
+        // Weak: needs no unregistering.
+        WeakReferenceMessenger.Default.Register<RadarSweep, ThemeChangedMessage>(this, (radar, _) => radar.Invalidate());
+        // The animation ticker comes from the handler; a radar created mid-scan starts here.
+        HandlerChanged += (_, _) => Apply();
     }
 
     public bool IsRunning { get => (bool)GetValue(IsRunningProperty); set => SetValue(IsRunningProperty, value); }
 
     private void Apply()
     {
-        if (IsRunning && IsVisible && IsLoaded && !Motion.Reduce)
+        // A scan always ends (timeout or Stop), so the sweep can't outlive it.
+        if (IsRunning && Handler is not null && !Motion.Reduce)
         {
             if (!this.AnimationIsRunning(SweepAnimation))
                 new Animation(t => { _drawable.Sweep = t * 360; Invalidate(); })
