@@ -1,6 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
-<!-- Session screen (buzzahbuddy.md Session screen): GloveStatus pair, SessionRing, then the
-     session controls at the bottom (Start, or Pause/Resume and Stop). One banner slot. -->
+<!-- Session screen (buzzahbuddy.md Session screen): a tappable summary of both gloves (the
+     full cards are on Gloves), SessionRing, then the session controls at the bottom (Start,
+     or Pause/Resume and Stop). One banner slot. -->
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:BuzzahBuddy.ViewModels"
@@ -72,8 +73,10 @@
             <VerticalStackLayout Spacing="{StaticResource Space6}"
                                  IsVisible="{Binding ConnectionInfo.IsConnected}">
 
-                <controls:GloveStatusPair Primary="{Binding PrimaryGlove}"
-                                          Secondary="{Binding SecondaryGlove}" />
+                <controls:GlovesSummaryCard Primary="{Binding PrimaryGlove}"
+                                            Secondary="{Binding SecondaryGlove}"
+                                            Command="{Binding NavigateToDevicesCommand}"
+                                            AutomationId="GlovesSummary" />
 
                 <controls:SessionRing IsVisible="{Binding ConnectionInfo.IsConnected}"
                                       State="{Binding RingState}"

@@ -67,4 +67,37 @@ public class GloveStatusTextTests
         Assert.True(GloveStatusText.IsLowVoltage(3.2));
         Assert.False(GloveStatusText.IsLowVoltage(null));
     }
+
+    private static GloveStatusInfo Glove(GloveRole role, GloveLinkStatus status, int? percent) => new(role, status, percent);
+
+    [Fact]
+    public void Summary_both_connected_lists_batteries() =>
+        Assert.Equal((StatusTone.Success, "Gloves Connected", "Primary 87% · Secondary 56%"),
+            GloveStatusText.Summary(Glove(GloveRole.Primary, GloveLinkStatus.Connected, 87),
+                Glove(GloveRole.Secondary, GloveLinkStatus.Connected, 56)));
+
+    // The word carries the warning too, not just the amber icon.
+    [Fact]
+    public void Summary_low_battery_warns_and_says_low() =>
+        Assert.Equal((StatusTone.Warning, "Gloves Connected", "Primary 87% · Secondary 12% Low"),
+            GloveStatusText.Summary(Glove(GloveRole.Primary, GloveLinkStatus.Connected, 87),
+                Glove(GloveRole.Secondary, GloveLinkStatus.Connected, 12)));
+
+    // The secondary is only known through the primary's report of its battery.
+    [Fact]
+    public void Summary_secondary_without_reading_claims_only_the_primary() =>
+        Assert.Equal((StatusTone.Warning, "Primary Glove Connected", "Primary 87% · Secondary no reading"),
+            GloveStatusText.Summary(Glove(GloveRole.Primary, GloveLinkStatus.Connected, 87),
+                Glove(GloveRole.Secondary, GloveLinkStatus.NoReading, null)));
+
+    [Fact]
+    public void Summary_before_any_battery_reading_has_no_detail() =>
+        Assert.Null(GloveStatusText.Summary(Glove(GloveRole.Primary, GloveLinkStatus.Connected, null),
+            Glove(GloveRole.Secondary, GloveLinkStatus.Connected, null)).Detail);
+
+    [Fact]
+    public void Summary_while_reconnecting_does_not_claim_connected() =>
+        Assert.Equal((StatusTone.Brand, "Gloves Connecting", null),
+            GloveStatusText.Summary(Glove(GloveRole.Primary, GloveLinkStatus.Connecting, null),
+                Glove(GloveRole.Secondary, GloveLinkStatus.Disconnected, null)));
 }
