@@ -41,33 +41,31 @@
                             <Border Style="{StaticResource StepNumber}">
                                 <Label Text="1" Style="{StaticResource StepNumberText}" />
                             </Border>
-                            <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
-                                <Label Text="Turn On Both Gloves" Style="{StaticResource TypeBodyStrong}" />
-                                <Label Text="Press the button on each glove." Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
-                            </VerticalStackLayout>
+                            <!-- LineHeight 1 matches StepNumberText (same font and size), so the text and
+                                 the digit center the same way on both platforms. -->
+                            <Label Grid.Column="1" Text="Turn On Both Gloves" Style="{StaticResource TypeBodyStrong}" LineHeight="1" VerticalOptions="Center" />
                             <Border Grid.Row="1" Style="{StaticResource StepNumber}">
                                 <Label Text="2" Style="{StaticResource StepNumberText}" />
                             </Border>
-                            <VerticalStackLayout Grid.Row="1" Grid.Column="1" VerticalOptions="Center">
-                                <Label Text="Connect Your Primary Glove" Style="{StaticResource TypeBodyStrong}" />
-                                <Label Text="Go to Gloves and tap Scan for Gloves." Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
-                            </VerticalStackLayout>
+                            <Label Grid.Row="1" Grid.Column="1" Text="Connect to Your Gloves" Style="{StaticResource TypeBodyStrong}" LineHeight="1" VerticalOptions="Center" />
                             <Border Grid.Row="2" Style="{StaticResource StepNumber}">
                                 <Label Text="3" Style="{StaticResource StepNumberText}" />
                             </Border>
-                            <VerticalStackLayout Grid.Row="2" Grid.Column="1" VerticalOptions="Center">
-                                <Label Text="Start Your Session" Style="{StaticResource TypeBodyStrong}" />
-                                <Label Text="Come back here and tap Start Session." Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
-                            </VerticalStackLayout>
+                            <Label Grid.Row="2" Grid.Column="1" Text="Start a Session" Style="{StaticResource TypeBodyStrong}" LineHeight="1" VerticalOptions="Center" />
                         </Grid>
                     </VerticalStackLayout>
                 </Border>
 
-                <Button Text="Find Gloves"
+                <Button Text="Scan for Gloves"
                         Style="{StaticResource ButtonPrimary}"
-                        Command="{Binding NavigateToDevicesCommand}"
-                        SemanticProperties.Description="Find Gloves"
-                        AutomationId="FindDevicesButton" />
+                        ContentLayout="Left,8"
+                        Command="{Binding ScanForGlovesCommand}"
+                        SemanticProperties.Description="Scan for Gloves"
+                        AutomationId="FindDevicesButton">
+                    <Button.ImageSource>
+                        <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Radar}" Size="20" Color="{DynamicResource OnBrand}" />
+                    </Button.ImageSource>
+                </Button>
             </VerticalStackLayout>
 
             <!-- Connected -->

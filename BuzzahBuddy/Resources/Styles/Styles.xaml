@@ -226,6 +226,8 @@
         <Setter Property="TextColor" Value="{DynamicResource Brand}" />
         <Setter Property="HorizontalOptions" Value="Center" />
         <Setter Property="VerticalOptions" Value="Center" />
+        <!-- The label line height adds uneven space around the digit and sits it off-center. -->
+        <Setter Property="LineHeight" Value="1" />
     </Style>
 
     <!-- A Lucide glyph drawn in the label's TextColor (README Iconography). Decorative:

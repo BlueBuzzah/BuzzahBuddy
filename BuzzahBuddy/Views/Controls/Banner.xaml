@@ -17,6 +17,15 @@
                    Style="{StaticResource IconLabel}"
                    FontSize="28"
                    VerticalOptions="Start" />
+            <!-- Invisible one-line strut in the first line's font; AlignGlyph centers the icon on it. -->
+            <Label x:Name="StrutLabel"
+                   Grid.Column="1"
+                   Text="X"
+                   LineHeight="1"
+                   Opacity="0"
+                   InputTransparent="True"
+                   VerticalOptions="Start"
+                   AutomationProperties.IsInAccessibleTree="False" />
             <VerticalStackLayout Grid.Column="1" Spacing="2">
                 <Label x:Name="TitleLabel" Style="{StaticResource TypeBodyStrong}" />
                 <Label x:Name="MessageLabel" Style="{StaticResource TypeBodyS}" />

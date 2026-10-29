@@ -394,6 +394,13 @@ public partial class GloveControlViewModel : BaseViewModel
         await Shell.Current.GoToAsync(Routes.Devices);
     }
 
+    [RelayCommand]
+    private async Task ScanForGlovesAsync()
+    {
+        // Single-use parameters: tapping the Gloves tab later must not rescan.
+        await Shell.Current.GoToAsync(Routes.Devices, new ShellNavigationQueryParameters { [DeviceListViewModel.ScanQueryKey] = true });
+    }
+
     private async Task RefreshBatteryAsync(bool warnIfLow = true)
     {
         if (!ConnectionInfo.IsConnected)

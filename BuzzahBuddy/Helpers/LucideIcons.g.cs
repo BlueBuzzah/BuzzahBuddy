@@ -24,4 +24,5 @@ public static class LucideIcons
     public const string ChevronRight = "\uE06F";
     public const string RefreshCw = "\uE145";
     public const string Cpu = "\uE0A9";
+    public const string Radar = "\uE497";
 }

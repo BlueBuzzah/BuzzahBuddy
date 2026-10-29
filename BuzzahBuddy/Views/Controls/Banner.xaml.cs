@@ -15,6 +15,9 @@ public partial class Banner : ContentView
     public static readonly BindableProperty MessageProperty = BindableProperty.Create(
         nameof(Message), typeof(string), typeof(Banner), null, propertyChanged: Update);
 
+    public static readonly BindableProperty FormattedMessageProperty = BindableProperty.Create(
+        nameof(FormattedMessage), typeof(FormattedString), typeof(Banner), null, propertyChanged: Update);
+
     public static readonly BindableProperty DetailProperty = BindableProperty.Create(
         nameof(Detail), typeof(string), typeof(Banner), null, propertyChanged: Update);
 
@@ -30,6 +33,8 @@ public partial class Banner : ContentView
     public Banner()
     {
         InitializeComponent();
+        StrutLabel.SizeChanged += (_, _) => AlignGlyph();
+        GlyphLabel.SizeChanged += (_, _) => AlignGlyph();
         Apply();
         PropertyChanged += (_, e) =>
         {
@@ -45,6 +50,9 @@ public partial class Banner : ContentView
 
     /// <summary>What to do next.</summary>
     public string? Message { get => (string?)GetValue(MessageProperty); set => SetValue(MessageProperty, value); }
+
+    /// <summary>The message with inline styling (the legal notices' bold "Important:"); replaces Message.</summary>
+    public FormattedString? FormattedMessage { get => (FormattedString?)GetValue(FormattedMessageProperty); set => SetValue(FormattedMessageProperty, value); }
 
     /// <summary>Technical detail (raw firmware or exception text), shown in code-s.</summary>
     public string? Detail { get => (string?)GetValue(DetailProperty); set => SetValue(DetailProperty, value); }
@@ -102,10 +110,15 @@ public partial class Banner : ContentView
 
         TitleLabel.Text = Title;
         TitleLabel.IsVisible = !string.IsNullOrEmpty(Title);
-        MessageLabel.Text = Message;
-        MessageLabel.IsVisible = !string.IsNullOrEmpty(Message);
+        if (FormattedMessage is not null)
+            MessageLabel.FormattedText = FormattedMessage;
+        else
+            MessageLabel.Text = Message;
+        MessageLabel.IsVisible = FormattedMessage is not null || !string.IsNullOrEmpty(Message);
         DetailLabel.Text = Detail;
         DetailLabel.IsVisible = !string.IsNullOrEmpty(Detail);
+        StrutLabel.Style = TitleLabel.IsVisible ? TitleLabel.Style : MessageLabel.Style;
+        AlignGlyph();
 
         // Actions inside a banner follow its tone and are always outlined (Banner README).
         ActionButton.Text = ActionText;
@@ -115,5 +128,17 @@ public partial class Banner : ContentView
         ActionButton.SetDynamicResource(Button.BorderColorProperty, ink);
         if (ActionText is not null)
             SemanticProperties.SetDescription(ActionButton, ActionText);
+    }
+
+    // Centers the icon on the first line of text. The strut is that line's natural height;
+    // LineHeight adds its extra space above each line on iOS and below it on Android.
+    private void AlignGlyph()
+    {
+        var line = StrutLabel.Height;
+        if (line <= 0 || GlyphLabel.Height <= 0)
+            return;
+        var first = TitleLabel.IsVisible ? TitleLabel : MessageLabel;
+        var center = DeviceInfo.Platform == DevicePlatform.iOS ? line * first.LineHeight - line / 2 : line / 2;
+        GlyphLabel.TranslationY = center - GlyphLabel.Height / 2;
     }
 }

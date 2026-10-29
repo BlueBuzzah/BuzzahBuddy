@@ -15,8 +15,11 @@ namespace BuzzahBuddy.ViewModels;
 /// ViewModel for the device list page.
 /// Handles scanning for and connecting to BlueBuzzah gloves.
 /// </summary>
-public partial class DeviceListViewModel : BaseViewModel
+public partial class DeviceListViewModel : BaseViewModel, IQueryAttributable
 {
+    /// <summary>Navigation parameter: start a scan on arrival (Session's Scan for Gloves).</summary>
+    public const string ScanQueryKey = "scan";
+
     private readonly IBluetoothService _bluetoothService;
     private readonly IDataStorageService _storageService;
     private readonly IReconnectionService _reconnectionService;
@@ -154,6 +157,12 @@ public partial class DeviceListViewModel : BaseViewModel
         CheckBluetoothStatusAsync().SafeFireAndForget("[DEVICELIST]");
         UpdateConnectionState();
         Settings.OnPageAppearing();
+    }
+
+    public void ApplyQueryAttributes(IDictionary<string, object> query)
+    {
+        if (query.ContainsKey(ScanQueryKey) && !IsScanning)
+            StartScanningAsync().SafeFireAndForget("[DEVICELIST]");
     }
 
     /// <summary>Empty-state variant: before the first scan has run.</summary>

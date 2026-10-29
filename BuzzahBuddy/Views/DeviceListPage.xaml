@@ -277,10 +277,25 @@
                 Text="{Binding ScanButtonText}"
                 Style="{StaticResource ButtonPrimary}"
                 Command="{Binding ToggleScanCommand}"
+                ContentLayout="Left,8"
                 Margin="0,12,0,0"
                 IsVisible="{Binding Settings.ShowDisconnectedView}"
                 SemanticProperties.Description="{Binding ScanButtonText}"
-                AutomationId="ScanToggleButton" />
+                AutomationId="ScanToggleButton">
+            <Button.ImageSource>
+                <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Radar}" Size="20" Color="{DynamicResource OnBrand}" />
+            </Button.ImageSource>
+            <!-- Radar means "scan"; Stop Scanning takes the stop glyph. -->
+            <Button.Triggers>
+                <DataTrigger TargetType="Button" Binding="{Binding IsScanning}" Value="True">
+                    <Setter Property="ImageSource">
+                        <Setter.Value>
+                            <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Square}" Size="20" Color="{DynamicResource OnBrand}" />
+                        </Setter.Value>
+                    </Setter>
+                </DataTrigger>
+            </Button.Triggers>
+        </Button>
 
         <!-- Connecting overlay -->
         <Grid Grid.Row="0" Grid.RowSpan="2" Margin="-16,-16,-16,-16" BackgroundColor="{DynamicResource Scrim}" IsVisible="{Binding IsConnecting}">
