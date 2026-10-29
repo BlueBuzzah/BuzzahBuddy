@@ -229,7 +229,10 @@ the script after the design system changes and commit the output. `scripts/gen_f
 likewise makes `Resources/Fonts/*.ttf` (static weights; MAUI can't use the design
 system's variable woff2), registered in `MauiProgram.ConfigureFonts`. Styles pick fonts
 through `FontDisplay500`-style resource keys that `Helpers/Typography` points at heavier
-files under Bold Text.
+files under Bold Text. On iOS, the Display group's styles (headline and titles) carry
+`Typography.Heading`, so they scale on Apple's Large Title curve, never below body text,
+instead of MAUI's body curve, which tripled them at AX5. Android 14+ already scales large
+text less.
 
 **A visual state that changes a color must be paired with `Normal`/`PointerOver` setters
 repeating the style's `DynamicResource` colors.** Leaving Pressed or Disabled otherwise

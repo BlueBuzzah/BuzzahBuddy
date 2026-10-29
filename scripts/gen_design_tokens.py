@@ -158,6 +158,8 @@ def gen_type(ds, version):
             lines.append('        <Setter Property="TextColor" Value="{DynamicResource Ink}" />')
             if s["name"] == "overline":
                 lines.append('        <Setter Property="TextTransform" Value="Uppercase" />')
+            if group["name"] == "Display":
+                lines.append('        <Setter Property="helpers:Typography.Heading" Value="True" />')
             if s["name"] in ("metric-xl", "metric"):
                 lines.append('        <Setter Property="helpers:Typography.TabularNumbers" Value="True" />')
             lines.append("    </Style>")

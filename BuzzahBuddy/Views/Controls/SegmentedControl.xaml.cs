@@ -2,7 +2,7 @@ using BuzzahBuddy.Helpers;
 
 namespace BuzzahBuddy.Views.Controls;
 
-/// <summary>Picks one of two to four fixed options, shown side by side.</summary>
+/// <summary>Picks one of two to four fixed options, shown side by side (stacked at large text).</summary>
 public partial class SegmentedControl : ContentView
 {
     public static readonly BindableProperty LabelProperty = BindableProperty.Create(
@@ -16,6 +16,9 @@ public partial class SegmentedControl : ContentView
 
     private readonly List<(Button Button, SegmentOption Option)> _buttons = [];
 
+    // At large text even "System" won't fit a third of the width, so options stack rather than break mid-word.
+    private bool _stacked;
+
     private static readonly Button.ButtonContentLayout CheckBeside = new(Button.ButtonContentLayout.ImagePosition.Left, 6);
     private static readonly Button.ButtonContentLayout CheckAbove = new(Button.ButtonContentLayout.ImagePosition.Top, 2);
 
@@ -23,6 +26,7 @@ public partial class SegmentedControl : ContentView
     {
         InitializeComponent();
         Track.SizeChanged += (_, _) => FitCheck();
+        this.TrackTextScale(Arrange);
     }
 
     public string Label { get => (string)GetValue(LabelProperty); set => SetValue(LabelProperty, value); }
@@ -41,18 +45,36 @@ public partial class SegmentedControl : ContentView
         LabelText.Text = Label;
         LabelText.IsVisible = !string.IsNullOrEmpty(Label);
         Track.Children.Clear();
-        Track.ColumnDefinitions.Clear();
         _buttons.Clear();
         var options = Options ?? Array.Empty<SegmentOption>();
         for (var i = 0; i < options.Count; i++)
-        {
-            Track.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
             _buttons.Add((CreateButton(options[i], i), options[i]));
-        }
+        Arrange();
         ApplySelection();
     }
 
-    private Button CreateButton(SegmentOption option, int column)
+    private void Arrange()
+    {
+        _stacked = OsAccessibility.StackForLargeText;
+        Track.ColumnDefinitions.Clear();
+        Track.RowDefinitions.Clear();
+        for (var i = 0; i < _buttons.Count; i++)
+        {
+            if (_stacked)
+                Track.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+            else
+                Track.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
+            Place(_buttons[i].Button, i);
+        }
+    }
+
+    private void Place(Button button, int index)
+    {
+        Grid.SetColumn(button, _stacked ? 0 : index);
+        Grid.SetRow(button, _stacked ? index : 0);
+    }
+
+    private Button CreateButton(SegmentOption option, int index)
     {
         var button = new Button
         {
@@ -73,7 +95,8 @@ public partial class SegmentedControl : ContentView
             if (SelectedValue != option.Value)
                 SelectedValue = option.Value;
         };
-        Track.Add(button, column, 0);
+        Track.Add(button);
+        Place(button, index);
         return button;
     }
 
