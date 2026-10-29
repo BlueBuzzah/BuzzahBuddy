@@ -32,20 +32,23 @@
                     <!-- Only the primary reports firmware, so it sits above the pair, not in a card. -->
                     <HorizontalStackLayout Spacing="{StaticResource Space2}"
                                            IsVisible="{Binding Settings.FirmwareVersion, Converter={StaticResource IsNotNullConverter}}"
-                                           SemanticProperties.Description="{Binding Settings.FirmwareVersion, StringFormat='Firmware {0}'}"
+                                           SemanticProperties.Description="{Binding Settings.FirmwareVersion, StringFormat='Firmware version {0}'}"
                                            AutomationId="FirmwareVersion">
                         <Label Text="{x:Static helpers:LucideIcons.Cpu}"
                                Style="{StaticResource IconLabel}"
                                FontSize="{StaticResource IconS}"
                                TextColor="{DynamicResource InkMuted}"
                                VerticalOptions="Center" />
+                        <!-- Line height 1 on the text: the body line height sits it below the icon on iOS. -->
                         <Label Text="Firmware"
                                Style="{StaticResource TypeBodyS}"
                                TextColor="{DynamicResource InkMuted}"
+                               LineHeight="1"
                                VerticalOptions="Center"
                                AutomationProperties.IsInAccessibleTree="False" />
-                        <Label Text="{Binding Settings.FirmwareVersion}"
+                        <Label Text="{Binding Settings.FirmwareVersion, StringFormat='v{0}'}"
                                Style="{StaticResource TypeCodeS}"
+                               LineHeight="1"
                                VerticalOptions="Center"
                                AutomationProperties.IsInAccessibleTree="False" />
                     </HorizontalStackLayout>
@@ -90,9 +93,9 @@
                                                               CommandParameter="{Binding}"
                                                               Tapped="OnProfileCardTapped" />
                                     </Border.GestureRecognizers>
-                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="{StaticResource Space4}" RowDefinitions="Auto,Auto">
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="{StaticResource Space4}" RowDefinitions="Auto,Auto,Auto" RowSpacing="2">
                                         <!-- Radio indicator: empty 2px ring, or a filled circle with a check -->
-                                        <Border WidthRequest="32" HeightRequest="32" VerticalOptions="Start"
+                                        <Border WidthRequest="32" HeightRequest="32" VerticalOptions="Center"
                                                 Stroke="{DynamicResource LineStrong}" StrokeThickness="{StaticResource BorderControl}"
                                                 BackgroundColor="Transparent" InputTransparent="True"
                                                 AutomationProperties.IsInAccessibleTree="False">
@@ -109,11 +112,13 @@
                                                    Text="{x:Static helpers:LucideIcons.Check}" TextColor="{DynamicResource OnBrand}"
                                                    IsVisible="{Binding IsSelected}" />
                                         </Border>
-                                        <VerticalStackLayout Grid.Column="1" Spacing="2" AutomationProperties.ExcludedWithChildren="True">
-                                            <Label Text="{Binding DisplayName}" Style="{StaticResource TypeTitleM}" />
-                                            <Label Text="{Binding Description}" Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
-                                        </VerticalStackLayout>
-                                        <Button Grid.Row="1" Grid.Column="1"
+                                        <!-- The name shares the indicator's row so the two center on each other; line height 1
+                                             stops iOS from sitting the name low. The card itself carries the spoken text. -->
+                                        <Label Grid.Column="1" Text="{Binding DisplayName}" Style="{StaticResource TypeTitleM}" LineHeight="1"
+                                               VerticalOptions="Center" AutomationProperties.IsInAccessibleTree="False" />
+                                        <Label Grid.Row="1" Grid.Column="1" Text="{Binding Description}" Style="{StaticResource TypeBodyS}"
+                                               TextColor="{DynamicResource InkMuted}" AutomationProperties.IsInAccessibleTree="False" />
+                                        <Button Grid.Row="2" Grid.Column="1"
                                                 Text="Edit Settings"
                                                 Style="{StaticResource ButtonQuiet}"
                                                 HorizontalOptions="End"
@@ -217,9 +222,8 @@
                                 <Label Text="Turn on both gloves, then tap Scan for Gloves." HorizontalTextAlignment="Center" />
                             </VerticalStackLayout>
                             <VerticalStackLayout Spacing="{StaticResource Space3}" VerticalOptions="Center" IsVisible="{Binding IsScanning}">
-                                <ActivityIndicator IsRunning="{Binding IsScanning}" HeightRequest="32" WidthRequest="32"
-                                                   AutomationProperties.IsInAccessibleTree="False" />
-                                <Label Text="Looking for Gloves…" Style="{StaticResource TypeTitleM}" HorizontalTextAlignment="Center" SemanticProperties.HeadingLevel="Level2" />
+                                <controls:RadarSweep IsRunning="{Binding IsScanning}" WidthRequest="48" HeightRequest="48" HorizontalOptions="Center" />
+                                <Label Text="Scanning for Gloves…" Style="{StaticResource TypeTitleM}" HorizontalTextAlignment="Center" SemanticProperties.HeadingLevel="Level2" />
                                 <Label Text="This can take up to 10 seconds." HorizontalTextAlignment="Center" TextColor="{DynamicResource InkMuted}" />
                             </VerticalStackLayout>
                             <VerticalStackLayout Spacing="{StaticResource Space3}" VerticalOptions="Center" IsVisible="{Binding ShowNoResultsState}">
@@ -243,7 +247,12 @@
                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{StaticResource Space3}">
                                     <VerticalStackLayout VerticalOptions="Center">
                                         <Label Text="{Binding DisplayName}" Style="{StaticResource TypeTitleM}" />
-                                        <Label Text="{Binding SignalStrengthDisplay}" Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
+                                        <HorizontalStackLayout Spacing="{StaticResource Space1}">
+                                            <Label Text="{Binding SignalGlyph}" Style="{StaticResource IconLabel}" FontSize="{StaticResource IconS}"
+                                                   TextColor="{DynamicResource InkMuted}" VerticalOptions="Center" />
+                                            <Label Text="{Binding SignalStrengthDisplay}" Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}"
+                                                   LineHeight="1" VerticalOptions="Center" />
+                                        </HorizontalStackLayout>
                                     </VerticalStackLayout>
                                     <!-- x:DataType cleared + x:Reference: RelativeSource silently fails in recycled
                                          CollectionView containers on device (dead button). Don't convert back. -->
@@ -268,7 +277,7 @@
                                    IsVisible="{Binding ShowScanningWithResults}">
                 <ActivityIndicator IsRunning="{Binding ShowScanningWithResults}" HeightRequest="20" WidthRequest="20"
                                    AutomationProperties.IsInAccessibleTree="False" />
-                <Label Text="Still Looking for More Gloves…" Style="{StaticResource TypeBodyS}" VerticalOptions="Center" AutomationId="StillScanningLabel" />
+                <Label Text="Still Scanning for More Gloves…" Style="{StaticResource TypeBodyS}" VerticalOptions="Center" AutomationId="StillScanningLabel" />
             </HorizontalStackLayout>
         </Grid>
 

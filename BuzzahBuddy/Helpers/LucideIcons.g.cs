@@ -25,4 +25,7 @@ public static class LucideIcons
     public const string RefreshCw = "\uE145";
     public const string Cpu = "\uE0A9";
     public const string Radar = "\uE497";
+    public const string SignalLow = "\uE261";
+    public const string SignalMedium = "\uE262";
+    public const string SignalHigh = "\uE260";
 }

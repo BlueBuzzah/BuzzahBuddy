@@ -1,3 +1,5 @@
+using BuzzahBuddy.Helpers;
+
 namespace BuzzahBuddy.Models;
 
 /// <summary>
@@ -49,21 +51,13 @@ public class GloveDevice
     public int SignalStrength { get; set; }
 
     /// <summary>
-    /// Gets a user-friendly signal strength display.
-    /// Converts RSSI to Strong/Medium/Weak labels.
+    /// The signal in words: Signal Strong, Signal OK or Signal Weak. RSSI typically runs
+    /// from -30 (excellent) to -90 (poor).
     /// </summary>
-    public string SignalStrengthDisplay
-    {
-        get
-        {
-            // RSSI values typically range from -30 (excellent) to -90 (poor)
-            if (SignalStrength >= -50)
-                return "Strong Signal";
-            if (SignalStrength >= -70)
-                return "Medium Signal";
-            return "Weak Signal";
-        }
-    }
+    public string SignalStrengthDisplay => SignalStrength >= -50 ? "Signal Strong" : SignalStrength >= -70 ? "Signal OK" : "Signal Weak";
+
+    /// <summary>The Lucide bars that go with <see cref="SignalStrengthDisplay"/>.</summary>
+    public string SignalGlyph => SignalStrength >= -50 ? LucideIcons.SignalHigh : SignalStrength >= -70 ? LucideIcons.SignalMedium : LucideIcons.SignalLow;
 
     /// <summary>
     /// Gets or sets the last time the device was successfully connected.

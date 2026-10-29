@@ -19,7 +19,8 @@ APP = REPO / "BuzzahBuddy"
 VERSION = "1.55.0"
 GLYPHS = ["play", "pause", "square", "hand", "bluetooth", "battery-full", "battery-medium", "battery-low",
           "activity", "settings", "circle-check", "triangle-alert", "octagon-alert", "info", "check", "plus",
-          "minus", "chevron-right", "refresh-cw", "cpu", "radar"]
+          "minus", "chevron-right", "refresh-cw", "cpu", "radar", "signal-low",
+          "signal-medium", "signal-high"]
 
 
 def main():
