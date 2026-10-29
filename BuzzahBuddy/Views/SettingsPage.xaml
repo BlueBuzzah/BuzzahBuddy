@@ -62,8 +62,9 @@
                                    AutomationProperties.IsInAccessibleTree="False" />
                         </Grid>
                         <Label Text="BuzzahBuddy is the companion app for BlueBuzzah, open-source vibrotactile gloves for people living with Parkinson's. It runs sessions and changes glove settings." />
-                        <Label Text="BlueBuzzah devices are not FDA approved medical devices and not intended to diagnose, treat, cure, or prevent any disease. The information provided through BlueBuzzah is for general wellness purposes only and not a substitute for professional medical advice, diagnosis, or treatment."
-                               Style="{StaticResource TypeBodyS}" />
+                        <controls:Banner Tone="Info"
+                                         Message="BlueBuzzah devices are not FDA approved medical devices and not intended to diagnose, treat, cure, or prevent any disease. The information provided through BlueBuzzah is for general wellness purposes only and not a substitute for professional medical advice, diagnosis, or treatment."
+                                         AutomationId="SettingsDisclaimer" />
                         <Label Text="Important: People with implanted electrodes from deep brain stimulation (DBS), heart pacemakers, or other internal electronic devices should take special precautions around all electronic devices, including BlueBuzzah. Consult your physician before use."
                                Style="{StaticResource TypeBodyS}" />
                     </VerticalStackLayout>
