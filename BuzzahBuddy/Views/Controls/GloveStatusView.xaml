@@ -39,28 +39,31 @@
                        VerticalOptions="Center" />
             </Grid>
             <controls:StatusBadge x:Name="Badge" />
-            <!-- The voltage (Gloves page only) shares the battery line, right-aligned. -->
-            <Grid x:Name="BatteryRow" ColumnDefinitions="Auto,Auto,Auto,*" ColumnSpacing="{StaticResource Space2}">
+            <!-- The voltage (Gloves page only) shares the battery line, right-aligned, on one line:
+                 "100%" leaves little room on a narrow card, and a wrapped "V" reads badly. "Low"
+                 shares the percent's column so its hidden column costs no spacing. -->
+            <Grid x:Name="BatteryRow" ColumnDefinitions="Auto,Auto,*" ColumnSpacing="{StaticResource Space2}">
                 <Label x:Name="BatteryGlyph" Style="{StaticResource IconLabel}" VerticalOptions="Center" />
-                <Label x:Name="PercentText"
-                       Grid.Column="1"
-                       Style="{StaticResource TypeTitleL}"
-                       FontFamily="{DynamicResource FontDisplay500}"
-                       LineHeight="1"
-                       VerticalOptions="Center" />
-                <Label x:Name="LowText"
-                       Grid.Column="2"
-                       Text="Low"
-                       Style="{StaticResource TypeCaption}"
-                       FontFamily="{DynamicResource FontSans700}"
-                       TextColor="{DynamicResource Warning}"
-                       LineHeight="1"
-                       VerticalOptions="Center" />
+                <HorizontalStackLayout Grid.Column="1" Spacing="{StaticResource Space2}">
+                    <Label x:Name="PercentText"
+                           Style="{StaticResource TypeTitleL}"
+                           FontFamily="{DynamicResource FontDisplay500}"
+                           LineHeight="1"
+                           VerticalOptions="Center" />
+                    <Label x:Name="LowText"
+                           Text="Low"
+                           Style="{StaticResource TypeCaption}"
+                           FontFamily="{DynamicResource FontSans700}"
+                           TextColor="{DynamicResource Warning}"
+                           LineHeight="1"
+                           VerticalOptions="Center" />
+                </HorizontalStackLayout>
                 <Label x:Name="DetailText"
-                       Grid.Column="3"
+                       Grid.Column="2"
                        Style="{StaticResource TypeCodeS}"
                        TextColor="{DynamicResource InkMuted}"
                        LineHeight="1"
+                       LineBreakMode="NoWrap"
                        HorizontalOptions="End"
                        VerticalOptions="Center" />
             </Grid>

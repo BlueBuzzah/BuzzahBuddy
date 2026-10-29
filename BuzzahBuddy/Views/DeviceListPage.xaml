@@ -149,13 +149,13 @@
                     </Border>
                     <Button Text="Test Motors"
                             Style="{StaticResource ButtonSecondary}"
-                            ContentLayout="Right,8"
+                            ContentLayout="Left,8"
                             Command="{Binding Settings.NavigateToCalibrationCommand}"
                             IsEnabled="{Binding Settings.IsSessionInactive}"
                             SemanticProperties.Description="Test Motors"
                             AutomationId="CalibrateMotorsButton">
                         <Button.ImageSource>
-                            <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.ChevronRight}" Size="20" Color="{DynamicResource Brand}" />
+                            <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Vibrate}" Size="20" Color="{DynamicResource Brand}" />
                         </Button.ImageSource>
                     </Button>
                 </VerticalStackLayout>
@@ -165,10 +165,14 @@
                      helps when troubleshooting. -->
                 <VerticalStackLayout Spacing="{StaticResource Space2}">
                     <Button Text="Apply Settings"
-                            Style="{StaticResource ButtonPrimary}"
+                            Style="{StaticResource ButtonPrimaryXl}"
+                            ContentLayout="Left,8"
                             Command="{Binding Settings.ApplySettingsCommand}"
                             SemanticProperties.Description="Apply Settings"
                             AutomationId="ApplyDeviceSettingsButton">
+                        <Button.ImageSource>
+                            <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.HardDriveDownload}" Size="24" Color="{DynamicResource OnBrand}" />
+                        </Button.ImageSource>
                         <Button.IsEnabled>
                             <MultiBinding Converter="{StaticResource AllTrueConverter}">
                                 <Binding Path="ConnectionInfo.IsConnected" />
@@ -180,10 +184,15 @@
                 </VerticalStackLayout>
 
                 <Button Text="Disconnect"
-                        Style="{StaticResource ButtonDanger}"
+                        Style="{StaticResource ButtonDangerXl}"
+                        ContentLayout="Left,8"
                         Command="{Binding DisconnectCommand}"
                         SemanticProperties.Description="Disconnect"
-                        AutomationId="DisconnectButton" />
+                        AutomationId="DisconnectButton">
+                    <Button.ImageSource>
+                        <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Unplug}" Size="24" Color="{DynamicResource OnStatus}" />
+                    </Button.ImageSource>
+                </Button>
             </VerticalStackLayout>
         </ScrollView>
 
@@ -274,7 +283,7 @@
         <!-- Primary action in easy reach at the bottom -->
         <Button Grid.Row="1"
                 Text="{Binding ScanButtonText}"
-                Style="{StaticResource ButtonPrimary}"
+                Style="{StaticResource ButtonPrimaryXl}"
                 Command="{Binding ToggleScanCommand}"
                 ContentLayout="Left,8"
                 Margin="0,12,0,0"
@@ -282,14 +291,14 @@
                 SemanticProperties.Description="{Binding ScanButtonText}"
                 AutomationId="ScanToggleButton">
             <Button.ImageSource>
-                <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Radar}" Size="20" Color="{DynamicResource OnBrand}" />
+                <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Radar}" Size="24" Color="{DynamicResource OnBrand}" />
             </Button.ImageSource>
             <!-- Radar means "scan"; Stop Scanning takes the stop glyph. -->
             <Button.Triggers>
                 <DataTrigger TargetType="Button" Binding="{Binding IsScanning}" Value="True">
                     <Setter Property="ImageSource">
                         <Setter.Value>
-                            <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Square}" Size="20" Color="{DynamicResource OnBrand}" />
+                            <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Square}" Size="24" Color="{DynamicResource OnBrand}" />
                         </Setter.Value>
                     </Setter>
                 </DataTrigger>

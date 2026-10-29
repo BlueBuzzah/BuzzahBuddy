@@ -30,4 +30,6 @@ public static class LucideIcons
     public const string SignalHigh = "\uE260";
     public const string Save = "\uE14D";
     public const string Vibrate = "\uE223";
+    public const string HardDriveDownload = "\uE4E5";
+    public const string Unplug = "\uE45D";
 }

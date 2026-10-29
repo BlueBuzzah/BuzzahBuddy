@@ -58,13 +58,13 @@
                 </Border>
 
                 <Button Text="Scan for Gloves"
-                        Style="{StaticResource ButtonPrimary}"
+                        Style="{StaticResource ButtonPrimaryXl}"
                         ContentLayout="Left,8"
                         Command="{Binding ScanForGlovesCommand}"
                         SemanticProperties.Description="Scan for Gloves"
                         AutomationId="FindDevicesButton">
                     <Button.ImageSource>
-                        <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Radar}" Size="20" Color="{DynamicResource OnBrand}" />
+                        <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Radar}" Size="24" Color="{DynamicResource OnBrand}" />
                     </Button.ImageSource>
                 </Button>
             </VerticalStackLayout>
@@ -146,14 +146,14 @@
                         </Button>
                         <Button Grid.Column="1"
                                 Text="Stop"
-                                Style="{StaticResource ButtonQuietXl}"
+                                Style="{StaticResource ButtonDangerXl}"
                                 Command="{Binding StopSessionCommand}"
                                 IsEnabled="{Binding IsNotBusy}"
                                 ContentLayout="Left,8"
                                 SemanticProperties.Description="Stop"
                                 AutomationId="StopSessionButton">
                             <Button.ImageSource>
-                                <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Square}" Size="24" Color="{DynamicResource Brand}" />
+                                <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Square}" Size="24" Color="{DynamicResource OnStatus}" />
                             </Button.ImageSource>
                         </Button>
                     </Grid>

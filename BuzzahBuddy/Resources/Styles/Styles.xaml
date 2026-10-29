@@ -173,7 +173,7 @@
         <Setter Property="CornerRadius" Value="{StaticResource RadiusLgInt}" />
     </Style>
 
-    <Style x:Key="ButtonQuietXl" TargetType="Button" BasedOn="{StaticResource ButtonQuiet}">
+    <Style x:Key="ButtonDangerXl" TargetType="Button" BasedOn="{StaticResource ButtonDanger}">
         <Setter Property="FontFamily" Value="{DynamicResource FontDisplay600}" />
         <Setter Property="FontSize" Value="22" />
         <Setter Property="MinimumHeightRequest" Value="{StaticResource TargetXl}" />
