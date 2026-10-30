@@ -20,6 +20,9 @@ public partial class SegmentedControl : ContentView
     // wrap. They also stack below that text size whenever a label doesn't fit its share (FitLabels).
     private bool _stacked;
 
+    // The buttons have been placed since the last Build.
+    private bool _laidOut;
+
     public SegmentedControl()
     {
         InitializeComponent();
@@ -47,14 +50,22 @@ public partial class SegmentedControl : ContentView
         var options = Options ?? Array.Empty<SegmentOption>();
         for (var i = 0; i < options.Count; i++)
             _buttons.Add((CreateButton(options[i], i), options[i]));
+        _laidOut = false;
         Arrange();
         ApplySelection();
     }
 
     private void Arrange()
     {
-        _stacked = OsAccessibility.StackForLargeText;
-        Lay();
+        var stacked = OsAccessibility.StackForLargeText;
+        // The text-size check re-runs on every resume. Laying out again unchanged invalidates the
+        // parents, which moves a scrolled list on iOS (History's header), so only a change lays out.
+        if (!_laidOut || stacked != _stacked)
+        {
+            _stacked = stacked;
+            Lay();
+            _laidOut = true;
+        }
         // The track's width may not change, so SizeChanged won't re-fit labels that don't fit.
         FitLabels();
     }

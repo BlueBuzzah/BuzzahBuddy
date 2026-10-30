@@ -33,9 +33,13 @@ public partial class HistoryPage : ContentPage
         _viewModel.RefreshCommand.ExecuteAsync(null).SafeFireAndForget("[HISTORY]");
     }
 
-    // Overview tiles two by two; one column at large text.
+    // Overview tiles two by two; one column at large text. Laid out only when that changes: any
+    // relayout invalidates the list header, which on iOS moves the page (see OnViewModelChanging),
+    // and the text-size check re-runs every time the app resumes.
     private void ArrangeTiles(bool stacked)
     {
+        if (TileGrid.ColumnDefinitions.Count == (stacked ? 1 : 2) && TileGrid.RowDefinitions.Count == (stacked ? 4 : 2))
+            return;
         var space = (double)Application.Current!.Resources["Space3"];
         TileGrid.ColumnSpacing = space;
         TileGrid.RowSpacing = space;
@@ -69,6 +73,9 @@ public partial class HistoryPage : ContentPage
             return;
 
         var stacked = OsAccessibility.StackForLargeText;
+        // Already laid out this way: leave it, so a resume doesn't invalidate the list header.
+        if (row.RowDefinitions.Count == (stacked ? 3 : 2) && Grid.GetRow(value) == (stacked ? 1 : 0))
+            return;
         row.RowDefinitions = new RowDefinitionCollection(
             Enumerable.Range(0, stacked ? 3 : 2).Select(_ => new RowDefinition(GridLength.Auto)).ToArray());
         Place(label, 0, 0, span: stacked ? 2 : 1);
