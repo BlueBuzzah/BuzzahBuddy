@@ -167,10 +167,13 @@ public static class HistoryReport
         var adherenceFrom = firstEver > from && firstEver <= to ? firstEver : from;
         var summary = HistorySummary.Summarize(sessions, adherenceFrom, to);
 
+        // Compare only with a window that lies wholly after the first session ever; one that
+        // started earlier counts days before any use as missed and flatters the change.
         PeriodSummary? previous = null;
-        if (comparePrevious && adherenceFrom == from)
+        var previousFrom = from.AddDays(-summary.DaysInPeriod);
+        if (comparePrevious && adherenceFrom == from && firstEver <= previousFrom)
         {
-            var before = HistorySummary.Summarize(data.Sessions, from.AddDays(-summary.DaysInPeriod), from.AddDays(-1));
+            var before = HistorySummary.Summarize(data.Sessions, previousFrom, from.AddDays(-1));
             previous = before.Sessions == 0 ? null : before;
         }
 
