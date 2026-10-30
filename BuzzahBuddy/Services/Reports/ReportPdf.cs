@@ -136,7 +136,7 @@ public static class ReportPdf
         EnsureFonts(assets);
 
         using var pdf = new PdfDocument();
-        pdf.Info.Title = Title;
+        pdf.Info.Title = model.Sample ? Title + " (Sample)" : Title;
         pdf.Info.Subject = $"{model.From.ToString(DateFormat, Culture)} to {model.To.ToString(DateFormat, Culture)}";
         pdf.Info.Author = "BuzzahBuddy";
         pdf.Info.Creator = "BuzzahBuddy";
@@ -284,7 +284,8 @@ public static class ReportPdf
         var trendFixed = TrendSectionHeight(c);
         var sinceFirst = model.AdherenceFrom > model.From;
         var legendHeight = (sinceFirst ? 2 : 1) * Font(Body, 8).GetHeight() + 4;
-        var calendarRoom = BodyBottom - y - legendHeight - SectionGap - trendFixed - TrendHeight;
+        // Whole points, so rounding in the sums below can't carry the page past its bottom.
+        var calendarRoom = Math.Floor(BodyBottom - y - legendHeight - SectionGap - trendFixed - TrendHeight);
         var calendarNeeds = CalendarMinHeight(model);
         var chartHeight = TrendHeight;
         if (calendarNeeds > calendarRoom)

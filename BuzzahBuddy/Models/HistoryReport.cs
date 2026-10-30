@@ -95,6 +95,25 @@ public static class HistoryReport
         return (days.Count == 0 || days.Min() > today ? today : days.Min(), today);
     }
 
+    /// <summary>
+    /// The shared PDF and CSV names for a report ending on <paramref name="stamp"/> (yyyy-MM-dd).
+    /// Demo Mode's say "Sample" so they can't pass for someone's own report.
+    /// </summary>
+    public static (string Pdf, string Csv) FileNames(string stamp, bool sample)
+    {
+        var prefix = sample ? "BuzzahBuddy Sample" : "BuzzahBuddy";
+        return ($"{prefix} Report {stamp}.pdf", $"{prefix} Sessions {stamp}.csv");
+    }
+
+    /// <summary>File patterns that find every file <see cref="FileNames"/> makes, real or sample, to clear old reports.</summary>
+    public static IReadOnlyList<string> OldReportPatterns { get; } =
+    [
+        "BuzzahBuddy Report *",
+        "BuzzahBuddy Sessions *",
+        "BuzzahBuddy Sample Report *",
+        "BuzzahBuddy Sample Sessions *",
+    ];
+
     /// <summary>Sessions that started from <paramref name="from"/> to <paramref name="to"/> inclusive, oldest first.</summary>
     public static IEnumerable<SessionRecord> InRange(IEnumerable<SessionRecord> sessions, DateOnly from, DateOnly to) =>
         sessions.Where(s => s.Day >= from && s.Day <= to).OrderBy(s => s.StartedAt);
