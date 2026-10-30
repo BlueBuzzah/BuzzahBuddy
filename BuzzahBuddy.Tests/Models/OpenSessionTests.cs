@@ -66,11 +66,48 @@ public class OpenSessionTests
     {
         var open = Fresh();
         open.Observe(S(SessionState.RUNNING, 300), T0.AddSeconds(300));
-        Assert.False(open.Continues(S(SessionState.RUNNING, 0, 0), "G1"));
-        Assert.False(open.Continues(S(SessionState.RUNNING, 100), "G1"));
-        Assert.False(open.Continues(S(SessionState.RUNNING, 400), "G2"));
-        Assert.False(open.Continues(S(SessionState.IDLE, 0, 0), "G1"));
-        Assert.True(open.Continues(S(SessionState.RUNNING, 400), "G1"));
+        var now = T0.AddSeconds(400);
+        Assert.False(open.Continues(S(SessionState.RUNNING, 0, 0), "G1", now));
+        Assert.False(open.Continues(S(SessionState.RUNNING, 100), "G1", now));
+        Assert.False(open.Continues(S(SessionState.RUNNING, 400), "G2", now));
+        Assert.False(open.Continues(S(SessionState.IDLE, 0, 0), "G1", now));
+        Assert.True(open.Continues(S(SessionState.RUNNING, 400), "G1", now));
+    }
+
+    [Fact]
+    public void Continues_SessionThatMustHaveEnded_IsNotContinuedByALaterOne()
+    {
+        // A runs 30 s, the phone stops watching, A ends unseen; hours later the gloves
+        // auto-start B with the same length and the phone joins 90 s into it.
+        var open = Fresh();
+        var seen = T0.AddSeconds(30);
+        open.Observe(S(SessionState.RUNNING, 30), seen);
+        var later = seen.AddHours(8);
+
+        Assert.False(open.Continues(S(SessionState.RUNNING, 90), "G1", later));
+        Assert.Equal(SessionOutcome.Completed, open.InferEnd(later));
+        var record = open.Close(SessionOutcome.Completed, later)!;
+        Assert.Equal(7200, record.TherapySeconds);
+        Assert.Equal(T0.AddSeconds(7200), record.EndedAt);
+    }
+
+    [Fact]
+    public void Continues_UnpolledStartIsNotContinuedByALaterStart()
+    {
+        var open = Fresh(); // begun from Start's synthesized 0/T, never polled
+        Assert.False(open.Continues(S(SessionState.RUNNING, 0), "G1", T0.AddHours(3)));
+    }
+
+    [Theory]
+    [InlineData(15, true)]  // exactly the remaining time plus the tolerance
+    [InlineData(16, false)]
+    public void Continues_EndsOnceRemainingTimePlusToleranceHasPassed(int beyondRemaining, bool expected)
+    {
+        var open = Fresh();
+        var seen = T0.AddSeconds(30);
+        open.Observe(S(SessionState.RUNNING, 30), seen);
+        var now = seen.AddSeconds(7200 - 30 + beyondRemaining);
+        Assert.Equal(expected, open.Continues(S(SessionState.RUNNING, 90), "G1", now));
     }
 
     [Fact]

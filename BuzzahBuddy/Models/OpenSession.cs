@@ -79,13 +79,17 @@ public sealed class OpenSession
         };
 
     /// <summary>
-    /// Whether a reading belongs to this session rather than a ghost or a different one.
+    /// Whether a reading belongs to this session rather than a ghost or a different one. The
+    /// session clock runs through pauses, so a session last seen running is over once more than
+    /// its remaining time (plus tolerance) has passed; a reading after that is a later session.
     /// </summary>
-    public bool Continues(SessionStatus status, string? deviceId) =>
+    public bool Continues(SessionStatus status, string? deviceId, DateTimeOffset now) =>
         CanTrack(status)
         && status.TotalTimeSeconds == PlannedSeconds
         && status.ElapsedTimeSeconds >= LastElapsedSeconds
-        && (DeviceId is null || DeviceId == deviceId);
+        && (DeviceId is null || DeviceId == deviceId)
+        && !(LastRunning
+             && (now - LastObservedAt).TotalSeconds > PlannedSeconds - LastElapsedSeconds + CompletionToleranceSeconds);
 
     /// <summary>
     /// Records a reading. Time counts only when the previous reading showed the session running.

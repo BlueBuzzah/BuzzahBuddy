@@ -961,7 +961,7 @@ public partial class GloveControlViewModel : BaseViewModel
 
         if (open != null)
         {
-            if (open.Continues(status, device))
+            if (open.Continues(status, device, now))
             {
                 if (fromPoll)
                 {
