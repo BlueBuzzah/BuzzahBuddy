@@ -122,7 +122,9 @@ bounds link-up through subscribe — iOS never times out a connect itself.
 `BuzzahBuddy.Tests` is plain `net10.0` with **no `ProjectReference`** (it would restore
 every app TFM and fail without mobile workloads); it `Compile Include`s app sources —
 `Models/**`, `Services/Glove/**`, selected `Services/Bluetooth` and `Helpers` files, and
-`Services/Storage/HistoryStore.cs` + `StorageJsonContext.cs`. A
+`Services/Storage/HistoryStore.cs` + `StorageJsonContext.cs`, and
+`Services/Reports/ReportPdf.cs`; the report's five TTFs and the mark are linked as files
+under `ReportAssets/` in the test output. A
 new testable source needs its own `Compile Include` in `BuzzahBuddy.Tests.csproj`.
 
 - `BluetoothService.cs` is **excluded**: its ctor hits `CrossBluetoothLE.Current`, which

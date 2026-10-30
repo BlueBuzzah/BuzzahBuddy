@@ -94,6 +94,11 @@ public static class ReportPdf
     /// <summary>Note lines per Daily Log row, so a long note can break across pages.</summary>
     internal const int NoteLinesPerRow = 4;
 
+    /// <summary>Longest run of non-space characters set in a note before a space is inserted.</summary>
+    internal const int MaxWordLength = 40;
+
+    private const double MaxColumnWidth = 24;
+
     private const string AboutNumbers =
         "Times are what BuzzahBuddy recorded on this phone. Paused time isn't counted. Sessions your gloves ran while this phone wasn't connected may be missing.";
 
@@ -304,13 +309,16 @@ public static class ReportPdf
         var n = model.Chart.Count;
         var slot = plotWidth / n;
         var gap = Math.Min(2, slot * 0.3);
-        var width = (plotWidth - gap * (n - 1)) / n;
+        // At most 24 pt wide, so a period of a day or two doesn't fill the plot with one block;
+        // the columns are then centered in the plot.
+        var width = Math.Min(MaxColumnWidth, (plotWidth - gap * (n - 1)) / n);
+        var columnsLeft = plotLeft + (plotWidth - (n * width + (n - 1) * gap)) / 2;
         var brand = new XSolidBrush(Brand);
         var nextLabelX = double.MaxValue;
         for (var i = n - 1; i >= 0; i--)
         {
             var p = model.Chart[i];
-            var x = plotLeft + i * (width + gap);
+            var x = columnsLeft + i * (width + gap);
             if (p.Seconds > 0)
                 gfx.DrawPath(brand, TopRoundedColumn(x, YFor(p.Seconds), width, plotBottom, Math.Min(2, width / 2)));
             if (p.Label.Length == 0)
@@ -331,7 +339,7 @@ public static class ReportPdf
         gfx.DrawLine(dashed, plotLeft, ry, Right, ry);
         var daily = model.ChartReferenceSeconds == HistorySummary.StudyDailySeconds;
         var refLabel = $"Study schedule: {DurationText.Short(model.ChartReferenceSeconds)} {(daily ? "a day" : "a week")}";
-        DrawReferenceLabel(gfx, refLabel, small, muted, ry, plotLeft, width, gap, model.Chart.Select(p => YFor(p.Seconds)).ToList());
+        DrawReferenceLabel(gfx, refLabel, small, muted, ry, plotLeft, columnsLeft, width, gap, model.Chart.Select(p => YFor(p.Seconds)).ToList());
 
         return plotBottom + 4 + small.GetHeight();
     }
@@ -341,12 +349,12 @@ public static class ReportPdf
     /// label there, on the left; if both are covered, on the right over a white backing.
     /// </summary>
     private static void DrawReferenceLabel(XGraphics gfx, string text, XFont font, XBrush brush, double lineY,
-        double plotLeft, double columnWidth, double gap, IReadOnlyList<double> columnTops)
+        double plotLeft, double columnsLeft, double columnWidth, double gap, IReadOnlyList<double> columnTops)
     {
         var size = gfx.MeasureString(text, font);
         var top = lineY - 2 - size.Height;
         bool Clear(double x) => !columnTops
-            .Select((columnTop, i) => (columnTop, x0: plotLeft + i * (columnWidth + gap)))
+            .Select((columnTop, i) => (columnTop, x0: columnsLeft + i * (columnWidth + gap)))
             .Any(c => c.columnTop < lineY - 2 && c.x0 < x + size.Width && c.x0 + columnWidth > x);
 
         var x = Right - size.Width;
@@ -578,7 +586,7 @@ public static class ReportPdf
                             note.AddLineBreak();
                         var text = first == 0 && i == 0 ? "Note: " + chunk[i] : chunk[i];
                         if (text.Length > 0)
-                            note.AddText(text);
+                            note.AddText(BreakLongWords(text));
                     }
                     rows.Add(row);
                 }
@@ -669,6 +677,36 @@ public static class ReportPdf
                 return shorter;
         }
         return "…";
+    }
+
+    /// <summary>
+    /// MigraDoc only wraps at spaces, so a longer unbroken run (a pasted link) would run off the
+    /// page and be lost. Puts a plain space after every <see cref="MaxWordLength"/> characters of
+    /// such a run; the fonts have no glyph for a zero-width space.
+    /// </summary>
+    internal static string BreakLongWords(string text)
+    {
+        var result = new System.Text.StringBuilder(text.Length + text.Length / MaxWordLength);
+        var run = 0;
+        foreach (var c in text)
+        {
+            if (char.IsWhiteSpace(c))
+            {
+                run = 0;
+            }
+            else
+            {
+                // Never between the two halves of a surrogate pair.
+                if (run >= MaxWordLength && !char.IsLowSurrogate(c))
+                {
+                    result.Append(' ');
+                    run = 0;
+                }
+                run++;
+            }
+            result.Append(c);
+        }
+        return result.ToString();
     }
 
     /// <summary>ICU puts a narrow no-break space before "AM"; the report's fonts have no glyph for it.</summary>

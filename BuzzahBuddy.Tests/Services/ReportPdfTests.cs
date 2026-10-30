@@ -171,6 +171,21 @@ public class ReportPdfTests
     }
 
     [Fact]
+    public void FlowDocument_LongUnbrokenNoteWord_IsSplitSoItWraps()
+    {
+        // A pasted link: MigraDoc wraps only at spaces, so an unbroken run would leave the page.
+        var word = "https://" + string.Concat(Enumerable.Range(0, 990).Select(i => (char)('a' + i % 26)));
+        var data = new HistoryData { Notes = { new DayNote { Day = Today, Text = word } } };
+
+        var note = BodyRows(DailyLog(Flow(data))).Where(r => r.Cells[0].MergeRight == 4).Select(r => TextOf(r.Cells[0])).Single();
+
+        Assert.StartsWith("Note: ", note);
+        var body = note["Note: ".Length..];
+        Assert.All(body.Split(' '), w => Assert.True(w.Length <= 40, $"{w.Length}-character word"));
+        Assert.Equal(word, body.Replace(" ", ""));
+    }
+
+    [Fact]
     public void FlowDocument_HasBothLegalNoticesVerbatim()
     {
         var paragraphs = Flow(Fixture()).Sections[0]!.Elements.OfType<Paragraph>().Select(p => TextOf(p)).ToList();
