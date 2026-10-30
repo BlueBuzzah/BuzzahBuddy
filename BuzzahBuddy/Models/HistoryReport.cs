@@ -61,7 +61,8 @@ public sealed record ReportModel(
     OutcomeSplit Outcomes,
     IReadOnlyList<ProfileRow> Profiles,
     IReadOnlyList<NoteQuote> RecentNotes,
-    int NoteCount);
+    int NoteCount,
+    bool Sample = false);
 
 /// <summary>The PDF report model and CSV the History tab hands to the share sheet.</summary>
 public static class HistoryReport
@@ -93,6 +94,25 @@ public static class HistoryReport
         var days = sessions.Select(s => s.Day).ToList();
         return (days.Count == 0 || days.Min() > today ? today : days.Min(), today);
     }
+
+    /// <summary>
+    /// The shared PDF and CSV names for a report ending on <paramref name="stamp"/> (yyyy-MM-dd).
+    /// Demo Mode's say "Sample" so they can't pass for someone's own report.
+    /// </summary>
+    public static (string Pdf, string Csv) FileNames(string stamp, bool sample)
+    {
+        var prefix = sample ? "BuzzahBuddy Sample" : "BuzzahBuddy";
+        return ($"{prefix} Report {stamp}.pdf", $"{prefix} Sessions {stamp}.csv");
+    }
+
+    /// <summary>File patterns that find every file <see cref="FileNames"/> makes, real or sample, to clear old reports.</summary>
+    public static IReadOnlyList<string> OldReportPatterns { get; } =
+    [
+        "BuzzahBuddy Report *",
+        "BuzzahBuddy Sessions *",
+        "BuzzahBuddy Sample Report *",
+        "BuzzahBuddy Sample Sessions *",
+    ];
 
     /// <summary>Sessions that started from <paramref name="from"/> to <paramref name="to"/> inclusive, oldest first.</summary>
     public static IEnumerable<SessionRecord> InRange(IEnumerable<SessionRecord> sessions, DateOnly from, DateOnly to) =>
@@ -135,7 +155,8 @@ public static class HistoryReport
 
     /// <summary>Everything the PDF report shows for <paramref name="from"/> to <paramref name="to"/>, inclusive.</summary>
     /// <param name="comparePrevious">Compare with the same number of days before <paramref name="from"/>; false for All Time.</param>
-    public static ReportModel Build(HistoryData data, DateOnly from, DateOnly to, DateTimeOffset createdAt, bool comparePrevious)
+    /// <param name="sample">The data is Demo Mode's sample, which the report says on every page.</param>
+    public static ReportModel Build(HistoryData data, DateOnly from, DateOnly to, DateTimeOffset createdAt, bool comparePrevious, bool sample = false)
     {
         var sessions = InRange(data.Sessions, from, to).ToList();
         var secondsByDay = sessions.GroupBy(s => s.Day).ToDictionary(g => g.Key, g => g.Sum(s => s.TherapySeconds));
@@ -228,7 +249,8 @@ public static class HistoryReport
             outcomes,
             profiles,
             recentNotes,
-            notes.Count);
+            notes.Count,
+            sample);
     }
 
     /// <summary>The summary sentences above the tiles.</summary>

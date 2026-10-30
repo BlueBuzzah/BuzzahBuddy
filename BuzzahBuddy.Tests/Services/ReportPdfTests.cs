@@ -49,8 +49,8 @@ public class ReportPdfTests
         };
     }
 
-    private static ReportModel Model(HistoryData data, DateOnly from, bool comparePrevious = true) =>
-        HistoryReport.Build(data, from, Today, Created, comparePrevious);
+    private static ReportModel Model(HistoryData data, DateOnly from, bool comparePrevious = true, bool sample = false) =>
+        HistoryReport.Build(data, from, Today, Created, comparePrevious, sample);
 
     private static byte[] Render(HistoryData data, DateOnly from) => ReportPdf.Render(Model(data, from), Assets());
 
@@ -208,11 +208,26 @@ public class ReportPdfTests
         Assert.DoesNotContain("Mornings", empty);
     }
 
-    public static TheoryData<string> Layouts => new() { "fixture", "realistic", "empty", "one day", "two years", "crowded", "wide notes", "unbroken note", "all caps" };
+    private static readonly string[] LayoutNames = ["fixture", "realistic", "empty", "one day", "two years", "crowded", "wide notes", "unbroken note", "all caps"];
+
+    /// <summary>Every layout, as a person's report and as Demo Mode's sample (one more line on page 1).</summary>
+    public static TheoryData<string, bool> Layouts
+    {
+        get
+        {
+            var data = new TheoryData<string, bool>();
+            foreach (var name in LayoutNames)
+            {
+                data.Add(name, false);
+                data.Add(name, true);
+            }
+            return data;
+        }
+    }
 
     [Theory]
     [MemberData(nameof(Layouts))]
-    public void Render_NothingOverflowsOrOverlaps(string name)
+    public void Render_NothingOverflowsOrOverlaps(string name, bool sample)
     {
         // The note rows start from a base with no notes, so their three notes are the three newest.
         var (data, from, notes) = name switch
@@ -227,12 +242,50 @@ public class ReportPdfTests
             _ => (name == "crowded" ? Crowded() : TwoYears(), Today.AddDays(-729), (string[]?)null),
         };
 
-        var layout = ReportPdf.Draw(Model(data, from), Assets());
+        var layout = ReportPdf.Draw(Model(data, from, sample: sample), Assets());
 
+        Assert.Equal(sample, layout.PageText[0].Contains(ReportPdf.SampleMarker));
         Assert.True(layout.Page1Bottom <= ReportPdf.BodyBottom, $"Page 1 ends at {layout.Page1Bottom}");
         AssertNothingOverlaps(layout);
         if (notes is not null)
             AssertNewestQuotesShown(layout, notes);
+    }
+
+    [Theory]
+    [InlineData(ReportRange.Last30Days)]
+    [InlineData(ReportRange.Last90Days)]
+    [InlineData(ReportRange.AllTime)]
+    public void Render_DemoSample_MarkedAndFits(ReportRange range)
+    {
+        var data = DemoHistory.Build(new DateTimeOffset(Today.ToDateTime(new TimeOnly(12, 0)), TimeSpan.FromHours(-7)));
+        var (from, to) = HistoryReport.Range(range, Today, data.Sessions);
+        var model = HistoryReport.Build(data, from, to, Created, comparePrevious: range != ReportRange.AllTime, sample: true);
+
+        var layout = ReportPdf.Draw(model, Assets());
+
+        Assert.True(model.Sample);
+        Assert.Contains(ReportPdf.SampleMarker, layout.PageText[0]);
+        Assert.Contains(layout.PageText[1], l => l.Contains(ReportPdf.SampleMarker, StringComparison.Ordinal));
+        Assert.True(layout.Page1Bottom <= ReportPdf.BodyBottom, $"Page 1 ends at {layout.Page1Bottom}");
+        AssertNothingOverlaps(layout);
+    }
+
+    [Fact]
+    public void Render_RealHistory_NotMarked()
+    {
+        var layout = ReportPdf.Draw(Model(Fixture(), From), Assets());
+        using var doc = Open(layout.Pdf);
+
+        Assert.DoesNotContain(layout.PageText.SelectMany(p => p), l => l.Contains(ReportPdf.SampleMarker, StringComparison.Ordinal));
+        Assert.Equal(ReportPdf.Title, doc.Info.Title);
+    }
+
+    [Fact]
+    public void Render_Sample_TitleSaysSample()
+    {
+        using var doc = Open(ReportPdf.Render(Model(Fixture(), From, sample: true), Assets()));
+
+        Assert.Equal("BuzzahBuddy Session Report (Sample)", doc.Info.Title);
     }
 
     private static HistoryData NoNotes(HistoryData data)

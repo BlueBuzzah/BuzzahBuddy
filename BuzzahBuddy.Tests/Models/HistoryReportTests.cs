@@ -335,6 +335,32 @@ public class HistoryReportTests
         Assert.Equal(new[] { new ProfileRow("Noisy", 2, 14400), new ProfileRow("Regular", 1, 3600) }, model.Profiles);
     }
 
+    [Theory]
+    [InlineData(false, "BuzzahBuddy Report 2026-10-29.pdf", "BuzzahBuddy Sessions 2026-10-29.csv")]
+    [InlineData(true, "BuzzahBuddy Sample Report 2026-10-29.pdf", "BuzzahBuddy Sample Sessions 2026-10-29.csv")]
+    public void FileNames_SayWhenTheyAreSample(bool sample, string pdf, string csv)
+    {
+        Assert.Equal((pdf, csv), HistoryReport.FileNames("2026-10-29", sample));
+    }
+
+    [Fact]
+    public void OldReportPatterns_MatchEveryReportFileAndNothingElse()
+    {
+        // Directory.EnumerateFiles patterns here are a literal prefix and a trailing "*".
+        static bool Matches(string file) =>
+            HistoryReport.OldReportPatterns.Any(p => p.EndsWith('*') && file.StartsWith(p[..^1], StringComparison.Ordinal));
+
+        Assert.All(HistoryReport.OldReportPatterns, p => Assert.Equal(1, p.Count(c => c == '*')));
+        foreach (var sample in new[] { false, true })
+        {
+            var (pdf, csv) = HistoryReport.FileNames("2026-10-29", sample);
+            Assert.True(Matches(pdf), pdf);
+            Assert.True(Matches(csv), csv);
+        }
+        Assert.False(Matches("history.json"));
+        Assert.False(Matches("BuzzahBuddy.log"));
+    }
+
     [Fact]
     public void LegalNotices_MatchDesignSystemWording()
     {
