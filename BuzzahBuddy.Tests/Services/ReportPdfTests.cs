@@ -183,6 +183,20 @@ public class ReportPdfTests
         Assert.Contains(LegalNotices.ImplantedDeviceNotice, page2);
     }
 
+    [Fact]
+    public void Render_Captions()
+    {
+        var page1 = string.Join(" ", ReportPdf.Draw(Model(Fixture(), From), Assets()).PageText[0]);
+        var page2 = string.Join(" ", ReportPdf.Draw(Model(Fixture(), From), Assets()).PageText[1]);
+        var empty = string.Join(" ", ReportPdf.Draw(Model(new HistoryData(), From), Assets()).PageText[1]);
+
+        Assert.Contains("Average time per day. Days without a session count as zero. The dashed line is the schedule early studies used (Pfeifer et al. 2021).", page1);
+        // 08:00 and 09:00 starts are mornings; 14:00 isn't.
+        Assert.Contains("Session starts by hour. Mornings 67%, afternoons and evenings 33%.", page2);
+        Assert.Contains("Session starts by hour.", empty);
+        Assert.DoesNotContain("Mornings", empty);
+    }
+
     public static TheoryData<string> Layouts => new() { "fixture", "realistic", "empty", "one day", "two years", "crowded" };
 
     [Theory]

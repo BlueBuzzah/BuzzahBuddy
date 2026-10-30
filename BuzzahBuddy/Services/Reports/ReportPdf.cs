@@ -102,6 +102,9 @@ public static class ReportPdf
     private const double TrendHeight = 150;
     private const double MinTrendHeight = 110;
 
+    internal const string TrendCaption =
+        "Average time per day. Days without a session count as zero. The dashed line is the schedule early studies used (Pfeifer et al. 2021).";
+
     private const string AboutNumbers =
         "Times are what BuzzahBuddy recorded on this phone. Paused time isn't counted. Sessions your gloves ran while this phone wasn't connected may be missing.";
 
@@ -261,7 +264,7 @@ public static class ReportPdf
         y = SectionTitle(c, "Daily Use", y);
         // The trend section below keeps 150 pt of chart; the calendar takes what's left, and only
         // if a calendar can't fit at a readable size does the chart give up height (to 110 pt).
-        var trendFixed = TrendSectionHeight();
+        var trendFixed = TrendSectionHeight(c);
         var legendHeight = 4 + Font(Body, 8).GetHeight();
         var calendarRoom = BodyBottom - y - legendHeight - SectionGap - trendFixed - TrendHeight;
         var calendarNeeds = CalendarMinHeight(model);
@@ -281,14 +284,15 @@ public static class ReportPdf
         y = SectionTitle(c, model.TrendTitle, y);
         y = DrawTrend(c, model, y + 4, chartHeight);
         y += 4;
-        foreach (var line in Wrap(c, "Average time per day. Days without a session count as zero.", Font(Body, 9), ContentWidth))
+        foreach (var line in Wrap(c, TrendCaption, Font(Body, 9), ContentWidth))
             y = c.Line(line, Font(Body, 9), muted, y);
         return y;
     }
 
     /// <summary>The trend section's height apart from the plot: title, gap, date labels and caption.</summary>
-    private static double TrendSectionHeight() =>
-        Font(DisplaySemiBold, 13).GetHeight() + 6 + 4 + 4 + Font(Body, 8).GetHeight() + 4 + Font(Body, 9).GetHeight();
+    private static double TrendSectionHeight(Canvas c) =>
+        Font(DisplaySemiBold, 13).GetHeight() + 6 + 4 + 4 + Font(Body, 8).GetHeight() + 4
+        + Wrap(c, TrendCaption, Font(Body, 9), ContentWidth).Count * Font(Body, 9).GetHeight();
 
     private static double DrawLede(Canvas c, IReadOnlyList<string> lede, double top)
     {
@@ -620,11 +624,11 @@ public static class ReportPdf
     {
         var legalTop = DrawLegal(c);
         // Sections sit 18 pt apart. When many profiles and long notes leave less room above the
-        // legal text, a pass on a scratch page finds the overflow and the four gaps share it (8 pt at least).
+        // legal text, a pass on a scratch page finds the overflow and the four gaps share it (6 pt at least).
         using var scratch = new PdfDocument();
         using var measure = XGraphics.FromPdfPage(AddPage(scratch));
         var overflow = DrawPage2Sections(new Canvas(measure), model, SectionGap, legalTop) + SectionGap - legalTop;
-        var gap = overflow <= 0 ? SectionGap : Math.Max(8, SectionGap - overflow / 4);
+        var gap = overflow <= 0 ? SectionGap : Math.Max(6, SectionGap - overflow / 4);
         return (DrawPage2Sections(c, model, gap, legalTop), legalTop);
     }
 
@@ -684,10 +688,13 @@ public static class ReportPdf
         y = plotBottom + 3 + small.GetHeight() + 3;
 
         var total = model.StartsByHour.Sum();
-        if (total == 0)
-            return y;
-        var mornings = (int)Math.Round(100.0 * model.StartsByHour.Take(12).Sum() / total, MidpointRounding.AwayFromZero);
-        foreach (var line in Wrap(c, $"Mornings {mornings}%, afternoons and evenings {100 - mornings}%.", Font(Body, 9), width))
+        var caption = "Session starts by hour.";
+        if (total > 0)
+        {
+            var mornings = (int)Math.Round(100.0 * model.StartsByHour.Take(12).Sum() / total, MidpointRounding.AwayFromZero);
+            caption += $" Mornings {mornings}%, afternoons and evenings {100 - mornings}%.";
+        }
+        foreach (var line in Wrap(c, caption, Font(Body, 9), width))
             y = c.Line(line, Font(Body, 9), muted, y, left);
         return y;
     }
