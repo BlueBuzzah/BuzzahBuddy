@@ -457,12 +457,15 @@ public class MockBluetoothService : IBluetoothService
     /// Firmware's last-session summary. The mock's clock excludes pauses, so LAST_ELAPSED (wall
     /// time) adds them back.
     /// </summary>
-    private void RecordMockLastSession(int elapsedSeconds, string reason) =>
+    private void RecordMockLastSession(int elapsedSeconds, string reason)
+    {
+        var paused = MockPausedSoFar();
         _mockLastSession = $"LAST_ID:{_mockSessionId}\n" +
-                           $"LAST_ELAPSED:{elapsedSeconds + MockPausedSoFar()}\n" +
-                           $"LAST_PAUSED:{MockPausedSoFar()}\n" +
+                           $"LAST_ELAPSED:{elapsedSeconds + paused}\n" +
+                           $"LAST_PAUSED:{paused}\n" +
                            $"LAST_TOTAL:{MockSessionTotalSeconds}\n" +
                            $"LAST_REASON:{reason}\n";
+    }
 
     private string GetMockSessionStatus()
     {
