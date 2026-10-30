@@ -253,7 +253,8 @@
                             <Border Style="{StaticResource Card}" Margin="0,0,0,12">
                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{StaticResource Space3}">
                                     <VerticalStackLayout VerticalOptions="Center">
-                                        <Label Text="{Binding DisplayName}" Style="{StaticResource TypeTitleM}" />
+                                        <!-- Line height 1: the title line height would sit both lines off center (GlovesSummaryCard). -->
+                                        <Label Text="{Binding DisplayName}" Style="{StaticResource TypeTitleM}" LineHeight="1" />
                                         <HorizontalStackLayout Spacing="{StaticResource Space1}">
                                             <Label Text="{Binding SignalGlyph}" Style="{StaticResource IconLabel}" FontSize="{StaticResource IconS}"
                                                    TextColor="{DynamicResource InkMuted}" VerticalOptions="Center" />
