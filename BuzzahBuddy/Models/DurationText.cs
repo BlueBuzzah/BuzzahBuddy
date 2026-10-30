@@ -29,16 +29,16 @@ public static class DurationText
         return string.Join(" ", parts);
     }
 
-    /// <summary>Compact duration for labels: "2 h", "1 h 30 min", "5 min".</summary>
+    /// <summary>Compact duration for labels: "2h", "1h 30min", "5min".</summary>
     public static string Short(int seconds)
     {
         seconds = Math.Max(0, seconds);
         int h = seconds / 3600, m = seconds % 3600 / 60;
         return (h, m) switch
         {
-            (0, _) => $"{m} min",
-            (_, 0) => $"{h} h",
-            _ => $"{h} h {m} min",
+            (0, _) => $"{m}min",
+            (_, 0) => $"{h}h",
+            _ => $"{h}h {m}min",
         };
     }
 }

@@ -82,7 +82,7 @@ public partial class GloveControlViewModel : BaseViewModel
     /// </summary>
     public string SelectedProfileName => SelectedProfile?.Name ?? "Choose a Profile First";
 
-    /// <summary>One-line summary of the current profile, e.g. "2 h sessions".</summary>
+    /// <summary>One-line summary of the current profile, e.g. "2h sessions".</summary>
     public string ProfileSummary => SelectedProfile is { } p
         ? $"{DurationText.Short(p.TimeSession * 60)} sessions"
         : string.Empty;

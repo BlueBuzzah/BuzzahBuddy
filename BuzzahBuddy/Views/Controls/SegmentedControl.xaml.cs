@@ -17,16 +17,13 @@ public partial class SegmentedControl : ContentView
     private readonly List<(Button Button, SegmentOption Option)> _buttons = [];
 
     // At large text even "System" won't fit a third of the width, so options stack rather than
-    // wrap. They also stack below that text size whenever a label doesn't fit its share (FitCheck).
+    // wrap. They also stack below that text size whenever a label doesn't fit its share (FitLabels).
     private bool _stacked;
-
-    private static readonly Button.ButtonContentLayout CheckBeside = new(Button.ButtonContentLayout.ImagePosition.Left, 6);
-    private static readonly Button.ButtonContentLayout CheckAbove = new(Button.ButtonContentLayout.ImagePosition.Top, 2);
 
     public SegmentedControl()
     {
         InitializeComponent();
-        Track.SizeChanged += (_, _) => FitCheck();
+        Track.SizeChanged += (_, _) => FitLabels();
         this.TrackTextScale(Arrange);
     }
 
@@ -92,10 +89,7 @@ public partial class SegmentedControl : ContentView
             FontSize = 17,
             LineBreakMode = LineBreakMode.WordWrap,
             AutomationId = $"Segment{option.Value}",
-            ContentLayout = CheckBeside,
         };
-        // The check loads asynchronously; when it lands and wraps the label, the height changes.
-        button.SizeChanged += (_, _) => FitCheck();
         button.Clicked += (_, _) =>
         {
             if (SelectedValue != option.Value)
@@ -112,35 +106,20 @@ public partial class SegmentedControl : ContentView
         {
             var (button, option) = _buttons[i];
             var selected = option.Value == SelectedValue;
-            // Android can keep showing a cleared check (a theme change reloads it after the
-            // clear), so the button that loses the selection is swapped for a fresh one.
-            if (!selected && button.ImageSource is not null)
-            {
-                Track.Remove(button);
-                button = CreateButton(option, i);
-                _buttons[i] = (button, option);
-            }
             button.SetDynamicResource(Button.FontFamilyProperty, selected ? "FontSans700" : "FontSans400");
             button.SetDynamicResource(BackgroundColorProperty, selected ? "Brand" : "SurfaceSunken");
             button.SetDynamicResource(Button.TextColorProperty, selected ? "OnBrand" : "Ink");
-            if (selected && button.ImageSource is null)
-            {
-                var check = new FontImageSource { FontFamily = "Lucide", Glyph = LucideIcons.Check, Size = 20 };
-                check.SetDynamicResource(FontImageSource.ColorProperty, "OnBrand");
-                button.ImageSource = check;
-            }
             SemanticProperties.SetDescription(button, $"{option.Label}, {i + 1} of {_buttons.Count}{(selected ? ", selected" : "")}");
         }
-        Dispatcher.Dispatch(FitCheck);
+        Dispatcher.Dispatch(FitLabels);
     }
 
-    // Equal columns can't widen like the bundle's flex options, so on a narrow phone or at
-    // large text the check moves above the label instead of breaking the word. When a label
-    // still doesn't fit its share on one line, the options stack: a wrapped label clips, since
-    // the button doesn't grow for it. Stacking holds until the text size is checked again.
+    // Equal columns can't widen like the bundle's flex options. When a label doesn't fit its
+    // share on one line, the options stack: a wrapped label clips, since the button doesn't
+    // grow for it. Stacking holds until the text size is checked again.
     private bool _fitting;
 
-    private void FitCheck()
+    private void FitLabels()
     {
         if (_fitting || Track.Width <= 0 || _buttons.Count == 0)
             return;
@@ -151,9 +130,6 @@ public partial class SegmentedControl : ContentView
         var overflow = false;
         foreach (var (button, _) in _buttons)
         {
-            button.ContentLayout = CheckBeside;
-            if (button.ImageSource is not null && NaturalWidth(button) > share)
-                button.ContentLayout = CheckAbove;
             overflow |= NaturalWidth(button) > share;
         }
         if (overflow && !_stacked)

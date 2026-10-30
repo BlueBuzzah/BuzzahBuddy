@@ -128,7 +128,7 @@ public class CustomProfileForm
     }
 
     /// <summary>
-    /// Derived cycle timing for display, e.g. "One full cycle takes 668 ms, about 1.5 times a second."
+    /// Derived cycle timing for display, e.g. "One full cycle takes 668ms, about 1.5 times a second."
     /// </summary>
     public string DerivedTimingText =>
         TryParseTiming(out var onMs, out var offMs)

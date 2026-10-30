@@ -25,9 +25,9 @@ public class DurationTextTests
     public void Spoken_RoundsHalfUp() => Assert.Equal("1 minute", DurationText.Spoken(30));
 
     [Theory]
-    [InlineData(5400, "1 h 30 min")]
-    [InlineData(300, "5 min")]
-    [InlineData(7200, "2 h")]
+    [InlineData(5400, "1h 30min")]
+    [InlineData(300, "5min")]
+    [InlineData(7200, "2h")]
     public void Short(int seconds, string expected) => Assert.Equal(expected, DurationText.Short(seconds));
 
     [Fact]

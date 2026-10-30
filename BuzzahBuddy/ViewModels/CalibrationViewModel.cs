@@ -81,8 +81,8 @@ public partial class CalibrationViewModel : BaseViewModel
     /// <summary>Buzz lengths for the SegmentedControl.</summary>
     public IList<SegmentOption> DurationOptions { get; } = new[]
     {
-        new SegmentOption(100, "100 ms"), new SegmentOption(500, "500 ms"),
-        new SegmentOption(1000, "1 s"), new SegmentOption(2000, "2 s"),
+        new SegmentOption(100, "100ms"), new SegmentOption(500, "500ms"),
+        new SegmentOption(1000, "1s"), new SegmentOption(2000, "2s"),
     };
 
     /// <summary>Set when a disconnect ended test mode; drives the warning banner.</summary>

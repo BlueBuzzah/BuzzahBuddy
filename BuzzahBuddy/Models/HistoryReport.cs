@@ -280,7 +280,7 @@ public static class HistoryReport
         return total / (end.DayNumber - start.DayNumber + 1);
     }
 
-    /// <summary>A duration rounded to the nearest 10 minutes, as "2 h 30 min".</summary>
+    /// <summary>A duration rounded to the nearest 10 minutes, as "2h 30min".</summary>
     private static string About(int seconds) =>
         DurationText.Short((int)Math.Round(seconds / 600.0, MidpointRounding.AwayFromZero) * 600);
 

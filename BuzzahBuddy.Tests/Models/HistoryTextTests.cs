@@ -40,7 +40,7 @@ public class HistoryTextTests
     {
         var line = HistoryText.SessionLine(Rec("2026-10-28T08:02:00+00:00", 7200), Inv);
 
-        Assert.Equal("08:02 · 2 h · Noisy · Completed", line);
+        Assert.Equal("08:02 · 2h · Noisy · Completed", line);
     }
 
     [Fact]
@@ -54,7 +54,7 @@ public class HistoryTextTests
 
         Assert.Equal("Yesterday. 3 hours 50 minutes. 2 sessions. Note: Tremor felt lighter after lunch", row.Spoken);
         Assert.Equal("Edit Note", row.NoteButtonText);
-        Assert.Equal("3 h 50 min", row.Total);
+        Assert.Equal("3h 50min", row.Total);
         Assert.Equal(2, row.SessionLines.Count);
         Assert.Equal("Tremor felt lighter after lunch", row.Note);
     }
@@ -80,7 +80,7 @@ public class HistoryTextTests
         Assert.Equal(new[] { "No sessions yet" }, today.SessionLines);
         Assert.Equal("Today. No sessions yet", today.Spoken);
         Assert.Equal("Add Note", today.NoteButtonText);
-        Assert.Equal("0 min", today.Total);
+        Assert.Equal("0min", today.Total);
 
         var earlier = rows.Single(r => r.Day == new DateOnly(2026, 10, 26));
         Assert.Equal(new[] { "No sessions" }, earlier.SessionLines);
@@ -107,14 +107,14 @@ public class HistoryTextTests
         var tiles = HistoryText.Tiles(m, ReportRange.Last30Days, Inv);
 
         Assert.Equal(new[] { "Total Time", "Days Used", "Average Day", "Sessions" }, tiles.Select(t => t.Label));
-        Assert.Equal("5 h 30 min", tiles[0].Value);
+        Assert.Equal("5h 30min", tiles[0].Value);
         Assert.Equal("in the last 30 days", tiles[0].Detail);
         Assert.Equal("2", tiles[1].Value);
         Assert.Equal("days with a session", tiles[1].Detail);
-        Assert.Equal("2 h 45 min", tiles[2].Value);
+        Assert.Equal("2h 45min", tiles[2].Value);
         Assert.Equal("on days used", tiles[2].Detail);
         Assert.Equal("3", tiles[3].Value);
-        Assert.Equal("1 h 50 min each on average", tiles[3].Detail);
+        Assert.Equal("1h 50min each on average", tiles[3].Detail);
         Assert.Equal("Total Time, 5 hours 30 minutes, in the last 30 days", tiles[0].Spoken);
     }
 
@@ -146,7 +146,7 @@ public class HistoryTextTests
 
         var tiles = HistoryText.Tiles(m, ReportRange.Last30Days, Inv);
 
-        Assert.Equal(new[] { "0 min", "0", "0 min", "0" }, tiles.Select(t => t.Value));
+        Assert.Equal(new[] { "0min", "0", "0min", "0" }, tiles.Select(t => t.Value));
         Assert.Equal("no sessions", tiles[3].Detail);
     }
 
@@ -159,9 +159,9 @@ public class HistoryTextTests
 
         Assert.True(HistoryText.IsWeekly(m));
         Assert.Equal(new[] { "Oct 1–2", "Oct 3–9", "Oct 10–16", "Oct 17–23", "Oct 24–30" }, rows.Select(r => r.Label));
-        Assert.Equal("34 min a day", rows[4].Value);
+        Assert.Equal("34min a day", rows[4].Value);
         Assert.Equal("October 24 to 30, 34 minutes a day", rows[4].Spoken);
-        Assert.Equal("0 min a day", rows[0].Value);
+        Assert.Equal("0min a day", rows[0].Value);
     }
 
     [Fact]

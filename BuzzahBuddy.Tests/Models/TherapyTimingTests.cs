@@ -27,7 +27,7 @@ public class TherapyTimingTests
 
     [Fact]
     public void CrTimingLabel_ReportsPeriodAndFrequency()
-        => Assert.Equal("One full cycle takes 668 ms, about 1.5 times a second.", TherapyTiming.CrTimingLabel(4, 100, 67));
+        => Assert.Equal("One full cycle takes 668ms, about 1.5 times a second.", TherapyTiming.CrTimingLabel(4, 100, 67));
 
     [Fact]
     public void CrTimingLabel_WithDegenerateTiming_SaysUnavailable()
