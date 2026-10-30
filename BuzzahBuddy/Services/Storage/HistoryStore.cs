@@ -176,16 +176,21 @@ public sealed class HistoryStore
         }
     }
 
+    // Throws if the file cannot be moved: continuing with an empty store would let the next
+    // save overwrite the corrupt file.
     private void KeepAside()
     {
-        try
+        var stamp = $"{_filePath}.corrupt-{DateTime.Now:yyyyMMddHHmmss}";
+        for (var n = 0; ; n++)
         {
-            var aside = $"{_filePath}.corrupt-{DateTime.Now:yyyyMMddHHmmss}";
+            var aside = n == 0 ? stamp : $"{stamp}-{n}";
+            if (File.Exists(aside))
+            {
+                continue;
+            }
+
             File.Move(_filePath, aside, overwrite: false);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            System.Diagnostics.Debug.WriteLine($"[HISTORY] Could not keep corrupt file aside: {ex.Message}");
+            return;
         }
     }
 

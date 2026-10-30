@@ -106,6 +106,19 @@ public sealed class HistoryStoreTests : IDisposable
         Assert.Equal("{not json", await File.ReadAllTextAsync(aside));
     }
 
+    [Fact]
+    public async Task Load_CorruptFile_TwiceInOneSecond_KeepsBoth()
+    {
+        Directory.CreateDirectory(_dir);
+        await File.WriteAllTextAsync(FilePath, "{one");
+        await new HistoryStore(FilePath).LoadAsync();
+        await File.WriteAllTextAsync(FilePath, "{two");
+        await new HistoryStore(FilePath).LoadAsync();
+
+        var texts = Directory.GetFiles(_dir, "history.json.corrupt-*").Select(File.ReadAllText).OrderBy(x => x).ToArray();
+        Assert.Equal(new[] { "{one", "{two" }, texts);
+    }
+
     private static string LegacyJson()
     {
         var day = new DateTime(2026, 10, 27, 8, 0, 0, DateTimeKind.Local);
