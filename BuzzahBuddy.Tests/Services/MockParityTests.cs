@@ -77,4 +77,19 @@ public class MockParityTests
         var raw = await mock.GetRawResponseAsync("SESSION_STATUS");
         Assert.Contains("SESSION_STATUS:LOW_BATTERY", raw);
     }
+
+    [Fact]
+    public async Task SessionStatus_AfterSessionLength_ReportsIdleZeros_LikeFirmware()
+    {
+        // Firmware stops the engine the tick elapsed reaches TOTAL, then reports IDLE 0/0/0.
+        // PROGRESS never reads 100 on real gloves.
+        var mock = await ConnectedMock();
+        await mock.GetRawResponseAsync("SESSION_START");
+        mock.AdvanceMockSession(TimeSpan.FromSeconds(7200));
+        var raw = await mock.GetRawResponseAsync("SESSION_STATUS");
+        Assert.Contains("SESSION_STATUS:IDLE\n", raw);
+        Assert.Contains("\nELAPSED:0\n", raw);
+        Assert.Contains("\nTOTAL:0\n", raw);
+        Assert.Contains("\nPROGRESS:0\n", raw);
+    }
 }

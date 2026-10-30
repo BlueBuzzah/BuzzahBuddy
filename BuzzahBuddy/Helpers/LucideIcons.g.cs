@@ -32,4 +32,6 @@ public static class LucideIcons
     public const string Vibrate = "\uE223";
     public const string HardDriveDownload = "\uE4E5";
     public const string Unplug = "\uE45D";
+    public const string Calendar = "\uE063";
+    public const string Share = "\uE155";
 }

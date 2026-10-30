@@ -24,6 +24,7 @@ public partial class SettingsViewModel : BaseViewModel
 	private readonly IConfirmationService _confirmation;
 	private readonly SwitchableBluetoothService _bluetooth;
 	private readonly IReconnectionService _reconnection;
+	private readonly HistoryStore _history;
 
 	/// <summary>Set while a cancelled confirmation puts the switch back, so it isn't applied.</summary>
 	private bool _revertingDemoMode;
@@ -65,13 +66,15 @@ public partial class SettingsViewModel : BaseViewModel
 		IConfirmationService confirmation,
 		SwitchableBluetoothService bluetooth,
 		IReconnectionService reconnection,
-		IGloveControlService gloveControl)
+		IGloveControlService gloveControl,
+		HistoryStore history)
 	{
 		_storageService = storageService;
 		_theme = theme;
 		_confirmation = confirmation;
 		_bluetooth = bluetooth;
 		_reconnection = reconnection;
+		_history = history;
 		_demoMode = bluetooth.IsDemoMode;
 		_isSessionActive = gloveControl.CurrentSessionStatus.IsActive;
 		// ponytail: never unsubscribed; this VM is a singleton living as long as the service.
@@ -147,6 +150,16 @@ public partial class SettingsViewModel : BaseViewModel
 			return;
 
 		await _storageService.ClearAllDataAsync();
+		try
+		{
+			await _history.ClearAsync();
+		}
+		catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+		{
+			// Don't say the data is gone when the history file is still there.
+			System.Diagnostics.Debug.WriteLine($"[SETTINGS] Could not delete history: {ex.Message}");
+			return;
+		}
 		DataClearedVisible = true;
 		SemanticScreenReader.Announce("Data cleared");
 	}

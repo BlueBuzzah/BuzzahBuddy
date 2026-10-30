@@ -109,6 +109,11 @@ bounds link-up through subscribe — iOS never times out a connect itself.
   is edited and saved on the phone (`IDataStorageService`), then `SendSavedCustomProfileAsync`
   sends it on Apply — after the reboot when Apply also loads Custom, since firmware takes
   `PROFILE_CUSTOM` only while Custom is loaded.
+- `SessionRecord` / `OpenSession` — a saved session and the one being tracked. The firmware
+  never reports a finish (the next reading is IDLE 0/0/0), so the end is inferred: a session
+  counts as completed when the last running reading plus the 15 s tolerance
+  (`CompletionToleranceSeconds`) reaches the planned length. Delivered time sums ELAPSED
+  gains while running (paused time excluded); under 60 s (`MinimumSavedSeconds`) isn't saved.
 - `BatteryReading` — `≤ 0.0 V` is the firmware's "no reading" sentinel → unavailable, not
   0%. 3.0 V = 0%, 4.2 V = 100%, linear.
 
@@ -116,7 +121,10 @@ bounds link-up through subscribe — iOS never times out a connect itself.
 
 `BuzzahBuddy.Tests` is plain `net10.0` with **no `ProjectReference`** (it would restore
 every app TFM and fail without mobile workloads); it `Compile Include`s app sources —
-`Models/**`, `Services/Glove/**`, selected `Services/Bluetooth` and `Helpers` files. A
+`Models/**`, `Services/Glove/**`, selected `Services/Bluetooth` and `Helpers` files, and
+`Services/Storage/HistoryStore.cs` + `StorageJsonContext.cs`, and
+`Services/Reports/ReportPdf.cs`; the report's five TTFs and the mark are linked as files
+under `ReportAssets/` in the test output. A
 new testable source needs its own `Compile Include` in `BuzzahBuddy.Tests.csproj`.
 
 - `BluetoothService.cs` is **excluded**: its ctor hits `CrossBluetoothLE.Current`, which
@@ -133,14 +141,17 @@ dispatch.
 
 ## UI & Navigation
 
-Tabs in `AppShell.xaml`: `//control` (Session), `//devices` (Gloves), `//settings`;
-pushed routes `calibration` (Test Motors) and `profilesettings` (Custom Profile) in
-`AppShell.xaml.cs`; strings in `Helpers/Routes.cs`. Modals created with `new`, not routes:
+Tabs in `AppShell.xaml`: `//control` (Session), `//devices` (Gloves), `//history`
+(History), `//settings`; pushed routes `calibration` (Test Motors) and `profilesettings`
+(Custom Profile) in `AppShell.xaml.cs`; strings in `Helpers/Routes.cs`. Modals created
+with `new`, not routes:
 `ApplyingSettingsPage` (while gloves reboot), `WelcomePage` (first-run safety notices),
 `ConfirmSheetPage` (every confirmation, via `IConfirmationService`).
 `ApplyingSettingsPage.OnBackButtonPressed` only works on Android because
 `AndroidManifest.xml` sets `enableOnBackInvokedCallback="false"`.
 `DeviceSettingsViewModel` has no page; it's `DeviceListViewModel.Settings`.
+`HistoryViewModel` reloads from `HistoryStore` on `OnAppearing` and never subscribes to
+service events.
 
 DI (`MauiProgram.cs`): tab pages/VMs are **singletons** (Shell caches them) and never
 disposed; Calibration/ProfileSettings are transient — a transient VM subscribing to
@@ -185,6 +196,18 @@ button's current `TextColor`.
   verify reflection-adjacent changes with `-c Release` on a device.
 - **Every persisted type needs `[JsonSerializable]` in
   `Services/Storage/StorageJsonContext.cs`**; a missing entry throws at runtime on device.
+- **History storage:** `HistoryStore` writes `history.json` in `FileSystem.AppDataDirectory`
+  (temp file + move). The open session lives in Preferences `open_session`. A file that won't
+  parse is renamed `history.json.corrupt-<timestamp>` and never overwritten. Legacy
+  `therapy_sessions` is migrated once, then cleared.
+- **Shared report** (`Services/Reports/ReportPdf.cs`): PDFsharp `XGraphics` draws two fixed
+  pages from `HistoryReport.Build` (page 1 use, page 2 patterns, notes and legal text); every
+  session and day note is in the CSV, so the PDF has no tables. Page 2's gaps tighten when
+  long notes would reach the legal text; `Render_NothingOverflowsOrOverlaps` guards both
+  pages. Its five TTFs and the mark are `EmbeddedResource`s (`BuzzahBuddy.Report.*`, linked as
+  files in tests). `GlobalFontSettings.FontResolver` can be set once per process, so the first
+  `ReportAssets` wins. The `System.Security.Cryptography.Pkcs` 10.x reference in both csproj
+  files overrides PDFsharp's vulnerable 8.0.1; don't drop it.
 - **`XC0023` is suppressed on purpose**: compiled `RelativeSource AncestorType` fails
   inside recycled `CollectionView` items on device; `DeviceListPage` uses
   `Source={x:Reference page}`. `XC0045`: intentional parent-VM `RelativeSource`.

@@ -102,6 +102,10 @@ public static class MauiProgram
 		builder.Services.AddSingleton<IReconnectionService, ReconnectionService>();
 		builder.Services.AddSingleton<BuzzahBuddy.Services.ConnectionStateManagement.IConnectionStateService, BuzzahBuddy.Services.ConnectionStateManagement.ConnectionStateService>();
 		builder.Services.AddSingleton<IDataStorageService, PreferencesStorageService>();
+		builder.Services.AddSingleton(_ => new HistoryStore(
+			Path.Combine(FileSystem.AppDataDirectory, "history.json"),
+			() => Preferences.Default.Get(HistoryStore.LegacyPreferencesKey, (string?)null),
+			() => Preferences.Default.Remove(HistoryStore.LegacyPreferencesKey)));
 		builder.Services.AddSingleton<BuzzahBuddy.Services.AppLifecycle.IAppLifecycleService, BuzzahBuddy.Services.AppLifecycle.AppLifecycleService>();
 		builder.Services.AddSingleton<BuzzahBuddy.Services.Theme.IThemeService, BuzzahBuddy.Services.Theme.ThemeService>();
 		builder.Services.AddSingleton<BuzzahBuddy.Services.Dialogs.IConfirmationService, BuzzahBuddy.Services.Dialogs.ConfirmationService>();
@@ -111,6 +115,7 @@ public static class MauiProgram
 		builder.Services.AddSingleton<DeviceListViewModel>();
 		builder.Services.AddSingleton<DeviceSettingsViewModel>();
 		builder.Services.AddSingleton<GloveControlViewModel>();
+		builder.Services.AddSingleton<HistoryViewModel>();
 		builder.Services.AddSingleton<SettingsViewModel>();
 		builder.Services.AddTransient<CalibrationViewModel>();
 		builder.Services.AddTransient<ProfileSettingsViewModel>();
@@ -118,6 +123,7 @@ public static class MauiProgram
 		// Register Views
 		builder.Services.AddSingleton<DeviceListPage>();
 		builder.Services.AddSingleton<GloveControlPage>();
+		builder.Services.AddSingleton<HistoryPage>();
 		builder.Services.AddSingleton<SettingsPage>();
 		builder.Services.AddTransient<CalibrationPage>();
 		builder.Services.AddTransient<ProfileSettingsPage>();

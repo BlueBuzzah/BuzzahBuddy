@@ -8,6 +8,7 @@ public static class Routes
 {
     public const string Control = "//control";
     public const string Devices = "//devices";
+    public const string History = "//history";
     public const string Settings = "//settings";
     public const string Calibration = "calibration";
     public const string ProfileSettings = "profilesettings";

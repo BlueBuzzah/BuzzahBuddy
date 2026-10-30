@@ -28,16 +28,19 @@ public partial class GloveControlViewModel : BaseViewModel
     private readonly RepeatGuard _sessionControls = new(RepeatGuard.SessionControlWindow);
     private readonly AnnouncementThrottle _ringSpeech = new(TimeSpan.FromMinutes(1));
     private bool _showComplete;
+    // The "Session Complete" banner's message: claims a save only when one happened.
+    private string _completeMessage = string.Empty;
     private int _completedTotalSeconds;
     private string? _sessionEndedMessage;
     private bool _sessionEndedByConnection;
     private bool _wasReconnecting;
     private (int Attempt, int Max) _reconnectAttempt;
-    private TherapySession? _currentSession;
-    // Set when the link dropped mid-session and an auto-reconnect is running: the
-    // gloves keep the session going without the phone, so _currentSession is kept
-    // until the reconnect reports back (see ResolveSessionAfterReconnect).
-    private DateTime? _sessionDisconnectedAt;
+    private readonly HistoryStore _history;
+    // The session being tracked (persisted, so it survives the app being killed or the
+    // link dropping), and its Demo Mode twin, which is never persisted or saved. Kept
+    // apart so demo readings can never close a real session.
+    private OpenSession? _openSession;
+    private OpenSession? _demoSession;
     private CancellationTokenSource? _statusPollCts;
     private System.Timers.Timer? _healthCheckTimer;
     private readonly SessionClock _sessionClock = new();
@@ -47,6 +50,12 @@ public partial class GloveControlViewModel : BaseViewModel
     private bool _isBackgrounded;
     private SessionState _previousSessionState = SessionState.IDLE;
     private bool _userRequestedStop;
+    // Known Defect 7: a session that ended while the phone was away reads RUNNING with TOTAL 0
+    // after the reconnect, on every poll. Once such a ghost has closed the tracked session the
+    // ghosts that follow are that finished session, so the UI reads them as idle until a real
+    // IDLE or a trackable session arrives. TOTAL 0 isn't idle in general: older firmware that
+    // never reports TOTAL still counts up when no session was being tracked.
+    private bool _ghostAfterClose;
     private int _consecutivePollFailures;
     private int _consecutiveHealthCheckFailures;
     private const int PollFailureWarningThreshold = 2;
@@ -155,16 +164,21 @@ public partial class GloveControlViewModel : BaseViewModel
         IReconnectionService reconnectionService,
         IConnectionStateService connectionStateService,
         IAppLifecycleService appLifecycleService,
-        IConfirmationService confirmation)
+        IConfirmationService confirmation,
+        HistoryStore history)
     {
         _confirmation = confirmation;
         _gloveControlService = gloveControlService;
         _bluetoothService = bluetoothService;
         _storageService = storageService;
         _reconnectionService = reconnectionService;
+        _history = history;
         ConnectionInfo = connectionStateService;
 
         Title = "Session";
+
+        // Before any event can deliver a reading that continues or ends it.
+        _openSession = _storageService.LoadOpenSession();
 
         // Subscribe to connection events
         _bluetoothService.ConnectionStateChanged += OnConnectionStateChanged;
@@ -270,31 +284,9 @@ public partial class GloveControlViewModel : BaseViewModel
                     return;
                 }
 
-                // A record kept across a reconnect whose outcome never arrived (the
-                // post-connect status read failed) is superseded by this new session.
-                // Read it before awaiting Start: Start's synthesized RUNNING status is
-                // delivered on the main thread during the await, and would settle the
-                // old record as "still active" and clear the marker first.
-                var interruptedAt = _sessionDisconnectedAt;
-
-                // Start session
+                // Start session. Its synthesized RUNNING status reaches TrackSession
+                // through the service event, which begins tracking.
                 await _gloveControlService.StartSessionAsync();
-
-                if (interruptedAt is { } disconnectedAt)
-                {
-                    _sessionDisconnectedAt = null;
-                    SaveInterruptedSession(disconnectedAt);
-                }
-
-                // Create new therapy session
-                _currentSession = new TherapySession
-                {
-                    StartTime = DateTime.Now,
-                    ProfileUsed = SelectedProfile,
-                    ProfileId = SelectedProfile!.ProfileId,
-                    DeviceId = _bluetoothService.ConnectedDevice?.Id,
-                    Status = SessionState.RUNNING
-                };
 
                 _showComplete = false;
                 _sessionEndedMessage = null;
@@ -341,9 +333,10 @@ public partial class GloveControlViewModel : BaseViewModel
 
         // Ending a session always confirms (buzzahbuddy.md Session screen). Dismissing
         // the sheet any other way, Android back included, keeps the session going.
+        // Demo Mode sessions aren't saved, so the sheet doesn't promise it.
         var stop = await _confirmation.ConfirmAsync(new ConfirmRequest(
             "Stop This Session?",
-            "Your gloves stop buzzing. The time so far is saved.",
+            IsDemoMode ? "Your gloves stop buzzing." : "Your gloves stop buzzing. The time so far is saved.",
             "Stop Session",
             "Keep Going",
             Destructive: true));
@@ -354,18 +347,10 @@ public partial class GloveControlViewModel : BaseViewModel
 
         try
         {
-            // Stop session
+            // Stop session. The IDLE reading that follows closes the record as
+            // stopped early (TrackSession), because this flag is set first.
             _userRequestedStop = true;
             await _gloveControlService.StopSessionAsync();
-
-            if (_currentSession != null)
-            {
-                _currentSession.EndTime = DateTime.Now;
-                _currentSession.IsCompleted = true;
-                _currentSession.Status = SessionState.IDLE;
-                await _storageService.SaveSessionAsync(_currentSession);
-                _currentSession = null;
-            }
 
             StopStatusPolling();
             await UpdateSessionStatusAsync();
@@ -373,11 +358,14 @@ public partial class GloveControlViewModel : BaseViewModel
         }
         catch (BlueBuzzahCommandException ex)
         {
+            // The session carries on: a later natural end isn't a stop.
+            _userRequestedStop = false;
             var error = ErrorMessageHelper.GetFriendlyError(ex.Message);
             await Shell.Current.DisplayAlert(error.Title, error.ForAlert, "OK");
         }
         catch (Exception ex)
         {
+            _userRequestedStop = false;
             var error = ErrorMessageHelper.FromException(ex);
             await Shell.Current.DisplayAlert(error.Title, error.ForAlert, "OK");
         }
@@ -484,7 +472,7 @@ public partial class GloveControlViewModel : BaseViewModel
         else if (SessionWarningMessage is not null)
             banner = (StatusTone.Info, "Session Time May Be Behind", "We're waiting for an update from your primary glove.", false);
         else if (_showComplete)
-            banner = (StatusTone.Success, "Session Complete", "Your session is saved.", false);
+            banner = (StatusTone.Success, "Session Complete", _completeMessage, false);
 
         BannerVisible = banner is not null;
         if (banner is { } b)
@@ -547,7 +535,6 @@ public partial class GloveControlViewModel : BaseViewModel
 
         try
         {
-            var previousProgress = SessionStatus.Progress;
             var polled = await _gloveControlService.GetSessionStatusAsync();
 
             // UNKNOWN means the reply carried no readable SESSION_STATUS (dropped,
@@ -563,46 +550,12 @@ public partial class GloveControlViewModel : BaseViewModel
             }
 
             SessionStatus = polled;
-            ResolveSessionAfterReconnect(polled);
-
-            // Detect unexpected session end (e.g., secondary glove disconnected, error,
-            // critical battery). State-aware: LOW_BATTERY keeps the session running and
-            // surfaces a non-blocking warning instead of an "ended unexpectedly" alert.
-            bool wasActive = _previousSessionState is SessionState.RUNNING or SessionState.PAUSED or SessionState.LOW_BATTERY or SessionState.STOPPING;
-            string? endReason = SessionStatus.Status switch
-            {
-                SessionState.ERROR => "Your gloves reported a problem and stopped. Restart both gloves, then start a new session.",
-                SessionState.CONNECTION_LOST => "Your gloves lost their connection to each other. Keep them close together, restart both, then start a new session.",
-                SessionState.CRITICAL_BATTERY => "A glove battery is almost empty. Charge both gloves, then start a new session.",
-                SessionState.IDLE when SessionStatus.Progress < 100 => "Your secondary glove may have disconnected. Turn it off and on, then start a new session.",
-                _ => null
-            };
-
-            if (wasActive && endReason != null && !_userRequestedStop)
-            {
-                // A danger banner, not a modal: it stays until the next session starts.
-                _sessionEndedMessage = endReason;
-                _sessionEndedByConnection = SessionStatus.Status == SessionState.CONNECTION_LOST;
-                ResolveBanner();
-            }
-
-            var previousState = _previousSessionState;
-            _previousSessionState = SessionStatus.Status;
-            _userRequestedStop = false;
-
-            // Update current session tracking
-            if (_currentSession != null && SessionStatus.IsActive)
-            {
-                _currentSession.ElapsedTimeSeconds = SessionStatus.ElapsedTimeSeconds;
-                _currentSession.Progress = SessionStatus.Progress;
-                _currentSession.Status = SessionStatus.Status;
-            }
-
-            // Check for session completion (Progress is a 0-100 percent, not a 0-1 fraction)
-            if (SessionStatus.Progress >= 100 && previousProgress < 100)
-            {
-                await HandleSessionCompletionAsync();
-            }
+            TrackSession(polled, fromPoll: true);
+            SessionStatus = ForDisplay(polled);
+            // A poll already in flight when Stop was confirmed still reads the session
+            // running; keep the flag for the IDLE reading that Stop produces.
+            if (!polled.IsActive)
+                _userRequestedStop = false;
 
             UpdateSessionState();
 
@@ -874,17 +827,18 @@ public partial class GloveControlViewModel : BaseViewModel
     {
         MainThread.BeginInvokeOnMainThread(() =>
         {
-            // The poll (UpdateSessionStatusAsync) owns completion/"ended unexpectedly"
-            // detection and calls GetSessionStatusAsync, which fires this event with
-            // the very status it then assigns to SessionStatus. Ignore that echo — by
-            // the time this queued callback runs the poll has already assigned it — so
-            // only out-of-band updates from Start/Pause/Resume/Stop flip the UI here,
-            // and the poll's edge detection is never bypassed or double-run.
+            // The poll's GetSessionStatusAsync fires this event with the very status it
+            // then assigns to SessionStatus. Skipping that echo is best-effort: on the
+            // main thread this callback runs inline, before the poll assigns it, so a
+            // poll reading can reach TrackSession twice. TrackSession is idempotent for
+            // a repeated reading (only the poll pass observes; the first pass to see an
+            // end closes it and the second finds nothing open).
             if (ReferenceEquals(status, SessionStatus))
                 return;
 
             SessionStatus = status;
-            ResolveSessionAfterReconnect(status);
+            TrackSession(status, fromPoll: false);
+            SessionStatus = ForDisplay(status);
             UpdateSessionState();
 
             // A session we didn't start (e.g. the gloves auto-started one before the
@@ -961,31 +915,13 @@ public partial class GloveControlViewModel : BaseViewModel
                 ApplyBatteryReadingAsync(null, null, warnIfLow: false).SafeFireAndForget("[GLOVECONTROL]");
             }
 
-            // Session teardown on disconnect. A record still kept from an earlier
-            // reconnect whose outcome never arrived (UI already idle) counts too, so a
-            // later disconnect can't orphan it.
-            if (!isConnected && (IsSessionActive || _sessionDisconnectedAt != null))
+            // Session UI teardown on disconnect. The open session is kept: the gloves
+            // carry on without the phone, and the next reading continues or ends it.
+            if (!isConnected && IsSessionActive)
             {
                 StopStatusPolling();
                 SessionStatus = SessionStatus.CreateIdle();
                 UpdateSessionState();
-
-                // ReconnectionService has already decided (synchronously, on this same
-                // state change) whether to reconnect. If it is, the gloves are most
-                // likely still running the session — including after the poll's own
-                // forced reconnect — so don't split the history: keep the record until
-                // the reconnect succeeds or gives up. Otherwise save it as incomplete.
-                // Either way the earliest drop is when tracking was lost.
-                var droppedAt = _sessionDisconnectedAt ?? DateTime.Now;
-                if (_currentSession != null && _reconnectionService.IsReconnecting)
-                {
-                    _sessionDisconnectedAt = droppedAt;
-                }
-                else
-                {
-                    _sessionDisconnectedAt = null;
-                    SaveInterruptedSession(droppedAt);
-                }
             }
 
             // The first connect is announced by the Gloves tab; this covers drops and
@@ -1014,24 +950,122 @@ public partial class GloveControlViewModel : BaseViewModel
         });
     }
 
-    /// <summary>
-    /// The first session status after a mid-session reconnect settles the kept record:
-    /// still active means the session carried on and tracking continues; otherwise it
-    /// ended while the phone was away and is saved as incomplete.
-    /// </summary>
-    private void ResolveSessionAfterReconnect(SessionStatus status)
-    {
-        if (_sessionDisconnectedAt is not { } disconnectedAt)
-            return;
+    private static bool IsDemoMode => Preferences.Default.Get(SwitchableBluetoothService.DemoModeKey, false);
 
-        _sessionDisconnectedAt = null;
-        // A manual connect may have gone to a different glove: an active session
-        // there is not the one this record tracks.
-        var sameGlove = _currentSession?.DeviceId == null ||
-                        _currentSession.DeviceId == _bluetoothService.ConnectedDevice?.Id;
-        if (!status.IsActive || !sameGlove)
-            SaveInterruptedSession(disconnectedAt);
+    /// <summary>
+    /// The one place a reading begins, continues or ends the tracked session, and the only
+    /// place that decides end-of-session UI. Only poll readings may <see cref="OpenSession.Observe"/>:
+    /// the service synthesizes Pause/Resume from the last poll's ELAPSED (up to 5 s stale), so
+    /// letting them observe would count a whole pause as therapy time.
+    /// </summary>
+    private void TrackSession(SessionStatus status, bool fromPoll)
+    {
+        var demo = IsDemoMode;
+        ref var open = ref (demo ? ref _demoSession : ref _openSession);
+        var now = DateTimeOffset.Now;
+        var device = _bluetoothService.ConnectedDevice?.Id;
+        var wasActive = _previousSessionState is SessionState.RUNNING or SessionState.PAUSED or SessionState.LOW_BATTERY or SessionState.STOPPING;
+        _previousSessionState = status.Status;
+        if (status.Status == SessionState.IDLE || OpenSession.CanTrack(status))
+            _ghostAfterClose = false;
+
+        if (open != null)
+        {
+            if (open.Continues(status, device, now))
+            {
+                if (fromPoll)
+                {
+                    open.Observe(status, now);
+                    if (!demo)
+                        _storageService.SaveOpenSession(_openSession);
+                }
+                return;
+            }
+
+            if (!demo && IsGhost(status))
+                _ghostAfterClose = true;
+            var outcome = _userRequestedStop ? SessionOutcome.StoppedEarly : open.InferEnd(now);
+            _userRequestedStop = false;
+            var record = open.Close(outcome, now);
+            open = null;
+            if (!demo)
+            {
+                if (record != null)
+                    SaveClosedSessionAsync(record).SafeFireAndForget("[GLOVECONTROL]");
+                else
+                    _storageService.SaveOpenSession(null);
+            }
+            // A reading that is itself a new session (the gloves started another one while
+            // the phone was away) goes straight to that session's UI; the old one is saved.
+            if (wasActive && !OpenSession.CanTrack(status))
+                EndSessionUi(outcome, record, status);
+        }
+
+        if (OpenSession.CanTrack(status))
+        {
+            var profileId = _gloveControlService.DeviceProfileId;
+            open = OpenSession.Begin(status, now, profileId, ProfileNameFor(profileId), device);
+            if (!demo)
+                _storageService.SaveOpenSession(_openSession);
+        }
     }
+
+    private static bool IsGhost(SessionStatus status) => status.IsActive && status.TotalTimeSeconds == 0;
+
+    /// <summary>What the session UI shows for a reading: a ghost after a close reads idle.</summary>
+    private SessionStatus ForDisplay(SessionStatus status) =>
+        _ghostAfterClose && IsGhost(status) ? SessionStatus.CreateIdle() : status;
+
+    /// <summary>
+    /// Writes a closed session to history, and only then drops its persisted open copy: if the
+    /// write fails, the copy reloads at the next launch and the next reading closes it again.
+    /// </summary>
+    private async Task SaveClosedSessionAsync(SessionRecord record)
+    {
+        try
+        {
+            await _history.AddSessionAsync(record);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[GLOVECONTROL] Could not save session {record.Id}, keeping it open: {ex.Message}");
+            return;
+        }
+        // The reading that closed it may already have begun and persisted a new session.
+        if (_storageService.LoadOpenSession()?.Id == record.Id)
+            _storageService.SaveOpenSession(null);
+    }
+
+    private void EndSessionUi(SessionOutcome outcome, SessionRecord? record, SessionStatus status)
+    {
+        switch (outcome)
+        {
+            case SessionOutcome.Completed:
+                HandleSessionCompletionAsync(record).SafeFireAndForget("[GLOVECONTROL]");
+                break;
+            case SessionOutcome.EndedEarly:
+                // A danger banner, not a modal: it stays until the next session starts.
+                _sessionEndedMessage = EndReasonFor(status);
+                _sessionEndedByConnection = status.Status == SessionState.CONNECTION_LOST;
+                ResolveBanner();
+                break;
+            // StoppedEarly: Stop already announces.
+        }
+    }
+
+    private static string? EndReasonFor(SessionStatus status) => status.Status switch
+    {
+        SessionState.ERROR => "Your gloves reported a problem and stopped. Restart both gloves, then start a new session.",
+        SessionState.CONNECTION_LOST => "Your gloves lost their connection to each other. Keep them close together, restart both, then start a new session.",
+        SessionState.CRITICAL_BATTERY => "A glove battery is almost empty. Charge both gloves, then start a new session.",
+        SessionState.IDLE when status.Progress < 100 => "Your secondary glove may have disconnected. Turn it off and on, then start a new session.",
+        _ => null
+    };
+
+    private string ProfileNameFor(int profileId) =>
+        _profiles.FirstOrDefault(p => p.ProfileId == profileId)?.Name
+        ?? SelectedProfile?.Name
+        ?? "Unknown";
 
     private void OnReconnectionStateChanged(object? sender, ReconnectionStateEventArgs e)
     {
@@ -1043,51 +1077,12 @@ public partial class GloveControlViewModel : BaseViewModel
                 ResolveBanner();
             });
         }
-
-        if (e.State is not (ReconnectionState.Failed or ReconnectionState.Cancelled))
-            return;
-
-        // A manual connect replaced the reconnect (same glove, typically): keep the
-        // record for that connect to settle - its post-connect status resolves it, and
-        // a failed connect saves it through the disconnect teardown.
-        if (e.SupersededByConnect)
-            return;
-
-        MainThread.BeginInvokeOnMainThread(() =>
-        {
-            // The reconnect gave up (or the user moved on): the session can no longer
-            // be followed, so record it as ending when the link dropped.
-            if (_sessionDisconnectedAt is { } disconnectedAt)
-            {
-                _sessionDisconnectedAt = null;
-                SaveInterruptedSession(disconnectedAt);
-            }
-        });
     }
 
-    private void SaveInterruptedSession(DateTime endTime)
-    {
-        if (_currentSession == null)
-            return;
-
-        _currentSession.EndTime = endTime;
-        _currentSession.IsCompleted = false;
-        _storageService.SaveSessionAsync(_currentSession).SafeFireAndForget("[GLOVECONTROL]");
-        _currentSession = null;
-    }
-
-    private async Task HandleSessionCompletionAsync()
+    private async Task HandleSessionCompletionAsync(SessionRecord? record)
     {
         // Stop polling and cleanup
         StopStatusPolling();
-
-        // Mark session as complete
-        if (_currentSession != null)
-        {
-            _currentSession.EndTime = DateTime.Now;
-            _currentSession.IsCompleted = true;
-            _currentSession.Status = SessionState.IDLE;
-        }
 
         // Run on UI thread
         await MainThread.InvokeOnMainThreadAsync(async () =>
@@ -1095,25 +1090,37 @@ public partial class GloveControlViewModel : BaseViewModel
             SemanticScreenReader.Announce("Session complete");
 
             // One optional note in the person's own words (no effectiveness rating:
-            // the app makes no outcome claims).
-            var notes = await Shell.Current.DisplayPromptAsync(
-                "Add a Note?",
-                "Write anything you want to remember about this session. It stays on this phone.",
-                accept: "Save Note",
-                cancel: "Skip",
-                placeholder: "For example: Tremor felt lighter after lunch",
-                maxLength: 500,
-                keyboard: Keyboard.Text);
-
-            if (_currentSession != null)
+            // the app makes no outcome claims). Only for a saved session: the prompt
+            // promises the note is kept.
+            if (record != null && !IsDemoMode)
             {
-                _currentSession.Notes = string.IsNullOrWhiteSpace(notes) ? null : notes;
-                await _storageService.SaveSessionAsync(_currentSession);
+                var notes = await Shell.Current.DisplayPromptAsync(
+                    "Add a Note?",
+                    "Write anything you want to remember about this session. It stays on this phone.",
+                    accept: "Save Note",
+                    cancel: "Skip",
+                    placeholder: "For example: Tremor felt lighter after lunch",
+                    maxLength: HistoryStore.MaxNoteLength,
+                    keyboard: Keyboard.Text);
+
+                if (!string.IsNullOrWhiteSpace(notes))
+                {
+                    try
+                    {
+                        await _history.AppendDayNoteAsync(record.Day, notes);
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[GLOVECONTROL] Could not save note: {ex.Message}");
+                    }
+                }
             }
 
             // Reset session; the ring holds Complete and a success banner confirms the save.
-            _currentSession = null;
-            _completedTotalSeconds = SessionStatus.TotalTimeSeconds;
+            _completedTotalSeconds = record?.PlannedSeconds ?? SessionStatus.TotalTimeSeconds;
+            _completeMessage = IsDemoMode ? "Demo Mode sessions aren't saved."
+                : record != null ? "Your session is saved."
+                : string.Empty;
             _showComplete = true;
             SessionStatus = SessionStatus.CreateIdle();
             UpdateSessionState();

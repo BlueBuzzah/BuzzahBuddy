@@ -18,6 +18,10 @@ public static class ResearchDefaults
     public const int AmplitudeMin = 70;
     public const int AmplitudeMax = 100;
     public const int SessionMinutes = 120;
+
+    /// <summary>Sessions per day in the study: 2 h in the morning plus 2 h in the afternoon or evening (Pfeifer et al. 2021).</summary>
+    public const int SessionsPerDay = 2;
+
     public const bool Mirror = false;
 
     /// <summary>

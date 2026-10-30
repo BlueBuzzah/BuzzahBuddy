@@ -16,7 +16,8 @@ public partial class SegmentedControl : ContentView
 
     private readonly List<(Button Button, SegmentOption Option)> _buttons = [];
 
-    // At large text even "System" won't fit a third of the width, so options stack rather than break mid-word.
+    // At large text even "System" won't fit a third of the width, so options stack rather than
+    // wrap. They also stack below that text size whenever a label doesn't fit its share (FitCheck).
     private bool _stacked;
 
     private static readonly Button.ButtonContentLayout CheckBeside = new(Button.ButtonContentLayout.ImagePosition.Left, 6);
@@ -56,6 +57,11 @@ public partial class SegmentedControl : ContentView
     private void Arrange()
     {
         _stacked = OsAccessibility.StackForLargeText;
+        Lay();
+    }
+
+    private void Lay()
+    {
         Track.ColumnDefinitions.Clear();
         Track.RowDefinitions.Clear();
         for (var i = 0; i < _buttons.Count; i++)
@@ -129,22 +135,35 @@ public partial class SegmentedControl : ContentView
     }
 
     // Equal columns can't widen like the bundle's flex options, so on a narrow phone or at
-    // large text the check moves above the label instead of breaking the word.
+    // large text the check moves above the label instead of breaking the word. When a label
+    // still doesn't fit its share on one line, the options stack: a wrapped label clips, since
+    // the button doesn't grow for it. Stacking holds until the text size is checked again.
     private bool _fitting;
 
     private void FitCheck()
     {
-        if (_fitting)
+        if (_fitting || Track.Width <= 0 || _buttons.Count == 0)
             return;
         _fitting = true;
+        var share = _stacked
+            ? Track.Width
+            : (Track.Width - Track.ColumnSpacing * (_buttons.Count - 1)) / _buttons.Count;
+        var overflow = false;
         foreach (var (button, _) in _buttons)
         {
-            if (button.ImageSource is null || button.Width <= 0)
-                continue;
             button.ContentLayout = CheckBeside;
-            if (button.Measure(double.PositiveInfinity, double.PositiveInfinity).Width > button.Width)
+            if (button.ImageSource is not null && NaturalWidth(button) > share)
                 button.ContentLayout = CheckAbove;
+            overflow |= NaturalWidth(button) > share;
+        }
+        if (overflow && !_stacked)
+        {
+            _stacked = true;
+            Lay();
         }
         _fitting = false;
     }
+
+    private static double NaturalWidth(Button button) =>
+        button.Measure(double.PositiveInfinity, double.PositiveInfinity).Width;
 }
