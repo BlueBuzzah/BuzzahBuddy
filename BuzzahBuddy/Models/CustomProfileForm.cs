@@ -135,6 +135,12 @@ public class CustomProfileForm
             ? TherapyTiming.CrTimingLabel(Fingers, onMs, offMs)
             : "Enter both times above to see the cycle length.";
 
+    /// <summary><see cref="DerivedTimingText"/> for screen readers: "668 milliseconds".</summary>
+    public string DerivedTimingSpoken =>
+        TryParseTiming(out var onMs, out var offMs)
+            ? TherapyTiming.CrTimingLabel(Fingers, onMs, offMs, spoken: true)
+            : "Enter both times above to see the cycle length.";
+
     /// <summary>
     /// Warning text when the entered jitter exceeds what this burst timing can
     /// accommodate, or null when there is nothing to say.

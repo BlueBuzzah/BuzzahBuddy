@@ -73,6 +73,7 @@ public partial class GloveControlViewModel : BaseViewModel
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SelectedProfileName))]
     [NotifyPropertyChangedFor(nameof(ProfileSummary))]
+    [NotifyPropertyChangedFor(nameof(ProfileSummarySpoken))]
     private TherapyProfile? _selectedProfile;
 
     partial void OnSelectedProfileChanged(TherapyProfile? value) => UpdateTimerDisplay(updateSemantics: true);
@@ -85,6 +86,11 @@ public partial class GloveControlViewModel : BaseViewModel
     /// <summary>One-line summary of the current profile, e.g. "2h sessions".</summary>
     public string ProfileSummary => SelectedProfile is { } p
         ? $"{DurationText.Short(p.TimeSession * 60)} sessions"
+        : string.Empty;
+
+    /// <summary><see cref="ProfileSummary"/> for screen readers: "2 hours sessions".</summary>
+    public string ProfileSummarySpoken => SelectedProfile is { } p
+        ? $"{DurationText.Spoken(p.TimeSession * 60)} sessions"
         : string.Empty;
 
     [ObservableProperty]

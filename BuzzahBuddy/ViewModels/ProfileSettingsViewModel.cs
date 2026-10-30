@@ -91,6 +91,8 @@ public partial class ProfileSettingsViewModel : BaseViewModel
     /// </summary>
     public string DerivedTimingText => CurrentForm().DerivedTimingText;
 
+    public string DerivedTimingSpoken => CurrentForm().DerivedTimingSpoken;
+
     /// <summary>
     /// Note shown when the requested jitter exceeds what the current burst timing
     /// can actually accommodate — above the cap, raising jitter changes nothing.
@@ -128,6 +130,7 @@ public partial class ProfileSettingsViewModel : BaseViewModel
     private void RaiseDerived()
     {
         OnPropertyChanged(nameof(DerivedTimingText));
+        OnPropertyChanged(nameof(DerivedTimingSpoken));
         OnPropertyChanged(nameof(EffectiveJitterCapText));
         OnPropertyChanged(nameof(DeviatesFromResearchDefaults));
         DeviatesBannerVisible = DeviatesFromResearchDefaults;

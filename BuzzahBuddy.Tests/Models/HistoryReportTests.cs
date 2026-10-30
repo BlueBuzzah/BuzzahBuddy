@@ -50,6 +50,16 @@ public class HistoryReportTests
     }
 
     [Fact]
+    public void Range_AllTime_WithOnlyFutureSessions_StartsToday()
+    {
+        // The clock moved back: every session is dated after today.
+        var data = new HistoryData { Sessions = { Rec("f", "2026-11-02T09:00:00-07:00", 3600, "Regular", SessionOutcome.Completed) } };
+        var (from, to) = HistoryReport.Range(ReportRange.AllTime, Today, data.Sessions);
+        Assert.Equal((Today, Today), (from, to));
+        HistoryReport.Build(data, from, to, Created, comparePrevious: false);
+    }
+
+    [Fact]
     public void Csv_HeaderAndRows()
     {
         var csv = HistoryReport.Csv(Fixture().Sessions, Array.Empty<DayNote>());

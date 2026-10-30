@@ -20,8 +20,9 @@ public partial class SegmentedControl : ContentView
     // wrap. They also stack below that text size whenever a label doesn't fit its share (FitLabels).
     private bool _stacked;
 
-    // The buttons have been placed since the last Build.
-    private bool _laidOut;
+    // The OS large-text flag the buttons were last placed for; null since the last Build.
+    // Kept apart from _stacked, which FitLabels can also set.
+    private bool? _osStacked;
 
     public SegmentedControl()
     {
@@ -50,7 +51,7 @@ public partial class SegmentedControl : ContentView
         var options = Options ?? Array.Empty<SegmentOption>();
         for (var i = 0; i < options.Count; i++)
             _buttons.Add((CreateButton(options[i], i), options[i]));
-        _laidOut = false;
+        _osStacked = null;
         Arrange();
         ApplySelection();
     }
@@ -60,11 +61,13 @@ public partial class SegmentedControl : ContentView
         var stacked = OsAccessibility.StackForLargeText;
         // The text-size check re-runs on every resume. Laying out again unchanged invalidates the
         // parents, which moves a scrolled list on iOS (History's header), so only a change lays out.
-        if (!_laidOut || stacked != _stacked)
+        // ponytail: options that FitLabels stacked stay stacked until the OS flag flips or the
+        // options are rebuilt, even if a smaller text size would now fit them side by side.
+        if (stacked != _osStacked)
         {
+            _osStacked = stacked;
             _stacked = stacked;
             Lay();
-            _laidOut = true;
         }
         // The track's width may not change, so SizeChanged won't re-fit labels that don't fit.
         FitLabels();
@@ -129,7 +132,7 @@ public partial class SegmentedControl : ContentView
 
     // Equal columns can't widen like the bundle's flex options. When a label doesn't fit its
     // share on one line, the options stack: a wrapped label clips, since the button doesn't
-    // grow for it. Stacking holds until the text size is checked again.
+    // grow for it. Stacking holds until the large-text flag changes (Arrange).
     private bool _fitting;
 
     private void FitLabels()

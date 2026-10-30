@@ -27,16 +27,17 @@ public static class TherapyTiming
 
     /// <summary>
     /// Human-readable summary of the derived timing, e.g.
-    /// <c>"One full cycle takes 668ms, about 1.5 times a second."</c>
+    /// <c>"One full cycle takes 668ms, about 1.5 times a second."</c>; <paramref name="spoken"/>
+    /// spells out "668 milliseconds" for screen readers.
     /// </summary>
-    public static string CrTimingLabel(int fingers, double onMs, double offMs)
+    public static string CrTimingLabel(int fingers, double onMs, double offMs, bool spoken = false)
     {
         var periodMs = CrPeriodMs(fingers, onMs, offMs);
         if (periodMs <= 0)
             return "Enter both times above to see the cycle length.";
 
         var inv = CultureInfo.InvariantCulture;
-        return $"One full cycle takes {periodMs.ToString("0", inv)}ms, " +
+        return $"One full cycle takes {periodMs.ToString("0", inv)}{(spoken ? " milliseconds" : "ms")}, " +
                $"about {CrFrequencyHz(fingers, onMs, offMs).ToString("0.#", inv)} times a second.";
     }
 }

@@ -89,8 +89,9 @@ public static class HistoryReport
         if (range != ReportRange.AllTime)
             return (today.AddDays(1 - (int)range), today);
 
+        // Never after today: sessions dated ahead (the clock moved back) would invert the range.
         var days = sessions.Select(s => s.Day).ToList();
-        return (days.Count == 0 ? today : days.Min(), today);
+        return (days.Count == 0 || days.Min() > today ? today : days.Min(), today);
     }
 
     /// <summary>Sessions that started from <paramref name="from"/> to <paramref name="to"/> inclusive, oldest first.</summary>

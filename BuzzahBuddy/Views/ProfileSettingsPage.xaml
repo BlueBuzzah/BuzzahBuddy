@@ -37,7 +37,7 @@
                                    SemanticProperties.Hint="{Binding TimeOnError}"
                                    AutomationId="TimeOnEntry" />
                         </Border>
-                        <Label Text="50 to 200ms" Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
+                        <Label Text="50 to 200ms" SemanticProperties.Description="50 to 200 milliseconds" Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
                         <HorizontalStackLayout Spacing="{StaticResource Space2}"
                                                IsVisible="{Binding TimeOnError, Converter={StaticResource IsNotNullConverter}}">
                             <Label Style="{StaticResource IconLabel}" FontSize="20" VerticalOptions="Start"
@@ -58,7 +58,7 @@
                                    SemanticProperties.Hint="{Binding TimeOffError}"
                                    AutomationId="TimeOffEntry" />
                         </Border>
-                        <Label Text="30 to 200ms" Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
+                        <Label Text="30 to 200ms" SemanticProperties.Description="30 to 200 milliseconds" Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
                         <HorizontalStackLayout Spacing="{StaticResource Space2}"
                                                IsVisible="{Binding TimeOffError, Converter={StaticResource IsNotNullConverter}}">
                             <Label Style="{StaticResource IconLabel}" FontSize="20" VerticalOptions="Start"
@@ -68,6 +68,7 @@
                     </VerticalStackLayout>
 
                     <Label Text="{Binding DerivedTimingText}"
+                           SemanticProperties.Description="{Binding DerivedTimingSpoken}"
                            Style="{StaticResource TypeBodyS}"
                            TextColor="{DynamicResource InkMuted}"
                            AutomationId="DerivedTimingLabel" />

@@ -150,16 +150,16 @@
                                 <BindableLayout.ItemTemplate>
                                     <DataTemplate x:DataType="models:BarRow">
                                         <Grid ColumnDefinitions="*,Auto"
-                                              RowDefinitions="Auto,Auto,Auto"
+                                              RowDefinitions="Auto,Auto"
                                               ColumnSpacing="{StaticResource Space3}"
                                               RowSpacing="{StaticResource Space1}"
                                               SemanticProperties.Description="{Binding Spoken}"
                                               Loaded="OnTrendRowLoaded">
                                             <Label Text="{Binding Label}" Style="{StaticResource TypeLabel}" LineHeight="1" VerticalOptions="Center"
                                                    AutomationProperties.IsInAccessibleTree="False" />
-                                            <Label Grid.Column="1" Text="{Binding Value}" Style="{StaticResource TypeBodyS}" LineHeight="1" VerticalOptions="Center"
+                                            <Label Grid.Column="1" Text="{Binding Value}" Style="{StaticResource TypeBodyS}" LineHeight="1" VerticalOptions="Center" HorizontalTextAlignment="End"
                                                    AutomationProperties.IsInAccessibleTree="False" />
-                                            <controls:MeterBar Grid.Row="2" Grid.ColumnSpan="2" Fraction="{Binding Fraction}" />
+                                            <controls:MeterBar Grid.Row="1" Grid.ColumnSpan="2" Fraction="{Binding Fraction}" />
                                         </Grid>
                                     </DataTemplate>
                                 </BindableLayout.ItemTemplate>

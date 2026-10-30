@@ -30,6 +30,10 @@ public class TherapyTimingTests
         => Assert.Equal("One full cycle takes 668ms, about 1.5 times a second.", TherapyTiming.CrTimingLabel(4, 100, 67));
 
     [Fact]
+    public void CrTimingLabel_Spoken_SpellsOutMilliseconds()
+        => Assert.Equal("One full cycle takes 668 milliseconds, about 1.5 times a second.", TherapyTiming.CrTimingLabel(4, 100, 67, spoken: true));
+
+    [Fact]
     public void CrTimingLabel_WithDegenerateTiming_SaysUnavailable()
         => Assert.Equal("Enter both times above to see the cycle length.", TherapyTiming.CrTimingLabel(0, 100, 67));
 }
