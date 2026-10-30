@@ -50,8 +50,8 @@ public static class DemoHistory
         (6, "Long drive, only did the morning."),
         (12, "Slept badly. Shorter session today."),
         (15, "Visiting family. The gloves stayed home."),
-        (27, "Tremor felt lighter after lunch."),
-        (44, "Hands steadier during the morning walk."),
+        (27, "Walked to the park after lunch."),
+        (44, "Busy morning. Session ran a little late."),
         (55, "Forgot the afternoon session."),
     ];
 
