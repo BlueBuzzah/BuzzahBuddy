@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Reflection;
+using System.Text;
 using BuzzahBuddy.Models;
 using PdfSharp;
 using PdfSharp.Drawing;
@@ -110,6 +111,7 @@ public static class ReportPdf
 
     private static readonly object FontGate = new();
     private static bool _fontsReady;
+    private static HashSet<int> _bodyGlyphs = [];
 
     /// <summary>
     /// The report's copy is English, so every date and time is en-US whatever the phone's culture:
@@ -118,7 +120,10 @@ public static class ReportPdf
     internal static readonly CultureInfo Culture = CultureInfo.GetCultureInfo("en-US");
 
     /// <summary>The PDF, the lines of text drawn on each page, and where page content ends, for tests.</summary>
-    internal sealed record Layout(byte[] Pdf, IReadOnlyList<IReadOnlyList<string>> PageText, double Page1Bottom, double NotesBottom, double LegalTop);
+    internal sealed record Layout(byte[] Pdf, IReadOnlyList<IReadOnlyList<string>> PageText, double Page1Bottom, double NotesBottom, double LegalTop, IReadOnlyList<Box> Boxes);
+
+    /// <summary>Where page 2 set a run of user text or the bar beside it, for overlap tests. <paramref name="Row"/> pairs runs on one line or row.</summary>
+    internal sealed record Box(string Kind, double Row, XRect Rect);
 
     /// <summary>The PDF for <paramref name="model"/>.</summary>
     public static byte[] Render(ReportModel model, ReportAssets assets) => Draw(model, assets).Pdf;
@@ -156,7 +161,7 @@ public static class ReportPdf
 
         using var output = new MemoryStream();
         pdf.Save(output, false);
-        return new Layout(output.ToArray(), [page1.Lines, page2.Lines], page1Bottom, notesBottom, legalTop);
+        return new Layout(output.ToArray(), [page1.Lines, page2.Lines], page1Bottom, notesBottom, legalTop, page2.Boxes);
     }
 
     /// <summary>The font resolver can be set once per process, so the first assets given serve every report.</summary>
@@ -168,6 +173,7 @@ public static class ReportPdf
                 return;
             GlobalFontSettings.FontResolver = new ReportFontResolver(assets.LoadFont);
             GlobalFontSettings.DefaultFontEncoding = PdfFontEncoding.Unicode;
+            _bodyGlyphs = FontCmap.CodePoints(assets.LoadFont("AtkinsonHyperlegibleNext-Regular"));
             _fontsReady = true;
         }
     }
@@ -184,6 +190,7 @@ public static class ReportPdf
     {
         public XGraphics G { get; } = g;
         public List<string> Lines { get; } = [];
+        public List<Box> Boxes { get; } = [];
 
         public void Text(string text, XFont font, XBrush brush, XRect box, XStringFormat format)
         {
@@ -240,7 +247,7 @@ public static class ReportPdf
         y = c.Line("Session Report", Font(Display, 24, bold: true), ink, y);
         y += 2;
         y = c.Line(
-            $"{model.From.ToString(DateFormat, Culture)} to {model.To.ToString(DateFormat, Culture)} · {Count(sum.DaysInPeriod, "day")}",
+            $"{model.From.ToString(DateFormat, Culture)} to {model.To.ToString(DateFormat, Culture)} · {Count(model.To.DayNumber - model.From.DayNumber + 1, "day")}",
             Font(Body, 11), muted, y);
         y += 1;
         y = c.Line($"Created {model.CreatedAt.ToString(DateFormat, Culture)}", Font(Body, 9), muted, y);
@@ -265,7 +272,8 @@ public static class ReportPdf
         // The trend section below keeps 150 pt of chart; the calendar takes what's left, and only
         // if a calendar can't fit at a readable size does the chart give up height (to 110 pt).
         var trendFixed = TrendSectionHeight(c);
-        var legendHeight = 4 + Font(Body, 8).GetHeight();
+        var sinceFirst = model.AdherenceFrom > model.From;
+        var legendHeight = (sinceFirst ? 2 : 1) * Font(Body, 8).GetHeight() + 4;
         var calendarRoom = BodyBottom - y - legendHeight - SectionGap - trendFixed - TrendHeight;
         var calendarNeeds = CalendarMinHeight(model);
         var chartHeight = TrendHeight;
@@ -276,9 +284,12 @@ public static class ReportPdf
         }
 
         y = model.Calendar == CalendarStyle.MonthGrids
-            ? DrawMonthGrids(c, model.Days, model.From, y, calendarRoom)
-            : DrawMonthRows(c, model.Days, model.From, y, calendarRoom);
+            ? DrawMonthGrids(c, model.Days, model.AdherenceFrom, y, calendarRoom)
+            : DrawMonthRows(c, model.Days, model.AdherenceFrom, y, calendarRoom);
         y = DrawCalendarLegend(c, y + 4, model.Days.Count > 0 && model.Days[0].Day > model.From);
+        // Days before the first session ever are drawn as outside the period; say why.
+        if (sinceFirst)
+            y = c.Line($"First session {model.AdherenceFrom.ToString(DateFormat, Culture)}.", Font(Body, 8), muted, y, Right - c.Measure($"First session {model.AdherenceFrom.ToString(DateFormat, Culture)}.", Font(Body, 8)).Width);
         y += SectionGap;
 
         y = SectionTitle(c, model.TrendTitle, y);
@@ -624,16 +635,28 @@ public static class ReportPdf
     {
         var legalTop = DrawLegal(c);
         // Sections sit 18 pt apart. When many profiles and long notes leave less room above the
-        // legal text, a pass on a scratch page finds the overflow and the four gaps share it (6 pt at least).
+        // legal text, passes on a scratch page find the overflow: the four gaps share it (6 pt at
+        // least), and if that isn't enough the oldest quote shown is dropped, then the next.
         using var scratch = new PdfDocument();
         using var measure = XGraphics.FromPdfPage(AddPage(scratch));
-        var overflow = DrawPage2Sections(new Canvas(measure), model, SectionGap, legalTop) + SectionGap - legalTop;
-        var gap = overflow <= 0 ? SectionGap : Math.Max(6, SectionGap - overflow / 4);
-        return (DrawPage2Sections(c, model, gap, legalTop), legalTop);
+        double NotesEnd(double gap, int quotes) => DrawPage2Sections(new Canvas(measure), model, gap, legalTop, quotes);
+        var shown = model.RecentNotes.Count;
+        double gap;
+        while (true)
+        {
+            var overflow = NotesEnd(SectionGap, shown) + SectionGap - legalTop;
+            gap = overflow <= 0 ? SectionGap : Math.Max(6, SectionGap - overflow / 4);
+            // Profile rows stretch to end the notes exactly one gap above the legal text; allow rounding.
+            if (shown == 0 || NotesEnd(gap, shown) + gap <= legalTop + 0.01)
+                break;
+            shown--;
+        }
+        return (DrawPage2Sections(c, model, gap, legalTop, shown), legalTop);
     }
 
     /// <summary>Everything on page 2 above the legal text; returns where Recent Notes ends.</summary>
-    private static double DrawPage2Sections(Canvas c, ReportModel model, double gap, double legalTop)
+    /// <param name="quotes">How many of the newest notes to quote.</param>
+    private static double DrawPage2Sections(Canvas c, ReportModel model, double gap, double legalTop, int quotes)
     {
         var y = BodyTop;
 
@@ -646,12 +669,12 @@ public static class ReportPdf
         y = DrawOutcomes(c, model, y) + gap;
 
         // Profiles get whatever the notes leave above the legal text, 16 to 22 pt a row.
-        var notesHeight = NotesHeight(c, model);
+        var notesHeight = NotesHeight(c, model, quotes);
         y = SectionTitle(c, "Profiles", y);
         y = DrawProfiles(c, model.Profiles, y, legalTop - gap - notesHeight - gap - y);
         y += gap;
 
-        return DrawNotes(c, model, y);
+        return DrawNotes(c, model, y, quotes);
     }
 
     private static double DrawTimeOfDay(Canvas c, ReportModel model, double left, double width, double top)
@@ -828,7 +851,7 @@ public static class ReportPdf
         var rowHeight = Math.Clamp(room / rows.Count, 16, 22);
         var values = rows.Select(r => $"{DurationText.Short(r.Seconds)} · {Count(r.Sessions, "session")}").ToList();
         var valueWidth = values.Max(v => c.Measure(v, valueFont).Width);
-        var nameWidth = Math.Min(150, rows.Max(r => c.Measure(Printable(r.Name), nameFont).Width));
+        var nameWidth = Math.Min(150, rows.Max(r => c.Measure(UserText(r.Name), nameFont).Width));
         var trackX = Margin + nameWidth + gap;
         var trackWidth = Right - valueWidth - gap - trackX;
         double largest = rows.Max(r => r.Seconds);
@@ -836,10 +859,13 @@ public static class ReportPdf
         for (var i = 0; i < rows.Count; i++)
         {
             var y = top + i * rowHeight;
-            c.Text(Fit(c, Printable(rows[i].Name), nameFont, nameWidth), nameFont, ink, new XRect(Margin, y, nameWidth, rowHeight), XStringFormats.CenterLeft);
+            var name = Fit(c, UserText(rows[i].Name), nameFont, nameWidth);
+            c.Text(name, nameFont, ink, new XRect(Margin, y, nameWidth, rowHeight), XStringFormats.CenterLeft);
+            c.Boxes.Add(new Box("name", y, new XRect(Margin, y, c.Measure(name, nameFont).Width, rowHeight)));
 
             var ty = y + (rowHeight - track) / 2;
             c.G.DrawRoundedRectangle(new XSolidBrush(SurfaceSunken), trackX, ty, trackWidth, track, track, track);
+            c.Boxes.Add(new Box("track", y, new XRect(trackX, ty, trackWidth, track)));
             var fill = largest == 0 ? 0 : trackWidth * rows[i].Seconds / largest;
             if (fill > 0)
             {
@@ -852,31 +878,43 @@ public static class ReportPdf
         return top + rows.Count * rowHeight;
     }
 
-    /// <summary>Each quote's lines, the date set after the last line when it fits there.</summary>
-    private static List<(string Date, bool DateOnOwnLine, List<string> Lines)> QuoteLines(Canvas c, ReportModel model)
+    private const int MaxQuoteLines = 3;
+
+    /// <summary>
+    /// The newest <paramref name="quotes"/> quotes' lines, at most 3 each (the third cut with an
+    /// ellipsis), and whether the date needs a line of its own after the last.
+    /// </summary>
+    private static List<(string Date, bool DateOnOwnLine, List<string> Lines)> QuoteLines(Canvas c, ReportModel model, int quotes)
     {
         var font = Font(Body, 9.5);
-        var dateFont = Font(Body, 9.5);
-        return model.RecentNotes.Select(n =>
+        return model.RecentNotes.Take(quotes).Select(n =>
         {
-            var text = "“" + BreakLongWords(string.Join(" ", n.Text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))) + "”";
+            var words = string.Join(" ", n.Text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+            var text = "\u201c" + BreakLongWords(UserText(words)) + "\u201d";
             var date = n.Day.ToString(ShortDateFormat, Culture);
             var lines = Wrap(c, text, font, ContentWidth);
-            var fits = c.Measure(lines[^1] + "  " + date, dateFont).Width <= ContentWidth;
+            if (lines.Count > MaxQuoteLines)
+            {
+                var last = lines[MaxQuoteLines - 1];
+                while (last.Length > 0 && c.Measure(last + "\u2026\u201d", font).Width > ContentWidth)
+                    last = last[..^1];
+                lines = [.. lines.Take(MaxQuoteLines - 1), last.TrimEnd() + "\u2026\u201d"];
+            }
+            var fits = c.Measure(lines[^1] + "  " + date, font).Width <= ContentWidth;
             return (date, !fits, lines);
         }).ToList();
     }
 
-    private static double NotesHeight(Canvas c, ReportModel model)
+    private static double NotesHeight(Canvas c, ReportModel model, int quotes)
     {
         var line = Font(Body, 9.5).GetHeight();
         var height = Font(DisplaySemiBold, 13).GetHeight() + 6;
-        foreach (var q in QuoteLines(c, model))
+        foreach (var q in QuoteLines(c, model, quotes))
             height += (q.Lines.Count + (q.DateOnOwnLine ? 1 : 0)) * line + 4;
         return height + Font(Body, 9).GetHeight();
     }
 
-    private static double DrawNotes(Canvas c, ReportModel model, double top)
+    private static double DrawNotes(Canvas c, ReportModel model, double top, int quotes)
     {
         var font = Font(Body, 9.5);
         var ink = new XSolidBrush(Ink);
@@ -884,11 +922,12 @@ public static class ReportPdf
         var y = SectionTitle(c, "Recent Notes", top);
         var height = font.GetHeight();
 
-        foreach (var (date, ownLine, lines) in QuoteLines(c, model))
+        foreach (var (date, ownLine, lines) in QuoteLines(c, model, quotes))
         {
             for (var i = 0; i < lines.Count; i++)
             {
                 var last = i == lines.Count - 1;
+                c.Boxes.Add(new Box("quote", y, new XRect(Margin, y, c.Measure(lines[i], font).Width, height)));
                 if (!last || ownLine)
                 {
                     y = c.Line(lines[i], font, ink, y);
@@ -898,10 +937,14 @@ public static class ReportPdf
                 c.G.DrawString(lines[i], font, ink, new XRect(Margin, y, ContentWidth, height), XStringFormats.TopLeft);
                 var x = Margin + c.Measure(lines[i] + "  ", font).Width;
                 c.G.DrawString(date, font, muted, new XRect(x, y, Right - x, height), XStringFormats.TopLeft);
+                c.Boxes.Add(new Box("date", y, new XRect(x, y, c.Measure(date, font).Width, height)));
                 y += height;
             }
             if (ownLine)
+            {
+                c.Boxes.Add(new Box("date", y, new XRect(Margin, y, c.Measure(date, font).Width, height)));
                 y = c.Line(date, font, muted, y);
+            }
             y += 4;
         }
 
@@ -1015,7 +1058,7 @@ public static class ReportPdf
     /// </summary>
     internal static string BreakLongWords(string text)
     {
-        var result = new System.Text.StringBuilder(text.Length + text.Length / MaxWordLength);
+        var result = new StringBuilder(text.Length + text.Length / MaxWordLength);
         var run = 0;
         foreach (var c in text)
         {
@@ -1038,8 +1081,26 @@ public static class ReportPdf
         return result.ToString();
     }
 
-    /// <summary>ICU puts a narrow no-break space before "AM", which pasted text can carry; the report's fonts have no glyph for it.</summary>
-    private static string Printable(string text) => text.Replace('\u202F', ' ');
+    /// <summary>Whether the body font has a glyph for <paramref name="rune"/>, per its cmap.</summary>
+    internal static bool CanRender(Rune rune) => _bodyGlyphs.Contains(rune.Value);
+
+    /// <summary>
+    /// Text a person typed (notes, profile names) as the body font can set it: every character it
+    /// has no glyph for becomes "?", so what is measured is what is drawn. ICU's narrow no-break
+    /// space, which pasted times carry, becomes a plain space. The CSV keeps the exact text.
+    /// </summary>
+    private static string UserText(string text)
+    {
+        var result = new StringBuilder(text.Length);
+        foreach (var rune in text.Replace('\u202F', ' ').EnumerateRunes())
+        {
+            if (CanRender(rune))
+                result.Append(rune.ToString());
+            else
+                result.Append('?');
+        }
+        return result.ToString();
+    }
 
     private static string Count(int n, string noun) => n == 1 ? $"1 {noun}" : $"{n} {noun}s";
 }
@@ -1059,4 +1120,89 @@ internal sealed class ReportFontResolver(Func<string, byte[]> load) : IFontResol
     };
 
     public byte[]? GetFont(string faceName) => load(faceName);
+}
+
+/// <summary>Reads which code points a TrueType font maps to a glyph, from its cmap table.</summary>
+internal static class FontCmap
+{
+    public static HashSet<int> CodePoints(byte[] font)
+    {
+        var points = new HashSet<int>();
+        var cmap = Table(font, "cmap");
+        if (cmap < 0)
+            return points;
+
+        // Prefer a full-Unicode subtable (format 12), else the BMP one (format 4).
+        int format4 = -1, format12 = -1;
+        for (var i = 0; i < U16(font, cmap + 2); i++)
+        {
+            var record = cmap + 4 + 8 * i;
+            var platform = U16(font, record);
+            var encoding = U16(font, record + 2);
+            var offset = cmap + (int)U32(font, record + 4);
+            var unicode = platform == 0 || platform == 3 && (encoding == 1 || encoding == 10);
+            if (!unicode)
+                continue;
+            if (U16(font, offset) == 12)
+                format12 = offset;
+            else if (U16(font, offset) == 4)
+                format4 = offset;
+        }
+
+        if (format12 >= 0)
+        {
+            for (var g = 0; g < U32(font, format12 + 12); g++)
+            {
+                var group = format12 + 16 + 12 * g;
+                var start = (int)U32(font, group);
+                var end = (int)U32(font, group + 4);
+                var glyph = U32(font, group + 8);
+                for (var cp = start; cp <= end; cp++)
+                {
+                    if (glyph + (uint)(cp - start) != 0)
+                        points.Add(cp);
+                }
+            }
+        }
+        else if (format4 >= 0)
+        {
+            var segments = U16(font, format4 + 6) / 2;
+            var ends = format4 + 14;
+            var starts = ends + 2 * segments + 2;
+            var deltas = starts + 2 * segments;
+            var rangeOffsets = deltas + 2 * segments;
+            for (var s = 0; s < segments; s++)
+            {
+                int end = U16(font, ends + 2 * s), start = U16(font, starts + 2 * s);
+                var delta = (short)U16(font, deltas + 2 * s);
+                var rangeOffset = U16(font, rangeOffsets + 2 * s);
+                for (var cp = start; cp <= end && cp != 0xFFFF; cp++)
+                {
+                    var glyph = rangeOffset == 0
+                        ? (cp + delta) & 0xFFFF
+                        : U16(font, rangeOffsets + 2 * s + rangeOffset + 2 * (cp - start));
+                    if (rangeOffset != 0 && glyph != 0)
+                        glyph = (glyph + delta) & 0xFFFF;
+                    if (glyph != 0)
+                        points.Add(cp);
+                }
+            }
+        }
+        return points;
+    }
+
+    private static int Table(byte[] font, string tag)
+    {
+        for (var i = 0; i < U16(font, 4); i++)
+        {
+            var record = 12 + 16 * i;
+            if (Encoding.ASCII.GetString(font, record, 4) == tag)
+                return (int)U32(font, record + 8);
+        }
+        return -1;
+    }
+
+    private static ushort U16(byte[] b, int o) => (ushort)(b[o] << 8 | b[o + 1]);
+
+    private static uint U32(byte[] b, int o) => (uint)(b[o] << 24 | b[o + 1] << 16 | b[o + 2] << 8 | b[o + 3]);
 }

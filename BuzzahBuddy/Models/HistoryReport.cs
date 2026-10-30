@@ -37,10 +37,16 @@ public sealed record OutcomeSplit(int Completed, int StoppedEarly, int EndedEarl
 /// <summary>A day note the report quotes.</summary>
 public sealed record NoteQuote(DateOnly Day, string Text);
 
-/// <summary>What the PDF report shows, computed without any rendering.</summary>
+/// <summary>
+/// What the PDF report shows, computed without any rendering. Use is measured from
+/// <see cref="AdherenceFrom"/>: <see cref="From"/>, or the first session ever when that falls
+/// later, so days before someone started don't read as missed. <see cref="Summary"/>, the lede,
+/// the trend and the weekday averages cover <see cref="AdherenceFrom"/> to <see cref="To"/>.
+/// </summary>
 public sealed record ReportModel(
     DateOnly From,
     DateOnly To,
+    DateOnly AdherenceFrom,
     DateTimeOffset CreatedAt,
     PeriodSummary Summary,
     PeriodSummary? Previous,
@@ -97,7 +103,7 @@ public static class HistoryReport
     /// </summary>
     public static string Csv(IEnumerable<SessionRecord> sessions, IEnumerable<DayNote> notes)
     {
-        var noteByDay = notes.Where(n => !string.IsNullOrEmpty(n.Text)).GroupBy(n => n.Day).ToDictionary(g => g.Key, g => g.Last().Text);
+        var noteByDay = notes.Where(n => !string.IsNullOrWhiteSpace(n.Text)).GroupBy(n => n.Day).ToDictionary(g => g.Key, g => g.Last().Text);
         var byDay = sessions.GroupBy(s => s.Day).ToDictionary(g => g.Key, g => g.OrderBy(s => s.StartedAt).ToList());
         var sb = new StringBuilder("Date,Start,End,Session Minutes,Planned Minutes,Profile,Outcome,Day Note\r\n");
         foreach (var day in byDay.Keys.Union(noteByDay.Keys).Order())
@@ -131,12 +137,16 @@ public static class HistoryReport
     public static ReportModel Build(HistoryData data, DateOnly from, DateOnly to, DateTimeOffset createdAt, bool comparePrevious)
     {
         var sessions = InRange(data.Sessions, from, to).ToList();
-        var summary = HistorySummary.Summarize(sessions, from, to);
         var secondsByDay = sessions.GroupBy(s => s.Day).ToDictionary(g => g.Key, g => g.Sum(s => s.TherapySeconds));
         int SecondsOn(DateOnly day) => secondsByDay.GetValueOrDefault(day);
 
+        // Days before the first session ever aren't missed days: use is counted from then.
+        var firstEver = data.Sessions.Count == 0 ? from : data.Sessions.Min(s => s.Day);
+        var adherenceFrom = firstEver > from && firstEver <= to ? firstEver : from;
+        var summary = HistorySummary.Summarize(sessions, adherenceFrom, to);
+
         PeriodSummary? previous = null;
-        if (comparePrevious)
+        if (comparePrevious && adherenceFrom == from)
         {
             var before = HistorySummary.Summarize(data.Sessions, from.AddDays(-summary.DaysInPeriod), from.AddDays(-1));
             previous = before.Sessions == 0 ? null : before;
@@ -150,11 +160,16 @@ public static class HistoryReport
             .Select(i => new DayCell(calendarStart.AddDays(i), SecondsOn(calendarStart.AddDays(i))))
             .ToList();
 
-        var weekly = summary.DaysInPeriod <= WeeklyTrendMaxDays;
-        var trend = (weekly ? Blocks(from, to) : MonthBlocks(from, to))
-            .Select(b => new ChartPoint(
+        // Blocks are counted back from the period's end; those before the first session are dropped.
+        // The newest weekly point is labeled with the period's last day, so the axis spans it.
+        var weekly = to.DayNumber - from.DayNumber + 1 <= WeeklyTrendMaxDays;
+        var blocks = weekly ? Blocks(adherenceFrom, to) : MonthBlocks(adherenceFrom, to);
+        var trend = blocks
+            .Select((b, i) => new ChartPoint(
                 b.Start,
-                b.Start.ToString(weekly ? ShortDateFormat : "MMM yyyy", CultureInfo.InvariantCulture),
+                weekly
+                    ? (i == blocks.Count - 1 ? to : b.Start).ToString(ShortDateFormat, CultureInfo.InvariantCulture)
+                    : b.Start.ToString("MMM yyyy", CultureInfo.InvariantCulture),
                 DailyAverage(b.Start, b.End, SecondsOn)))
             .ToList();
 
@@ -162,10 +177,10 @@ public static class HistoryReport
         foreach (var s in sessions)
             startsByHour[s.StartedAt.Hour]++;
 
-        // Monday first; each weekday's total over how many of that weekday the period holds.
+        // Monday first; each weekday's total over how many of that weekday fall from the adherence start.
         var weekdayTotals = new int[7];
         var weekdayCounts = new int[7];
-        for (var d = from; d <= to; d = d.AddDays(1))
+        for (var d = adherenceFrom; d <= to; d = d.AddDays(1))
         {
             var i = ((int)d.DayOfWeek + 6) % 7;
             weekdayTotals[i] += SecondsOn(d);
@@ -197,10 +212,11 @@ public static class HistoryReport
         return new ReportModel(
             from,
             to,
+            adherenceFrom,
             createdAt,
             summary,
             previous,
-            Lede(summary, SecondsOn),
+            Lede(summary, adherenceFrom > from, SecondsOn),
             months <= MonthGridsMaxMonths ? CalendarStyle.MonthGrids : CalendarStyle.MonthRows,
             days,
             weekly ? "Weekly Trend" : "Monthly Trend",
@@ -215,14 +231,16 @@ public static class HistoryReport
     }
 
     /// <summary>The summary sentences above the tiles.</summary>
-    private static List<string> Lede(PeriodSummary summary, Func<DateOnly, int> secondsOn)
+    /// <param name="sinceFirst">The summary starts at the first session ever, after the period's first day.</param>
+    private static List<string> Lede(PeriodSummary summary, bool sinceFirst, Func<DateOnly, int> secondsOn)
     {
         if (summary.Sessions == 0)
             return ["No sessions were recorded in this period."];
 
+        var since = sinceFirst ? $" since the first session on {summary.From.ToString(ShortDateFormat, CultureInfo.InvariantCulture)}" : "";
         var lede = new List<string>
         {
-            $"Used on {summary.DaysWithSessions} of {summary.DaysInPeriod} days, averaging {DurationText.Short(summary.AverageSecondsPerSessionDay)} on those days.",
+            $"Used on {summary.DaysWithSessions} of {summary.DaysInPeriod} days{since}, averaging {DurationText.Short(summary.AverageSecondsPerSessionDay)} on those days.",
         };
 
         // Missed days count as zero. A 1-day period has no first half, so it reads as steady.

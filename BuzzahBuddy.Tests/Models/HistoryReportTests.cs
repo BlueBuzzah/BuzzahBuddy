@@ -71,6 +71,7 @@ public class HistoryReportTests
     {
         var data = Fixture();
         data.Notes.Add(new DayNote { Day = new DateOnly(2026, 10, 24), Text = "=SUM(A1)" });
+        data.Notes.Add(new DayNote { Day = new DateOnly(2026, 10, 25), Text = "  \n " });
 
         var lines = HistoryReport.Csv(data.Sessions, data.Notes).Split("\r\n");
 
@@ -98,15 +99,54 @@ public class HistoryReportTests
     private static ReportModel Build(HistoryData data, DateOnly from, bool comparePrevious = true) =>
         HistoryReport.Build(data, from, Today, Created, comparePrevious);
 
+    /// <summary>The fixture plus a session long before every test period, so the period is the adherence window.</summary>
+    private static HistoryData WithEarlierSession(HistoryData data)
+    {
+        data.Sessions.Add(Rec("early", "2025-06-01T08:00:00-07:00", 3600, "Noisy", SessionOutcome.Completed));
+        return data;
+    }
+
     [Fact]
     public void Build_LedeSentences()
+    {
+        // The first session ever was on Oct 20, so adherence counts Oct 20..29: 10 days, halves of 5.
+        // Oct 20..24: 3600 s / 5 = 12 min, about 10 min. Oct 25..29: 14400 s / 5 = 48 min, about 50 min.
+        Assert.Equal(new[]
+        {
+            "Used on 2 of 10 days since the first session on Oct 20, averaging 2 h 30 min on those days.",
+            "Daily time rose from about 10 min in the first half of the period to about 50 min in the second half.",
+            "The longest stretch without a session was 7 days, Oct 21 to Oct 27.",
+        }, Build(Fixture(), From).Lede);
+    }
+
+    [Fact]
+    public void Build_LedeSentences_FirstSessionBeforePeriod_KeepsWording()
     {
         Assert.Equal(new[]
         {
             "Used on 2 of 30 days, averaging 2 h 30 min on those days.",
             "Daily time rose from about 0 min in the first half of the period to about 20 min in the second half.",
             "The longest stretch without a session was 20 days, Sep 30 to Oct 19.",
-        }, Build(Fixture(), From).Lede);
+        }, Build(WithEarlierSession(Fixture()), From).Lede);
+    }
+
+    [Fact]
+    public void Build_AdherenceStartsAtFirstSessionEver()
+    {
+        var model = Build(Fixture(), From);
+        Assert.Equal(new DateOnly(2026, 10, 20), model.AdherenceFrom);
+        Assert.Equal(new DateOnly(2026, 10, 20), model.Summary.From);
+        Assert.Equal(10, model.Summary.DaysInPeriod);
+        Assert.Equal(2, model.Summary.DaysWithSessions);
+        Assert.Null(model.Previous);
+        // The calendar still spans the whole period.
+        Assert.Equal(From, model.Days[0].Day);
+
+        var earlier = Build(WithEarlierSession(Fixture()), From);
+        Assert.Equal(From, earlier.AdherenceFrom);
+        Assert.Equal(30, earlier.Summary.DaysInPeriod);
+
+        Assert.Equal(From, Build(new HistoryData(), From).AdherenceFrom);
     }
 
     [Fact]
@@ -180,15 +220,24 @@ public class HistoryReportTests
     [Fact]
     public void Build_TrendWeeklyAndMonthly()
     {
-        var weekly = Build(Fixture(), From);
+        // The newest point carries the period's last day, so the axis spans the whole period.
+        var weekly = Build(WithEarlierSession(Fixture()), From);
         Assert.Equal("Weekly Trend", weekly.TrendTitle);
         Assert.Equal(14400, weekly.TrendReferenceSeconds);
         Assert.Equal(5, weekly.Trend.Count);
         Assert.Equal(new ChartPoint(From, "Sep 30", 0), weekly.Trend[0]);
         Assert.Equal(new ChartPoint(new DateOnly(2026, 10, 16), "Oct 16", 3600 / 7), weekly.Trend[^2]);
-        Assert.Equal(new ChartPoint(new DateOnly(2026, 10, 23), "Oct 23", 14400 / 7), weekly.Trend[^1]);
+        Assert.Equal(new ChartPoint(new DateOnly(2026, 10, 23), "Oct 29", 14400 / 7), weekly.Trend[^1]);
 
-        var monthly = Build(Fixture(), new DateOnly(2026, 1, 1));
+        // From the first session ever: blocks before Oct 20 are dropped and Oct 16..22 is clamped.
+        var sinceFirst = Build(Fixture(), From);
+        Assert.Equal(new[]
+        {
+            new ChartPoint(new DateOnly(2026, 10, 20), "Oct 20", 3600 / 3),
+            new ChartPoint(new DateOnly(2026, 10, 23), "Oct 29", 14400 / 7),
+        }, sinceFirst.Trend);
+
+        var monthly = Build(WithEarlierSession(Fixture()), new DateOnly(2026, 1, 1));
         Assert.Equal("Monthly Trend", monthly.TrendTitle);
         Assert.Equal(14400, monthly.TrendReferenceSeconds);
         Assert.Equal(10, monthly.Trend.Count);
@@ -208,11 +257,16 @@ public class HistoryReportTests
         Assert.Equal(1, model.StartsByHour[14]);
         Assert.Equal(3, model.StartsByHour.Sum());
 
-        // Monday first. 09-30..10-29 holds five Wednesdays and four Tuesdays.
+        // Monday first, from the first session ever: Oct 20..29 holds two Wednesdays and two Tuesdays.
         Assert.Equal(7, model.SecondsByWeekday.Count);
-        Assert.Equal(14400 / 5, model.SecondsByWeekday[2]);
-        Assert.Equal(3600 / 4, model.SecondsByWeekday[1]);
+        Assert.Equal(14400 / 2, model.SecondsByWeekday[2]);
+        Assert.Equal(3600 / 2, model.SecondsByWeekday[1]);
         Assert.Equal(0, model.SecondsByWeekday[0]);
+
+        // Over the whole period: 09-30..10-29 holds five Wednesdays and four Tuesdays.
+        var whole = Build(WithEarlierSession(Fixture()), From);
+        Assert.Equal(14400 / 5, whole.SecondsByWeekday[2]);
+        Assert.Equal(3600 / 4, whole.SecondsByWeekday[1]);
 
         Assert.Equal(new OutcomeSplit(2, 1, 0, 6000, 7200), model.Outcomes);
     }

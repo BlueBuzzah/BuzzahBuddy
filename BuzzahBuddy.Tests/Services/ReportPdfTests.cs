@@ -127,17 +127,28 @@ public class ReportPdfTests
         return data;
     }
 
-    /// <summary>Everything at its longest: 24 months of rows, 8 profiles, three 200-character notes.</summary>
-    private static HistoryData Crowded()
+    private static readonly string WideNote = string.Concat(Enumerable.Repeat("WWWWWWWWW ", 25));
+    private static readonly string CapsNote = string.Concat(Enumerable.Repeat("TREMOR WAS WORSE THIS MORNING AND WRITING WAS HARD ", 5));
+    private static readonly string UnbrokenNote = "https://" + new string('w', 300);
+
+    /// <summary>Eight profiles in October, so the Profiles section is at its tallest.</summary>
+    private static HistoryData WithProfiles(HistoryData data)
     {
-        var data = TwoYears();
         for (var p = 0; p < 8; p++)
             data.Sessions.Add(Rec($"p{p}", new DateTimeOffset(2026, 10, 1 + p, 9, 0, 0, TimeSpan.FromHours(-7)), 600, $"Custom Profile With a Long Name {p}", SessionOutcome.EndedEarly));
-        for (var d = 0; d < 3; d++)
-            data.Notes.Add(new DayNote { Day = Today.AddDays(-d), Text = string.Concat(Enumerable.Repeat("Wide words WWWWWWWW MMMMMMMM ", 12)) });
-        data.Notes.Add(new DayNote { Day = Today.AddDays(-3), Text = "https://" + new string('w', 300) });
         return data;
     }
+
+    /// <summary>The three newest notes, newest first.</summary>
+    private static HistoryData WithNotes(HistoryData data, params string[] texts)
+    {
+        for (var d = 0; d < texts.Length; d++)
+            data.Notes.Add(new DayNote { Day = Today.AddDays(-d), Text = texts[d] });
+        return data;
+    }
+
+    /// <summary>Everything at its longest: 24 months of rows, 8 profiles, long notes including an unbroken link.</summary>
+    private static HistoryData Crowded() => WithNotes(WithProfiles(TwoYears()), WideNote, UnbrokenNote, WideNote);
 
     [Fact]
     public void Render_TwoPagesTitledEmbedded()
@@ -197,7 +208,7 @@ public class ReportPdfTests
         Assert.DoesNotContain("Mornings", empty);
     }
 
-    public static TheoryData<string> Layouts => new() { "fixture", "realistic", "empty", "one day", "two years", "crowded" };
+    public static TheoryData<string> Layouts => new() { "fixture", "realistic", "empty", "one day", "two years", "crowded", "wide notes", "unbroken note", "all caps" };
 
     [Theory]
     [MemberData(nameof(Layouts))]
@@ -209,13 +220,100 @@ public class ReportPdfTests
             "realistic" => (Realistic(), new DateOnly(2026, 8, 1)),
             "empty" => (new HistoryData(), From),
             "one day" => (Fixture(), Today),
+            "wide notes" => (WithNotes(WithProfiles(Fixture()), WideNote, WideNote, WideNote), From),
+            "unbroken note" => (WithNotes(Fixture(), "Short one.", UnbrokenNote, "Another."), From),
+            "all caps" => (WithNotes(WithProfiles(Fixture()), CapsNote, CapsNote, CapsNote), From),
             _ => (name == "crowded" ? Crowded() : TwoYears(), Today.AddDays(-729)),
         };
 
         var layout = ReportPdf.Draw(Model(data, from), Assets());
 
         Assert.True(layout.Page1Bottom <= ReportPdf.BodyBottom, $"Page 1 ends at {layout.Page1Bottom}");
+        AssertNothingOverlaps(layout);
+    }
+
+    /// <summary>
+    /// Recent Notes ends above the legal text, every quote line ends before the date set after it,
+    /// and every profile name ends before its bar.
+    /// </summary>
+    private static void AssertNothingOverlaps(ReportPdf.Layout layout)
+    {
         Assert.True(layout.NotesBottom <= layout.LegalTop, $"Notes end at {layout.NotesBottom}, legal text starts at {layout.LegalTop}");
+        foreach (var date in layout.Boxes.Where(b => b.Kind == "date"))
+            foreach (var quote in layout.Boxes.Where(b => b.Kind == "quote" && b.Row == date.Row))
+                Assert.True(quote.Rect.Right <= date.Rect.Left, $"Quote ends at {quote.Rect.Right}, its date starts at {date.Rect.Left}");
+        foreach (var name in layout.Boxes.Where(b => b.Kind == "name"))
+        {
+            var track = layout.Boxes.Single(b => b.Kind == "track" && b.Row == name.Row);
+            Assert.True(name.Rect.Right <= track.Rect.Left, $"Name ends at {name.Rect.Right}, its bar starts at {track.Rect.Left}");
+        }
+        foreach (var quote in layout.Boxes.Where(b => b.Kind == "quote"))
+            Assert.True(quote.Rect.Right <= 612 - 54, $"Quote line ends at {quote.Rect.Right}");
+    }
+
+    [Fact]
+    public void Render_LongNote_CappedAtThreeLines()
+    {
+        // 200 W's split into 40-character runs wrap to 5 lines uncapped.
+        var layout = ReportPdf.Draw(Model(WithNotes(new HistoryData(), new string('W', 200)), From), Assets());
+
+        Assert.Equal(3, layout.Boxes.Count(b => b.Kind == "quote"));
+        // Not cut by the 200-character limit, so the ellipsis is the 3-line cap's.
+        Assert.Contains(layout.PageText[1], l => l.Contains("\u2026\u201d", StringComparison.Ordinal));
+        AssertNothingOverlaps(layout);
+    }
+
+    [Fact]
+    public void Render_LongNotes_OldestDroppedWhenTheyStillDoNotFit()
+    {
+        var w = new string('W', 200);
+        var layout = ReportPdf.Draw(Model(WithNotes(WithProfiles(TwoYears()), w, w, w), Today.AddDays(-729)), Assets());
+        var dates = layout.Boxes.Where(b => b.Kind == "date").ToList();
+
+        // The newest quotes stay; the count still covers every note.
+        Assert.InRange(dates.Count, 1, 2);
+        Assert.Contains(layout.PageText[1], l => l.EndsWith("Oct 29", StringComparison.Ordinal));
+        Assert.DoesNotContain(layout.PageText[1], l => l.EndsWith("Oct 27", StringComparison.Ordinal));
+        Assert.Contains("3 notes in this period.", layout.PageText[1]);
+        AssertNothingOverlaps(layout);
+    }
+
+    [Fact]
+    public void Render_UnsupportedCharacters_DrawAsQuestionMarks()
+    {
+        const string note = "Felt great \U0001F60A \u4ECA\u65E5\u306F\u826F\u3044 \u00DCn\u00EFc\u00F8d\u00E9 \u2014 test";
+        const string profile = "Night \U0001F319 \u041F\u0440\u043E\u0444\u0438\u043B\u044C";
+        var data = Fixture();
+        data.Notes.Add(new DayNote { Day = Today, Text = note });
+        data.Sessions.Add(Rec("n", new DateTimeOffset(2026, 10, 27, 9, 0, 0, TimeSpan.FromHours(-7)), 3600, profile, SessionOutcome.Completed));
+
+        var layout = ReportPdf.Draw(Model(data, From), Assets());
+        var page2 = layout.PageText[1];
+
+        var quote = Assert.Single(page2, l => l.StartsWith("\u201cFelt great", StringComparison.Ordinal));
+        Assert.StartsWith("\u201cFelt great ? ????? \u00DCn\u00EFc\u00F8d\u00E9 \u2014 test\u201d", quote);
+        var name = Assert.Single(page2, l => l.StartsWith("Night ", StringComparison.Ordinal));
+        Assert.StartsWith("Night ? ", name);
+        Assert.All(quote.EnumerateRunes().Concat(name.EnumerateRunes()), r => Assert.True(ReportPdf.CanRender(r), $"U+{r.Value:X4} has no glyph"));
+        AssertNothingOverlaps(layout);
+        // The CSV keeps the exact text.
+        var csv = HistoryReport.Csv(data.Sessions, data.Notes);
+        Assert.Contains(note, csv);
+        Assert.Contains(profile, csv);
+    }
+
+    [Fact]
+    public void Render_FirstSessionCaption_OnlyWhenTheFirstSessionIsInsideThePeriod()
+    {
+        var sinceFirst = ReportPdf.Draw(Model(Fixture(), From), Assets()).PageText[0];
+        var data = Fixture();
+        data.Sessions.Add(Rec("early", new DateTimeOffset(2025, 6, 1, 8, 0, 0, TimeSpan.FromHours(-7)), 3600, "Noisy", SessionOutcome.Completed));
+        var whole = ReportPdf.Draw(Model(data, From), Assets()).PageText[0];
+
+        Assert.Contains("First session Oct 20, 2026.", sinceFirst);
+        Assert.DoesNotContain(whole, l => l.StartsWith("First session", StringComparison.Ordinal));
+        // The trend axis ends on the period's last day.
+        Assert.Contains("Oct 29", whole);
     }
 
     [Fact]
