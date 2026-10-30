@@ -429,6 +429,15 @@ public class MockBluetoothService : IBluetoothService
 
     private string GetMockSessionStatus()
     {
+        // Like firmware: the engine stops the tick elapsed reaches TOTAL, and the next
+        // reading is IDLE 0/0/0. PROGRESS never reads 100.
+        if (_mockSessionState == SessionState.RUNNING && _mockSessionStartTime.HasValue
+            && (DateTime.Now - _mockSessionStartTime.Value).TotalSeconds >= MockSessionTotalSeconds)
+        {
+            _mockSessionState = SessionState.IDLE;
+            _mockSessionStartTime = null;
+        }
+
         // Per BLE protocol v2.0.0: Use ELAPSED/TOTAL (not ELAPSED_TIME/TOTAL_TIME)
         if (_mockSessionState == SessionState.IDLE)
         {

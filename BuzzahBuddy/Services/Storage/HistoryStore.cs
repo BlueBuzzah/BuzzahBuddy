@@ -118,6 +118,8 @@ public sealed class HistoryStore
             {
                 File.Delete(_filePath);
             }
+            // Not yet migrated sessions would otherwise come back on the next load.
+            _clearLegacy?.Invoke();
             _data = new HistoryData();
         }
         finally

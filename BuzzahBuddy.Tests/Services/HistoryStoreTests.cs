@@ -194,6 +194,20 @@ public sealed class HistoryStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task Clear_BeforeLegacyMigrated_ClearsLegacyToo()
+    {
+        // Clear All Data before anything loaded the history must not leave the old
+        // sessions in Preferences to be migrated back later.
+        string? legacy = LegacyJson();
+        var store = new HistoryStore(FilePath, () => legacy, () => legacy = null);
+
+        await store.ClearAsync();
+
+        Assert.Null(legacy);
+        Assert.Empty((await new HistoryStore(FilePath, () => legacy, () => legacy = null).LoadAsync()).Sessions);
+    }
+
+    [Fact]
     public async Task HistoryData_WritesOutcomeAsText()
     {
         await new HistoryStore(FilePath).AddSessionAsync(Record("a", Start, 600, SessionOutcome.StoppedEarly));
