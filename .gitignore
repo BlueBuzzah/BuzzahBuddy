@@ -16,3 +16,6 @@ temp/
 /node_modules
 /wwwroot/node_modules
 .fake
+
+# Generated store screenshots
+/assets/screenshots/
