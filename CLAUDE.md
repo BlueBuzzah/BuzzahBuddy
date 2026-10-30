@@ -197,6 +197,12 @@ rerun the script and commit. `scripts/gen_fonts.py` makes `Resources/Fonts/*.ttf
 weights; MAUI can't use variable woff2). Styles pick fonts via `FontDisplay500`-style keys
 that `Helpers/Typography` repoints to heavier files under Bold Text.
 
+**`LineHeight` multiplies the font's natural line height** (Lexend 1.25, Atkinson 1.30 em),
+not the font size as CSS does, so the generator divides each design-system ratio by it
+(`NATURAL_LINE_HEIGHT`, floored at 1). iOS adds the surplus above each line, so a title
+centered beside an icon, image or control, or the first line of a card that sits low,
+takes `LineHeight="1"`. Lexend's own 0.3 em above its caps remains (the web shows it too).
+
 **A visual state that changes a color needs `Normal`/`PointerOver` setters repeating the
 style's `DynamicResource` colors** — otherwise leaving Pressed/Disabled restores a
 snapshot and the button keeps the old theme after an in-app theme switch.
