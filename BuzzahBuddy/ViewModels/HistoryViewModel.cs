@@ -13,8 +13,9 @@ using CommunityToolkit.Mvvm.Input;
 namespace BuzzahBuddy.ViewModels;
 
 /// <summary>
-/// The History tab (buzzahbuddy.md History): daily totals, the last 7 days, day notes and the
-/// shared report. Reloads each time the page appears; never subscribes to service events.
+/// The History tab (buzzahbuddy.md History): the period overview, the month calendar, weekly or
+/// monthly averages, the shared report, and daily totals with notes. Reloads each time the page
+/// appears; never subscribes to service events. The period and month recompute from the loaded data.
 /// </summary>
 public partial class HistoryViewModel : BaseViewModel
 {
@@ -27,13 +28,52 @@ public partial class HistoryViewModel : BaseViewModel
 	private IReadOnlyList<DayRow> _days = [];
 
 	[ObservableProperty]
-	private IReadOnlyList<WeekBar> _lastSevenDays = [];
+	private int _selectedRange = (int)ReportRange.Last30Days;
 
 	[ObservableProperty]
-	private int _selectedRange = (int)ReportRange.Last90Days;
-
-	[ObservableProperty]
+	[NotifyPropertyChangedFor(nameof(ShowCalendar))]
 	private bool _hasSessions;
+
+	/// <summary>Total Time, Days Used, Average Day, Sessions; always four, so the page's index bindings resolve.</summary>
+	[ObservableProperty]
+	private IReadOnlyList<StatTile> _tiles = HistoryText.Tiles(
+		HistoryReport.Build(new HistoryData(), Today, Today, DateTimeOffset.Now, comparePrevious: false),
+		ReportRange.Last30Days, CultureInfo.CurrentCulture);
+
+	[ObservableProperty]
+	private IReadOnlyList<BarRow> _trendRows = [];
+
+	[ObservableProperty]
+	private string _trendTitle = HistoryText.TrendTitle(weekly: true);
+
+	[ObservableProperty]
+	private string _trendCaption = HistoryText.TrendCaption(weekly: true, capped: false);
+
+	[ObservableProperty]
+	private string _shareText = HistoryText.ShareText(ReportRange.Last30Days);
+
+	/// <summary>"No sessions in the last 30 days." when there is history but none in the period; otherwise null.</summary>
+	[ObservableProperty]
+	private string? _emptyPeriodText;
+
+	[ObservableProperty]
+	private bool _hasPeriodSessions;
+
+	[ObservableProperty]
+	private CalendarMonth? _calendar;
+
+	/// <summary>Set by the page at the large-text threshold, where the calendar steps aside.</summary>
+	[ObservableProperty]
+	[NotifyPropertyChangedFor(nameof(ShowCalendar))]
+	private bool _largeText;
+
+	private HistoryData? _data;
+
+	/// <summary>The calendar's month (its first day); kept across refreshes while the app runs.</summary>
+	private DateOnly _shownMonth = FirstOfMonth(Today);
+
+	/// <summary>Seven columns can't hold day numbers at large text; the rows below carry the same time.</summary>
+	public bool ShowCalendar => HasSessions && !LargeText;
 
 	[ObservableProperty]
 	private bool _isDemoMode;
@@ -93,11 +133,83 @@ public partial class HistoryViewModel : BaseViewModel
 			Days = new ObservableCollection<DayRow>(rows);
 		}
 
-		var bars = HistoryText.WeekBars(HistorySummary.LastDays(data.Sessions, today, 7), culture);
-		if (!LastSevenDays.SequenceEqual(bars))
-			LastSevenDays = bars;
 		HasSessions = data.Sessions.Count > 0;
+		_data = data;
+		Recompute();
 	}
+
+	partial void OnSelectedRangeChanged(int value)
+	{
+		if (_data is not null)
+			Recompute();
+	}
+
+	/// <summary>The overview, averages and calendar from the loaded data, without rereading the file.</summary>
+	private void Recompute()
+	{
+		if (_data is not { } data)
+			return;
+
+		var today = Today;
+		var culture = CultureInfo.CurrentCulture;
+		var range = (ReportRange)SelectedRange;
+		var (from, to) = HistoryReport.Range(range, today, data.Sessions);
+		var model = HistoryReport.Build(data, from, to, DateTimeOffset.Now, comparePrevious: false);
+		var weekly = HistoryText.IsWeekly(model);
+
+		HasPeriodSessions = model.Summary.Sessions > 0;
+		// Any change to the list header moves the page on iOS, so a refresh that finds the same
+		// numbers leaves the bound lists and the calendar untouched (as Days does above).
+		var tiles = HistoryText.Tiles(model, range, culture);
+		if (!Tiles.SequenceEqual(tiles))
+			Tiles = tiles;
+		var rows = HistoryText.TrendRows(model, culture);
+		if (!TrendRows.SequenceEqual(rows))
+			TrendRows = rows;
+		TrendTitle = HistoryText.TrendTitle(weekly);
+		TrendCaption = HistoryText.TrendCaption(weekly, capped: !weekly && model.Trend.Count > HistoryText.MonthlyRowLimit);
+		ShareText = HistoryText.ShareText(range);
+		EmptyPeriodText = HasSessions && !HasPeriodSessions ? HistoryText.EmptyPeriodText(range) : null;
+
+		_shownMonth = HistoryCalendar.Step(_shownMonth, 0, HistoryCalendar.FirstMonth(data.Sessions, today), FirstOfMonth(today));
+		var month = HistoryCalendar.Build(data.Sessions, _shownMonth, today, culture);
+		if (!SameMonth(Calendar, month))
+			Calendar = month;
+		PreviousMonthCommand.NotifyCanExecuteChanged();
+		NextMonthCommand.NotifyCanExecuteChanged();
+	}
+
+	private bool CanShowPreviousMonth() =>
+		_data is not null && _shownMonth > HistoryCalendar.FirstMonth(_data.Sessions, Today);
+
+	private bool CanShowNextMonth() => _shownMonth < FirstOfMonth(Today);
+
+	[RelayCommand(CanExecute = nameof(CanShowPreviousMonth))]
+	private void PreviousMonth() => ShowMonth(-1);
+
+	[RelayCommand(CanExecute = nameof(CanShowNextMonth))]
+	private void NextMonth() => ShowMonth(1);
+
+	private void ShowMonth(int months)
+	{
+		if (_data is not { } data)
+			return;
+		var today = Today;
+		_shownMonth = HistoryCalendar.Step(_shownMonth, months, HistoryCalendar.FirstMonth(data.Sessions, today), FirstOfMonth(today));
+		Calendar = HistoryCalendar.Build(data.Sessions, _shownMonth, today, CultureInfo.CurrentCulture);
+		SemanticScreenReader.Announce(Calendar.Title);
+		PreviousMonthCommand.NotifyCanExecuteChanged();
+		NextMonthCommand.NotifyCanExecuteChanged();
+	}
+
+	private static DateOnly FirstOfMonth(DateOnly day) => new(day.Year, day.Month, 1);
+
+	// CalendarMonth's lists compare by reference; compare their contents instead.
+	private static bool SameMonth(CalendarMonth? a, CalendarMonth b) =>
+		a is not null
+		&& a with { WeekdayNames = b.WeekdayNames, Days = b.Days } == b
+		&& a.WeekdayNames.SequenceEqual(b.WeekdayNames)
+		&& a.Days.SequenceEqual(b.Days);
 
 	// DayRow's SessionLines list compares by reference; compare its contents instead.
 	private static bool SameRow(DayRow a, DayRow b) =>

@@ -88,21 +88,6 @@ public class HistoryTextTests
         Assert.Equal("Edit Note", earlier.NoteButtonText);
     }
 
-    [Fact]
-    public void WeekBars_LabelsAndSpoken()
-    {
-        var days = HistorySummary.LastDays(new[] { Rec("2026-10-28T08:00:00+00:00", 7800) }, Today);
-
-        var bars = HistoryText.WeekBars(days, Inv);
-
-        var bar = bars[5];
-        Assert.Equal("Wed 28", bar.Label);
-        Assert.Equal("2 h 10 min", bar.Value);
-        Assert.Equal(7800 / 14400.0, bar.Fraction, 4);
-        Assert.Equal("Wednesday, 2 hours 10 minutes", bar.Spoken);
-        Assert.Equal("Thursday, no sessions", bars[6].Spoken);
-    }
-
     private static readonly DateOnly Now = new(2026, 10, 30);
 
     private static ReportModel Model(ReportRange range, params SessionRecord[] sessions)

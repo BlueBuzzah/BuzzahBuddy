@@ -21,7 +21,7 @@ public sealed record PeriodSummary(
 /// <summary>Groups recorded sessions by the local day they started on.</summary>
 public static class HistorySummary
 {
-    /// <summary>The study's daily dose, which is a full bar in the week chart: 2 h twice a day.</summary>
+    /// <summary>The study's daily dose, which is a full bar or calendar well in History: 2 h twice a day.</summary>
     public const int StudyDailySeconds = ResearchDefaults.SessionMinutes * ResearchDefaults.SessionsPerDay * 60;
 
     /// <summary>Days with a session or a note, plus today, newest first.</summary>
@@ -36,16 +36,6 @@ public static class HistorySummary
         keys.UnionWith(noteByDay.Keys);
 
         return keys.OrderByDescending(d => d).Select(d => Build(d, byDay, noteByDay)).ToList();
-    }
-
-    /// <summary>The last <paramref name="count"/> days ending today, oldest first, empty days included.</summary>
-    public static IReadOnlyList<DaySummary> LastDays(IEnumerable<SessionRecord> sessions, DateOnly today, int count = 7)
-    {
-        var byDay = sessions.GroupBy(s => s.Day).ToDictionary(g => g.Key, g => g.OrderBy(s => s.StartedAt).ToList());
-        var noNotes = new Dictionary<DateOnly, string>();
-        return Enumerable.Range(0, count)
-            .Select(i => Build(today.AddDays(i - (count - 1)), byDay, noNotes))
-            .ToList();
     }
 
     /// <summary>Totals for sessions whose start day falls in <paramref name="from"/> to <paramref name="to"/>, inclusive.</summary>

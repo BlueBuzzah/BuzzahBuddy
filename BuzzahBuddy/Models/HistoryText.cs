@@ -12,9 +12,6 @@ public sealed record DayRow(
     string NoteButtonText,
     string Spoken);
 
-/// <summary>A bar in the "Last 7 Days" chart.</summary>
-public sealed record WeekBar(string Label, string Value, double Fraction, string Spoken);
-
 /// <summary>A row in the weekly or monthly average chart.</summary>
 public sealed record BarRow(string Label, string Value, double Fraction, string Spoken);
 
@@ -137,15 +134,6 @@ public static class HistoryText
 
     public static IReadOnlyList<DayRow> DayRows(IReadOnlyList<DaySummary> days, DateOnly today, CultureInfo culture) =>
         days.Select(d => Row(d, today, culture)).ToList();
-
-    public static IReadOnlyList<WeekBar> WeekBars(IReadOnlyList<DaySummary> days, CultureInfo culture) =>
-        days.Select(d => new WeekBar(
-            d.Day.ToString("ddd d", culture),
-            DurationText.Short(d.TherapySeconds),
-            HistorySummary.BarFraction(d.TherapySeconds),
-            d.TherapySeconds == 0
-                ? $"{d.Day.ToString("dddd", culture)}, no sessions"
-                : $"{d.Day.ToString("dddd", culture)}, {DurationText.Spoken(d.TherapySeconds)}")).ToList();
 
     private static DayRow Row(DaySummary d, DateOnly today, CultureInfo culture)
     {

@@ -1,6 +1,5 @@
 using BuzzahBuddy.Helpers;
 using BuzzahBuddy.ViewModels;
-using BuzzahBuddy.Views.Controls;
 
 namespace BuzzahBuddy.Views;
 
@@ -13,12 +12,11 @@ public partial class HistoryPage : ContentPage
         InitializeComponent();
         _viewModel = viewModel;
         BindingContext = viewModel;
-        // Rows come and go with each refresh; each lays itself out on load, and a text-size
-        // change while the app was away re-lays them all on resume.
+        // A text-size change while the app was away re-lays the page on resume.
         this.TrackTextScale(() =>
         {
-            foreach (var row in WeekRows.Children.OfType<Grid>())
-                ArrangeWeekRow(row);
+            _viewModel.LargeText = OsAccessibility.StackForLargeText;
+            ArrangeTiles(_viewModel.LargeText);
         });
     }
 
@@ -28,54 +26,28 @@ public partial class HistoryPage : ContentPage
         _viewModel.RefreshCommand.ExecuteAsync(null).SafeFireAndForget("[HISTORY]");
     }
 
-    private void OnWeekRowLoaded(object? sender, EventArgs e)
+    // Overview tiles two by two; one column at large text.
+    private void ArrangeTiles(bool stacked)
     {
-        if (sender is Grid row)
-            ArrangeWeekRow(row);
-    }
-
-    // Label, bar, time on one line; at large text the label and time sit above the bar.
-    private static void ArrangeWeekRow(Grid row)
-    {
-        if (row.Children.Count < 3
-            || row.Children[0] is not Label label
-            || row.Children[1] is not MeterBar bar
-            || row.Children[2] is not Label value)
-            return;
-
-        var stacked = OsAccessibility.StackForLargeText;
-        if (stacked)
+        var space = (double)Application.Current!.Resources["Space3"];
+        TileGrid.ColumnSpacing = space;
+        TileGrid.RowSpacing = space;
+        TileGrid.ColumnDefinitions = stacked
+            ? new ColumnDefinitionCollection(new ColumnDefinition(GridLength.Star))
+            : new ColumnDefinitionCollection(new ColumnDefinition(GridLength.Star), new ColumnDefinition(GridLength.Star));
+        var rows = stacked ? 4 : 2;
+        TileGrid.RowDefinitions = new RowDefinitionCollection(
+            Enumerable.Range(0, rows).Select(_ => new RowDefinition(GridLength.Auto)).ToArray());
+        for (var i = 0; i < TileGrid.Children.Count; i++)
         {
-            row.ColumnDefinitions = new ColumnDefinitionCollection(
-                new ColumnDefinition(GridLength.Star), new ColumnDefinition(GridLength.Auto));
-            row.RowDefinitions = new RowDefinitionCollection(
-                new RowDefinition(GridLength.Auto), new RowDefinition(GridLength.Auto));
-            Place(label, 0, 0);
-            Place(value, 0, 1);
-            Place(bar, 1, 0, span: 2);
-            label.WidthRequest = -1;
-            value.WidthRequest = -1;
-            value.HorizontalOptions = LayoutOptions.End;
-        }
-        else
-        {
-            row.ColumnDefinitions = new ColumnDefinitionCollection(
-                new ColumnDefinition(GridLength.Auto), new ColumnDefinition(GridLength.Star), new ColumnDefinition(GridLength.Auto));
-            row.RowDefinitions = new RowDefinitionCollection(new RowDefinition(GridLength.Auto));
-            Place(label, 0, 0);
-            Place(bar, 0, 1);
-            Place(value, 0, 2);
-            // Fixed widths on both sides keep every track the same length, so bars compare.
-            label.WidthRequest = 88;
-            value.WidthRequest = 96;
-            value.HorizontalOptions = LayoutOptions.Fill;
+            if (TileGrid.Children[i] is View tile)
+                Place(tile, stacked ? i : i / 2, stacked ? 0 : i % 2);
         }
     }
 
-    private static void Place(View view, int row, int column, int span = 1)
+    private static void Place(View view, int row, int column)
     {
         Grid.SetRow(view, row);
         Grid.SetColumn(view, column);
-        Grid.SetColumnSpan(view, span);
     }
 }
