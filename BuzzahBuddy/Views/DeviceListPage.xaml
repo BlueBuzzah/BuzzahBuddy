@@ -61,14 +61,13 @@
                                               IsVisible="{Binding Settings.FirmwareOutdated}" />
                     </FlexLayout>
                     <controls:GloveStatusPair Primary="{Binding Settings.PrimaryGlove}" Secondary="{Binding Settings.SecondaryGlove}" />
-                    <Button Text="Refresh Battery"
+                    <Button Text="Refresh Device Info"
                             Style="{StaticResource ButtonQuiet}"
-                            HorizontalOptions="End"
                             ContentLayout="Left,8"
-                            Command="{Binding Settings.RefreshBatteryCommand}"
-                            IsEnabled="{Binding Settings.IsNotRefreshingBattery}"
-                            SemanticProperties.Description="Refresh Battery"
-                            AutomationId="RefreshBatteryButton">
+                            Command="{Binding Settings.RefreshDeviceInfoCommand}"
+                            IsEnabled="{Binding Settings.IsNotRefreshingDeviceInfo}"
+                            SemanticProperties.Description="Refresh Device Info"
+                            AutomationId="RefreshDeviceInfoButton">
                         <Button.ImageSource>
                             <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.RefreshCw}" Size="20" Color="{DynamicResource Brand}" />
                         </Button.ImageSource>
@@ -155,18 +154,20 @@
                                             IsEnabled="{Binding Settings.TherapyLedBusy, Converter={StaticResource InvertedBoolConverter}}"
                                             AutomationId="TherapyLedOffSwitch" />
                     </Border>
-                    <Button Text="Test Motors"
-                            Style="{StaticResource ButtonSecondary}"
-                            ContentLayout="Left,8"
-                            Command="{Binding Settings.NavigateToCalibrationCommand}"
-                            IsEnabled="{Binding Settings.IsSessionInactive}"
-                            SemanticProperties.Description="Test Motors"
-                            AutomationId="CalibrateMotorsButton">
-                        <Button.ImageSource>
-                            <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Vibrate}" Size="20" Color="{DynamicResource Brand}" />
-                        </Button.ImageSource>
-                    </Button>
                 </VerticalStackLayout>
+
+                <!-- Outside Device Options, so it sits evenly between the card and Apply Settings. -->
+                <Button Text="Test Motors"
+                        Style="{StaticResource ButtonSecondary}"
+                        ContentLayout="Left,8"
+                        Command="{Binding Settings.NavigateToCalibrationCommand}"
+                        IsEnabled="{Binding Settings.IsSessionInactive}"
+                        SemanticProperties.Description="Test Motors"
+                        AutomationId="CalibrateMotorsButton">
+                    <Button.ImageSource>
+                        <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Vibrate}" Size="20" Color="{DynamicResource Brand}" />
+                    </Button.ImageSource>
+                </Button>
 
                 <!-- Apply: the screen's one primary action. Available whenever no session is running or
                      paused (owner's choice): with nothing changed it applies everything again, which

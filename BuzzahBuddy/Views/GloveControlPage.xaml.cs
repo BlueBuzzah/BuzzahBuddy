@@ -13,6 +13,8 @@ public partial class GloveControlPage : ContentPage
         _viewModel = viewModel;
         BindingContext = viewModel;
         ProfileRow.TrackTextScale(UpdateProfileLayout);
+        // The content fills the viewport at least, so its star row (Get Started) can center.
+        Scroller.SizeChanged += (_, _) => ScrollContent.MinimumHeightRequest = Scroller.Height;
     }
 
     private void UpdateProfileLayout()
