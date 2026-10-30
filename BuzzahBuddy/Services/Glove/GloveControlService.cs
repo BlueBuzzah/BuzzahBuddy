@@ -827,7 +827,8 @@ public class GloveControlService : IGloveControlService
             ElapsedTimeSeconds = response.GetInt("ELAPSED") ?? 0,
             TotalTimeSeconds = response.GetInt("TOTAL")
                 ?? (_currentProfile?.TimeSession ?? 120) * 60, // Convert minutes to seconds
-            Progress = 0
+            Progress = 0,
+            SessionId = response.GetInt("SESSION_ID")
         };
         UpdateSessionStatus(status);
     }

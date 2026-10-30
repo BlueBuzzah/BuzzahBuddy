@@ -92,4 +92,41 @@ public class MockParityTests
         Assert.Contains("\nTOTAL:0\n", raw);
         Assert.Contains("\nPROGRESS:0\n", raw);
     }
+
+    [Fact]
+    public async Task SessionStartAndStatus_ReportSessionId_LikeFirmware()
+    {
+        var mock = await ConnectedMock();
+        var start = await mock.GetRawResponseAsync("SESSION_START");
+        var id = start.Split('\n').Single(l => l.StartsWith("SESSION_ID:"));
+        var status = await mock.GetRawResponseAsync("SESSION_STATUS");
+        Assert.Contains($"\n{id}\n", status);
+        Assert.DoesNotContain("LAST_", status);
+    }
+
+    [Fact]
+    public async Task SessionStatus_AfterStop_ReportsLastSession_LikeFirmware()
+    {
+        var mock = await ConnectedMock();
+        var start = await mock.GetRawResponseAsync("SESSION_START");
+        var id = start.Split('\n').Single(l => l.StartsWith("SESSION_ID:"))["SESSION_ID:".Length..];
+        mock.AdvanceMockSession(TimeSpan.FromSeconds(121));
+        await mock.GetRawResponseAsync("SESSION_STOP");
+
+        var raw = await mock.GetRawResponseAsync("SESSION_STATUS");
+        Assert.Contains("\nPROGRESS:0\n" +
+                        $"LAST_ID:{id}\nLAST_ELAPSED:121\nLAST_PAUSED:0\nLAST_TOTAL:7200\nLAST_REASON:STOPPED\n", raw);
+        Assert.DoesNotContain("SESSION_ID:", raw);
+    }
+
+    [Fact]
+    public async Task SessionStatus_AfterSessionLength_ReportsCompletedLastSession()
+    {
+        var mock = await ConnectedMock();
+        await mock.GetRawResponseAsync("SESSION_START");
+        mock.AdvanceMockSession(TimeSpan.FromSeconds(7200));
+        var raw = await mock.GetRawResponseAsync("SESSION_STATUS");
+        Assert.Contains("\nLAST_ELAPSED:7200\n", raw);
+        Assert.Contains("\nLAST_REASON:COMPLETED\n", raw);
+    }
 }

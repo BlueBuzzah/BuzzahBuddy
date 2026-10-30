@@ -96,6 +96,16 @@ public class SessionStatus
     public int Progress { get; set; }
 
     /// <summary>
+    /// The gloves' id for the active session (SESSION_ID); null when idle or on older firmware.
+    /// </summary>
+    public int? SessionId { get; set; }
+
+    /// <summary>
+    /// How the most recent session ended, reported while no session runs; null on older firmware.
+    /// </summary>
+    public LastSessionSummary? LastSession { get; set; }
+
+    /// <summary>
     /// Session progress as a 0.0–1.0 fraction for ProgressBar binding.
     /// <see cref="Progress"/> is a 0–100 integer percent from the device.
     /// </summary>
@@ -172,6 +182,9 @@ public class SessionStatus
 
         // Parse progress
         status.Progress = response.GetInt("PROGRESS") ?? 0;
+
+        status.SessionId = response.GetInt("SESSION_ID");
+        status.LastSession = LastSessionSummary.FromCommandResponse(response);
 
         return status;
     }
