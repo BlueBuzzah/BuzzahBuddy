@@ -977,9 +977,12 @@ public partial class GloveControlViewModel : BaseViewModel
             var record = open.Close(outcome, now);
             open = null;
             if (!demo)
-                _storageService.SaveOpenSession(null);
-            if (record != null && !demo)
-                _history.AddSessionAsync(record).SafeFireAndForget("[GLOVECONTROL]");
+            {
+                if (record != null)
+                    SaveClosedSessionAsync(record).SafeFireAndForget("[GLOVECONTROL]");
+                else
+                    _storageService.SaveOpenSession(null);
+            }
             // A reading that is itself a new session (the gloves started another one while
             // the phone was away) goes straight to that session's UI; the old one is saved.
             if (wasActive && !OpenSession.CanTrack(status))
@@ -993,6 +996,26 @@ public partial class GloveControlViewModel : BaseViewModel
             if (!demo)
                 _storageService.SaveOpenSession(_openSession);
         }
+    }
+
+    /// <summary>
+    /// Writes a closed session to history, and only then drops its persisted open copy: if the
+    /// write fails, the copy reloads at the next launch and the next reading closes it again.
+    /// </summary>
+    private async Task SaveClosedSessionAsync(SessionRecord record)
+    {
+        try
+        {
+            await _history.AddSessionAsync(record);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[GLOVECONTROL] Could not save session {record.Id}, keeping it open: {ex.Message}");
+            return;
+        }
+        // The reading that closed it may already have begun and persisted a new session.
+        if (_storageService.LoadOpenSession()?.Id == record.Id)
+            _storageService.SaveOpenSession(null);
     }
 
     private void EndSessionUi(SessionOutcome outcome, SessionRecord? record, SessionStatus status)
