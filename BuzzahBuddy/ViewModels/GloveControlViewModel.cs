@@ -50,7 +50,7 @@ public partial class GloveControlViewModel : BaseViewModel
     private bool _isBackgrounded;
     private SessionState _previousSessionState = SessionState.IDLE;
     private bool _userRequestedStop;
-    // Known Defect 7: a session that ended while the phone was away reads RUNNING with TOTAL 0
+    // Older firmware: a session that ended while the phone was away reads RUNNING with TOTAL 0
     // after the reconnect, on every poll. Once such a ghost has closed the tracked session the
     // ghosts that follow are that finished session, so the UI reads them as idle until a real
     // IDLE or a trackable session arrives. TOTAL 0 isn't idle in general: older firmware that
@@ -956,7 +956,8 @@ public partial class GloveControlViewModel : BaseViewModel
     /// The one place a reading begins, continues or ends the tracked session, and the only
     /// place that decides end-of-session UI. Only poll readings may <see cref="OpenSession.Observe"/>:
     /// the service synthesizes Pause/Resume from the last poll's ELAPSED (up to 5 s stale), so
-    /// letting them observe would count a whole pause as therapy time.
+    /// letting them observe would count a whole pause as therapy time on older firmware, whose
+    /// ELAPSED runs through pauses.
     /// </summary>
     private void TrackSession(SessionStatus status, bool fromPoll)
     {

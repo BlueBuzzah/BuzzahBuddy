@@ -848,7 +848,9 @@ public class GloveControlService : IGloveControlService
             Status = SessionState.PAUSED,
             ElapsedTimeSeconds = _currentSessionStatus.ElapsedTimeSeconds,
             TotalTimeSeconds = _currentSessionStatus.TotalTimeSeconds,
-            Progress = _currentSessionStatus.Progress
+            Progress = _currentSessionStatus.Progress,
+            SessionId = _currentSessionStatus.SessionId,
+            PausedSeconds = _currentSessionStatus.PausedSeconds
         };
         UpdateSessionStatus(status);
     }
@@ -865,7 +867,9 @@ public class GloveControlService : IGloveControlService
             Status = SessionState.RUNNING,
             ElapsedTimeSeconds = _currentSessionStatus.ElapsedTimeSeconds,
             TotalTimeSeconds = _currentSessionStatus.TotalTimeSeconds,
-            Progress = _currentSessionStatus.Progress
+            Progress = _currentSessionStatus.Progress,
+            SessionId = _currentSessionStatus.SessionId,
+            PausedSeconds = _currentSessionStatus.PausedSeconds
         };
         UpdateSessionStatus(status);
     }

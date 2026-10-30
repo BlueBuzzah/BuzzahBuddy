@@ -18,6 +18,14 @@ public class OpenSessionTests
     private static SessionStatus Sid(SessionState state, int elapsed, int total = 300) =>
         new() { Status = state, ElapsedTimeSeconds = elapsed, TotalTimeSeconds = total, SessionId = FwId };
 
+    /// <summary>A reading from current firmware, which reports PAUSED and holds ELAPSED while paused.</summary>
+    private static SessionStatus Cur(SessionState state, int elapsed, int pausedSoFar = 0)
+    {
+        var status = Sid(state, elapsed);
+        status.PausedSeconds = pausedSoFar;
+        return status;
+    }
+
     /// <summary>A 5-minute Quick Test begun from Start's reply, which carries the session id.</summary>
     private static OpenSession QuickTest() =>
         OpenSession.Begin(Sid(SessionState.RUNNING, 0), T0, 6, "Quick Test", "G1");
@@ -36,6 +44,16 @@ public class OpenSessionTests
     }
 
     [Fact]
+    public void Begin_MidSessionAfterAPause_BackdatesByPausedTimeToo()
+    {
+        var status = Sid(SessionState.RUNNING, 120);
+        status.PausedSeconds = 300;
+        var open = OpenSession.Begin(status, T0, 6, "Quick Test", "G1");
+        Assert.Equal(T0.AddSeconds(-420), open.StartedAt);
+        Assert.Equal(120, open.TherapySeconds);
+    }
+
+    [Fact]
     public void Begin_MidSession_BackdatesStartAndCountsElapsed()
     {
         var open = OpenSession.Begin(S(SessionState.RUNNING, 600), T0, 2, "Noisy", "G1");
@@ -47,7 +65,7 @@ public class OpenSessionTests
     [InlineData(SessionState.RUNNING, 0, 7200, true)]
     [InlineData(SessionState.PAUSED, 10, 7200, true)]
     [InlineData(SessionState.LOW_BATTERY, 10, 7200, true)]
-    [InlineData(SessionState.RUNNING, 0, 0, false)]   // Defect 7 ghost
+    [InlineData(SessionState.RUNNING, 0, 0, false)]   // older firmware's ghost
     [InlineData(SessionState.IDLE, 0, 0, false)]
     public void CanTrack_RejectsGhostAndIdle(SessionState state, int elapsed, int total, bool expected) =>
         Assert.Equal(expected, OpenSession.CanTrack(S(state, elapsed, total)));
@@ -67,7 +85,7 @@ public class OpenSessionTests
         open.Observe(S(SessionState.RUNNING, 300), T0.AddSeconds(300));
         open.Observe(S(SessionState.PAUSED, 310), T0.AddSeconds(310));
         Assert.Equal(310, open.TherapySeconds);
-        open.Observe(S(SessionState.RUNNING, 910), T0.AddSeconds(910)); // firmware clock ran through the pause
+        open.Observe(S(SessionState.RUNNING, 910), T0.AddSeconds(910)); // older firmware's clock ran through the pause
         Assert.Equal(310, open.TherapySeconds);
         open.Observe(S(SessionState.RUNNING, 1000), T0.AddSeconds(1000));
         Assert.Equal(400, open.TherapySeconds);
@@ -120,6 +138,49 @@ public class OpenSessionTests
         open.Observe(S(SessionState.RUNNING, 30), seen);
         var now = seen.AddSeconds(7200 - 30 + beyondRemaining);
         Assert.Equal(expected, open.Continues(S(SessionState.RUNNING, 90), "G1", now));
+    }
+
+    [Fact]
+    public void Continues_MatchingIdOutlastsTheRemainingTime()
+    {
+        // Paused just after the last poll, then the phone was away longer than the time left.
+        var open = QuickTest();
+        open.Observe(Sid(SessionState.RUNNING, 100), T0.AddSeconds(100));
+        var later = T0.AddSeconds(100 + 530);
+        Assert.True(open.Continues(Sid(SessionState.PAUSED, 105), "G1", later));
+        var other = Sid(SessionState.PAUSED, 105);
+        other.SessionId = FwId + 1;
+        Assert.False(open.Continues(other, "G1", later));
+    }
+
+    [Fact]
+    public void Observe_PauseFreeClock_CountsTheGainAfterAResume()
+    {
+        var open = QuickTest();
+        open.Observe(Cur(SessionState.PAUSED, 100), T0.AddSeconds(100));
+        open.Observe(Cur(SessionState.RUNNING, 104, 296), T0.AddSeconds(400));  // ELAPSED held while paused
+        Assert.Equal(104, open.TherapySeconds);
+    }
+
+    [Fact]
+    public void Observe_SessionIdWithoutPaused_StillExcludesTheGainAfterAResume()
+    {
+        // Firmware that sent SESSION_ID before PAUSED existed still ran ELAPSED through pauses.
+        var open = QuickTest();
+        open.Observe(Sid(SessionState.PAUSED, 100), T0.AddSeconds(100));
+        open.Observe(Sid(SessionState.RUNNING, 200), T0.AddSeconds(200));
+        Assert.Equal(100, open.TherapySeconds);
+    }
+
+    [Fact]
+    public void InferEnd_PauseFreeClock_NeverGuessesCompleted()
+    {
+        // Last seen running with 100 s left, then paused unseen for longer than that.
+        var open = QuickTest();
+        open.Observe(Cur(SessionState.RUNNING, 200), T0.AddSeconds(200));
+        var now = T0.AddSeconds(200 + 700);
+        Assert.Equal(SessionOutcome.EndedEarly, open.InferEnd(now));
+        Assert.Equal(200, open.Close(SessionOutcome.EndedEarly, now)!.TherapySeconds);
     }
 
     [Fact]
