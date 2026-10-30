@@ -233,6 +233,11 @@ button's current `TextColor`.
   (`Resources/AppIcon/appicon.png`, iOS only); Android adaptive mipmaps in
   `Platforms/Android/Resources/mipmap-*`. After replacing one, delete
   `obj/**/resizetizer` — it keeps old art under the same name.
+- **Firmware update notice:** `Services/Firmware/LatestFirmware` is the app's only network
+  call (GitHub `releases/latest`, cached a day in Preferences, silent on failure).
+  `DeviceSettingsViewModel` compares it with INFO's `FW` (`Models/FirmwareRelease`) and shows
+  the lowest-priority Gloves banner plus an "Outdated" badge. Skipped in Demo Mode, whose
+  gloves report 2.0.0.
 - `tmp/` is gitignored scratch, not canonical. No `docs/` tree; don't add one.
 
 ## CI — `.github/workflows/`

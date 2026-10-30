@@ -1,5 +1,6 @@
 using System.Windows.Input;
 using BuzzahBuddy.Models;
+using Microsoft.Maui.Controls.Internals;
 
 namespace BuzzahBuddy.Views.Controls;
 
@@ -124,10 +125,41 @@ public partial class Banner : ContentView
         ActionButton.Text = ActionText;
         ActionButton.Command = ActionCommand;
         ActionButton.IsVisible = !string.IsNullOrEmpty(ActionText);
-        ActionButton.SetDynamicResource(Button.TextColorProperty, ink);
-        ActionButton.SetDynamicResource(Button.BorderColorProperty, ink);
+        if (ink != _actionInk)
+        {
+            // ButtonQuiet's states repaint Brand on every state change, Normal included, so
+            // colors set directly here were lost; the banner restates the states in its ink.
+            _actionInk = ink;
+            VisualStateManager.SetVisualStateGroups(ActionButton, ActionStates(ink));
+        }
         if (ActionText is not null)
             SemanticProperties.SetDescription(ActionButton, ActionText);
+    }
+
+    private string? _actionInk;
+
+    /// <summary>ButtonQuiet's states in the tone's ink; Pressed dims instead of tinting the ground.</summary>
+    private static VisualStateGroupList ActionStates(string ink)
+    {
+        static Setter Set(BindableProperty property, object value) => new() { Property = property, Value = value };
+        VisualState State(string name, string text, string border, params Setter[] extra)
+        {
+            var state = new VisualState { Name = name };
+            state.Setters.Add(Set(Button.TextColorProperty, new DynamicResource(text)));
+            state.Setters.Add(Set(Button.BorderColorProperty, new DynamicResource(border)));
+            foreach (var setter in extra)
+                state.Setters.Add(setter);
+            return state;
+        }
+
+        var group = new VisualStateGroup { Name = "CommonStates" };
+        group.States.Add(State("Normal", ink, ink));
+        group.States.Add(State("PointerOver", ink, ink));
+        group.States.Add(State("Pressed", ink, ink, Set(OpacityProperty, 0.7)));
+        group.States.Add(State("Focused", ink, "Focus", Set(Button.BorderWidthProperty, 3d)));
+        group.States.Add(State("Disabled", "InkDisabled", "InkDisabled",
+            Set(BackgroundColorProperty, new DynamicResource("FillDisabled"))));
+        return [group];
     }
 
     // Centers the icon on the first line of text. The strut is that line's natural height;
