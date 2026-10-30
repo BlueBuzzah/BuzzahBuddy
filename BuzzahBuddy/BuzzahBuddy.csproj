@@ -129,6 +129,20 @@
 		<PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.10" />
 		<PackageReference Include="Plugin.BLE" Version="3.2.1" />
+		<PackageReference Include="PDFsharp-MigraDoc" Version="6.2.4" />
+		<!-- PDFsharp pulls Pkcs 8.0.1, which has known advisories (NU1902/NU1903); this overrides it. -->
+		<PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.14" />
+	</ItemGroup>
+
+	<!-- The shared PDF report (Services/Reports/ReportPdf.cs) reads its fonts and the mark from
+	     these resources; it holds no MAUI types and can't use MauiFont/MauiImage files. -->
+	<ItemGroup>
+		<EmbeddedResource Include="Resources\Fonts\Lexend-Medium.ttf" LogicalName="BuzzahBuddy.Report.%(Filename)%(Extension)" />
+		<EmbeddedResource Include="Resources\Fonts\Lexend-SemiBold.ttf" LogicalName="BuzzahBuddy.Report.%(Filename)%(Extension)" />
+		<EmbeddedResource Include="Resources\Fonts\Lexend-Bold.ttf" LogicalName="BuzzahBuddy.Report.%(Filename)%(Extension)" />
+		<EmbeddedResource Include="Resources\Fonts\AtkinsonHyperlegibleNext-Regular.ttf" LogicalName="BuzzahBuddy.Report.%(Filename)%(Extension)" />
+		<EmbeddedResource Include="Resources\Fonts\AtkinsonHyperlegibleNext-Bold.ttf" LogicalName="BuzzahBuddy.Report.%(Filename)%(Extension)" />
+		<EmbeddedResource Include="Resources\Brand\bluebuzzah-mark.png" LogicalName="BuzzahBuddy.Report.%(Filename)%(Extension)" />
 	</ItemGroup>
 
 </Project>

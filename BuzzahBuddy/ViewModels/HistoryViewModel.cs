@@ -4,6 +4,7 @@ using BuzzahBuddy.Helpers;
 using BuzzahBuddy.Models;
 using BuzzahBuddy.Services.Bluetooth;
 using BuzzahBuddy.Services.Glove;
+using BuzzahBuddy.Services.Reports;
 using BuzzahBuddy.Services.Storage;
 using BuzzahBuddy.Views.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -145,20 +146,34 @@ public partial class HistoryViewModel : BaseViewModel
 		if (!_shareGuard.TryAcquire())
 			return;
 
+		// The async command already disables Share Report while it runs; IsBusy marks the render.
+		IsBusy = true;
 		try
 		{
 			var data = await _history.LoadAsync();
 			var (from, to) = HistoryReport.Range((ReportRange)SelectedRange, Today, data.Sessions);
+			var cache = FileSystem.CacheDirectory;
+			// Earlier reports hold health notes; keep only the one being shared.
+			foreach (var old in Directory.EnumerateFiles(cache, "BuzzahBuddy Report *")
+				.Concat(Directory.EnumerateFiles(cache, "BuzzahBuddy Sessions *")).ToList())
+				File.Delete(old);
+
+			var model = HistoryReport.Build(data, from, to, DateTimeOffset.Now);
+			var culture = CultureInfo.CurrentCulture;
+			var bytes = await Task.Run(() =>
+				ReportPdf.Render(model, ReportAssets.FromEmbedded(typeof(App).Assembly), culture));
+
 			var stamp = to.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-			var txt = Path.Combine(FileSystem.CacheDirectory, $"BuzzahBuddy Report {stamp}.txt");
-			var csv = Path.Combine(FileSystem.CacheDirectory, $"BuzzahBuddy Sessions {stamp}.csv");
-			await File.WriteAllTextAsync(txt, HistoryReport.Text(data, from, to, DateTimeOffset.Now, CultureInfo.CurrentCulture));
+			var pdf = Path.Combine(cache, $"BuzzahBuddy Report {stamp}.pdf");
+			var csv = Path.Combine(cache, $"BuzzahBuddy Sessions {stamp}.csv");
+			await File.WriteAllBytesAsync(pdf, bytes);
 			await File.WriteAllTextAsync(csv, HistoryReport.Csv(HistoryReport.InRange(data.Sessions, from, to)));
+			IsBusy = false;
 
 			await Share.Default.RequestAsync(new ShareMultipleFilesRequest
 			{
 				Title = "BuzzahBuddy Report",
-				Files = [new ShareFile(txt), new ShareFile(csv)],
+				Files = [new ShareFile(pdf, "application/pdf"), new ShareFile(csv, "text/csv")],
 			});
 		}
 		catch (Exception ex)
@@ -168,6 +183,10 @@ public partial class HistoryViewModel : BaseViewModel
 				"Can't Make the Report",
 				"Something went wrong writing the report. Try again.",
 				ex.Message));
+		}
+		finally
+		{
+			IsBusy = false;
 		}
 	}
 

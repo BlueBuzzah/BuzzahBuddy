@@ -12,11 +12,36 @@ public enum ReportRange
     AllTime = 0,
 }
 
-/// <summary>The plain-text report and CSV the History tab hands to the share sheet.</summary>
+/// <summary>A column in the report's session-time chart: one day, or one 7-day block.</summary>
+public sealed record ChartPoint(DateOnly Start, string Label, int Seconds);
+
+/// <summary>A row of the report's "By Week" table.</summary>
+public sealed record WeekRow(DateOnly Start, DateOnly End, int DaysWithSessions, int Seconds);
+
+/// <summary>Session count and time for one profile name.</summary>
+public sealed record ProfileRow(string Name, int Sessions, int Seconds);
+
+/// <summary>What the PDF report shows, computed without any rendering.</summary>
+public sealed record ReportModel(
+    DateOnly From,
+    DateOnly To,
+    DateTimeOffset CreatedAt,
+    PeriodSummary Summary,
+    string ChartTitle,
+    IReadOnlyList<ChartPoint> Chart,
+    int ChartReferenceSeconds,
+    int ChartMaxSeconds,
+    IReadOnlyList<WeekRow> Weeks,
+    IReadOnlyList<ProfileRow> Profiles,
+    IReadOnlyList<DaySummary> LogDays);
+
+/// <summary>The PDF report model and CSV the History tab hands to the share sheet.</summary>
 public static class HistoryReport
 {
-    private const string DateFormat = "MMM d, yyyy";
     private const string ShortDateFormat = "MMM d";
+
+    /// <summary>Periods up to this long chart one column per day; longer ones, one per week.</summary>
+    private const int DailyChartMaxDays = 92;
 
     /// <summary>Inclusive first and last day for <paramref name="range"/>; all time starts at the earliest session.</summary>
     public static (DateOnly From, DateOnly To) Range(ReportRange range, DateOnly today, IEnumerable<SessionRecord> sessions)
@@ -53,72 +78,70 @@ public static class HistoryReport
         return sb.ToString();
     }
 
-    /// <summary>The shareable report for <paramref name="from"/> to <paramref name="to"/>, with <c>\n</c> line endings.</summary>
-    public static string Text(HistoryData data, DateOnly from, DateOnly to, DateTimeOffset createdAt, CultureInfo culture)
+    /// <summary>Everything the PDF report shows for <paramref name="from"/> to <paramref name="to"/>, inclusive.</summary>
+    public static ReportModel Build(HistoryData data, DateOnly from, DateOnly to, DateTimeOffset createdAt)
     {
         var sessions = InRange(data.Sessions, from, to).ToList();
-        var sum = HistorySummary.Summarize(sessions, from, to);
-        var sb = new StringBuilder();
+        var summary = HistorySummary.Summarize(sessions, from, to);
+        var weeks = Blocks(from, to)
+            .Select(b => HistorySummary.Summarize(sessions, b.Start, b.End))
+            .Select(p => new WeekRow(p.From, p.To, p.DaysWithSessions, p.TherapySeconds))
+            .ToList();
 
-        sb.Append("BuzzahBuddy Session Report\n");
-        sb.Append($"Period: {Date(from, DateFormat, culture)} to {Date(to, DateFormat, culture)} ({Days(sum.DaysInPeriod)})\n");
-        sb.Append($"Created: {createdAt.ToString(DateFormat, culture)}\n\n");
+        var daily = summary.DaysInPeriod <= DailyChartMaxDays;
+        var reference = daily ? HistorySummary.StudyDailySeconds : 7 * HistorySummary.StudyDailySeconds;
+        var secondsByDay = sessions.GroupBy(s => s.Day).ToDictionary(g => g.Key, g => g.Sum(s => s.TherapySeconds));
+        var points = daily
+            ? Enumerable.Range(0, summary.DaysInPeriod)
+                .Select(i => (Start: from.AddDays(i), Seconds: secondsByDay.GetValueOrDefault(from.AddDays(i))))
+                .ToList()
+            : weeks.Select(w => (w.Start, w.Seconds)).ToList();
+        // The newest point and every 7th one back from it carry a date.
+        var chart = points
+            .Select((p, i) => new ChartPoint(
+                p.Start,
+                (points.Count - 1 - i) % 7 == 0 ? p.Start.ToString(ShortDateFormat, CultureInfo.InvariantCulture) : "",
+                p.Seconds))
+            .ToList();
+        var largest = chart.Count == 0 ? 0 : chart.Max(p => p.Seconds);
+        var max = Math.Max(reference, (largest + 3599) / 3600 * 3600);
 
-        sb.Append("Summary\n");
-        sb.Append($"Days with sessions: {sum.DaysWithSessions} of {sum.DaysInPeriod}\n");
-        sb.Append($"Total session time: {DurationText.Short(sum.TherapySeconds)}\n");
-        sb.Append($"Average on days with sessions: {DurationText.Short(sum.AverageSecondsPerSessionDay)}\n");
-        sb.Append($"Sessions: {sum.Sessions} ({sum.Completed} completed, {sum.StoppedEarly} stopped early, {sum.EndedEarly} ended early)\n\n");
+        var profiles = sessions
+            .GroupBy(s => s.ProfileName)
+            .Select(g => new ProfileRow(g.Key, g.Count(), g.Sum(s => s.TherapySeconds)))
+            .OrderByDescending(p => p.Seconds)
+            .ThenBy(p => p.Name, StringComparer.Ordinal)
+            .ToList();
 
-        sb.Append("Early studies of vibrotactile coordinated reset used 2 hours of stimulation, twice a day (Pfeifer et al. 2021).\n\n");
-
-        sb.Append("By week\n");
-        var blocks = new List<PeriodSummary>();
-        for (var end = to; end >= from; end = end.AddDays(-7))
-        {
-            var start = end.AddDays(-6) < from ? from : end.AddDays(-6);
-            blocks.Add(HistorySummary.Summarize(sessions, start, end));
-        }
-        blocks.Reverse();
-        foreach (var b in blocks)
-            sb.Append($"{Date(b.From, ShortDateFormat, culture)} to {Date(b.To, ShortDateFormat, culture)}: {Days(b.DaysWithSessions)}, {DurationText.Short(b.TherapySeconds)}\n");
-        sb.Append('\n');
-
-        sb.Append("Daily log\n");
         var notes = data.Notes.Where(n => n.Day >= from && n.Day <= to && !string.IsNullOrEmpty(n.Text)).ToList();
         var logDays = HistorySummary.Days(sessions, notes, to)
             .Where(d => d.Sessions.Count > 0 || d.Note != null)
             .OrderBy(d => d.Day)
             .ToList();
-        if (logDays.Count == 0)
-            sb.Append("No sessions in this period.\n");
-        foreach (var d in logDays)
-        {
-            sb.Append($"{Date(d.Day, DateFormat, culture)}: {DurationText.Short(d.TherapySeconds)}, {Count(d.Sessions.Count, "session")}\n");
-            foreach (var s in d.Sessions)
-                sb.Append($"  {s.StartedAt.ToString(culture.DateTimeFormat.ShortTimePattern, culture)}, {DurationText.Short(s.TherapySeconds)}, {s.ProfileName}, {HistoryText.OutcomeText(s.Outcome)}\n");
-            if (!string.IsNullOrEmpty(d.Note))
-            {
-                var lines = d.Note.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
-                sb.Append("  Note: ").Append(lines[0]).Append('\n');
-                foreach (var line in lines.Skip(1))
-                    sb.Append("  ").Append(line).Append('\n');
-            }
-        }
-        sb.Append('\n');
 
-        sb.Append("About these numbers\n");
-        sb.Append("Times are what BuzzahBuddy recorded on this phone. Paused time isn't counted. Sessions your gloves ran while this phone wasn't connected may be missing.\n\n");
-        sb.Append(LegalNotices.MedicalDisclaimer).Append("\n\n");
-        sb.Append(LegalNotices.ImplantedDeviceNotice).Append('\n');
-        return sb.ToString();
+        return new ReportModel(
+            from,
+            to,
+            createdAt,
+            summary,
+            daily ? "Daily Session Time" : "Weekly Session Time",
+            chart,
+            reference,
+            max,
+            weeks,
+            profiles,
+            logDays);
     }
 
-    private static string Date(DateOnly d, string format, CultureInfo culture) => d.ToString(format, culture);
-
-    private static string Days(int n) => Count(n, "day");
-
-    private static string Count(int n, string noun) => n == 1 ? $"1 {noun}" : $"{n} {noun}s";
+    /// <summary>7-day blocks counted back from <paramref name="to"/>, oldest first, the oldest clamped to <paramref name="from"/>.</summary>
+    private static List<(DateOnly Start, DateOnly End)> Blocks(DateOnly from, DateOnly to)
+    {
+        var blocks = new List<(DateOnly, DateOnly)>();
+        for (var end = to; end >= from; end = end.AddDays(-7))
+            blocks.Add((end.AddDays(-6) < from ? from : end.AddDays(-6), end));
+        blocks.Reverse();
+        return blocks;
+    }
 
     private static string Minutes(int seconds) =>
         ((int)Math.Round(seconds / 60.0, MidpointRounding.AwayFromZero)).ToString(CultureInfo.InvariantCulture);

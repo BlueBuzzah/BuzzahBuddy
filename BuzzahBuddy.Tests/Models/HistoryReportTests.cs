@@ -36,8 +36,8 @@ public class HistoryReportTests
         Notes = { new DayNote { Day = new DateOnly(2026, 10, 28), Text = "Tremor felt lighter after lunch" } },
     };
 
-    private static string Report(HistoryData data) =>
-        HistoryReport.Text(data, new DateOnly(2026, 9, 30), Today, new DateTimeOffset(2026, 10, 29, 12, 0, 0, TimeSpan.FromHours(-7)), Inv);
+    private static readonly DateOnly From = new(2026, 9, 30);
+    private static readonly DateTimeOffset Created = new(2026, 10, 29, 12, 0, 0, TimeSpan.FromHours(-7));
 
     [Fact]
     public void Range_ThirtyNinetyAndAllTime()
@@ -67,55 +67,70 @@ public class HistoryReportTests
     }
 
     [Fact]
-    public void Text_SummaryLines()
+    public void Build_DailyChartForShortPeriods()
     {
-        var text = Report(Fixture());
-        Assert.Contains("Period: Sep 30, 2026 to Oct 29, 2026 (30 days)", text);
-        Assert.Contains("Days with sessions: 2 of 30", text);
-        Assert.Contains("Total session time: 5 h", text);
-        Assert.Contains("Average on days with sessions: 2 h 30 min", text);
-        Assert.Contains("Sessions: 3 (2 completed, 1 stopped early, 0 ended early)", text);
+        var model = HistoryReport.Build(Fixture(), From, Today, Created);
+
+        Assert.Equal(30, model.Chart.Count);
+        Assert.Equal("Daily Session Time", model.ChartTitle);
+        Assert.Equal(14400, model.ChartReferenceSeconds);
+        Assert.Equal(14400, model.ChartMaxSeconds);
+        Assert.Equal(From, model.Chart[0].Start);
+        Assert.Equal(14400, model.Chart.Single(p => p.Start == new DateOnly(2026, 10, 28)).Seconds);
+        Assert.Equal("Oct 29", model.Chart[29].Label);
+        Assert.Equal("Oct 22", model.Chart[22].Label);
+        Assert.Equal("", model.Chart[25].Label);
     }
 
     [Fact]
-    public void Text_DailyLogWithNote()
+    public void Build_WeeklyChartForLongPeriods()
     {
-        var text = Report(Fixture());
-        Assert.Contains("Oct 28, 2026: 4 h, 2 sessions", text);
-        Assert.Contains("  08:00, 2 h, Noisy, Completed", text);
-        Assert.Contains("  Note: Tremor felt lighter after lunch", text);
+        var model = HistoryReport.Build(Fixture(), new DateOnly(2026, 1, 1), Today, Created);
+
+        Assert.Equal(302, model.Summary.DaysInPeriod);
+        Assert.Equal(44, model.Chart.Count);
+        Assert.Equal("Weekly Session Time", model.ChartTitle);
+        Assert.Equal(100800, model.ChartReferenceSeconds);
+        Assert.Equal(new DateOnly(2026, 1, 1), model.Chart[0].Start);
+        Assert.Equal(new DateOnly(2026, 10, 23), model.Chart[^1].Start);
+        Assert.Equal(14400, model.Chart[^1].Seconds);
     }
 
     [Fact]
-    public void Text_MultiLineNote_IndentsContinuationLines()
+    public void Build_MaxGrowsPastReference()
     {
-        var data = Fixture();
-        data.Notes[0].Text = "First line\r\nSecond line";
-        Assert.Contains("  Note: First line\n  Second line\n", Report(data));
+        var data = new HistoryData { Sessions = { Rec("x", "2026-10-28T08:00:00-07:00", 5 * 3600 + 600, "Noisy", SessionOutcome.Completed) } };
+
+        Assert.Equal(21600, HistoryReport.Build(data, From, Today, Created).ChartMaxSeconds);
     }
 
     [Fact]
-    public void Text_WeeksOldestFirst()
+    public void Build_ProfilesByTimeDescending()
     {
-        var text = Report(Fixture());
-        var older = text.IndexOf("Oct 16 to Oct 22: 1 day, 1 h", StringComparison.Ordinal);
-        var newer = text.IndexOf("Oct 23 to Oct 29: 1 day, 4 h", StringComparison.Ordinal);
-        Assert.True(older >= 0 && newer > older);
-        Assert.Contains("Sep 30 to Oct 1: 0 days, 0 min", text);
+        var model = HistoryReport.Build(Fixture(), From, Today, Created);
+
+        Assert.Equal(new[] { new ProfileRow("Noisy", 2, 14400), new ProfileRow("Regular", 1, 3600) }, model.Profiles);
     }
 
     [Fact]
-    public void Text_EndsWithBothLegalNoticesVerbatim()
+    public void Build_WeeksOldestFirst()
     {
-        Assert.EndsWith(LegalNotices.MedicalDisclaimer + "\n\n" + LegalNotices.ImplantedDeviceNotice + "\n", Report(Fixture()));
+        var model = HistoryReport.Build(Fixture(), From, Today, Created);
+
+        Assert.Equal(new WeekRow(From, new DateOnly(2026, 10, 1), 0, 0), model.Weeks[0]);
+        Assert.Equal(new WeekRow(new DateOnly(2026, 10, 16), new DateOnly(2026, 10, 22), 1, 3600), model.Weeks[^2]);
+        Assert.Equal(new WeekRow(new DateOnly(2026, 10, 23), Today, 1, 14400), model.Weeks[^1]);
     }
 
     [Fact]
-    public void Text_EmptyPeriod_SaysSo()
+    public void Build_LogDaysOldestFirstWithNotes()
     {
-        var text = Report(new HistoryData());
-        Assert.Contains("No sessions in this period.", text);
-        Assert.Contains("Days with sessions: 0 of 30", text);
+        var model = HistoryReport.Build(Fixture(), From, Today, Created);
+
+        Assert.Equal(2, model.LogDays.Count);
+        Assert.Equal(new DateOnly(2026, 10, 20), model.LogDays[0].Day);
+        Assert.Equal(new DateOnly(2026, 10, 28), model.LogDays[1].Day);
+        Assert.Equal("Tremor felt lighter after lunch", model.LogDays[1].Note);
     }
 
     [Fact]

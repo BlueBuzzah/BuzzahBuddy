@@ -198,6 +198,12 @@ button's current `TextColor`.
   (temp file + move). The open session lives in Preferences `open_session`. A file that won't
   parse is renamed `history.json.corrupt-<timestamp>` and never overwritten. Legacy
   `therapy_sessions` is migrated once, then cleared.
+- **Shared report** (`Services/Reports/ReportPdf.cs`): PDFsharp-MigraDoc draws the PDF from
+  `HistoryReport.Build`; page 1 is XGraphics, later pages MigraDoc, page numbers drawn after
+  layout. Its five TTFs and the mark are `EmbeddedResource`s (`BuzzahBuddy.Report.*`, linked
+  as files in tests). `GlobalFontSettings.FontResolver` can be set once per process, so the
+  first `ReportAssets` wins. The `System.Security.Cryptography.Pkcs` 10.x reference in both
+  csproj files overrides PDFsharp's vulnerable 8.0.1; don't drop it.
 - **`XC0023` is suppressed on purpose**: compiled `RelativeSource AncestorType` fails
   inside recycled `CollectionView` items on device; `DeviceListPage` uses
   `Source={x:Reference page}`. `XC0045`: intentional parent-VM `RelativeSource`.
