@@ -219,6 +219,23 @@ public class HistoryReportTests
     }
 
     [Fact]
+    public void Build_PreviousWindow_NotComparedWhenItStartsBeforeTheFirstSession()
+    {
+        // The window before Sep 30 is Aug 31..Sep 29. Starting use inside it would make its
+        // empty early days read as missed, so there's nothing fair to compare against.
+        var data = Fixture();
+        data.Sessions.Add(Rec("p", "2026-09-10T08:00:00-07:00", 1800, "Noisy", SessionOutcome.Completed));
+        Assert.Null(Build(data, From).Previous);
+
+        // First session on the window's first day: the whole window counts.
+        data.Sessions.Add(Rec("first", "2026-08-31T08:00:00-07:00", 1800, "Noisy", SessionOutcome.Completed));
+        var previous = Build(data, From).Previous;
+        Assert.NotNull(previous);
+        Assert.Equal(new DateOnly(2026, 8, 31), previous.From);
+        Assert.Equal(3600, previous.TherapySeconds);
+    }
+
+    [Fact]
     public void Build_CalendarStyleAndDays()
     {
         var thirty = Build(Fixture(), From);
