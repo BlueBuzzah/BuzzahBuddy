@@ -8,8 +8,8 @@
     xmlns:helpers="clr-namespace:BuzzahBuddy.Helpers"
     Title="BuzzahBuddy">
 
-    <!-- Three tabs (owner decision; buzzahbuddy.md lists History too, deferred). Routes keep
-         their original names; the tab titles are what people see. -->
+    <!-- Four tabs (buzzahbuddy.md Structure). Routes keep their original names; the tab
+         titles are what people see. -->
     <!-- No Color on the icons: the tab bar tints them like the titles (brand when selected,
          ink-muted otherwise) and re-tints on a theme change. A fixed color is baked in. -->
     <TabBar>
@@ -30,6 +30,16 @@
             AutomationId="DevicesTab">
             <ShellContent.Icon>
                 <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Hand}" Size="24" />
+            </ShellContent.Icon>
+        </ShellContent>
+
+        <ShellContent
+            Title="History"
+            ContentTemplate="{DataTemplate views:HistoryPage}"
+            Route="history"
+            AutomationId="HistoryTab">
+            <ShellContent.Icon>
+                <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Calendar}" Size="24" />
             </ShellContent.Icon>
         </ShellContent>
 

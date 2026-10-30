@@ -1,0 +1,131 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<!-- History (buzzahbuddy.md History): the last 7 days as bars, the shared report, then one card
+     per day. One CollectionView, so the page scrolls once and the day list stays virtualized. -->
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:BuzzahBuddy.ViewModels"
+             xmlns:models="clr-namespace:BuzzahBuddy.Models"
+             xmlns:controls="clr-namespace:BuzzahBuddy.Views.Controls"
+             xmlns:helpers="clr-namespace:BuzzahBuddy.Helpers"
+             x:Class="BuzzahBuddy.Views.HistoryPage"
+             x:DataType="vm:HistoryViewModel"
+             x:Name="page"
+             Title="{Binding Title}"
+             Shell.NavBarIsVisible="False"
+             SafeAreaEdges="Container">
+
+    <CollectionView ItemsSource="{Binding Days}" SelectionMode="None" ItemSizingStrategy="MeasureAllItems">
+        <CollectionView.Header>
+            <VerticalStackLayout Padding="16,16,16,12" Spacing="{StaticResource Space8}">
+                <Label Text="History" Style="{StaticResource TypeHeadline}" SemanticProperties.HeadingLevel="Level1" />
+
+                <controls:Banner Tone="Info"
+                                 Message="Sessions in Demo Mode aren't saved to your history."
+                                 IsVisible="{Binding IsDemoMode}"
+                                 AutomationId="DemoHistoryBanner" />
+
+                <VerticalStackLayout Spacing="{StaticResource Space3}">
+                    <Label Text="Last 7 Days" Style="{StaticResource TypeTitleL}" SemanticProperties.HeadingLevel="Level2" />
+                    <Border Style="{StaticResource Card}">
+                        <VerticalStackLayout Spacing="{StaticResource Space4}">
+                            <!-- Rows stack the bar under its label and time at large text (page code-behind). -->
+                            <VerticalStackLayout x:Name="WeekRows" BindableLayout.ItemsSource="{Binding LastSevenDays}" Spacing="{StaticResource Space3}">
+                                <BindableLayout.ItemTemplate>
+                                    <DataTemplate x:DataType="models:WeekBar">
+                                        <Grid ColumnSpacing="{StaticResource Space3}"
+                                              RowSpacing="{StaticResource Space1}"
+                                              SemanticProperties.Description="{Binding Spoken}"
+                                              Loaded="OnWeekRowLoaded">
+                                            <Label Text="{Binding Label}" Style="{StaticResource TypeLabel}" LineHeight="1" VerticalOptions="Center"
+                                                   AutomationProperties.IsInAccessibleTree="False" />
+                                            <controls:MeterBar Fraction="{Binding Fraction}" VerticalOptions="Center" />
+                                            <Label Text="{Binding Value}" Style="{StaticResource TypeBodyS}" LineHeight="1" VerticalOptions="Center" HorizontalTextAlignment="End"
+                                                   AutomationProperties.IsInAccessibleTree="False" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </BindableLayout.ItemTemplate>
+                            </VerticalStackLayout>
+                            <Label Text="Early studies used 2 hours, twice a day. A full bar is 4 hours."
+                                   Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
+                        </VerticalStackLayout>
+                    </Border>
+                </VerticalStackLayout>
+
+                <VerticalStackLayout Spacing="{StaticResource Space3}">
+                    <Label Text="Share a Report" Style="{StaticResource TypeTitleL}" SemanticProperties.HeadingLevel="Level2" />
+                    <Border Style="{StaticResource Card}">
+                        <VerticalStackLayout Spacing="{StaticResource Space4}">
+                            <Label Text="Make a report of your sessions and notes to share with your care team. It leaves this phone only when you share it." />
+                            <controls:SegmentedControl Label="Period"
+                                                       Options="{Binding RangeOptions}"
+                                                       SelectedValue="{Binding SelectedRange}"
+                                                       AutomationId="ReportRangeControl" />
+                            <VerticalStackLayout Spacing="{StaticResource Space2}">
+                                <Button Text="Share Report"
+                                        Style="{StaticResource ButtonPrimary}"
+                                        ContentLayout="Left,8"
+                                        Command="{Binding ShareReportCommand}"
+                                        IsEnabled="{Binding HasSessions}"
+                                        SemanticProperties.Description="Share Report"
+                                        AutomationId="ShareReportButton">
+                                    <Button.ImageSource>
+                                        <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Share}" Size="20" Color="{DynamicResource OnBrand}" />
+                                    </Button.ImageSource>
+                                </Button>
+                                <Label Text="Run a session first. Your report needs at least one."
+                                       Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}"
+                                       IsVisible="{Binding HasSessions, Converter={StaticResource InvertedBoolConverter}}" />
+                            </VerticalStackLayout>
+                        </VerticalStackLayout>
+                    </Border>
+                </VerticalStackLayout>
+
+                <VerticalStackLayout Spacing="{StaticResource Space3}">
+                    <Label Text="Days" Style="{StaticResource TypeTitleL}" SemanticProperties.HeadingLevel="Level2" />
+                    <Label Text="Times are what this phone recorded. Paused time isn't counted."
+                           Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
+                </VerticalStackLayout>
+            </VerticalStackLayout>
+        </CollectionView.Header>
+
+        <CollectionView.ItemTemplate>
+            <DataTemplate x:DataType="models:DayRow">
+                <Border Style="{StaticResource Card}" Margin="16,0,16,24">
+                    <VerticalStackLayout Spacing="{StaticResource Space3}">
+                        <!-- One sentence for screen readers; the lines inside are left out of the tree. -->
+                        <VerticalStackLayout Spacing="{StaticResource Space1}" SemanticProperties.Description="{Binding Spoken}">
+                            <Label Text="{Binding Title}" Style="{StaticResource TypeTitleM}" AutomationProperties.IsInAccessibleTree="False" />
+                            <Label Text="{Binding Total}" Style="{StaticResource TypeMetric}" AutomationProperties.IsInAccessibleTree="False" />
+                            <VerticalStackLayout BindableLayout.ItemsSource="{Binding SessionLines}" Spacing="{StaticResource Space1}">
+                                <BindableLayout.ItemTemplate>
+                                    <DataTemplate x:DataType="x:String">
+                                        <Label Text="{Binding .}" Style="{StaticResource TypeBodyS}" AutomationProperties.IsInAccessibleTree="False" />
+                                    </DataTemplate>
+                                </BindableLayout.ItemTemplate>
+                            </VerticalStackLayout>
+                            <Label Text="{Binding Note}" Style="{StaticResource TypeBody}" Margin="0,8,0,0"
+                                   IsVisible="{Binding Note, Converter={StaticResource IsNotNullConverter}}"
+                                   AutomationProperties.IsInAccessibleTree="False" />
+                        </VerticalStackLayout>
+                        <Button Text="{Binding NoteButtonText}"
+                                Style="{StaticResource ButtonQuiet}"
+                                HorizontalOptions="Start"
+                                CommandParameter="{Binding .}"
+                                AutomationId="NoteButton">
+                            <SemanticProperties.Description>
+                                <MultiBinding StringFormat="{}{0}, {1}">
+                                    <Binding Path="NoteButtonText" />
+                                    <Binding Path="Title" />
+                                </MultiBinding>
+                            </SemanticProperties.Description>
+                            <!-- x:DataType cleared + x:Reference: RelativeSource doesn't resolve in item templates on device. -->
+                            <Button.Command>
+                                <Binding Source="{x:Reference page}" Path="BindingContext.EditNoteCommand" x:DataType="{x:Null}" />
+                            </Button.Command>
+                        </Button>
+                    </VerticalStackLayout>
+                </Border>
+            </DataTemplate>
+        </CollectionView.ItemTemplate>
+    </CollectionView>
+</ContentPage>

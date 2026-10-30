@@ -115,6 +115,7 @@ public static class MauiProgram
 		builder.Services.AddSingleton<DeviceListViewModel>();
 		builder.Services.AddSingleton<DeviceSettingsViewModel>();
 		builder.Services.AddSingleton<GloveControlViewModel>();
+		builder.Services.AddSingleton<HistoryViewModel>();
 		builder.Services.AddSingleton<SettingsViewModel>();
 		builder.Services.AddTransient<CalibrationViewModel>();
 		builder.Services.AddTransient<ProfileSettingsViewModel>();
@@ -122,6 +123,7 @@ public static class MauiProgram
 		// Register Views
 		builder.Services.AddSingleton<DeviceListPage>();
 		builder.Services.AddSingleton<GloveControlPage>();
+		builder.Services.AddSingleton<HistoryPage>();
 		builder.Services.AddSingleton<SettingsPage>();
 		builder.Services.AddTransient<CalibrationPage>();
 		builder.Services.AddTransient<ProfileSettingsPage>();

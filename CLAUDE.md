@@ -139,14 +139,17 @@ dispatch.
 
 ## UI & Navigation
 
-Tabs in `AppShell.xaml`: `//control` (Session), `//devices` (Gloves), `//settings`;
-pushed routes `calibration` (Test Motors) and `profilesettings` (Custom Profile) in
-`AppShell.xaml.cs`; strings in `Helpers/Routes.cs`. Modals created with `new`, not routes:
+Tabs in `AppShell.xaml`: `//control` (Session), `//devices` (Gloves), `//history`
+(History), `//settings`; pushed routes `calibration` (Test Motors) and `profilesettings`
+(Custom Profile) in `AppShell.xaml.cs`; strings in `Helpers/Routes.cs`. Modals created
+with `new`, not routes:
 `ApplyingSettingsPage` (while gloves reboot), `WelcomePage` (first-run safety notices),
 `ConfirmSheetPage` (every confirmation, via `IConfirmationService`).
 `ApplyingSettingsPage.OnBackButtonPressed` only works on Android because
 `AndroidManifest.xml` sets `enableOnBackInvokedCallback="false"`.
 `DeviceSettingsViewModel` has no page; it's `DeviceListViewModel.Settings`.
+`HistoryViewModel` reloads from `HistoryStore` on `OnAppearing` and never subscribes to
+service events.
 
 DI (`MauiProgram.cs`): tab pages/VMs are **singletons** (Shell caches them) and never
 disposed; Calibration/ProfileSettings are transient — a transient VM subscribing to
