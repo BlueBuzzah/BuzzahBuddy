@@ -93,8 +93,11 @@ public partial class HistoryPage : ContentPage
     // header changes, bring the header on screen for one layout pass so it measures itself,
     // then return to the same offset, all before the next frame is drawn. When the header was
     // wholly scrolled away (the person is in the day list), its change in height is added too,
-    // so the day cards stay still (a Demo banner appearing, a period change). Days is the list
-    // itself, not the header, so it keeps the list's own behavior.
+    // so the day cards stay still (a Demo banner appearing, a period change). The header can be
+    // invalidated again a pass or two later (new trend rows lay themselves out on load), so the
+    // passes repeat until the header and content heights stop changing. Days is the list itself,
+    // not the header, so it keeps the list's own behavior.
+    private const int MaxRestorePasses = 6;
     private CoreGraphics.CGPoint? _heldOffset;
     private double _heldHeaderHeight;
 
@@ -109,14 +112,16 @@ public partial class HistoryPage : ContentPage
 
         _heldOffset = list.ContentOffset;
         _heldHeaderHeight = ListHeader.Height;
-        // The list re-lays out on the next pass, and self-sizing can settle a pass later.
-        Dispatcher.Dispatch(() => RestoreOffset(root, list, again: true));
+        Dispatcher.Dispatch(() => RestoreOffset(root, list, pass: 1, lastHeader: -1, lastContent: -1));
     }
 
-    private void RestoreOffset(UIKit.UIView root, UIKit.UICollectionView list, bool again)
+    private void RestoreOffset(UIKit.UIView root, UIKit.UICollectionView list, int pass, double lastHeader, double lastContent)
     {
         if (_heldOffset is not { } held)
             return;
+        // A content height that dropped back to the estimate since the last pass means the header
+        // was invalidated again.
+        var invalidated = (double)list.ContentSize.Height != lastContent;
         var top = -list.AdjustedContentInset.Top;
         list.SetContentOffset(new CoreGraphics.CGPoint(held.X, top), animated: false);
         root.LayoutIfNeeded();
@@ -126,10 +131,13 @@ public partial class HistoryPage : ContentPage
         var bottom = list.ContentSize.Height + list.AdjustedContentInset.Bottom - list.Bounds.Height;
         list.SetContentOffset(new CoreGraphics.CGPoint(held.X, Math.Max(top, Math.Min((nfloat)y, bottom))), animated: false);
         root.LayoutIfNeeded();
-        if (again)
-            Dispatcher.Dispatch(() => RestoreOffset(root, list, again: false));
-        else
+        var header = ListHeader.Height;
+        var content = (double)list.ContentSize.Height;
+        var settled = pass > 1 && !invalidated && header == lastHeader && content == lastContent;
+        if (settled || pass == MaxRestorePasses)
             _heldOffset = null;
+        else
+            Dispatcher.Dispatch(() => RestoreOffset(root, list, pass + 1, header, content));
     }
 
     private static UIKit.UICollectionView? FindList(UIKit.UIView view)
