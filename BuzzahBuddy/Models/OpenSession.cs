@@ -6,12 +6,12 @@ namespace BuzzahBuddy.Models;
 /// <para>
 /// Older firmware never tells the phone how a session finished (current firmware reports its
 /// last session; see <see cref="End"/>). Older firmware's ELAPSED also keeps counting through a
-/// pause, so without a session id delivered time is the sum of ELAPSED gains taken only while
-/// the session was running, and a session that finished while the phone was away can read
-/// RUNNING with ELAPSED:0 TOTAL:0 after a reconnect, so a reading with TOTAL of 0 is never tracked. On
-/// completion the engine stops in the same tick that ELAPSED reaches TOTAL, so the next reading
-/// is IDLE with 0/0/0 and PROGRESS never reaches 100. The end is therefore inferred from the
-/// time since the last reading showing the session running.
+/// pause, so without PAUSED (see <see cref="PauseFreeClock"/>) delivered time is the sum of
+/// ELAPSED gains taken only while the session was running, and a session that finished while the
+/// phone was away can read RUNNING with ELAPSED:0 TOTAL:0 after a reconnect, so a reading with
+/// TOTAL of 0 is never tracked. On completion the engine stops in the same tick that ELAPSED
+/// reaches TOTAL, so the next reading is IDLE with 0/0/0 and PROGRESS never reaches 100. The end
+/// is therefore inferred from the time since the last reading showing the session running.
 /// </para>
 /// </summary>
 public sealed class OpenSession
@@ -38,6 +38,12 @@ public sealed class OpenSession
     /// The gloves' SESSION_ID for this session; null on older firmware.
     /// </summary>
     public int? FirmwareSessionId { get; set; }
+
+    /// <summary>
+    /// Whether a reading carried PAUSED, the mark of firmware whose ELAPSED holds while paused.
+    /// SESSION_ID alone isn't enough: it shipped before the clock stopped running through pauses.
+    /// </summary>
+    public bool PauseFreeClock { get; set; }
 
     /// <summary>
     /// Seconds of therapy delivered so far, excluding paused time.
@@ -79,6 +85,7 @@ public sealed class OpenSession
             DeviceId = deviceId,
             PlannedSeconds = status.TotalTimeSeconds,
             FirmwareSessionId = status.SessionId,
+            PauseFreeClock = status.PausedSeconds is not null,
             TherapySeconds = status.ElapsedTimeSeconds,
             LastElapsedSeconds = status.ElapsedTimeSeconds,
             LastRunning = status.IsRunning,
@@ -103,13 +110,14 @@ public sealed class OpenSession
                 && (now - LastObservedAt).TotalSeconds > PlannedSeconds - LastElapsedSeconds + CompletionToleranceSeconds));
 
     /// <summary>
-    /// Records a reading. Firmware that reports a session id holds ELAPSED while paused, so every
-    /// gain is therapy; on older firmware time counts only when the previous reading showed the
+    /// Records a reading. Firmware that reports PAUSED holds ELAPSED while paused, so every gain
+    /// is therapy; on older firmware time counts only when the previous reading showed the
     /// session running.
     /// </summary>
     public void Observe(SessionStatus status, DateTimeOffset now)
     {
-        if (LastRunning || status.SessionId is not null)
+        PauseFreeClock |= status.PausedSeconds is not null;
+        if (LastRunning || PauseFreeClock)
         {
             TherapySeconds += Math.Max(0, status.ElapsedTimeSeconds - LastElapsedSeconds);
         }
@@ -168,13 +176,15 @@ public sealed class OpenSession
         && last.ElapsedSeconds >= LastElapsedSeconds;
 
     /// <summary>
-    /// Infers how the session ended when the app was not watching.
+    /// Infers how the session ended when the app was not watching. Only a clock that runs through
+    /// pauses proves completion by timing; on a pause-free clock an unseen pause could have
+    /// outlasted the remaining time, so without the gloves' summary the end counts as early.
     /// </summary>
     public SessionOutcome InferEnd(DateTimeOffset now)
     {
         var remaining = PlannedSeconds - LastElapsedSeconds;
         var gap = (now - LastObservedAt).TotalSeconds;
-        return LastRunning && gap >= remaining - CompletionToleranceSeconds
+        return LastRunning && !PauseFreeClock && gap >= remaining - CompletionToleranceSeconds
             ? SessionOutcome.Completed
             : SessionOutcome.EndedEarly;
     }

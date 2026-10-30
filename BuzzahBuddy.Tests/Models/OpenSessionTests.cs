@@ -18,6 +18,14 @@ public class OpenSessionTests
     private static SessionStatus Sid(SessionState state, int elapsed, int total = 300) =>
         new() { Status = state, ElapsedTimeSeconds = elapsed, TotalTimeSeconds = total, SessionId = FwId };
 
+    /// <summary>A reading from current firmware, which reports PAUSED and holds ELAPSED while paused.</summary>
+    private static SessionStatus Cur(SessionState state, int elapsed, int pausedSoFar = 0)
+    {
+        var status = Sid(state, elapsed);
+        status.PausedSeconds = pausedSoFar;
+        return status;
+    }
+
     /// <summary>A 5-minute Quick Test begun from Start's reply, which carries the session id.</summary>
     private static OpenSession QuickTest() =>
         OpenSession.Begin(Sid(SessionState.RUNNING, 0), T0, 6, "Quick Test", "G1");
@@ -146,12 +154,33 @@ public class OpenSessionTests
     }
 
     [Fact]
-    public void Observe_WithSessionId_CountsTheGainAfterAResume()
+    public void Observe_PauseFreeClock_CountsTheGainAfterAResume()
     {
         var open = QuickTest();
-        open.Observe(Sid(SessionState.PAUSED, 100), T0.AddSeconds(100));
-        open.Observe(Sid(SessionState.RUNNING, 104), T0.AddSeconds(400));  // ELAPSED held while paused
+        open.Observe(Cur(SessionState.PAUSED, 100), T0.AddSeconds(100));
+        open.Observe(Cur(SessionState.RUNNING, 104, 296), T0.AddSeconds(400));  // ELAPSED held while paused
         Assert.Equal(104, open.TherapySeconds);
+    }
+
+    [Fact]
+    public void Observe_SessionIdWithoutPaused_StillExcludesTheGainAfterAResume()
+    {
+        // Firmware that sent SESSION_ID before PAUSED existed still ran ELAPSED through pauses.
+        var open = QuickTest();
+        open.Observe(Sid(SessionState.PAUSED, 100), T0.AddSeconds(100));
+        open.Observe(Sid(SessionState.RUNNING, 200), T0.AddSeconds(200));
+        Assert.Equal(100, open.TherapySeconds);
+    }
+
+    [Fact]
+    public void InferEnd_PauseFreeClock_NeverGuessesCompleted()
+    {
+        // Last seen running with 100 s left, then paused unseen for longer than that.
+        var open = QuickTest();
+        open.Observe(Cur(SessionState.RUNNING, 200), T0.AddSeconds(200));
+        var now = T0.AddSeconds(200 + 700);
+        Assert.Equal(SessionOutcome.EndedEarly, open.InferEnd(now));
+        Assert.Equal(200, open.Close(SessionOutcome.EndedEarly, now)!.TherapySeconds);
     }
 
     [Fact]
