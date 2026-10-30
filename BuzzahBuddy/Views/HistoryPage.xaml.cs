@@ -25,6 +25,25 @@ public partial class HistoryPage : ContentPage
 #if IOS
         _viewModel.PropertyChanging += OnViewModelChanging;
 #endif
+        _viewModel.DataSourceChanged += (_, _) => ScrollToTop();
+    }
+
+    // The list header (History's title) is the first row of the platform list on both platforms.
+    private void ScrollToTop()
+    {
+#if IOS
+        if (DayList.Handler?.PlatformView is not UIKit.UIView root || FindList(root) is not { } list)
+            return;
+        var top = new CoreGraphics.CGPoint(0, -list.AdjustedContentInset.Top);
+        // A header change in the same refresh is being held at the old offset; hold the top instead.
+        if (_heldOffset is not null)
+            _heldOffset = top;
+        else
+            list.SetContentOffset(top, animated: false);
+#elif ANDROID
+        if (DayList.Handler?.PlatformView is AndroidX.RecyclerView.Widget.RecyclerView list)
+            list.ScrollToPosition(0);
+#endif
     }
 
     protected override void OnAppearing()

@@ -6,6 +6,7 @@ namespace BuzzahBuddy.Models;
 /// <summary>
 /// The sample history History shows in Demo Mode: a fixed 60-day pattern laid onto the 60 days
 /// ending today. Built in memory each time and never stored, so the person's own history is untouched.
+/// Today's one session appears only once it has ended, so the sample is never in the future.
 /// </summary>
 public static class DemoHistory
 {
@@ -54,9 +55,11 @@ public static class DemoHistory
         (55, "Forgot the afternoon session."),
     ];
 
-    /// <summary>The same sample for the same <paramref name="today"/>, with start times in <paramref name="utcOffset"/>.</summary>
-    public static HistoryData Build(DateOnly today, TimeSpan utcOffset)
+    /// <summary>The sample as of <paramref name="now"/>, whose date is today and whose offset the start times use.</summary>
+    public static HistoryData Build(DateTimeOffset now)
     {
+        var today = DateOnly.FromDateTime(now.DateTime);
+        var utcOffset = now.Offset;
         var names = TherapyProfile.GetPresetProfiles().ToDictionary(p => p.ProfileId, p => p.Name);
         var first = today.AddDays(1 - Days);
         var data = new HistoryData();
@@ -68,7 +71,7 @@ public static class DemoHistory
             var n = 0;
             if (kind is 'B' or 'M')
             {
-                // 7:30 to 9:00 in 15-minute steps; today's starts early, so it reads as done for most of the day.
+                // 7:30 to 9:00 in 15-minute steps; today's starts early, so it shows from 9:30 on.
                 var start = new TimeOnly(7, 30).AddMinutes(i == Days - 1 ? 0 : (i * 3) % 7 * 15);
                 data.Sessions.Add(Session(day, ++n, start, afternoon: false, GentleMornings.Contains(i) ? Gentle : Noisy));
             }
@@ -101,6 +104,9 @@ public static class DemoHistory
                 };
             }
         }
+
+        // Today's session shows only once it has ended.
+        data.Sessions.RemoveAll(s => s.EndedAt > now);
 
         foreach (var (index, text) in Notes)
             data.Notes.Add(new DayNote { Day = first.AddDays(index), Text = text });

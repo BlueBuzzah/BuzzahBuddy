@@ -69,6 +69,12 @@ public partial class HistoryViewModel : BaseViewModel
 
 	private HistoryData? _data;
 
+	/// <summary>Whether the loaded data is Demo Mode's sample; null before the first load.</summary>
+	private bool? _loadedDemo;
+
+	/// <summary>Raised after a refresh that swapped the sample for the person's own history, or back.</summary>
+	public event EventHandler? DataSourceChanged;
+
 	/// <summary>The calendar's month (its first day); kept across refreshes while the app runs.</summary>
 	private DateOnly _shownMonth = FirstOfMonth(Today);
 
@@ -139,6 +145,12 @@ public partial class HistoryViewModel : BaseViewModel
 		HasSessions = data.Sessions.Count > 0;
 		_data = data;
 		Recompute();
+
+		// Other history is a different page, so it starts at the top.
+		var flipped = _loadedDemo is { } wasDemo && wasDemo != IsDemoMode;
+		_loadedDemo = IsDemoMode;
+		if (flipped)
+			DataSourceChanged?.Invoke(this, EventArgs.Empty);
 	}
 
 	partial void OnSelectedRangeChanged(int value)
@@ -333,7 +345,7 @@ public partial class HistoryViewModel : BaseViewModel
 
 	/// <summary>Demo Mode's sample history, never stored, or the person's own.</summary>
 	private Task<HistoryData> LoadAsync() => IsDemoMode
-		? Task.FromResult(DemoHistory.Build(Today, DateTimeOffset.Now.Offset))
+		? Task.FromResult(DemoHistory.Build(DateTimeOffset.Now))
 		: _history.LoadAsync();
 
 	private static Task ShowErrorAsync(UserError error) =>

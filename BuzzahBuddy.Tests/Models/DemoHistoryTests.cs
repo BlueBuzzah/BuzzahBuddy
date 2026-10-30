@@ -10,7 +10,10 @@ public class DemoHistoryTests
     private static readonly DateOnly Today = new(2026, 10, 30);
     private static readonly TimeSpan Offset = TimeSpan.FromHours(-7);
 
-    private static HistoryData Build() => DemoHistory.Build(Today, Offset);
+    /// <summary>Midday: today's morning sample session (7:30 to 9:30) has ended.</summary>
+    private static readonly DateTimeOffset Now = new(2026, 10, 30, 12, 0, 0, Offset);
+
+    private static HistoryData Build() => DemoHistory.Build(Now);
 
     [Fact]
     public void Build_SameTodayTwice_SameOutput()
@@ -56,6 +59,25 @@ public class DemoHistoryTests
 
         Assert.True(today.StartedAt.Hour < 12);
         Assert.Equal(SessionOutcome.Completed, today.Outcome);
+    }
+
+    [Theory]
+    [InlineData(9, 30, 0, true)]
+    [InlineData(23, 59, 59, true)]
+    [InlineData(9, 29, 59, false)]
+    [InlineData(0, 0, 0, false)]
+    public void Build_TodaysSessionOnlyOnceItHasEnded(int hour, int minute, int second, bool shown)
+    {
+        var now = new DateTimeOffset(2026, 10, 30, hour, minute, second, Offset);
+
+        var data = DemoHistory.Build(now);
+
+        Assert.All(data.Sessions, s => Assert.True(s.EndedAt <= now, $"{s.Id} ends at {s.EndedAt}"));
+        Assert.Equal(shown ? 1 : 0, data.Sessions.Count(s => s.Day == Today));
+        Assert.Equal(shown ? 99 : 98, data.Sessions.Count);
+        Assert.Equal(shown ? 54 : 53, data.Sessions.Select(s => s.Day).Distinct().Count());
+        // The rest of the pattern doesn't move with the time of day.
+        Assert.Equal(98, data.Sessions.Count(s => s.Day < Today));
     }
 
     [Fact]

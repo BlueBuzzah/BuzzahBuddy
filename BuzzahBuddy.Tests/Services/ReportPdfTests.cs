@@ -241,7 +241,7 @@ public class ReportPdfTests
     [InlineData(ReportRange.AllTime)]
     public void Render_DemoSample_MarkedAndFits(ReportRange range)
     {
-        var data = DemoHistory.Build(Today, TimeSpan.FromHours(-7));
+        var data = DemoHistory.Build(new DateTimeOffset(Today.ToDateTime(new TimeOnly(12, 0)), TimeSpan.FromHours(-7)));
         var (from, to) = HistoryReport.Range(range, Today, data.Sessions);
         var model = HistoryReport.Build(data, from, to, Created, comparePrevious: range != ReportRange.AllTime, sample: true);
 
