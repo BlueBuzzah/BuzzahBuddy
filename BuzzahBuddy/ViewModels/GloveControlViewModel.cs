@@ -50,6 +50,12 @@ public partial class GloveControlViewModel : BaseViewModel
     private bool _isBackgrounded;
     private SessionState _previousSessionState = SessionState.IDLE;
     private bool _userRequestedStop;
+    // Known Defect 7: a session that ended while the phone was away reads RUNNING with TOTAL 0
+    // after the reconnect, on every poll. Once such a ghost has closed the tracked session the
+    // ghosts that follow are that finished session, so the UI reads them as idle until a real
+    // IDLE or a trackable session arrives. TOTAL 0 isn't idle in general: older firmware that
+    // never reports TOTAL still counts up when no session was being tracked.
+    private bool _ghostAfterClose;
     private int _consecutivePollFailures;
     private int _consecutiveHealthCheckFailures;
     private const int PollFailureWarningThreshold = 2;
@@ -545,6 +551,7 @@ public partial class GloveControlViewModel : BaseViewModel
 
             SessionStatus = polled;
             TrackSession(polled, fromPoll: true);
+            SessionStatus = ForDisplay(polled);
             // A poll already in flight when Stop was confirmed still reads the session
             // running; keep the flag for the IDLE reading that Stop produces.
             if (!polled.IsActive)
@@ -831,6 +838,7 @@ public partial class GloveControlViewModel : BaseViewModel
 
             SessionStatus = status;
             TrackSession(status, fromPoll: false);
+            SessionStatus = ForDisplay(status);
             UpdateSessionState();
 
             // A session we didn't start (e.g. the gloves auto-started one before the
@@ -958,6 +966,8 @@ public partial class GloveControlViewModel : BaseViewModel
         var device = _bluetoothService.ConnectedDevice?.Id;
         var wasActive = _previousSessionState is SessionState.RUNNING or SessionState.PAUSED or SessionState.LOW_BATTERY or SessionState.STOPPING;
         _previousSessionState = status.Status;
+        if (status.Status == SessionState.IDLE || OpenSession.CanTrack(status))
+            _ghostAfterClose = false;
 
         if (open != null)
         {
@@ -972,6 +982,8 @@ public partial class GloveControlViewModel : BaseViewModel
                 return;
             }
 
+            if (!demo && IsGhost(status))
+                _ghostAfterClose = true;
             var outcome = _userRequestedStop ? SessionOutcome.StoppedEarly : open.InferEnd(now);
             _userRequestedStop = false;
             var record = open.Close(outcome, now);
@@ -997,6 +1009,12 @@ public partial class GloveControlViewModel : BaseViewModel
                 _storageService.SaveOpenSession(_openSession);
         }
     }
+
+    private static bool IsGhost(SessionStatus status) => status.IsActive && status.TotalTimeSeconds == 0;
+
+    /// <summary>What the session UI shows for a reading: a ghost after a close reads idle.</summary>
+    private SessionStatus ForDisplay(SessionStatus status) =>
+        _ghostAfterClose && IsGhost(status) ? SessionStatus.CreateIdle() : status;
 
     /// <summary>
     /// Writes a closed session to history, and only then drops its persisted open copy: if the
