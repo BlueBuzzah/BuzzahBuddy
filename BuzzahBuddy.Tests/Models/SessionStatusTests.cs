@@ -16,6 +16,46 @@ public class SessionStatusTests
         Assert.True(status.IsActive);
     }
 
+    [Fact]
+    public void FromCommandResponse_Running_ParsesSessionIdAndNoSummary()
+    {
+        var response = CommandResponse.Parse("SESSION_STATUS:RUNNING\nELAPSED:60\nTOTAL:300\nPROGRESS:20\nSESSION_ID:184467\n\x04");
+        var status = SessionStatus.FromCommandResponse(response);
+        Assert.Equal(184467, status.SessionId);
+        Assert.Null(status.LastSession);
+    }
+
+    [Fact]
+    public void FromCommandResponse_Idle_ParsesLastSession()
+    {
+        var response = CommandResponse.Parse(
+            "CMD:SESSION_STATUS\nSESSION_STATUS:READY\nELAPSED:0\nTOTAL:0\nPROGRESS:0\n" +
+            "LAST_ID:184467\nLAST_ELAPSED:121\nLAST_PAUSED:4\nLAST_TOTAL:300\nLAST_REASON:POWER_OFF\n\x04");
+        var status = SessionStatus.FromCommandResponse(response);
+        Assert.Null(status.SessionId);
+        Assert.Equal(new LastSessionSummary(184467, 121, 4, 300, SessionEndReason.PowerOff), status.LastSession);
+        Assert.Equal(117, status.LastSession!.TherapySeconds);
+    }
+
+    [Theory]
+    [InlineData("CONNECTION_LOST", SessionEndReason.ConnectionLost)]
+    [InlineData("completed", SessionEndReason.Completed)]
+    [InlineData("SOMETHING_NEW", SessionEndReason.Unknown)]
+    public void FromCommandResponse_LastReason_Parses(string wire, SessionEndReason expected)
+    {
+        var response = CommandResponse.Parse($"SESSION_STATUS:IDLE\nLAST_ID:1\nLAST_ELAPSED:9\nLAST_TOTAL:300\nLAST_REASON:{wire}\n\x04");
+        Assert.Equal(expected, SessionStatus.FromCommandResponse(response).LastSession!.Reason);
+    }
+
+    [Fact]
+    public void FromCommandResponse_OlderFirmware_HasNoIdOrSummary()
+    {
+        var response = CommandResponse.Parse("SESSION_STATUS:IDLE\nELAPSED:0\nTOTAL:0\nPROGRESS:0\n\x04");
+        var status = SessionStatus.FromCommandResponse(response);
+        Assert.Null(status.SessionId);
+        Assert.Null(status.LastSession);
+    }
+
     [Theory]
     [InlineData("LOW_BATTERY", SessionState.LOW_BATTERY, true, true)]
     [InlineData("STOPPING", SessionState.STOPPING, false, false)]

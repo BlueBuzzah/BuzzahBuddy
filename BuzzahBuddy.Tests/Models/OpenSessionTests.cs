@@ -13,6 +13,18 @@ public class OpenSessionTests
     private static OpenSession Fresh() =>
         OpenSession.Begin(S(SessionState.RUNNING, 0), T0, 2, "Noisy", "G1");
 
+    private const int FwId = 184467;
+
+    private static SessionStatus Sid(SessionState state, int elapsed, int total = 300) =>
+        new() { Status = state, ElapsedTimeSeconds = elapsed, TotalTimeSeconds = total, SessionId = FwId };
+
+    /// <summary>A 5-minute Quick Test begun from Start's reply, which carries the session id.</summary>
+    private static OpenSession QuickTest() =>
+        OpenSession.Begin(Sid(SessionState.RUNNING, 0), T0, 6, "Quick Test", "G1");
+
+    private static LastSessionSummary Last(int elapsed, SessionEndReason reason, int id = FwId, int total = 300, int paused = 0) =>
+        new(id, elapsed, paused, total, reason);
+
     [Fact]
     public void Begin_FreshStart_StartsNowWithNoTime()
     {
@@ -167,5 +179,129 @@ public class OpenSessionTests
         var open = Fresh();
         open.Observe(S(SessionState.RUNNING, 30), T0.AddSeconds(30));
         Assert.Null(open.Close(SessionOutcome.StoppedEarly, T0.AddSeconds(30)));
+    }
+
+    [Fact]
+    public void End_GlovesSwitchedOffUnwatched_RecordsTheirTimeNotACompletion()
+    {
+        // The hardware check: phone locked right after Start, gloves off at 2 min, back after 7.
+        var open = QuickTest();
+        open.Observe(Sid(SessionState.RUNNING, 5), T0.AddSeconds(5));
+        var now = T0.AddMinutes(7);
+        Assert.Equal(SessionOutcome.Completed, open.InferEnd(now)); // what the guess would say
+
+        var (outcome, record) = open.End(Last(121, SessionEndReason.PowerOff), userRequestedStop: false, now);
+
+        Assert.Equal(SessionOutcome.EndedEarly, outcome);
+        Assert.Equal(121, record!.TherapySeconds);
+        Assert.Equal(T0.AddSeconds(121), record.EndedAt);
+        Assert.Equal(SessionOutcome.EndedEarly, record.Outcome);
+        Assert.Equal(300, record.PlannedSeconds);
+    }
+
+    [Fact]
+    public void End_ReturnBeforePlannedEnd_RecordsTheirTimeNotTheLastReading()
+    {
+        var open = QuickTest();
+        open.Observe(Sid(SessionState.RUNNING, 30), T0.AddSeconds(30));
+        var (outcome, record) = open.End(Last(200, SessionEndReason.ConnectionLost), false, T0.AddSeconds(240));
+        Assert.Equal(SessionOutcome.EndedEarly, outcome);
+        Assert.Equal(200, record!.TherapySeconds);
+    }
+
+    [Theory]
+    [InlineData(SessionEndReason.Completed, SessionOutcome.Completed)]
+    [InlineData(SessionEndReason.Stopped, SessionOutcome.StoppedEarly)]
+    [InlineData(SessionEndReason.Battery, SessionOutcome.EndedEarly)]
+    [InlineData(SessionEndReason.Error, SessionOutcome.EndedEarly)]
+    [InlineData(SessionEndReason.Unknown, SessionOutcome.EndedEarly)]
+    public void End_OutcomeComesFromTheGlovesReason(SessionEndReason reason, SessionOutcome expected)
+    {
+        var open = QuickTest();
+        var (outcome, _) = open.End(Last(250, reason), false, T0.AddHours(1));
+        Assert.Equal(expected, outcome);
+    }
+
+    [Fact]
+    public void End_UserStop_StillWins()
+    {
+        var open = QuickTest();
+        var (outcome, record) = open.End(Last(250, SessionEndReason.Completed), userRequestedStop: true, T0.AddSeconds(250));
+        Assert.Equal(SessionOutcome.StoppedEarly, outcome);
+        Assert.Equal(250, record!.TherapySeconds);
+    }
+
+    [Fact]
+    public void End_ExcludesPausedTime()
+    {
+        var open = QuickTest();
+        var (_, record) = open.End(Last(300, SessionEndReason.Completed, paused: 90), false, T0.AddHours(1));
+        Assert.Equal(210, record!.TherapySeconds);
+        Assert.Equal(T0.AddSeconds(300), record.EndedAt);
+    }
+
+    [Fact]
+    public void End_UnderAMinuteOfTherapy_IsNotSaved()
+    {
+        var open = QuickTest();
+        var (outcome, record) = open.End(Last(45, SessionEndReason.PowerOff), false, T0.AddHours(1));
+        Assert.Equal(SessionOutcome.EndedEarly, outcome);
+        Assert.Null(record);
+    }
+
+    [Fact]
+    public void End_SummaryOfAnotherSession_FallsBackToTheGuess()
+    {
+        // The summary persists until the next session ends: after a battery pull it still
+        // describes the session before this one.
+        var open = QuickTest();
+        open.Observe(Sid(SessionState.RUNNING, 100), T0.AddSeconds(100));
+        var now = T0.AddMinutes(7);
+
+        var (outcome, record) = open.End(Last(121, SessionEndReason.PowerOff, id: FwId - 1), false, now);
+
+        Assert.Equal(open.InferEnd(now), outcome);
+        Assert.Equal(300, record!.TherapySeconds);
+    }
+
+    [Theory]
+    [InlineData(600, 100)]  // different planned length
+    [InlineData(300, 50)]   // ended before a reading this session already saw
+    public void End_ImplausibleSummary_FallsBackToTheGuess(int total, int elapsed)
+    {
+        var open = QuickTest();
+        open.Observe(Sid(SessionState.RUNNING, 60), T0.AddSeconds(60));
+        Assert.False(open.IsSummaryOfThis(Last(elapsed, SessionEndReason.PowerOff, total: total)));
+    }
+
+    [Fact]
+    public void End_OlderFirmware_NoIdOrSummary_FallsBackToTheGuess()
+    {
+        var open = OpenSession.Begin(S(SessionState.RUNNING, 0, 300), T0, 6, "Quick Test", "G1");
+        Assert.Null(open.FirmwareSessionId);
+        Assert.False(open.IsSummaryOfThis(Last(121, SessionEndReason.PowerOff)));
+
+        var (outcome, _) = open.End(null, false, T0.AddMinutes(7));
+        Assert.Equal(SessionOutcome.Completed, outcome);
+    }
+
+    [Fact]
+    public void Observe_LearnsTheIdFromAPollWhenStartLackedIt()
+    {
+        var open = OpenSession.Begin(S(SessionState.RUNNING, 0, 300), T0, 6, "Quick Test", "G1");
+        open.Observe(Sid(SessionState.RUNNING, 5), T0.AddSeconds(5));
+        Assert.Equal(FwId, open.FirmwareSessionId);
+    }
+
+    [Fact]
+    public void Continues_RejectsADifferentSessionId()
+    {
+        var open = QuickTest();
+        var now = T0.AddSeconds(10);
+        var other = Sid(SessionState.RUNNING, 10);
+        other.SessionId = FwId + 1;
+        Assert.False(open.Continues(other, "G1", now));
+        Assert.True(open.Continues(Sid(SessionState.RUNNING, 10), "G1", now));
+        Assert.True(open.Continues(S(SessionState.RUNNING, 10, 300), "G1", now)); // synthesized, no id
     }
 }

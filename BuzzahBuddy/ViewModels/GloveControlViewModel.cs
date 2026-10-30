@@ -984,9 +984,9 @@ public partial class GloveControlViewModel : BaseViewModel
 
             if (!demo && IsGhost(status))
                 _ghostAfterClose = true;
-            var outcome = _userRequestedStop ? SessionOutcome.StoppedEarly : open.InferEnd(now);
+            var (outcome, record) = open.End(status.LastSession, _userRequestedStop, now);
+            var endReason = open.IsSummaryOfThis(status.LastSession) ? status.LastSession!.Reason : (SessionEndReason?)null;
             _userRequestedStop = false;
-            var record = open.Close(outcome, now);
             open = null;
             if (!demo)
             {
@@ -998,7 +998,7 @@ public partial class GloveControlViewModel : BaseViewModel
             // A reading that is itself a new session (the gloves started another one while
             // the phone was away) goes straight to that session's UI; the old one is saved.
             if (wasActive && !OpenSession.CanTrack(status))
-                EndSessionUi(outcome, record, status);
+                EndSessionUi(outcome, record, status, endReason);
         }
 
         if (OpenSession.CanTrack(status))
@@ -1036,7 +1036,7 @@ public partial class GloveControlViewModel : BaseViewModel
             _storageService.SaveOpenSession(null);
     }
 
-    private void EndSessionUi(SessionOutcome outcome, SessionRecord? record, SessionStatus status)
+    private void EndSessionUi(SessionOutcome outcome, SessionRecord? record, SessionStatus status, SessionEndReason? endReason)
     {
         switch (outcome)
         {
@@ -1045,7 +1045,7 @@ public partial class GloveControlViewModel : BaseViewModel
                 break;
             case SessionOutcome.EndedEarly:
                 // A danger banner, not a modal: it stays until the next session starts.
-                _sessionEndedMessage = EndReasonFor(status);
+                _sessionEndedMessage = EndReasonFor(status, endReason);
                 _sessionEndedByConnection = status.Status == SessionState.CONNECTION_LOST;
                 ResolveBanner();
                 break;
@@ -1053,12 +1053,22 @@ public partial class GloveControlViewModel : BaseViewModel
         }
     }
 
-    private static string? EndReasonFor(SessionStatus status) => status.Status switch
+    private static string? EndReasonFor(SessionStatus status, SessionEndReason? endReason) => endReason switch
+    {
+        // The gloves said why: a power switch needs no banner.
+        SessionEndReason.Error => EndReasonFor(SessionState.ERROR, status.Progress),
+        SessionEndReason.ConnectionLost => EndReasonFor(SessionState.CONNECTION_LOST, status.Progress),
+        SessionEndReason.Battery => EndReasonFor(SessionState.CRITICAL_BATTERY, status.Progress),
+        not null => null,
+        null => EndReasonFor(status.Status, status.Progress)
+    };
+
+    private static string? EndReasonFor(SessionState state, int progress) => state switch
     {
         SessionState.ERROR => "Your gloves reported a problem and stopped. Restart both gloves, then start a new session.",
         SessionState.CONNECTION_LOST => "Your gloves lost their connection to each other. Keep them close together, restart both, then start a new session.",
         SessionState.CRITICAL_BATTERY => "A glove battery is almost empty. Charge both gloves, then start a new session.",
-        SessionState.IDLE when status.Progress < 100 => "Your secondary glove may have disconnected. Turn it off and on, then start a new session.",
+        SessionState.IDLE when progress < 100 => "Your secondary glove may have disconnected. Turn it off and on, then start a new session.",
         _ => null
     };
 

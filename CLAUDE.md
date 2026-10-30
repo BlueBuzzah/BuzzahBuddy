@@ -96,6 +96,7 @@ bounds link-up through subscribe — iOS never times out a connect itself.
 | `GloveControlService` custom-profile limits | `include/menu_controller.h` `MAX_COMMAND_PARAMS` |
 | parameter validation / amplitude ordering | `src/profile_manager.cpp` `setParameter` |
 | `RxFrameAssembler.InternalMessagePrefixes` | `include/internal_messages.h` `INTERNAL_MESSAGES` |
+| `LastSessionSummary` (`LAST_*`), `SessionStatus.SessionId` | `src/menu_controller.cpp` `handleSessionStatus`, `SessionEndReason` in `include/therapy_engine.h` |
 
 ## Domain Models — `Models/`
 
@@ -109,10 +110,12 @@ bounds link-up through subscribe — iOS never times out a connect itself.
   is edited and saved on the phone (`IDataStorageService`), then `SendSavedCustomProfileAsync`
   sends it on Apply — after the reboot when Apply also loads Custom, since firmware takes
   `PROFILE_CUSTOM` only while Custom is loaded.
-- `SessionRecord` / `OpenSession` — a saved session and the one being tracked. The firmware
-  never reports a finish (the next reading is IDLE 0/0/0), so the end is inferred: a session
-  counts as completed when the last running reading plus the 15 s tolerance
-  (`CompletionToleranceSeconds`) reaches the planned length. Delivered time sums ELAPSED
+- `SessionRecord` / `OpenSession` — a saved session and the one being tracked. A session's
+  end is never reported live (the next reading is IDLE 0/0/0); current firmware adds its last
+  session's `LAST_*` summary to idle `SESSION_STATUS` replies, and `OpenSession.End` uses it
+  when `LAST_ID` matches the `SESSION_ID` the session was tracked under. Otherwise (older
+  firmware, a summary of another session) the end is inferred: completed when the last running
+  reading plus the 15 s tolerance (`CompletionToleranceSeconds`) reaches the planned length. Delivered time sums ELAPSED
   gains while running (paused time excluded); under 60 s (`MinimumSavedSeconds`) isn't saved.
 - `BatteryReading` — `≤ 0.0 V` is the firmware's "no reading" sentinel → unavailable, not
   0%. 3.0 V = 0%, 4.2 V = 100%, linear.

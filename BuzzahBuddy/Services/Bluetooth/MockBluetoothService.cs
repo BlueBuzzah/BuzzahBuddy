@@ -20,6 +20,8 @@ public class MockBluetoothService : IBluetoothService
     private DateTime? _mockSessionStartTime;
     private DateTime? _mockSessionPauseTime;
     private TimeSpan _mockElapsedTime = TimeSpan.Zero;
+    private int _mockSessionId = 184467;
+    private string _mockLastSession = ""; // firmware LAST_* lines, kept until the next session ends
     private int _mockCurrentProfile = 2; // Default: Noisy VCR
     private bool _isInCalibrationMode;
     private bool _therapyLedOff;
@@ -364,10 +366,12 @@ public class MockBluetoothService : IBluetoothService
         _mockSessionState = SessionState.RUNNING;
         _mockSessionStartTime = DateTime.Now;
         _mockElapsedTime = TimeSpan.Zero;
+        _mockSessionId++;
 
         return "SESSION_STATUS:RUNNING\n" +
                "ELAPSED:0\n" +
                $"TOTAL:{MockSessionTotalSeconds}\n" +
+               $"SESSION_ID:{_mockSessionId}\n" +
                "\x04";
     }
 
@@ -405,6 +409,13 @@ public class MockBluetoothService : IBluetoothService
 
     private string HandleSessionStop()
     {
+        if (_mockSessionState != SessionState.IDLE)
+        {
+            var elapsed = _mockSessionState == SessionState.RUNNING && _mockSessionStartTime.HasValue
+                ? DateTime.Now - _mockSessionStartTime.Value
+                : _mockElapsedTime;
+            RecordMockLastSession((int)elapsed.TotalSeconds, "STOPPED");
+        }
         _mockSessionState = SessionState.IDLE;
         _mockSessionStartTime = null;
         _mockSessionPauseTime = null;
@@ -427,6 +438,16 @@ public class MockBluetoothService : IBluetoothService
         }
     }
 
+    /// <summary>
+    /// Firmware's last-session summary. The mock's clock already excludes pauses, so LAST_PAUSED is 0.
+    /// </summary>
+    private void RecordMockLastSession(int elapsedSeconds, string reason) =>
+        _mockLastSession = $"LAST_ID:{_mockSessionId}\n" +
+                           $"LAST_ELAPSED:{elapsedSeconds}\n" +
+                           "LAST_PAUSED:0\n" +
+                           $"LAST_TOTAL:{MockSessionTotalSeconds}\n" +
+                           $"LAST_REASON:{reason}\n";
+
     private string GetMockSessionStatus()
     {
         // Like firmware: the engine stops the tick elapsed reaches TOTAL, and the next
@@ -436,6 +457,7 @@ public class MockBluetoothService : IBluetoothService
         {
             _mockSessionState = SessionState.IDLE;
             _mockSessionStartTime = null;
+            RecordMockLastSession(MockSessionTotalSeconds, "COMPLETED");
         }
 
         // Per BLE protocol v2.0.0: Use ELAPSED/TOTAL (not ELAPSED_TIME/TOTAL_TIME)
@@ -445,6 +467,7 @@ public class MockBluetoothService : IBluetoothService
                    "ELAPSED:0\n" +
                    "TOTAL:0\n" +
                    "PROGRESS:0\n" +
+                   _mockLastSession +
                    "\x04";
         }
 
@@ -472,6 +495,7 @@ public class MockBluetoothService : IBluetoothService
                $"ELAPSED:{elapsedSeconds}\n" +
                $"TOTAL:{totalSeconds}\n" +
                $"PROGRESS:{progress}\n" +
+               $"SESSION_ID:{_mockSessionId}\n" +
                "\x04";
     }
 

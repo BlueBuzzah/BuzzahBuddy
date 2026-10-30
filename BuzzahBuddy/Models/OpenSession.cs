@@ -4,7 +4,8 @@ namespace BuzzahBuddy.Models;
 /// A session the app is tracking that has not been written to history yet. Persisted so a
 /// session survives the app being killed or the link dropping.
 /// <para>
-/// This exists because the firmware never tells the phone a session finished. Known Defect 4:
+/// Older firmware never tells the phone how a session finished (current firmware reports its
+/// last session; see <see cref="End"/>). Known Defect 4:
 /// ELAPSED keeps counting through a pause, so delivered time is the sum of ELAPSED gains taken
 /// only while the session was running. Known Defect 7: a finished session can read RUNNING with
 /// ELAPSED:0 TOTAL:0 after a reconnect, so a reading with TOTAL of 0 is never tracked. On
@@ -32,6 +33,11 @@ public sealed class OpenSession
     public string ProfileName { get; set; } = "";
     public string? DeviceId { get; set; }
     public int PlannedSeconds { get; set; }
+
+    /// <summary>
+    /// The gloves' SESSION_ID for this session; null on older firmware.
+    /// </summary>
+    public int? FirmwareSessionId { get; set; }
 
     /// <summary>
     /// Seconds of therapy delivered so far, excluding paused time.
@@ -72,6 +78,7 @@ public sealed class OpenSession
             ProfileName = profileName,
             DeviceId = deviceId,
             PlannedSeconds = status.TotalTimeSeconds,
+            FirmwareSessionId = status.SessionId,
             TherapySeconds = status.ElapsedTimeSeconds,
             LastElapsedSeconds = status.ElapsedTimeSeconds,
             LastRunning = status.IsRunning,
@@ -88,6 +95,7 @@ public sealed class OpenSession
         && status.TotalTimeSeconds == PlannedSeconds
         && status.ElapsedTimeSeconds >= LastElapsedSeconds
         && (DeviceId is null || DeviceId == deviceId)
+        && (FirmwareSessionId is null || status.SessionId is null || FirmwareSessionId == status.SessionId)
         && !(LastRunning
              && (now - LastObservedAt).TotalSeconds > PlannedSeconds - LastElapsedSeconds + CompletionToleranceSeconds);
 
@@ -104,7 +112,55 @@ public sealed class OpenSession
         LastElapsedSeconds = status.ElapsedTimeSeconds;
         LastRunning = status.IsRunning;
         LastObservedAt = now;
+        FirmwareSessionId ??= status.SessionId;
     }
+
+    /// <summary>
+    /// Closes the session when a reading shows it is over. The gloves' summary of their last
+    /// session gives the exact outcome and time when it is this session; otherwise (older
+    /// firmware, a summary of another session) the end is inferred from timing.
+    /// </summary>
+    public (SessionOutcome Outcome, SessionRecord? Record) End(LastSessionSummary? last, bool userRequestedStop, DateTimeOffset now)
+    {
+        if (!IsSummaryOfThis(last))
+        {
+            var outcome = userRequestedStop ? SessionOutcome.StoppedEarly : InferEnd(now);
+            return (outcome, Close(outcome, now));
+        }
+
+        var reported = userRequestedStop ? SessionOutcome.StoppedEarly : last!.Reason switch
+        {
+            SessionEndReason.Completed => SessionOutcome.Completed,
+            SessionEndReason.Stopped => SessionOutcome.StoppedEarly,
+            _ => SessionOutcome.EndedEarly
+        };
+        if (last!.TherapySeconds < MinimumSavedSeconds)
+            return (reported, null);
+
+        return (reported, new SessionRecord
+        {
+            Id = Id,
+            StartedAt = StartedAt,
+            EndedAt = StartedAt.AddSeconds(last.ElapsedSeconds),
+            TherapySeconds = last.TherapySeconds,
+            PlannedSeconds = PlannedSeconds,
+            ProfileId = ProfileId,
+            ProfileName = ProfileName,
+            Outcome = reported,
+            DeviceId = DeviceId
+        });
+    }
+
+    /// <summary>
+    /// Whether the gloves' summary describes this session. The id is exact; the other checks
+    /// guard against a corrupt or foreign reading.
+    /// </summary>
+    public bool IsSummaryOfThis(LastSessionSummary? last) =>
+        last is not null
+        && FirmwareSessionId is not null
+        && last.Id == FirmwareSessionId
+        && last.TotalSeconds == PlannedSeconds
+        && last.ElapsedSeconds >= LastElapsedSeconds;
 
     /// <summary>
     /// Infers how the session ended when the app was not watching.
