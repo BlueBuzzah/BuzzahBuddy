@@ -78,6 +78,8 @@ public static class ReportPdf
     private const double Right = PageWidth - Margin;
 
     private const double MarkHeight = 18;
+    // Lexend's cap height at 11.5 pt is about 45% of the mark, as the design system's lockup asks.
+    private const double WordmarkSize = 11.5;
     private const double RuleY = Margin + MarkHeight + 8;
     private const double BodyTop = RuleY + 22;
     private const double FooterBottom = PageHeight - Margin;
@@ -85,6 +87,12 @@ public static class ReportPdf
 
     private const string DateFormat = "MMM d, yyyy";
     private const string ShortDateFormat = "MMM d";
+
+    /// <summary>A day with more Daily Log rows than this isn't kept on one page; it couldn't fit.</summary>
+    internal const int MaxRowsKeptTogether = 15;
+
+    /// <summary>Note lines per Daily Log row, so a long note can break across pages.</summary>
+    internal const int NoteLinesPerRow = 4;
 
     private const string AboutNumbers =
         "Times are what BuzzahBuddy recorded on this phone. Paused time isn't counted. Sessions your gloves ran while this phone wasn't connected may be missing.";
@@ -95,19 +103,25 @@ public static class ReportPdf
     private static readonly object FontGate = new();
     private static bool _fontsReady;
 
-    /// <summary>The PDF for <paramref name="model"/>, with dates and times in <paramref name="culture"/>.</summary>
-    public static byte[] Render(ReportModel model, ReportAssets assets, CultureInfo culture)
+    /// <summary>
+    /// The report's copy is English, so every date and time is en-US whatever the phone's culture:
+    /// the fonts are Latin-only, and other calendars and scripts would garble or mix formats.
+    /// </summary>
+    internal static readonly CultureInfo Culture = CultureInfo.GetCultureInfo("en-US");
+
+    /// <summary>The PDF for <paramref name="model"/>.</summary>
+    public static byte[] Render(ReportModel model, ReportAssets assets)
     {
         EnsureFonts(assets);
 
         using var pdf = new PdfDocument();
         pdf.Info.Title = Title;
-        pdf.Info.Subject = $"{model.From.ToString(DateFormat, culture)} to {model.To.ToString(DateFormat, culture)}";
+        pdf.Info.Subject = $"{model.From.ToString(DateFormat, Culture)} to {model.To.ToString(DateFormat, Culture)}";
         pdf.Info.Author = "BuzzahBuddy";
         pdf.Info.Creator = "BuzzahBuddy";
         pdf.Options.CompressContentStreams = true;
 
-        var renderer = new DocumentRenderer(FlowDocument(model, assets.BrandMarkPng, culture));
+        var renderer = new DocumentRenderer(FlowDocument(model, assets.BrandMarkPng));
         renderer.PrepareDocument();
         var total = renderer.FormattedDocument!.PageCount + 1;
 
@@ -117,7 +131,7 @@ public static class ReportPdf
         using (var gfx = XGraphics.FromPdfPage(AddPage(pdf)))
         {
             DrawHeader(gfx, mark);
-            DrawOverview(gfx, model, culture);
+            DrawOverview(gfx, model);
             DrawFooter(gfx, 1, total);
         }
 
@@ -163,7 +177,7 @@ public static class ReportPdf
         var markWidth = MarkWidth(mark);
         gfx.DrawImage(mark, Margin, Margin, markWidth, MarkHeight);
         var x = Margin + markWidth + 6;
-        gfx.DrawString("BlueBuzzah", Font(DisplaySemiBold, 10), new XSolidBrush(Ink),
+        gfx.DrawString("BlueBuzzah", Font(DisplaySemiBold, WordmarkSize), new XSolidBrush(Ink),
             new XRect(x, Margin, Right - x, MarkHeight), XStringFormats.CenterLeft);
         gfx.DrawString("Session Report", Font(Body, 9), new XSolidBrush(InkMuted),
             new XRect(Margin, Margin, ContentWidth, MarkHeight), XStringFormats.CenterRight);
@@ -181,7 +195,7 @@ public static class ReportPdf
 
     // ---- Page 1: Overview (XGraphics) ----
 
-    private static void DrawOverview(XGraphics gfx, ReportModel model, CultureInfo culture)
+    private static void DrawOverview(XGraphics gfx, ReportModel model)
     {
         var ink = new XSolidBrush(Ink);
         var muted = new XSolidBrush(InkMuted);
@@ -191,10 +205,10 @@ public static class ReportPdf
         y = TextLine(gfx, "Session Report", Font(Display, 24, bold: true), ink, y);
         y += 4;
         y = TextLine(gfx,
-            $"{model.From.ToString(DateFormat, culture)} to {model.To.ToString(DateFormat, culture)} · {Count(sum.DaysInPeriod, "day")}",
+            $"{model.From.ToString(DateFormat, Culture)} to {model.To.ToString(DateFormat, Culture)} · {Count(sum.DaysInPeriod, "day")}",
             Font(Body, 11), muted, y);
         y += 2;
-        y = TextLine(gfx, $"Created {model.CreatedAt.ToString(DateFormat, culture)}", Font(Body, 9), muted, y);
+        y = TextLine(gfx, $"Created {model.CreatedAt.ToString(DateFormat, Culture)}", Font(Body, 9), muted, y);
         y += 18;
 
         y = DrawTiles(gfx, y, new[]
@@ -202,7 +216,7 @@ public static class ReportPdf
             new Tile("Days With Sessions", $"{sum.DaysWithSessions} of {sum.DaysInPeriod}", null),
             new Tile("Total Time", DurationText.Short(sum.TherapySeconds), null),
             new Tile("Average per Session Day", DurationText.Short(sum.AverageSecondsPerSessionDay), null),
-            new Tile("Sessions", sum.Sessions.ToString(culture),
+            new Tile("Sessions", sum.Sessions.ToString(Culture),
                 $"{sum.Completed} completed · {sum.StoppedEarly} stopped early · {sum.EndedEarly} ended early"),
         });
         y += 22;
@@ -411,7 +425,8 @@ public static class ReportPdf
 
     // ---- Pages 2+: tables (MigraDoc) ----
 
-    private static Document FlowDocument(ReportModel model, byte[] markPng, CultureInfo culture)
+    /// <summary>Pages 2 onward as a MigraDoc document; internal so tests can check its structure.</summary>
+    internal static Document FlowDocument(ReportModel model, byte[] markPng)
     {
         var doc = new Document();
         var normal = doc.Styles[StyleNames.Normal]!;
@@ -440,10 +455,10 @@ public static class ReportPdf
         // The first heading sits at the top of the page, like page 1's title.
         var first = section.AddParagraph("By Week", "SectionTitle");
         first.Format.SpaceBefore = 0;
-        AddWeeks(section, model.Weeks, culture);
+        AddWeeks(section, model.Weeks);
 
         section.AddParagraph("Daily Log", "SectionTitle");
-        AddDailyLog(section, model.LogDays, culture);
+        AddDailyLog(section, model.LogDays);
 
         // The closing section and both notices stay together on one page.
         section.AddParagraph("About These Numbers", "SectionTitle");
@@ -487,7 +502,7 @@ public static class ReportPdf
 
         var word = row.Cells[1].AddParagraph("BlueBuzzah");
         word.Format.Font.Name = DisplaySemiBold;
-        word.Format.Font.Size = 10;
+        word.Format.Font.Size = WordmarkSize;
 
         var label = row.Cells[2].AddParagraph("Session Report");
         label.Format.Alignment = ParagraphAlignment.Right;
@@ -495,7 +510,7 @@ public static class ReportPdf
         label.Format.Font.Color = Md(InkMuted);
     }
 
-    private static void AddWeeks(Section section, IReadOnlyList<WeekRow> weeks, CultureInfo culture)
+    private static void AddWeeks(Section section, IReadOnlyList<WeekRow> weeks)
     {
         var table = NewTable(section, 200, 152, 152);
         AddHeaderRow(table, "Week", "Days With Sessions", "Session Time");
@@ -503,13 +518,13 @@ public static class ReportPdf
         {
             var row = table.AddRow();
             HairlineBelow(row);
-            row.Cells[0].AddParagraph($"{w.Start.ToString(ShortDateFormat, culture)} to {w.End.ToString(ShortDateFormat, culture)}");
+            row.Cells[0].AddParagraph($"{w.Start.ToString(ShortDateFormat, Culture)} to {w.End.ToString(ShortDateFormat, Culture)}");
             row.Cells[1].AddParagraph($"{w.DaysWithSessions} of {w.End.DayNumber - w.Start.DayNumber + 1}");
             row.Cells[2].AddParagraph(DurationText.Short(w.Seconds));
         }
     }
 
-    private static void AddDailyLog(Section section, IReadOnlyList<DaySummary> days, CultureInfo culture)
+    private static void AddDailyLog(Section section, IReadOnlyList<DaySummary> days)
     {
         if (days.Count == 0)
         {
@@ -533,32 +548,45 @@ public static class ReportPdf
             foreach (var s in d.Sessions)
             {
                 var row = table.AddRow();
-                row.Cells[1].AddParagraph(Printable(s.StartedAt.ToString(culture.DateTimeFormat.ShortTimePattern, culture)));
+                row.Cells[1].AddParagraph(Printable(s.StartedAt.ToString(Culture.DateTimeFormat.ShortTimePattern, Culture)));
                 row.Cells[2].AddParagraph(DurationText.Short(s.TherapySeconds));
                 row.Cells[3].AddParagraph(s.ProfileName);
                 row.Cells[4].AddParagraph(HistoryText.OutcomeText(s.Outcome));
                 rows.Add(row);
             }
-            rows[0].Cells[0].AddParagraph(d.Day.ToString(DateFormat, culture));
+            rows[0].Cells[0].AddParagraph(d.Day.ToString(DateFormat, Culture));
 
             if (hasNote)
             {
-                var row = table.AddRow();
-                row.Cells[0].MergeRight = 4;
-                var note = row.Cells[0].AddParagraph();
-                note.Format.Font.Color = Md(InkMuted);
+                // MigraDoc never splits a row, so a long note runs over several rows of a few
+                // lines each, which can break across pages. They read as one block of text.
                 var lines = d.Note!.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
-                note.AddText("Note: " + lines[0]);
-                foreach (var line in lines.Skip(1))
+                for (var first = 0; first < lines.Length; first += NoteLinesPerRow)
                 {
-                    note.AddLineBreak();
-                    note.AddText(line);
+                    var row = table.AddRow();
+                    row.Cells[0].MergeRight = 4;
+                    if (first > 0)
+                        row.TopPadding = 0;
+                    if (first + NoteLinesPerRow < lines.Length)
+                        row.BottomPadding = 0;
+                    var note = row.Cells[0].AddParagraph();
+                    note.Format.Font.Color = Md(InkMuted);
+                    var chunk = lines.Skip(first).Take(NoteLinesPerRow).ToList();
+                    for (var i = 0; i < chunk.Count; i++)
+                    {
+                        if (i > 0)
+                            note.AddLineBreak();
+                        var text = first == 0 && i == 0 ? "Note: " + chunk[i] : chunk[i];
+                        if (text.Length > 0)
+                            note.AddText(text);
+                    }
+                    rows.Add(row);
                 }
-                rows.Add(row);
             }
 
-            // A day's rows stay on one page, with one hairline under the day.
-            rows[0].KeepWith = rows.Count - 1;
+            // A day's rows stay on one page unless there are too many to fit, then they flow.
+            if (rows.Count <= MaxRowsKeptTogether)
+                rows[0].KeepWith = rows.Count - 1;
             HairlineBelow(rows[^1]);
         }
     }

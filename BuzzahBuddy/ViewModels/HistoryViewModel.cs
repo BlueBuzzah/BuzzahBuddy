@@ -156,12 +156,21 @@ public partial class HistoryViewModel : BaseViewModel
 			// Earlier reports hold health notes; keep only the one being shared.
 			foreach (var old in Directory.EnumerateFiles(cache, "BuzzahBuddy Report *")
 				.Concat(Directory.EnumerateFiles(cache, "BuzzahBuddy Sessions *")).ToList())
-				File.Delete(old);
+			{
+				// A file that won't go is left for next time; it doesn't stop this report.
+				try
+				{
+					File.Delete(old);
+				}
+				catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+				{
+					System.Diagnostics.Debug.WriteLine($"[HISTORY] Couldn't delete old report {Path.GetFileName(old)}: {ex.Message}");
+				}
+			}
 
 			var model = HistoryReport.Build(data, from, to, DateTimeOffset.Now);
-			var culture = CultureInfo.CurrentCulture;
 			var bytes = await Task.Run(() =>
-				ReportPdf.Render(model, ReportAssets.FromEmbedded(typeof(App).Assembly), culture));
+				ReportPdf.Render(model, ReportAssets.FromEmbedded(typeof(App).Assembly)));
 
 			var stamp = to.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 			var pdf = Path.Combine(cache, $"BuzzahBuddy Report {stamp}.pdf");
