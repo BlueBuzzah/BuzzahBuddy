@@ -12,7 +12,7 @@
              SafeAreaEdges="Container">
 
     <ScrollView>
-        <VerticalStackLayout Padding="16,16,16,24" Spacing="{StaticResource Space8}">
+        <VerticalStackLayout Padding="16,0,16,24" Spacing="{StaticResource Space8}">
             <Label Text="Settings" Style="{StaticResource TypeHeadline}" SemanticProperties.HeadingLevel="Level1" />
 
             <VerticalStackLayout Spacing="{StaticResource Space3}">

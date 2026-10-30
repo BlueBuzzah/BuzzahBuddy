@@ -15,7 +15,7 @@
              Shell.NavBarIsVisible="False"
              SafeAreaEdges="Container">
 
-    <Grid RowDefinitions="*,Auto" Padding="16,16,16,16">
+    <Grid RowDefinitions="*,Auto" Padding="16,0,16,16">
 
         <!-- Connected -->
         <ScrollView Grid.Row="0" Grid.RowSpan="2" IsVisible="{Binding ConnectionInfo.IsConnected}">

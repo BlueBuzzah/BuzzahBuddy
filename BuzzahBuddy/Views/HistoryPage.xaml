@@ -17,7 +17,7 @@
 
     <CollectionView x:Name="DayList" ItemsSource="{Binding Days}" SelectionMode="None" ItemSizingStrategy="MeasureAllItems">
         <CollectionView.Header>
-            <VerticalStackLayout x:Name="ListHeader" Padding="16,16,16,12" Spacing="{StaticResource Space8}">
+            <VerticalStackLayout x:Name="ListHeader" Padding="16,0,16,12" Spacing="{StaticResource Space8}">
                 <Label Text="History" Style="{StaticResource TypeHeadline}" SemanticProperties.HeadingLevel="Level1" />
 
                 <controls:Banner Tone="Info"

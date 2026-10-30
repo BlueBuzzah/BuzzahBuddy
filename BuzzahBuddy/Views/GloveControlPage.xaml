@@ -14,7 +14,7 @@
              SafeAreaEdges="Container">
 
     <ScrollView>
-        <VerticalStackLayout Padding="16,48,16,24" Spacing="{StaticResource Space6}">
+        <VerticalStackLayout Padding="16,0,16,24" Spacing="{StaticResource Space6}">
 
             <Label Text="Session"
                    Style="{StaticResource TypeHeadline}"
