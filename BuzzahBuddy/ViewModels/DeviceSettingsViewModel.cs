@@ -4,6 +4,7 @@ using BuzzahBuddy.Models;
 using BuzzahBuddy.Services.Bluetooth;
 using BuzzahBuddy.Services.ConnectionStateManagement;
 using BuzzahBuddy.Services.Dialogs;
+using BuzzahBuddy.Services.Firmware;
 using BuzzahBuddy.Services.Glove;
 using BuzzahBuddy.Services.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -95,7 +96,27 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     // Null voltage = no reading available (missing key or firmware 0.00 sentinel)
     /// <summary>The primary glove's firmware version, shown above the glove cards.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FirmwareDescription))]
     private string? _firmwareVersion;
+
+    /// <summary>The primary's firmware is older than the newest release; shows the "Outdated" badge.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FirmwareDescription))]
+    private bool _firmwareOutdated;
+
+    /// <summary>The firmware line as a screen reader hears it: its container hides the badge.</summary>
+    public string FirmwareDescription =>
+        FirmwareOutdated ? $"Firmware version {FirmwareVersion}, outdated" : $"Firmware version {FirmwareVersion}";
+
+    private string? _latestFirmwareTag;
+
+    // Each new link's version is checked once; repeat INFOs carry the same value.
+    partial void OnFirmwareVersionChanged(string? value)
+    {
+        FirmwareOutdated = false;
+        ResolveBanner();
+        CheckFirmwareAsync(value).SafeFireAndForget("[DEVICESETTINGS]");
+    }
 
     [ObservableProperty]
     private double? _batteryPrimaryVoltage;
@@ -121,6 +142,9 @@ public partial class DeviceSettingsViewModel : BaseViewModel
 
     [ObservableProperty]
     private string? _bannerMessage;
+
+    [ObservableProperty]
+    private string? _bannerActionText;
 
     private (StatusTone Tone, string Title, string Message)? _resultBanner;
 
@@ -488,16 +512,57 @@ public partial class DeviceSettingsViewModel : BaseViewModel
             Detail: BatteryReading.FormatVolts(BatterySecondaryVoltage));
     }
 
-    /// <summary>Session-locked warning beats the last action's result.</summary>
+    /// <summary>Session-locked warning beats the last action's result, which beats outdated firmware.</summary>
     private void ResolveBanner()
     {
         (StatusTone Tone, string Title, string Message)? banner =
             IsSessionActive && ConnectionInfo.IsConnected
                 ? (StatusTone.Warning, "Stop Your Session to Change Settings", "Glove settings are locked while a session runs.")
                 : _resultBanner;
+        var showUpdate = banner is null && FirmwareOutdated;
+        if (showUpdate)
+            banner = (StatusTone.Warning, "Firmware Update Available",
+                $"Your primary glove has v{FirmwareVersion} and the latest is {_latestFirmwareTag}. Update both gloves with the BlueBuzzah Updater on a computer.");
         BannerVisible = banner is not null;
+        BannerActionText = showUpdate ? "How to Update" : null;
         if (banner is { } b)
             (BannerTone, BannerTitle, BannerMessage) = b;
+    }
+
+    /// <summary>Flags firmware older than the newest release. Demo gloves never are.</summary>
+    private async Task CheckFirmwareAsync(string? glove)
+    {
+        if (glove is null || Preferences.Default.Get(SwitchableBluetoothService.DemoModeKey, false))
+            return;
+        var latest = await LatestFirmware.GetTagAsync();
+        if (glove != FirmwareVersion)
+            return; // the link changed while we were asking
+        _latestFirmwareTag = latest;
+        FirmwareOutdated = FirmwareRelease.IsOutdated(glove, latest);
+        ResolveBanner();
+    }
+
+    /// <summary>
+    /// Firmware isn't flashed from the phone, so the sheet says how to use the desktop
+    /// Updater and offers to send its download link to a computer.
+    /// </summary>
+    [RelayCommand]
+    private async Task ShowFirmwareUpdateAsync()
+    {
+        var share = await _confirmation.ConfirmAsync(new ConfirmRequest(
+            "Update Your Glove Firmware",
+            $"The latest firmware is {_latestFirmwareTag}. Your primary glove has v{FirmwareVersion}.\n\n"
+            + "1. On a computer, download the BlueBuzzah Updater from BlueBuzzah.com.\n"
+            + "2. Connect your primary glove with its USB cable and follow the steps in the Updater.\n"
+            + "3. Do the same for your secondary glove.",
+            ConfirmText: "Share Updater Link",
+            CancelText: "Done"));
+        if (share)
+            await Share.Default.RequestAsync(new ShareTextRequest
+            {
+                Title = "BlueBuzzah Updater",
+                Uri = LatestFirmware.UpdaterUrl,
+            });
     }
 
     private void NotifyPendingChanged() => OnPropertyChanged(nameof(HasPendingChanges));

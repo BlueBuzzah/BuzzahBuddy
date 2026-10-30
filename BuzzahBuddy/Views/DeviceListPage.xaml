@@ -26,6 +26,8 @@
                                  Tone="{Binding Settings.BannerTone}"
                                  Title="{Binding Settings.BannerTitle}"
                                  Message="{Binding Settings.BannerMessage}"
+                                 ActionText="{Binding Settings.BannerActionText}"
+                                 ActionCommand="{Binding Settings.ShowFirmwareUpdateCommand}"
                                  Announce="True" />
 
                 <VerticalStackLayout Spacing="{StaticResource Space3}">
@@ -34,7 +36,7 @@
                     <FlexLayout Wrap="Wrap"
                                 AlignItems="Center"
                                 IsVisible="{Binding Settings.FirmwareVersion, Converter={StaticResource IsNotNullConverter}}"
-                                SemanticProperties.Description="{Binding Settings.FirmwareVersion, StringFormat='Firmware version {0}'}"
+                                SemanticProperties.Description="{Binding Settings.FirmwareDescription}"
                                 AutomationId="FirmwareVersion">
                         <Label Text="{x:Static helpers:LucideIcons.Cpu}"
                                Style="{StaticResource IconLabel}"
@@ -52,6 +54,11 @@
                                Style="{StaticResource TypeCodeS}"
                                LineHeight="1"
                                AutomationProperties.IsInAccessibleTree="False" />
+                        <!-- Not tappable (StatusBadge README); the banner's "How to Update" is. -->
+                        <controls:StatusBadge Tone="Warning"
+                                              Text="Outdated"
+                                              Margin="8,0,0,0"
+                                              IsVisible="{Binding Settings.FirmwareOutdated}" />
                     </FlexLayout>
                     <controls:GloveStatusPair Primary="{Binding Settings.PrimaryGlove}" Secondary="{Binding Settings.SecondaryGlove}" />
                     <Button Text="Refresh Battery"
