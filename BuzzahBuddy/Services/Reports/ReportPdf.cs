@@ -734,7 +734,7 @@ public static class ReportPdf
         var plotBottom = plotTop + plotHeight;
         var plotLeft = left + axisWidth;
         var plotWidth = width - axisWidth;
-        // 4 h, the study's daily schedule, is a full bar, as in the app's Last 7 Days chart.
+        // 4 h, the study's daily schedule, is a full bar, as a full well is in the app's History calendar.
         var largest = model.SecondsByWeekday.DefaultIfEmpty(0).Max();
         double max = Math.Max(HistorySummary.StudyDailySeconds, Math.Ceiling(largest / 3600.0) * 3600);
         var stepHours = max > 8 * 3600 ? 4 : 2;

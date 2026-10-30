@@ -72,6 +72,9 @@ public partial class HistoryViewModel : BaseViewModel
 	/// <summary>The calendar's month (its first day); kept across refreshes while the app runs.</summary>
 	private DateOnly _shownMonth = FirstOfMonth(Today);
 
+	/// <summary>The current month at the last compute, to tell when a new month has begun.</summary>
+	private DateOnly _currentMonth = FirstOfMonth(Today);
+
 	/// <summary>Seven columns can't hold day numbers at large text; the rows below carry the same time.</summary>
 	public bool ShowCalendar => HasSessions && !LargeText;
 
@@ -140,8 +143,11 @@ public partial class HistoryViewModel : BaseViewModel
 
 	partial void OnSelectedRangeChanged(int value)
 	{
-		if (_data is not null)
-			Recompute();
+		if (_data is null)
+			return;
+		Recompute();
+		// The tiles change out of view of the period control; say the new total, as month changes do.
+		SemanticScreenReader.Announce(Tiles[0].Spoken);
 	}
 
 	/// <summary>The overview, averages and calendar from the loaded data, without rereading the file.</summary>
@@ -171,7 +177,13 @@ public partial class HistoryViewModel : BaseViewModel
 		ShareText = HistoryText.ShareText(range);
 		EmptyPeriodText = HasSessions && !HasPeriodSessions ? HistoryText.EmptyPeriodText(range) : null;
 
-		_shownMonth = HistoryCalendar.Step(_shownMonth, 0, HistoryCalendar.FirstMonth(data.Sessions, today), FirstOfMonth(today));
+		// Showing the current month follows it into the next one after midnight on the 1st;
+		// a month paged back to stays put.
+		var currentMonth = FirstOfMonth(today);
+		if (_shownMonth == _currentMonth)
+			_shownMonth = currentMonth;
+		_currentMonth = currentMonth;
+		_shownMonth = HistoryCalendar.Step(_shownMonth, 0, HistoryCalendar.FirstMonth(data.Sessions, today), currentMonth);
 		var month = HistoryCalendar.Build(data.Sessions, _shownMonth, today, culture);
 		if (!SameMonth(Calendar, month))
 			Calendar = month;
@@ -195,7 +207,9 @@ public partial class HistoryViewModel : BaseViewModel
 		if (_data is not { } data)
 			return;
 		var today = Today;
-		_shownMonth = HistoryCalendar.Step(_shownMonth, months, HistoryCalendar.FirstMonth(data.Sessions, today), FirstOfMonth(today));
+		// A month paged to after midnight on the 1st is the person's choice, not one to follow.
+		_currentMonth = FirstOfMonth(today);
+		_shownMonth = HistoryCalendar.Step(_shownMonth, months, HistoryCalendar.FirstMonth(data.Sessions, today), _currentMonth);
 		Calendar = HistoryCalendar.Build(data.Sessions, _shownMonth, today, CultureInfo.CurrentCulture);
 		SemanticScreenReader.Announce(Calendar.Title);
 		PreviousMonthCommand.NotifyCanExecuteChanged();

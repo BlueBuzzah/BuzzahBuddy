@@ -51,7 +51,7 @@
                                 <VerticalStackLayout Spacing="{StaticResource Space1}" SemanticProperties.Description="{Binding Tiles[0].Spoken}">
                                     <Label Text="{Binding Tiles[0].Label}" Style="{StaticResource TypeLabel}" LineHeight="1" TextColor="{DynamicResource InkMuted}"
                                            AutomationProperties.IsInAccessibleTree="False" />
-                                    <Label Text="{Binding Tiles[0].Value}" Style="{StaticResource TypeTitleL}" LineHeight="1"
+                                    <Label Text="{Binding Tiles[0].Value}" Style="{StaticResource TypeTitleL}" LineHeight="1" helpers:Typography.TabularNumbers="True"
                                            AutomationProperties.IsInAccessibleTree="False" />
                                     <Label Text="{Binding Tiles[0].Detail}" Style="{StaticResource TypeBodyS}" LineHeight="1" TextColor="{DynamicResource InkMuted}"
                                            AutomationProperties.IsInAccessibleTree="False" />
@@ -64,7 +64,7 @@
                                 <VerticalStackLayout Spacing="{StaticResource Space1}" SemanticProperties.Description="{Binding Tiles[1].Spoken}">
                                     <Label Text="{Binding Tiles[1].Label}" Style="{StaticResource TypeLabel}" LineHeight="1" TextColor="{DynamicResource InkMuted}"
                                            AutomationProperties.IsInAccessibleTree="False" />
-                                    <Label Text="{Binding Tiles[1].Value}" Style="{StaticResource TypeTitleL}" LineHeight="1"
+                                    <Label Text="{Binding Tiles[1].Value}" Style="{StaticResource TypeTitleL}" LineHeight="1" helpers:Typography.TabularNumbers="True"
                                            AutomationProperties.IsInAccessibleTree="False" />
                                     <Label Text="{Binding Tiles[1].Detail}" Style="{StaticResource TypeBodyS}" LineHeight="1" TextColor="{DynamicResource InkMuted}"
                                            AutomationProperties.IsInAccessibleTree="False" />
@@ -77,7 +77,7 @@
                                 <VerticalStackLayout Spacing="{StaticResource Space1}" SemanticProperties.Description="{Binding Tiles[2].Spoken}">
                                     <Label Text="{Binding Tiles[2].Label}" Style="{StaticResource TypeLabel}" LineHeight="1" TextColor="{DynamicResource InkMuted}"
                                            AutomationProperties.IsInAccessibleTree="False" />
-                                    <Label Text="{Binding Tiles[2].Value}" Style="{StaticResource TypeTitleL}" LineHeight="1"
+                                    <Label Text="{Binding Tiles[2].Value}" Style="{StaticResource TypeTitleL}" LineHeight="1" helpers:Typography.TabularNumbers="True"
                                            AutomationProperties.IsInAccessibleTree="False" />
                                     <Label Text="{Binding Tiles[2].Detail}" Style="{StaticResource TypeBodyS}" LineHeight="1" TextColor="{DynamicResource InkMuted}"
                                            AutomationProperties.IsInAccessibleTree="False" />
@@ -90,7 +90,7 @@
                                 <VerticalStackLayout Spacing="{StaticResource Space1}" SemanticProperties.Description="{Binding Tiles[3].Spoken}">
                                     <Label Text="{Binding Tiles[3].Label}" Style="{StaticResource TypeLabel}" LineHeight="1" TextColor="{DynamicResource InkMuted}"
                                            AutomationProperties.IsInAccessibleTree="False" />
-                                    <Label Text="{Binding Tiles[3].Value}" Style="{StaticResource TypeTitleL}" LineHeight="1"
+                                    <Label Text="{Binding Tiles[3].Value}" Style="{StaticResource TypeTitleL}" LineHeight="1" helpers:Typography.TabularNumbers="True"
                                            AutomationProperties.IsInAccessibleTree="False" />
                                     <Label Text="{Binding Tiles[3].Detail}" Style="{StaticResource TypeBodyS}" LineHeight="1" TextColor="{DynamicResource InkMuted}"
                                            AutomationProperties.IsInAccessibleTree="False" />

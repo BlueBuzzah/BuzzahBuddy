@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text.RegularExpressions;
 using BuzzahBuddy.Models;
 using Xunit;
 
@@ -29,6 +31,35 @@ public class DurationTextTests
     [InlineData(300, "5min")]
     [InlineData(7200, "2h")]
     public void Short(int seconds, string expected) => Assert.Equal(expected, DurationText.Short(seconds));
+
+    // Both round once to whole minutes, half up, then split, so 59.98 minutes is a whole hour.
+    [Theory]
+    [InlineData(7199, "2h", "2 hours")]
+    [InlineData(3599, "1h", "1 hour")]
+    [InlineData(89, "1min", "1 minute")]
+    [InlineData(90, "2min", "2 minutes")]
+    public void Short_and_Spoken_round_to_the_nearest_minute(int seconds, string shortText, string spokenText)
+    {
+        Assert.Equal(shortText, DurationText.Short(seconds));
+        Assert.Equal(spokenText, DurationText.Spoken(seconds));
+    }
+
+    [Fact]
+    public void Short_and_Spoken_always_name_the_same_figure()
+    {
+        for (var seconds = 0; seconds <= 10 * 3600; seconds++)
+            Assert.True(Minutes(DurationText.Short(seconds)) == Minutes(DurationText.Spoken(seconds)),
+                $"{seconds} s: \"{DurationText.Short(seconds)}\" vs \"{DurationText.Spoken(seconds)}\"");
+    }
+
+    // "1h 5min" or "1 hour 5 minutes" as total minutes.
+    private static int Minutes(string text)
+    {
+        var match = Regex.Match(text, @"^(?:(\d+) ?h(?:ours?)?)? ?(?:(\d+) ?min(?:utes?)?)?$");
+        Assert.True(match.Success, text);
+        int Part(int i) => match.Groups[i].Success ? int.Parse(match.Groups[i].Value, CultureInfo.InvariantCulture) : 0;
+        return Part(1) * 60 + Part(2);
+    }
 
     [Fact]
     public void Accessible_running() =>

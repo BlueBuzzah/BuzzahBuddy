@@ -55,6 +55,8 @@ public partial class SegmentedControl : ContentView
     {
         _stacked = OsAccessibility.StackForLargeText;
         Lay();
+        // The track's width may not change, so SizeChanged won't re-fit labels that don't fit.
+        FitLabels();
     }
 
     private void Lay()
@@ -109,7 +111,7 @@ public partial class SegmentedControl : ContentView
             button.SetDynamicResource(Button.FontFamilyProperty, selected ? "FontSans700" : "FontSans400");
             button.SetDynamicResource(BackgroundColorProperty, selected ? "Brand" : "SurfaceSunken");
             button.SetDynamicResource(Button.TextColorProperty, selected ? "OnBrand" : "Ink");
-            SemanticProperties.SetDescription(button, $"{option.Label}, {i + 1} of {_buttons.Count}{(selected ? ", selected" : "")}");
+            SemanticProperties.SetDescription(button, $"{option.Spoken ?? option.Label}, {i + 1} of {_buttons.Count}{(selected ? ", selected" : "")}");
         }
         Dispatcher.Dispatch(FitLabels);
     }

@@ -83,6 +83,9 @@ public sealed class CalendarMonthView : ContentView
 
     private View Cell(CalendarDay day)
     {
+        // The well's corner is RadiusSm (8), and today's ring below rounds a little wider (10).
+        // Both are written out: a StrokeShape never joins the visual tree, so a DynamicResource
+        // set on it has nothing to resolve against. Keep them in step with RadiusSm by hand.
         var well = new Border
         {
             StrokeShape = new RoundRectangle { CornerRadius = 8 },
@@ -174,9 +177,13 @@ public sealed class CalendarMonthView : ContentView
         }
     }
 
+    // The fill sits inside the well's hairline stroke, so a full day fills the inner well, not the
+    // outer size: scaled to the outer size, 3h 46min filled it.
     private void SizeFill(BoxView? fill, double fraction)
     {
-        if (fill is not null)
-            fill.HeightRequest = fraction > 0 ? Math.Max(MinFill, fraction * _wellSize) : 0;
+        if (fill is null)
+            return;
+        var inner = _wellSize - 2 * (double)Application.Current!.Resources["BorderHairline"];
+        fill.HeightRequest = fraction > 0 ? Math.Max(MinFill, fraction * inner) : 0;
     }
 }
