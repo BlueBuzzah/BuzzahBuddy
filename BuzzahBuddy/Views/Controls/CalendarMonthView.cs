@@ -21,6 +21,9 @@ public sealed class CalendarMonthView : ContentView
     /// <summary>The today ring's stroke plus its gap, on each side of the well.</summary>
     private const double RingInset = 4;
 
+    /// <summary>The day number sits this close under its well, so it reads as the well's label.</summary>
+    private const double NumberGap = 2;
+
     /// <summary>A day with any time shows at least this much fill.</summary>
     private const double MinFill = 3;
 
@@ -32,7 +35,7 @@ public sealed class CalendarMonthView : ContentView
     {
         for (var i = 0; i < 7; i++)
             _grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
-        _grid.SetDynamicResource(Grid.RowSpacingProperty, "Space2");
+        _grid.SetDynamicResource(Grid.RowSpacingProperty, "Space3");
         _grid.SetDynamicResource(Grid.ColumnSpacingProperty, "Space2");
         _grid.SizeChanged += (_, _) => FitWells();
         Content = _grid;
@@ -61,6 +64,8 @@ public sealed class CalendarMonthView : ContentView
                 HorizontalTextAlignment = TextAlignment.Center,
             };
             name.SetDynamicResource(StyleProperty, "TypeCaption");
+            // The style's line height adds its extra space above the line on iOS.
+            name.LineHeight = 1;
             name.SetDynamicResource(Label.FontFamilyProperty, "FontSans700");
             name.SetDynamicResource(Label.TextColorProperty, "InkMuted");
             AutomationProperties.SetIsInAccessibleTree(name, false);
@@ -103,20 +108,28 @@ public sealed class CalendarMonthView : ContentView
         _wells.Add((well, fill, day.HasTime ? day.Fraction : 0));
         SizeFill(fill, day.HasTime ? day.Fraction : 0);
 
-        // Every well sits in the ring's room (2 stroke + 2 gap), so today's ring doesn't shift its
-        // row. Other days get that room as padding: a Border with no stroke set still draws one on iOS.
-        var ring = new Border
-        {
-            Padding = day.IsToday ? 2 : RingInset,
-            StrokeThickness = day.IsToday ? 2 : 0,
-            StrokeShape = new RoundRectangle { CornerRadius = 10 },
-            HorizontalOptions = LayoutOptions.Center,
-            Content = well,
-        };
+        View top = well;
+        well.HorizontalOptions = LayoutOptions.Center;
         if (day.IsToday)
+        {
+            // Today's ring (2 stroke + 2 gap) takes no layout room: negative margins keep its
+            // footprint the well's, so it spills into the row and column gaps and no other
+            // day needs space for it. Only today gets a wrapper: a Border with no stroke set
+            // still draws one on iOS.
+            var ring = new Border
+            {
+                Padding = 2,
+                StrokeThickness = 2,
+                StrokeShape = new RoundRectangle { CornerRadius = 10 },
+                Margin = -RingInset,
+                HorizontalOptions = LayoutOptions.Center,
+                Content = well,
+            };
             ring.SetDynamicResource(Border.StrokeProperty, "Ink");
+            top = ring;
+        }
 
-        var number = new Label { Text = day.Number, HorizontalTextAlignment = TextAlignment.Center };
+        var number = new Label { Text = day.Number, HorizontalTextAlignment = TextAlignment.Center, LineHeight = 1 };
         number.SetDynamicResource(StyleProperty, "TypeCaption");
         if (day.IsToday)
         {
@@ -128,7 +141,7 @@ public sealed class CalendarMonthView : ContentView
             number.SetDynamicResource(Label.TextColorProperty, "InkMuted");
         }
 
-        var cell = new VerticalStackLayout { Spacing = 2, Children = { ring, number } };
+        var cell = new VerticalStackLayout { Spacing = NumberGap, Children = { top, number } };
         if (day.IsFuture)
         {
             AutomationProperties.SetIsInAccessibleTree(cell, false);
@@ -136,19 +149,19 @@ public sealed class CalendarMonthView : ContentView
         else
         {
             SemanticProperties.SetDescription(cell, day.Spoken);
-            AutomationProperties.SetIsInAccessibleTree(ring, false);
+            AutomationProperties.SetIsInAccessibleTree(top, false);
             AutomationProperties.SetIsInAccessibleTree(number, false);
         }
         return cell;
     }
 
-    // Wells are 34 square where seven fit with the ring's room around each; smaller phones shrink them.
+    // Wells are 34 square where seven fit; smaller phones shrink them to the column.
     private void FitWells()
     {
         if (_grid.Width <= 0)
             return;
         var column = (_grid.Width - 6 * _grid.ColumnSpacing) / 7;
-        var size = Math.Min(MaxWellSize, Math.Floor(column - 2 * RingInset));
+        var size = Math.Min(MaxWellSize, Math.Floor(column));
         if (size == _wellSize)
             return;
         _wellSize = size;

@@ -1,5 +1,6 @@
 using BuzzahBuddy.Helpers;
 using BuzzahBuddy.ViewModels;
+using BuzzahBuddy.Views.Controls;
 
 namespace BuzzahBuddy.Views;
 
@@ -12,12 +13,18 @@ public partial class HistoryPage : ContentPage
         InitializeComponent();
         _viewModel = viewModel;
         BindingContext = viewModel;
-        // A text-size change while the app was away re-lays the page on resume.
+        // A text-size change while the app was away re-lays the page on resume. Trend rows
+        // come and go with the period; each also lays itself out on load.
         this.TrackTextScale(() =>
         {
             _viewModel.LargeText = OsAccessibility.StackForLargeText;
             ArrangeTiles(_viewModel.LargeText);
+            foreach (var row in TrendRowList.Children.OfType<Grid>())
+                ArrangeTrendRow(row);
         });
+#if IOS
+        _viewModel.PropertyChanging += OnViewModelChanging;
+#endif
     }
 
     protected override void OnAppearing()
@@ -45,9 +52,89 @@ public partial class HistoryPage : ContentPage
         }
     }
 
-    private static void Place(View view, int row, int column)
+    private void OnTrendRowLoaded(object? sender, EventArgs e)
+    {
+        if (sender is Grid row)
+            ArrangeTrendRow(row);
+    }
+
+    // Label and time on one line, the bar under them; at large text the label gets the full
+    // width and the time moves under it, so short labels like "Oct 1-2" don't wrap.
+    private static void ArrangeTrendRow(Grid row)
+    {
+        if (row.Children.Count < 3
+            || row.Children[0] is not Label label
+            || row.Children[1] is not Label value
+            || row.Children[2] is not MeterBar bar)
+            return;
+
+        var stacked = OsAccessibility.StackForLargeText;
+        row.RowDefinitions = new RowDefinitionCollection(
+            Enumerable.Range(0, stacked ? 3 : 2).Select(_ => new RowDefinition(GridLength.Auto)).ToArray());
+        Place(label, 0, 0, span: stacked ? 2 : 1);
+        Place(value, stacked ? 1 : 0, stacked ? 0 : 1, span: stacked ? 2 : 1);
+        Place(bar, stacked ? 2 : 1, 0, span: 2);
+        value.HorizontalTextAlignment = stacked ? TextAlignment.Start : TextAlignment.End;
+    }
+
+    private static void Place(View view, int row, int column, int span = 1)
     {
         Grid.SetRow(view, row);
         Grid.SetColumn(view, column);
+        Grid.SetColumnSpan(view, span);
     }
+
+#if IOS
+    // ponytail: on iOS any change inside the list header (another month, another period)
+    // invalidates the whole list layout (MAUI Items2 StructuredItemsViewController2
+    // .InvalidateLayoutIfItemsMeasureChanged). The header's height drops back to its estimate,
+    // and while it is scrolled out of view it is never measured again, so the day cards slide
+    // up under an unchanged offset and the page seems to jump far down. After each batch of
+    // header changes, bring the header on screen for one layout pass so it measures itself,
+    // then return to the same offset, all before the next frame is drawn. Days is the list
+    // itself, not the header, so it keeps the list's own behavior.
+    private CoreGraphics.CGPoint? _heldOffset;
+
+    private void OnViewModelChanging(object? sender, System.ComponentModel.PropertyChangingEventArgs e)
+    {
+        if (_heldOffset is not null
+            || e.PropertyName is nameof(HistoryViewModel.Days) or nameof(HistoryViewModel.IsBusy)
+                or nameof(HistoryViewModel.IsRefreshing) or nameof(HistoryViewModel.Title)
+            || DayList.Handler?.PlatformView is not UIKit.UIView root
+            || FindList(root) is not { } list)
+            return;
+
+        _heldOffset = list.ContentOffset;
+        // The list re-lays out on the next pass, and self-sizing can settle a pass later.
+        Dispatcher.Dispatch(() => RestoreOffset(root, list, again: true));
+    }
+
+    private void RestoreOffset(UIKit.UIView root, UIKit.UICollectionView list, bool again)
+    {
+        if (_heldOffset is not { } held)
+            return;
+        var top = -list.AdjustedContentInset.Top;
+        list.SetContentOffset(new CoreGraphics.CGPoint(held.X, top), animated: false);
+        root.LayoutIfNeeded();
+        var bottom = list.ContentSize.Height + list.AdjustedContentInset.Bottom - list.Bounds.Height;
+        list.SetContentOffset(new CoreGraphics.CGPoint(held.X, Math.Max(top, Math.Min(held.Y, bottom))), animated: false);
+        root.LayoutIfNeeded();
+        if (again)
+            Dispatcher.Dispatch(() => RestoreOffset(root, list, again: false));
+        else
+            _heldOffset = null;
+    }
+
+    private static UIKit.UICollectionView? FindList(UIKit.UIView view)
+    {
+        if (view is UIKit.UICollectionView list)
+            return list;
+        foreach (var child in view.Subviews)
+        {
+            if (FindList(child) is { } found)
+                return found;
+        }
+        return null;
+    }
+#endif
 }
