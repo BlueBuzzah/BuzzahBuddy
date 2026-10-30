@@ -28,6 +28,8 @@ public partial class GloveControlViewModel : BaseViewModel
     private readonly RepeatGuard _sessionControls = new(RepeatGuard.SessionControlWindow);
     private readonly AnnouncementThrottle _ringSpeech = new(TimeSpan.FromMinutes(1));
     private bool _showComplete;
+    // The "Session Complete" banner's message: claims a save only when one happened.
+    private string _completeMessage = string.Empty;
     private int _completedTotalSeconds;
     private string? _sessionEndedMessage;
     private bool _sessionEndedByConnection;
@@ -325,9 +327,10 @@ public partial class GloveControlViewModel : BaseViewModel
 
         // Ending a session always confirms (buzzahbuddy.md Session screen). Dismissing
         // the sheet any other way, Android back included, keeps the session going.
+        // Demo Mode sessions aren't saved, so the sheet doesn't promise it.
         var stop = await _confirmation.ConfirmAsync(new ConfirmRequest(
             "Stop This Session?",
-            "Your gloves stop buzzing. The time so far is saved.",
+            IsDemoMode ? "Your gloves stop buzzing." : "Your gloves stop buzzing. The time so far is saved.",
             "Stop Session",
             "Keep Going",
             Destructive: true));
@@ -349,11 +352,14 @@ public partial class GloveControlViewModel : BaseViewModel
         }
         catch (BlueBuzzahCommandException ex)
         {
+            // The session carries on: a later natural end isn't a stop.
+            _userRequestedStop = false;
             var error = ErrorMessageHelper.GetFriendlyError(ex.Message);
             await Shell.Current.DisplayAlert(error.Title, error.ForAlert, "OK");
         }
         catch (Exception ex)
         {
+            _userRequestedStop = false;
             var error = ErrorMessageHelper.FromException(ex);
             await Shell.Current.DisplayAlert(error.Title, error.ForAlert, "OK");
         }
@@ -460,7 +466,7 @@ public partial class GloveControlViewModel : BaseViewModel
         else if (SessionWarningMessage is not null)
             banner = (StatusTone.Info, "Session Time May Be Behind", "We're waiting for an update from your primary glove.", false);
         else if (_showComplete)
-            banner = (StatusTone.Success, "Session Complete", "Your session is saved.", false);
+            banner = (StatusTone.Success, "Session Complete", _completeMessage, false);
 
         BannerVisible = banner is not null;
         if (banner is { } b)
@@ -539,7 +545,10 @@ public partial class GloveControlViewModel : BaseViewModel
 
             SessionStatus = polled;
             TrackSession(polled, fromPoll: true);
-            _userRequestedStop = false;
+            // A poll already in flight when Stop was confirmed still reads the session
+            // running; keep the flag for the IDLE reading that Stop produces.
+            if (!polled.IsActive)
+                _userRequestedStop = false;
 
             UpdateSessionState();
 
@@ -964,6 +973,7 @@ public partial class GloveControlViewModel : BaseViewModel
             }
 
             var outcome = _userRequestedStop ? SessionOutcome.StoppedEarly : open.InferEnd(now);
+            _userRequestedStop = false;
             var record = open.Close(outcome, now);
             open = null;
             if (!demo)
@@ -1067,6 +1077,9 @@ public partial class GloveControlViewModel : BaseViewModel
 
             // Reset session; the ring holds Complete and a success banner confirms the save.
             _completedTotalSeconds = record?.PlannedSeconds ?? SessionStatus.TotalTimeSeconds;
+            _completeMessage = IsDemoMode ? "Demo Mode sessions aren't saved."
+                : record != null ? "Your session is saved."
+                : string.Empty;
             _showComplete = true;
             SessionStatus = SessionStatus.CreateIdle();
             UpdateSessionState();
