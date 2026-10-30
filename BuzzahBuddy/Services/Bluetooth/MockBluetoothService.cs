@@ -20,6 +20,7 @@ public class MockBluetoothService : IBluetoothService
     private DateTime? _mockSessionStartTime;
     private DateTime? _mockSessionPauseTime;
     private TimeSpan _mockElapsedTime = TimeSpan.Zero;
+    private TimeSpan _mockPausedTime = TimeSpan.Zero; // completed pauses; see MockPausedSoFar
     private int _mockSessionId = 184467;
     private string _mockLastSession = ""; // firmware LAST_* lines, kept until the next session ends
     private int _mockCurrentProfile = 2; // Default: Noisy VCR
@@ -366,6 +367,7 @@ public class MockBluetoothService : IBluetoothService
         _mockSessionState = SessionState.RUNNING;
         _mockSessionStartTime = DateTime.Now;
         _mockElapsedTime = TimeSpan.Zero;
+        _mockPausedTime = TimeSpan.Zero;
         _mockSessionId++;
 
         return "SESSION_STATUS:RUNNING\n" +
@@ -403,6 +405,11 @@ public class MockBluetoothService : IBluetoothService
 
         _mockSessionState = SessionState.RUNNING;
         _mockSessionStartTime = DateTime.Now - _mockElapsedTime; // Adjust start time
+        if (_mockSessionPauseTime.HasValue)
+        {
+            _mockPausedTime += DateTime.Now - _mockSessionPauseTime.Value;
+        }
+        _mockSessionPauseTime = null;
 
         return "SESSION_STATUS:RUNNING\n\x04";
     }
@@ -439,12 +446,21 @@ public class MockBluetoothService : IBluetoothService
     }
 
     /// <summary>
-    /// Firmware's last-session summary. The mock's clock already excludes pauses, so LAST_PAUSED is 0.
+    /// Paused time so far, including a pause in progress (firmware's PAUSED).
+    /// </summary>
+    private int MockPausedSoFar() =>
+        (int)(_mockPausedTime + (_mockSessionState == SessionState.PAUSED && _mockSessionPauseTime.HasValue
+            ? DateTime.Now - _mockSessionPauseTime.Value
+            : TimeSpan.Zero)).TotalSeconds;
+
+    /// <summary>
+    /// Firmware's last-session summary. The mock's clock excludes pauses, so LAST_ELAPSED (wall
+    /// time) adds them back.
     /// </summary>
     private void RecordMockLastSession(int elapsedSeconds, string reason) =>
         _mockLastSession = $"LAST_ID:{_mockSessionId}\n" +
-                           $"LAST_ELAPSED:{elapsedSeconds}\n" +
-                           "LAST_PAUSED:0\n" +
+                           $"LAST_ELAPSED:{elapsedSeconds + MockPausedSoFar()}\n" +
+                           $"LAST_PAUSED:{MockPausedSoFar()}\n" +
                            $"LAST_TOTAL:{MockSessionTotalSeconds}\n" +
                            $"LAST_REASON:{reason}\n";
 
@@ -496,6 +512,7 @@ public class MockBluetoothService : IBluetoothService
                $"TOTAL:{totalSeconds}\n" +
                $"PROGRESS:{progress}\n" +
                $"SESSION_ID:{_mockSessionId}\n" +
+               $"PAUSED:{MockPausedSoFar()}\n" +
                "\x04";
     }
 

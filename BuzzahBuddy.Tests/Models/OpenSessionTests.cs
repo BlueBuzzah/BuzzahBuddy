@@ -36,6 +36,16 @@ public class OpenSessionTests
     }
 
     [Fact]
+    public void Begin_MidSessionAfterAPause_BackdatesByPausedTimeToo()
+    {
+        var status = Sid(SessionState.RUNNING, 120);
+        status.PausedSeconds = 300;
+        var open = OpenSession.Begin(status, T0, 6, "Quick Test", "G1");
+        Assert.Equal(T0.AddSeconds(-420), open.StartedAt);
+        Assert.Equal(120, open.TherapySeconds);
+    }
+
+    [Fact]
     public void Begin_MidSession_BackdatesStartAndCountsElapsed()
     {
         var open = OpenSession.Begin(S(SessionState.RUNNING, 600), T0, 2, "Noisy", "G1");
@@ -47,7 +57,7 @@ public class OpenSessionTests
     [InlineData(SessionState.RUNNING, 0, 7200, true)]
     [InlineData(SessionState.PAUSED, 10, 7200, true)]
     [InlineData(SessionState.LOW_BATTERY, 10, 7200, true)]
-    [InlineData(SessionState.RUNNING, 0, 0, false)]   // Defect 6 ghost
+    [InlineData(SessionState.RUNNING, 0, 0, false)]   // older firmware's ghost
     [InlineData(SessionState.IDLE, 0, 0, false)]
     public void CanTrack_RejectsGhostAndIdle(SessionState state, int elapsed, int total, bool expected) =>
         Assert.Equal(expected, OpenSession.CanTrack(S(state, elapsed, total)));

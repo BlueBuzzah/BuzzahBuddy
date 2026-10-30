@@ -7,8 +7,8 @@ namespace BuzzahBuddy.Models;
 /// Older firmware never tells the phone how a session finished (current firmware reports its
 /// last session; see <see cref="End"/>). Older firmware's ELAPSED also keeps counting through a
 /// pause, so without a session id delivered time is the sum of ELAPSED gains taken only while
-/// the session was running. Known Defect 6: a finished session can read RUNNING with
-/// ELAPSED:0 TOTAL:0 after a reconnect, so a reading with TOTAL of 0 is never tracked. On
+/// the session was running, and a session that finished while the phone was away can read
+/// RUNNING with ELAPSED:0 TOTAL:0 after a reconnect, so a reading with TOTAL of 0 is never tracked. On
 /// completion the engine stops in the same tick that ELAPSED reaches TOTAL, so the next reading
 /// is IDLE with 0/0/0 and PROGRESS never reaches 100. The end is therefore inferred from the
 /// time since the last reading showing the session running.
@@ -67,13 +67,13 @@ public sealed class OpenSession
 
     /// <summary>
     /// Starts tracking from a reading. Backdates the start by the elapsed time, which counts
-    /// as delivered (the app may join a session already in progress).
+    /// as delivered (the app may join a session already in progress), plus any time paused.
     /// </summary>
     public static OpenSession Begin(SessionStatus status, DateTimeOffset now, int profileId, string profileName, string? deviceId) =>
         new()
         {
             Id = Guid.NewGuid().ToString("N"),
-            StartedAt = now.AddSeconds(-status.ElapsedTimeSeconds),
+            StartedAt = now.AddSeconds(-(status.ElapsedTimeSeconds + (status.PausedSeconds ?? 0))),
             ProfileId = profileId,
             ProfileName = profileName,
             DeviceId = deviceId,

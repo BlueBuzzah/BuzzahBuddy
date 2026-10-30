@@ -96,7 +96,7 @@ bounds link-up through subscribe — iOS never times out a connect itself.
 | `GloveControlService` custom-profile limits | `include/menu_controller.h` `MAX_COMMAND_PARAMS` |
 | parameter validation / amplitude ordering | `src/profile_manager.cpp` `setParameter` |
 | `RxFrameAssembler.InternalMessagePrefixes` | `include/internal_messages.h` `INTERNAL_MESSAGES` |
-| `LastSessionSummary` (`LAST_*`), `SessionStatus.SessionId` | `src/menu_controller.cpp` `handleSessionStatus`, `SessionEndReason` in `include/therapy_engine.h` |
+| `LastSessionSummary` (`LAST_*`), `SessionStatus.SessionId` / `PausedSeconds` | `src/menu_controller.cpp` `handleSessionStatus`, `SessionEndReason` in `include/therapy_engine.h` |
 
 ## Domain Models — `Models/`
 

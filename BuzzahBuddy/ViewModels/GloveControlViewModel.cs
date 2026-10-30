@@ -50,7 +50,7 @@ public partial class GloveControlViewModel : BaseViewModel
     private bool _isBackgrounded;
     private SessionState _previousSessionState = SessionState.IDLE;
     private bool _userRequestedStop;
-    // Known Defect 6: a session that ended while the phone was away reads RUNNING with TOTAL 0
+    // Older firmware: a session that ended while the phone was away reads RUNNING with TOTAL 0
     // after the reconnect, on every poll. Once such a ghost has closed the tracked session the
     // ghosts that follow are that finished session, so the UI reads them as idle until a real
     // IDLE or a trackable session arrives. TOTAL 0 isn't idle in general: older firmware that

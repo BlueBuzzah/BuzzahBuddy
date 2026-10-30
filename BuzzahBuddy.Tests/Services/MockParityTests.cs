@@ -100,7 +100,7 @@ public class MockParityTests
         var start = await mock.GetRawResponseAsync("SESSION_START");
         var id = start.Split('\n').Single(l => l.StartsWith("SESSION_ID:"));
         var status = await mock.GetRawResponseAsync("SESSION_STATUS");
-        Assert.Contains($"\n{id}\n", status);
+        Assert.Contains($"\n{id}\nPAUSED:0\n", status);
         Assert.DoesNotContain("LAST_", status);
     }
 

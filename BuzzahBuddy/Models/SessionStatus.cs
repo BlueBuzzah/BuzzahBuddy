@@ -101,6 +101,12 @@ public class SessionStatus
     public int? SessionId { get; set; }
 
     /// <summary>
+    /// Seconds the active session has spent paused so far (PAUSED, sent beside SESSION_ID);
+    /// null when idle or on older firmware.
+    /// </summary>
+    public int? PausedSeconds { get; set; }
+
+    /// <summary>
     /// How the most recent session ended, reported while no session runs; null on older firmware.
     /// </summary>
     public LastSessionSummary? LastSession { get; set; }
@@ -184,6 +190,7 @@ public class SessionStatus
         status.Progress = response.GetInt("PROGRESS") ?? 0;
 
         status.SessionId = response.GetInt("SESSION_ID");
+        status.PausedSeconds = response.GetInt("PAUSED");
         status.LastSession = LastSessionSummary.FromCommandResponse(response);
 
         return status;
