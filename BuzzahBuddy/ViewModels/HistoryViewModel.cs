@@ -104,7 +104,7 @@ public partial class HistoryViewModel : BaseViewModel
 		HistoryData data;
 		try
 		{
-			data = await _history.LoadAsync();
+			data = await LoadAsync();
 		}
 		catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
 		{
@@ -276,13 +276,14 @@ public partial class HistoryViewModel : BaseViewModel
 		IsBusy = true;
 		try
 		{
-			var data = await _history.LoadAsync();
+			var sample = IsDemoMode;
+			var data = await LoadAsync();
 			var range = (ReportRange)SelectedRange;
 			var (from, to) = HistoryReport.Range(range, Today, data.Sessions);
 			var cache = FileSystem.CacheDirectory;
 			// Earlier reports hold health notes; keep only the one being shared.
-			foreach (var old in Directory.EnumerateFiles(cache, "BuzzahBuddy Report *")
-				.Concat(Directory.EnumerateFiles(cache, "BuzzahBuddy Sessions *")).ToList())
+			foreach (var old in new[] { "Report", "Sessions", "Sample Report", "Sample Sessions" }
+				.SelectMany(name => Directory.EnumerateFiles(cache, $"BuzzahBuddy {name} *")).ToList())
 			{
 				// A file that won't go is left for next time; it doesn't stop this report.
 				try
@@ -295,13 +296,15 @@ public partial class HistoryViewModel : BaseViewModel
 				}
 			}
 
-			var model = HistoryReport.Build(data, from, to, DateTimeOffset.Now, comparePrevious: range != ReportRange.AllTime);
+			var model = HistoryReport.Build(data, from, to, DateTimeOffset.Now, comparePrevious: range != ReportRange.AllTime, sample);
 			var bytes = await Task.Run(() =>
 				ReportPdf.Render(model, ReportAssets.FromEmbedded(typeof(App).Assembly)));
 
 			var stamp = to.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-			var pdf = Path.Combine(cache, $"BuzzahBuddy Report {stamp}.pdf");
-			var csv = Path.Combine(cache, $"BuzzahBuddy Sessions {stamp}.csv");
+			// Demo Mode's files say "Sample" so they can't pass for someone's own report.
+			var prefix = sample ? "BuzzahBuddy Sample" : "BuzzahBuddy";
+			var pdf = Path.Combine(cache, $"{prefix} Report {stamp}.pdf");
+			var csv = Path.Combine(cache, $"{prefix} Sessions {stamp}.csv");
 			await File.WriteAllBytesAsync(pdf, bytes);
 			await File.WriteAllTextAsync(csv, HistoryReport.Csv(
 				HistoryReport.InRange(data.Sessions, from, to),
@@ -327,6 +330,11 @@ public partial class HistoryViewModel : BaseViewModel
 			IsBusy = false;
 		}
 	}
+
+	/// <summary>Demo Mode's sample history, never stored, or the person's own.</summary>
+	private Task<HistoryData> LoadAsync() => IsDemoMode
+		? Task.FromResult(DemoHistory.Build(Today, DateTimeOffset.Now.Offset))
+		: _history.LoadAsync();
 
 	private static Task ShowErrorAsync(UserError error) =>
 		Shell.Current.DisplayAlertAsync(error.Title, error.ForAlert, "OK");

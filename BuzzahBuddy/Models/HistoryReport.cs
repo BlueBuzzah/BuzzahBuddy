@@ -61,7 +61,8 @@ public sealed record ReportModel(
     OutcomeSplit Outcomes,
     IReadOnlyList<ProfileRow> Profiles,
     IReadOnlyList<NoteQuote> RecentNotes,
-    int NoteCount);
+    int NoteCount,
+    bool Sample = false);
 
 /// <summary>The PDF report model and CSV the History tab hands to the share sheet.</summary>
 public static class HistoryReport
@@ -135,7 +136,8 @@ public static class HistoryReport
 
     /// <summary>Everything the PDF report shows for <paramref name="from"/> to <paramref name="to"/>, inclusive.</summary>
     /// <param name="comparePrevious">Compare with the same number of days before <paramref name="from"/>; false for All Time.</param>
-    public static ReportModel Build(HistoryData data, DateOnly from, DateOnly to, DateTimeOffset createdAt, bool comparePrevious)
+    /// <param name="sample">The data is Demo Mode's sample, which the report says on every page.</param>
+    public static ReportModel Build(HistoryData data, DateOnly from, DateOnly to, DateTimeOffset createdAt, bool comparePrevious, bool sample = false)
     {
         var sessions = InRange(data.Sessions, from, to).ToList();
         var secondsByDay = sessions.GroupBy(s => s.Day).ToDictionary(g => g.Key, g => g.Sum(s => s.TherapySeconds));
@@ -228,7 +230,8 @@ public static class HistoryReport
             outcomes,
             profiles,
             recentNotes,
-            notes.Count);
+            notes.Count,
+            sample);
     }
 
     /// <summary>The summary sentences above the tiles.</summary>

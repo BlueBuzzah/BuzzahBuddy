@@ -54,6 +54,9 @@ public static class ReportPdf
 {
     public const string Title = "BuzzahBuddy Session Report";
 
+    /// <summary>Set under page 1's dates and in each footer when the report shows Demo Mode's sample data.</summary>
+    public const string SampleMarker = "Sample data from Demo Mode";
+
     // Font families the resolver maps to the app's TTFs.
     private const string Display = "Lexend";
     private const string DisplaySemiBold = "Lexend SemiBold";
@@ -148,7 +151,7 @@ public static class ReportPdf
         {
             DrawHeader(page1, mark);
             page1Bottom = DrawPage1(page1, model);
-            DrawFooter(page1, 1);
+            DrawFooter(page1, 1, model.Sample);
         }
 
         var page2 = new Canvas(XGraphics.FromPdfPage(AddPage(pdf)));
@@ -156,7 +159,7 @@ public static class ReportPdf
         {
             DrawHeader(page2, mark);
             (notesBottom, legalTop) = DrawPage2(page2, model);
-            DrawFooter(page2, 2);
+            DrawFooter(page2, 2, model.Sample);
         }
 
         using var output = new MemoryStream();
@@ -224,12 +227,12 @@ public static class ReportPdf
         c.G.DrawLine(new XPen(Line, 0.75), Margin, RuleY, Right, RuleY);
     }
 
-    private static void DrawFooter(Canvas c, int page)
+    private static void DrawFooter(Canvas c, int page, bool sample)
     {
         var font = Font(Body, 8);
         var brush = new XSolidBrush(InkMuted);
         var box = new XRect(Margin, FooterBottom - font.GetHeight(), ContentWidth, font.GetHeight());
-        c.Text("BuzzahBuddy", font, brush, box, XStringFormats.BottomLeft);
+        c.Text(sample ? $"BuzzahBuddy · {SampleMarker}" : "BuzzahBuddy", font, brush, box, XStringFormats.BottomLeft);
         c.Text($"Page {page} of {PageCount}", font, brush, box, XStringFormats.BottomRight);
     }
 
@@ -253,6 +256,11 @@ public static class ReportPdf
             Font(Body, 11), muted, y);
         y += 1;
         y = c.Line($"Created {model.CreatedAt.ToString(DateFormat, Culture)}", Font(Body, 9), muted, y);
+        if (model.Sample)
+        {
+            y += 4;
+            y = c.Line(SampleMarker, Font(Body, 11, bold: true), ink, y);
+        }
         y += 12;
 
         y = DrawLede(c, model.Lede, y);

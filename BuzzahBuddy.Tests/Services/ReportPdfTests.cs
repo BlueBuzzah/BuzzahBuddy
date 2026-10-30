@@ -235,6 +235,33 @@ public class ReportPdfTests
             AssertNewestQuotesShown(layout, notes);
     }
 
+    [Theory]
+    [InlineData(ReportRange.Last30Days)]
+    [InlineData(ReportRange.Last90Days)]
+    [InlineData(ReportRange.AllTime)]
+    public void Render_DemoSample_MarkedAndFits(ReportRange range)
+    {
+        var data = DemoHistory.Build(Today, TimeSpan.FromHours(-7));
+        var (from, to) = HistoryReport.Range(range, Today, data.Sessions);
+        var model = HistoryReport.Build(data, from, to, Created, comparePrevious: range != ReportRange.AllTime, sample: true);
+
+        var layout = ReportPdf.Draw(model, Assets());
+
+        Assert.True(model.Sample);
+        Assert.Contains(ReportPdf.SampleMarker, layout.PageText[0]);
+        Assert.Contains(layout.PageText[1], l => l.Contains(ReportPdf.SampleMarker, StringComparison.Ordinal));
+        Assert.True(layout.Page1Bottom <= ReportPdf.BodyBottom, $"Page 1 ends at {layout.Page1Bottom}");
+        AssertNothingOverlaps(layout);
+    }
+
+    [Fact]
+    public void Render_RealHistory_NotMarked()
+    {
+        var layout = ReportPdf.Draw(Model(Fixture(), From), Assets());
+
+        Assert.DoesNotContain(layout.PageText.SelectMany(p => p), l => l.Contains(ReportPdf.SampleMarker, StringComparison.Ordinal));
+    }
+
     private static HistoryData NoNotes(HistoryData data)
     {
         data.Notes.Clear();

@@ -159,8 +159,9 @@ with `new`, not routes:
 `AndroidManifest.xml` sets `enableOnBackInvokedCallback="false"`.
 `DeviceSettingsViewModel` has no page; it's `DeviceListViewModel.Settings`.
 `HistoryViewModel` reloads from `HistoryStore` on `OnAppearing` and never subscribes to
-service events. History's one period control (`SelectedRange`) drives both the overview and
-the shared report.
+service events; in Demo Mode it shows `DemoHistory`'s 60-day sample instead (never stored),
+and the shared files are named "Sample" and marked as sample data. History's one period
+control (`SelectedRange`) drives both the overview and the shared report.
 
 DI (`MauiProgram.cs`): tab pages/VMs are **singletons** (Shell caches them) and never
 disposed; Calibration/ProfileSettings are transient — a transient VM subscribing to

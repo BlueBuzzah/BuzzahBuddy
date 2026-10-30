@@ -21,7 +21,7 @@
                 <Label Text="History" Style="{StaticResource TypeHeadline}" SemanticProperties.HeadingLevel="Level1" />
 
                 <controls:Banner Tone="Info"
-                                 Message="Sessions in Demo Mode aren't saved to your history."
+                                 Message="Demo Mode is on. History shows 60 days of sample sessions. Your own history comes back when you turn Demo Mode off."
                                  IsVisible="{Binding IsDemoMode}"
                                  AutomationId="DemoHistoryBanner" />
 
@@ -227,6 +227,10 @@
                                 HorizontalOptions="Start"
                                 CommandParameter="{Binding .}"
                                 AutomationId="NoteButton">
+                            <!-- Demo Mode's sample days can't take a note. -->
+                            <Button.IsVisible>
+                                <Binding Source="{x:Reference page}" Path="BindingContext.IsDemoMode" Converter="{StaticResource InvertedBoolConverter}" x:DataType="{x:Null}" />
+                            </Button.IsVisible>
                             <SemanticProperties.Description>
                                 <MultiBinding StringFormat="{}{0}, {1}">
                                     <Binding Path="NoteButtonText" />
