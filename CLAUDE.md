@@ -34,6 +34,7 @@ and the README of each component you rebuild.
 | Test | `make test` (`dotnet test BuzzahBuddy.Tests`) |
 | Run on simulator/emulator | `make start:ios` / `make start:android` (detached `dotnet run`) |
 | Build Android | `dotnet build BuzzahBuddy/BuzzahBuddy.csproj -f net10.0-android -p:TargetFrameworks=net10.0-android` |
+| Android APK for `adb install` | Build Android + `-p:EmbedAssembliesIntoApk=true -p:AndroidUseSharedRuntime=false` |
 | Build iOS | `dotnet build BuzzahBuddy/BuzzahBuddy.csproj -f net10.0-ios -p:TargetFrameworks=net10.0-ios` |
 | Compile-check `BluetoothService` | `dotnet build BuzzahBuddy/BuzzahBuddy.csproj -f net10.0 -p:TargetFrameworks=net10.0` |
 | Regenerate design tokens | `python3 scripts/gen_design_tokens.py` |
@@ -43,6 +44,11 @@ and the README of each component you rebuild.
 every TFM and fails where a workload is missing (NETSDK1147). Targets:
 `net10.0;net10.0-android;net10.0-ios` (iOS 15+, Android API 24 floor / 36 target). The
 plain `net10.0` TFM is a Library that exists only for the test compile.
+
+A plain Debug Android build uses Fast Deployment: its APK carries no app assemblies, which
+`dotnet run` pushes separately. Installed by hand with `adb install`, it either keeps running
+an older copy's assemblies or, on a clean install, crashes at launch. Add the two flags in
+the table above for an APK that stands alone.
 `Platforms/MacCatalyst|Tizen|Windows/` are template stubs no TFM builds. `.vscode/*.json`
 are fully commented out.
 
