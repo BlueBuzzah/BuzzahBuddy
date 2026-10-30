@@ -1,0 +1,156 @@
+namespace BuzzahBuddy.Models;
+
+/// <summary>
+/// A session the app is tracking that has not been written to history yet. Persisted so a
+/// session survives the app being killed or the link dropping.
+/// <para>
+/// This exists because the firmware never tells the phone a session finished. Known Defect 4:
+/// ELAPSED keeps counting through a pause, so delivered time is the sum of ELAPSED gains taken
+/// only while the session was running. Known Defect 7: a finished session can read RUNNING with
+/// ELAPSED:0 TOTAL:0 after a reconnect, so a reading with TOTAL of 0 is never tracked. On
+/// completion the engine stops in the same tick that ELAPSED reaches TOTAL, so the next reading
+/// is IDLE with 0/0/0 and PROGRESS never reaches 100. The end is therefore inferred from the
+/// time since the last reading showing the session running.
+/// </para>
+/// </summary>
+public sealed class OpenSession
+{
+    /// <summary>
+    /// Slack allowed when deciding a session ran to its end: one 5 s poll plus the ~5 s
+    /// command timeout, plus margin.
+    /// </summary>
+    public const int CompletionToleranceSeconds = 15;
+
+    /// <summary>
+    /// Sessions with less delivered time than this are not saved.
+    /// </summary>
+    public const int MinimumSavedSeconds = 60;
+
+    public string Id { get; set; } = "";
+    public DateTimeOffset StartedAt { get; set; }
+    public int ProfileId { get; set; }
+    public string ProfileName { get; set; } = "";
+    public string? DeviceId { get; set; }
+    public int PlannedSeconds { get; set; }
+
+    /// <summary>
+    /// Seconds of therapy delivered so far, excluding paused time.
+    /// </summary>
+    public int TherapySeconds { get; set; }
+
+    /// <summary>
+    /// ELAPSED from the last reading.
+    /// </summary>
+    public int LastElapsedSeconds { get; set; }
+
+    /// <summary>
+    /// Whether the last reading showed the session running.
+    /// </summary>
+    public bool LastRunning { get; set; }
+
+    /// <summary>
+    /// When the last reading was taken.
+    /// </summary>
+    public DateTimeOffset LastObservedAt { get; set; }
+
+    /// <summary>
+    /// Whether a reading describes a real session worth tracking.
+    /// </summary>
+    public static bool CanTrack(SessionStatus status) =>
+        status.IsActive && status.TotalTimeSeconds > 0;
+
+    /// <summary>
+    /// Starts tracking from a reading. Backdates the start by the elapsed time, which counts
+    /// as delivered (the app may join a session already in progress).
+    /// </summary>
+    public static OpenSession Begin(SessionStatus status, DateTimeOffset now, int profileId, string profileName, string? deviceId) =>
+        new()
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            StartedAt = now.AddSeconds(-status.ElapsedTimeSeconds),
+            ProfileId = profileId,
+            ProfileName = profileName,
+            DeviceId = deviceId,
+            PlannedSeconds = status.TotalTimeSeconds,
+            TherapySeconds = status.ElapsedTimeSeconds,
+            LastElapsedSeconds = status.ElapsedTimeSeconds,
+            LastRunning = status.IsRunning,
+            LastObservedAt = now
+        };
+
+    /// <summary>
+    /// Whether a reading belongs to this session rather than a ghost or a different one.
+    /// </summary>
+    public bool Continues(SessionStatus status, string? deviceId) =>
+        CanTrack(status)
+        && status.TotalTimeSeconds == PlannedSeconds
+        && status.ElapsedTimeSeconds >= LastElapsedSeconds
+        && (DeviceId is null || DeviceId == deviceId);
+
+    /// <summary>
+    /// Records a reading. Time counts only when the previous reading showed the session running.
+    /// </summary>
+    public void Observe(SessionStatus status, DateTimeOffset now)
+    {
+        if (LastRunning)
+        {
+            TherapySeconds += Math.Max(0, status.ElapsedTimeSeconds - LastElapsedSeconds);
+        }
+        TherapySeconds = Math.Min(TherapySeconds, PlannedSeconds);
+        LastElapsedSeconds = status.ElapsedTimeSeconds;
+        LastRunning = status.IsRunning;
+        LastObservedAt = now;
+    }
+
+    /// <summary>
+    /// Infers how the session ended when the app was not watching.
+    /// </summary>
+    public SessionOutcome InferEnd(DateTimeOffset now)
+    {
+        var remaining = PlannedSeconds - LastElapsedSeconds;
+        var gap = (now - LastObservedAt).TotalSeconds;
+        return LastRunning && gap >= remaining - CompletionToleranceSeconds
+            ? SessionOutcome.Completed
+            : SessionOutcome.EndedEarly;
+    }
+
+    /// <summary>
+    /// Closes the session into a history record, or returns null when too short to keep.
+    /// </summary>
+    public SessionRecord? Close(SessionOutcome outcome, DateTimeOffset now)
+    {
+        var remaining = Math.Max(0, PlannedSeconds - LastElapsedSeconds);
+        var therapy = TherapySeconds;
+
+        if (LastRunning && outcome is SessionOutcome.Completed or SessionOutcome.StoppedEarly)
+        {
+            var tail = (int)Math.Clamp((now - LastObservedAt).TotalSeconds, 0, remaining);
+            therapy = Math.Min(therapy + tail, PlannedSeconds);
+        }
+
+        if (therapy < MinimumSavedSeconds)
+        {
+            return null;
+        }
+
+        var endedAt = outcome switch
+        {
+            SessionOutcome.Completed => LastObservedAt.AddSeconds(remaining),
+            SessionOutcome.StoppedEarly => now,
+            _ => LastObservedAt
+        };
+
+        return new SessionRecord
+        {
+            Id = Id,
+            StartedAt = StartedAt,
+            EndedAt = endedAt,
+            TherapySeconds = therapy,
+            PlannedSeconds = PlannedSeconds,
+            ProfileId = ProfileId,
+            ProfileName = ProfileName,
+            Outcome = outcome,
+            DeviceId = DeviceId
+        };
+    }
+}
