@@ -67,7 +67,7 @@ public static class ReportPdf
     private static readonly XColor SurfaceSunken = XColor.FromArgb(0xeb, 0xef, 0xf6);
     private static readonly XColor Line = XColor.FromArgb(0xd6, 0xde, 0xea);
 
-    /// <summary>The calendar's five steps of <c>brand</c> over white: none, under 1 h, 1 to 2 h, 2 to 3 h, 3 h and over.</summary>
+    /// <summary>The calendar's five steps of <c>brand</c> over white: none, under 1h, 1 to 2h, 2 to 3h, 3h and over.</summary>
     private static readonly XColor[] Ramp =
     [
         SurfaceSunken,
@@ -521,14 +521,14 @@ public static class ReportPdf
         return top + perColumn * rowPitch;
     }
 
-    /// <summary>"No session", the five steps, "3 h or more", right-aligned; the 24-month caption on the left.</summary>
+    /// <summary>"No session", the five steps, "3h or more", right-aligned; the 24-month caption on the left.</summary>
     private static double DrawCalendarLegend(Canvas c, double top, bool cut)
     {
         var font = Font(Body, 8);
         var muted = new XSolidBrush(InkMuted);
         var height = font.GetHeight();
         const double swatch = 8, gap = 2;
-        const string low = "No session", high = "3 h or more";
+        const string low = "No session", high = "3h or more";
 
         if (cut)
             c.Text($"Showing the last {HistoryReport.CalendarMaxMonths} months.", font, muted, new XRect(Margin, top, ContentWidth, height), XStringFormats.TopLeft);
@@ -569,7 +569,7 @@ public static class ReportPdf
         {
             var gy = YFor(h * 3600);
             c.G.DrawLine(grid, plotLeft, gy, Right, gy);
-            c.Text(h == 0 ? "0" : $"{h} h", small, muted, new XRect(Margin, gy - 6, axisWidth - 6, 12), XStringFormats.CenterRight);
+            c.Text(h == 0 ? "0" : $"{h}h", small, muted, new XRect(Margin, gy - 6, axisWidth - 6, 12), XStringFormats.CenterRight);
         }
 
         var n = model.Trend.Count;
@@ -734,7 +734,7 @@ public static class ReportPdf
         var plotBottom = plotTop + plotHeight;
         var plotLeft = left + axisWidth;
         var plotWidth = width - axisWidth;
-        // 4 h, the study's daily schedule, is a full bar, as in the app's Last 7 Days chart.
+        // 4 h, the study's daily schedule, is a full bar, as a full well is in the app's History calendar.
         var largest = model.SecondsByWeekday.DefaultIfEmpty(0).Max();
         double max = Math.Max(HistorySummary.StudyDailySeconds, Math.Ceiling(largest / 3600.0) * 3600);
         var stepHours = max > 8 * 3600 ? 4 : 2;
@@ -743,7 +743,7 @@ public static class ReportPdf
         {
             var gy = plotBottom - h * 3600 / max * plotHeight;
             c.G.DrawLine(grid, plotLeft, gy, left + width, gy);
-            c.Text(h == 0 ? "0" : $"{h} h", small, muted, new XRect(left, gy - 6, axisWidth - 5, 12), XStringFormats.CenterRight);
+            c.Text(h == 0 ? "0" : $"{h}h", small, muted, new XRect(left, gy - 6, axisWidth - 5, 12), XStringFormats.CenterRight);
         }
 
         var slot = plotWidth / 7;

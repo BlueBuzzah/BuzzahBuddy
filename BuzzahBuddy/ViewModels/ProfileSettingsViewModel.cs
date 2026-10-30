@@ -87,9 +87,11 @@ public partial class ProfileSettingsViewModel : BaseViewModel
 
     /// <summary>
     /// Cycle length implied by the current field values, e.g. "One full cycle takes
-    /// 668 ms, about 1.5 times a second." The studied protocol runs at 1.5 a second.
+    /// 668ms, about 1.5 times a second." The studied protocol runs at 1.5 a second.
     /// </summary>
     public string DerivedTimingText => CurrentForm().DerivedTimingText;
+
+    public string DerivedTimingSpoken => CurrentForm().DerivedTimingSpoken;
 
     /// <summary>
     /// Note shown when the requested jitter exceeds what the current burst timing
@@ -128,6 +130,7 @@ public partial class ProfileSettingsViewModel : BaseViewModel
     private void RaiseDerived()
     {
         OnPropertyChanged(nameof(DerivedTimingText));
+        OnPropertyChanged(nameof(DerivedTimingSpoken));
         OnPropertyChanged(nameof(EffectiveJitterCapText));
         OnPropertyChanged(nameof(DeviatesFromResearchDefaults));
         DeviatesBannerVisible = DeviatesFromResearchDefaults;

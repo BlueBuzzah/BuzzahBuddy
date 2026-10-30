@@ -69,7 +69,7 @@ public static class HistoryReport
     private const string ShortDateFormat = "MMM d";
 
     /// <summary>Periods up to this long trend by week; longer ones, by month.</summary>
-    private const int WeeklyTrendMaxDays = 92;
+    public const int WeeklyTrendMaxDays = 92;
 
     /// <summary>Periods spanning this many calendar months or fewer show one grid per month.</summary>
     private const int MonthGridsMaxMonths = 4;
@@ -89,8 +89,9 @@ public static class HistoryReport
         if (range != ReportRange.AllTime)
             return (today.AddDays(1 - (int)range), today);
 
+        // Never after today: sessions dated ahead (the clock moved back) would invert the range.
         var days = sessions.Select(s => s.Day).ToList();
-        return (days.Count == 0 ? today : days.Min(), today);
+        return (days.Count == 0 || days.Min() > today ? today : days.Min(), today);
     }
 
     /// <summary>Sessions that started from <paramref name="from"/> to <paramref name="to"/> inclusive, oldest first.</summary>
@@ -280,7 +281,7 @@ public static class HistoryReport
         return total / (end.DayNumber - start.DayNumber + 1);
     }
 
-    /// <summary>A duration rounded to the nearest 10 minutes, as "2 h 30 min".</summary>
+    /// <summary>A duration rounded to the nearest 10 minutes, as "2h 30min".</summary>
     private static string About(int seconds) =>
         DurationText.Short((int)Math.Round(seconds / 600.0, MidpointRounding.AwayFromZero) * 600);
 

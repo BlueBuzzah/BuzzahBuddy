@@ -56,19 +56,6 @@ public class HistorySummaryTests
     }
 
     [Fact]
-    public void LastDays_FillsEmptyDays_OldestFirst()
-    {
-        var days = HistorySummary.LastDays(new[] { Rec("2026-10-28T08:00:00+00:00", 13800) }, Today);
-
-        Assert.Equal(7, days.Count);
-        Assert.Equal(new DateOnly(2026, 10, 23), days[0].Day);
-        Assert.Equal(Today, days[6].Day);
-        Assert.Equal(13800, days[5].TherapySeconds);
-        Assert.Equal(13800, days.Sum(d => d.TherapySeconds));
-        Assert.All(days, d => Assert.Null(d.Note));
-    }
-
-    [Fact]
     public void Summarize_CountsOutcomesAndDays()
     {
         var sessions = new[]

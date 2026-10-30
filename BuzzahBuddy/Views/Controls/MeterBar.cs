@@ -3,7 +3,7 @@ using Microsoft.Maui.Controls.Shapes;
 namespace BuzzahBuddy.Views.Controls;
 
 /// <summary>
-/// A still bar for the History "Last 7 Days" chart (ProgressBar README): a 12-tall
+/// A still bar for the History average chart (ProgressBar README): a 12-tall
 /// <c>SurfaceSunken</c> track with a <c>LineStrong</c> edge and a <c>Brand</c> fill. Decorative
 /// for screen readers; the row it sits in carries the spoken text.
 /// </summary>

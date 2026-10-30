@@ -15,12 +15,10 @@ public static class DurationText
             : string.Create(CultureInfo.InvariantCulture, $"{m}:{s:00}");
     }
 
-    /// <summary>For screen readers: "1 hour 42 minutes". Minutes round half up, as JS Math.round does.</summary>
+    /// <summary>For screen readers: "1 hour 42 minutes". Names the same figure as <see cref="Short"/>.</summary>
     public static string Spoken(int seconds)
     {
-        seconds = Math.Max(0, seconds);
-        var h = seconds / 3600;
-        var m = (int)Math.Round(seconds % 3600 / 60.0, MidpointRounding.AwayFromZero);
+        var (h, m) = HoursAndMinutes(seconds);
         var parts = new List<string>();
         if (h > 0)
             parts.Add(h == 1 ? "1 hour" : $"{h} hours");
@@ -29,16 +27,23 @@ public static class DurationText
         return string.Join(" ", parts);
     }
 
-    /// <summary>Compact duration for labels: "2 h", "1 h 30 min", "5 min".</summary>
+    /// <summary>Compact duration for labels: "2h", "1h 30min", "5min".</summary>
     public static string Short(int seconds)
     {
-        seconds = Math.Max(0, seconds);
-        int h = seconds / 3600, m = seconds % 3600 / 60;
+        var (h, m) = HoursAndMinutes(seconds);
         return (h, m) switch
         {
-            (0, _) => $"{m} min",
-            (_, 0) => $"{h} h",
-            _ => $"{h} h {m} min",
+            (0, _) => $"{m}min",
+            (_, 0) => $"{h}h",
+            _ => $"{h}h {m}min",
         };
+    }
+
+    // Rounds once to whole minutes, half up as JS Math.round does, then splits, so 1:59:59
+    // is "2h" and "2 hours", never "1h 59min" or "1 hour 60 minutes".
+    private static (int Hours, int Minutes) HoursAndMinutes(int seconds)
+    {
+        var minutes = (int)Math.Round(Math.Max(0, seconds) / 60.0, MidpointRounding.AwayFromZero);
+        return (minutes / 60, minutes % 60);
     }
 }

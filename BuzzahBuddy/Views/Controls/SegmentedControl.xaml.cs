@@ -17,16 +17,17 @@ public partial class SegmentedControl : ContentView
     private readonly List<(Button Button, SegmentOption Option)> _buttons = [];
 
     // At large text even "System" won't fit a third of the width, so options stack rather than
-    // wrap. They also stack below that text size whenever a label doesn't fit its share (FitCheck).
+    // wrap. They also stack below that text size whenever a label doesn't fit its share (FitLabels).
     private bool _stacked;
 
-    private static readonly Button.ButtonContentLayout CheckBeside = new(Button.ButtonContentLayout.ImagePosition.Left, 6);
-    private static readonly Button.ButtonContentLayout CheckAbove = new(Button.ButtonContentLayout.ImagePosition.Top, 2);
+    // The OS large-text flag the buttons were last placed for; null since the last Build.
+    // Kept apart from _stacked, which FitLabels can also set.
+    private bool? _osStacked;
 
     public SegmentedControl()
     {
         InitializeComponent();
-        Track.SizeChanged += (_, _) => FitCheck();
+        Track.SizeChanged += (_, _) => FitLabels();
         this.TrackTextScale(Arrange);
     }
 
@@ -50,14 +51,26 @@ public partial class SegmentedControl : ContentView
         var options = Options ?? Array.Empty<SegmentOption>();
         for (var i = 0; i < options.Count; i++)
             _buttons.Add((CreateButton(options[i], i), options[i]));
+        _osStacked = null;
         Arrange();
         ApplySelection();
     }
 
     private void Arrange()
     {
-        _stacked = OsAccessibility.StackForLargeText;
-        Lay();
+        var stacked = OsAccessibility.StackForLargeText;
+        // The text-size check re-runs on every resume. Laying out again unchanged invalidates the
+        // parents, which moves a scrolled list on iOS (History's header), so only a change lays out.
+        // ponytail: options that FitLabels stacked stay stacked until the OS flag flips or the
+        // options are rebuilt, even if a smaller text size would now fit them side by side.
+        if (stacked != _osStacked)
+        {
+            _osStacked = stacked;
+            _stacked = stacked;
+            Lay();
+        }
+        // The track's width may not change, so SizeChanged won't re-fit labels that don't fit.
+        FitLabels();
     }
 
     private void Lay()
@@ -92,10 +105,7 @@ public partial class SegmentedControl : ContentView
             FontSize = 17,
             LineBreakMode = LineBreakMode.WordWrap,
             AutomationId = $"Segment{option.Value}",
-            ContentLayout = CheckBeside,
         };
-        // The check loads asynchronously; when it lands and wraps the label, the height changes.
-        button.SizeChanged += (_, _) => FitCheck();
         button.Clicked += (_, _) =>
         {
             if (SelectedValue != option.Value)
@@ -112,35 +122,20 @@ public partial class SegmentedControl : ContentView
         {
             var (button, option) = _buttons[i];
             var selected = option.Value == SelectedValue;
-            // Android can keep showing a cleared check (a theme change reloads it after the
-            // clear), so the button that loses the selection is swapped for a fresh one.
-            if (!selected && button.ImageSource is not null)
-            {
-                Track.Remove(button);
-                button = CreateButton(option, i);
-                _buttons[i] = (button, option);
-            }
             button.SetDynamicResource(Button.FontFamilyProperty, selected ? "FontSans700" : "FontSans400");
             button.SetDynamicResource(BackgroundColorProperty, selected ? "Brand" : "SurfaceSunken");
             button.SetDynamicResource(Button.TextColorProperty, selected ? "OnBrand" : "Ink");
-            if (selected && button.ImageSource is null)
-            {
-                var check = new FontImageSource { FontFamily = "Lucide", Glyph = LucideIcons.Check, Size = 20 };
-                check.SetDynamicResource(FontImageSource.ColorProperty, "OnBrand");
-                button.ImageSource = check;
-            }
-            SemanticProperties.SetDescription(button, $"{option.Label}, {i + 1} of {_buttons.Count}{(selected ? ", selected" : "")}");
+            SemanticProperties.SetDescription(button, $"{option.Spoken ?? option.Label}, {i + 1} of {_buttons.Count}{(selected ? ", selected" : "")}");
         }
-        Dispatcher.Dispatch(FitCheck);
+        Dispatcher.Dispatch(FitLabels);
     }
 
-    // Equal columns can't widen like the bundle's flex options, so on a narrow phone or at
-    // large text the check moves above the label instead of breaking the word. When a label
-    // still doesn't fit its share on one line, the options stack: a wrapped label clips, since
-    // the button doesn't grow for it. Stacking holds until the text size is checked again.
+    // Equal columns can't widen like the bundle's flex options. When a label doesn't fit its
+    // share on one line, the options stack: a wrapped label clips, since the button doesn't
+    // grow for it. Stacking holds until the large-text flag changes (Arrange).
     private bool _fitting;
 
-    private void FitCheck()
+    private void FitLabels()
     {
         if (_fitting || Track.Width <= 0 || _buttons.Count == 0)
             return;
@@ -151,9 +146,6 @@ public partial class SegmentedControl : ContentView
         var overflow = false;
         foreach (var (button, _) in _buttons)
         {
-            button.ContentLayout = CheckBeside;
-            if (button.ImageSource is not null && NaturalWidth(button) > share)
-                button.ContentLayout = CheckAbove;
             overflow |= NaturalWidth(button) > share;
         }
         if (overflow && !_stacked)

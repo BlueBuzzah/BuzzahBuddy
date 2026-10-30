@@ -14,7 +14,7 @@
              SafeAreaEdges="Container">
 
     <ScrollView>
-        <VerticalStackLayout Padding="16,48,16,24" Spacing="{StaticResource Space6}">
+        <VerticalStackLayout Padding="16,0,16,24" Spacing="{StaticResource Space6}">
 
             <Label Text="Session"
                    Style="{StaticResource TypeHeadline}"
@@ -94,7 +94,7 @@
                                    TextColor="{DynamicResource InkMuted}"
                                    SemanticProperties.HeadingLevel="Level2" />
                             <Label Text="{Binding SelectedProfileName}" Style="{StaticResource TypeTitleM}" />
-                            <Label Text="{Binding ProfileSummary}" Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
+                            <Label Text="{Binding ProfileSummary}" SemanticProperties.Description="{Binding ProfileSummarySpoken}" Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
                         </VerticalStackLayout>
                         <Button x:Name="ChangeButton"
                                 Grid.Column="1"

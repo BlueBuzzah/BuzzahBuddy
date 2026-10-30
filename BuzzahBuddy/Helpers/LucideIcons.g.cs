@@ -21,6 +21,7 @@ public static class LucideIcons
     public const string Check = "\uE06C";
     public const string Plus = "\uE13D";
     public const string Minus = "\uE11C";
+    public const string ChevronLeft = "\uE06E";
     public const string ChevronRight = "\uE06F";
     public const string RefreshCw = "\uE145";
     public const string Cpu = "\uE0A9";

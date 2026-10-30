@@ -50,6 +50,16 @@ public class HistoryReportTests
     }
 
     [Fact]
+    public void Range_AllTime_WithOnlyFutureSessions_StartsToday()
+    {
+        // The clock moved back: every session is dated after today.
+        var data = new HistoryData { Sessions = { Rec("f", "2026-11-02T09:00:00-07:00", 3600, "Regular", SessionOutcome.Completed) } };
+        var (from, to) = HistoryReport.Range(ReportRange.AllTime, Today, data.Sessions);
+        Assert.Equal((Today, Today), (from, to));
+        HistoryReport.Build(data, from, to, Created, comparePrevious: false);
+    }
+
+    [Fact]
     public void Csv_HeaderAndRows()
     {
         var csv = HistoryReport.Csv(Fixture().Sessions, Array.Empty<DayNote>());
@@ -113,8 +123,8 @@ public class HistoryReportTests
         // Oct 20..24: 3600 s / 5 = 12 min, about 10 min. Oct 25..29: 14400 s / 5 = 48 min, about 50 min.
         Assert.Equal(new[]
         {
-            "Used on 2 of 10 days since the first session on Oct 20, averaging 2 h 30 min on those days.",
-            "Daily time rose from about 10 min in the first half of the period to about 50 min in the second half.",
+            "Used on 2 of 10 days since the first session on Oct 20, averaging 2h 30min on those days.",
+            "Daily time rose from about 10min in the first half of the period to about 50min in the second half.",
             "The longest stretch without a session was 7 days, Oct 21 to Oct 27.",
         }, Build(Fixture(), From).Lede);
     }
@@ -124,8 +134,8 @@ public class HistoryReportTests
     {
         Assert.Equal(new[]
         {
-            "Used on 2 of 30 days, averaging 2 h 30 min on those days.",
-            "Daily time rose from about 0 min in the first half of the period to about 20 min in the second half.",
+            "Used on 2 of 30 days, averaging 2h 30min on those days.",
+            "Daily time rose from about 0min in the first half of the period to about 20min in the second half.",
             "The longest stretch without a session was 20 days, Sep 30 to Oct 19.",
         }, Build(WithEarlierSession(Fixture()), From).Lede);
     }
@@ -135,11 +145,11 @@ public class HistoryReportTests
     {
         var earlier = WithEarlierSession(Fixture());
         var oneDay = new DateOnly(2026, 10, 28);
-        Assert.Equal("Used on 1 of 1 day, averaging 4 h on those days.",
+        Assert.Equal("Used on 1 of 1 day, averaging 4h on those days.",
             HistoryReport.Build(earlier, oneDay, oneDay, Created, comparePrevious: true).Lede[0]);
 
         var firstToday = new HistoryData { Sessions = { Rec("t", "2026-10-29T08:00:00-07:00", 3600, "Noisy", SessionOutcome.Completed) } };
-        Assert.Equal("Used on 1 of 1 day since the first session on Oct 29, averaging 1 h on those days.", Build(firstToday, From).Lede[0]);
+        Assert.Equal("Used on 1 of 1 day since the first session on Oct 29, averaging 1h on those days.", Build(firstToday, From).Lede[0]);
     }
 
     [Fact]
@@ -167,10 +177,10 @@ public class HistoryReportTests
         var data = new HistoryData();
         for (var i = 0; i < 30; i++)
             data.Sessions.Add(Rec($"d{i}", $"{From.AddDays(i):yyyy-MM-dd}T08:00:00-07:00", i < 15 ? 6600 : 6000, "Noisy", SessionOutcome.Completed));
-        Assert.Equal("Daily time held steady at about 1 h 50 min.", Build(data, From).Lede[1]);
+        Assert.Equal("Daily time held steady at about 1h 50min.", Build(data, From).Lede[1]);
 
         data.Sessions.Add(Rec("x", "2026-10-01T12:00:00-07:00", 7 * 3600, "Noisy", SessionOutcome.Completed));
-        Assert.Equal("Daily time fell from about 2 h 20 min in the first half of the period to about 1 h 40 min in the second half.", Build(data, From).Lede[1]);
+        Assert.Equal("Daily time fell from about 2h 20min in the first half of the period to about 1h 40min in the second half.", Build(data, From).Lede[1]);
     }
 
     [Fact]

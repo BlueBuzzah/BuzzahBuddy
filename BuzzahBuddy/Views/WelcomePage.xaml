@@ -7,7 +7,7 @@
              x:Class="BuzzahBuddy.Views.WelcomePage"
              Shell.NavBarIsVisible="False"
              SafeAreaEdges="Container">
-    <Grid RowDefinitions="*,Auto" Padding="{StaticResource Space4}">
+    <Grid RowDefinitions="*,Auto" Padding="16,0,16,16">
         <ScrollView>
             <VerticalStackLayout Spacing="{StaticResource Space6}" Padding="0,0,0,24">
                 <!-- Headline left, the mark right, centered on each other. The mark comes from

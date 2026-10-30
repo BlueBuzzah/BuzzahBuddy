@@ -128,11 +128,17 @@ public class CustomProfileForm
     }
 
     /// <summary>
-    /// Derived cycle timing for display, e.g. "One full cycle takes 668 ms, about 1.5 times a second."
+    /// Derived cycle timing for display, e.g. "One full cycle takes 668ms, about 1.5 times a second."
     /// </summary>
     public string DerivedTimingText =>
         TryParseTiming(out var onMs, out var offMs)
             ? TherapyTiming.CrTimingLabel(Fingers, onMs, offMs)
+            : "Enter both times above to see the cycle length.";
+
+    /// <summary><see cref="DerivedTimingText"/> for screen readers: "668 milliseconds".</summary>
+    public string DerivedTimingSpoken =>
+        TryParseTiming(out var onMs, out var offMs)
+            ? TherapyTiming.CrTimingLabel(Fingers, onMs, offMs, spoken: true)
             : "Enter both times above to see the cycle length.";
 
     /// <summary>

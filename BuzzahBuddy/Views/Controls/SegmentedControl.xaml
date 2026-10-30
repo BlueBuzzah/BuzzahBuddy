@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <!-- SegmentedControl (SegmentedControl README; bundle .bb-seg): two to four short options,
-     all visible. The selected one is a brand fill, bold, with a check: three cues, not color. -->
+     all visible. The selected one is a brand fill with bold text: color plus weight, no check. -->
 <ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="BuzzahBuddy.Views.Controls.SegmentedControl">

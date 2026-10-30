@@ -135,7 +135,7 @@ public class CustomProfileFormTests
 
     [Fact]
     public void DerivedTimingText_ReportsTheCoordinatedResetPeriod()
-        => Assert.Equal("One full cycle takes 668 ms, about 1.5 times a second.", ValidForm().DerivedTimingText);
+        => Assert.Equal("One full cycle takes 668ms, about 1.5 times a second.", ValidForm().DerivedTimingText);
 
     [Fact]
     public void DerivedTimingText_UsesTheDeviceFingerCount()
@@ -144,7 +144,7 @@ public class CustomProfileFormTests
         form.Fingers = 5;
 
         // A five-motor glove lengthens the CR period at identical burst timing.
-        Assert.Equal("One full cycle takes 835 ms, about 1.2 times a second.", form.DerivedTimingText);
+        Assert.Equal("One full cycle takes 835ms, about 1.2 times a second.", form.DerivedTimingText);
     }
 
     [Fact]
