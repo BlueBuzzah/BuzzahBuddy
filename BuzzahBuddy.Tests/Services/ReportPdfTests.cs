@@ -4,8 +4,7 @@ using System.Text;
 using BuzzahBuddy.Models;
 using BuzzahBuddy.Services.Reports;
 using BuzzahBuddy.Services.Storage;
-using MigraDoc.DocumentObjectModel;
-using MigraDoc.DocumentObjectModel.Tables;
+using PdfSharp.Pdf;
 using PdfSharp.Pdf.IO;
 using Xunit;
 
@@ -50,56 +49,15 @@ public class ReportPdfTests
         };
     }
 
-    private static byte[] Render(HistoryData data, DateOnly from) =>
-        ReportPdf.Render(HistoryReport.Build(data, from, Today, Created), Assets());
+    private static ReportModel Model(HistoryData data, DateOnly from, bool comparePrevious = true) =>
+        HistoryReport.Build(data, from, Today, Created, comparePrevious);
 
-    private static Document Flow(HistoryData data) =>
-        ReportPdf.FlowDocument(HistoryReport.Build(data, From, Today, Created), File.ReadAllBytes(Path.Combine(AssetDir, "bluebuzzah-mark.png")));
+    private static byte[] Render(HistoryData data, DateOnly from) => ReportPdf.Render(Model(data, from), Assets());
 
-    /// <summary>The text MigraDoc will set for a paragraph, cell or run, with line breaks as \n.</summary>
-    private static string TextOf(DocumentObject? obj) => obj switch
-    {
-        Paragraph p => string.Concat(p.Elements.OfType<DocumentObject>().Select(TextOf)),
-        FormattedText f => string.Concat(f.Elements.OfType<DocumentObject>().Select(TextOf)),
-        Cell c => string.Concat(c.Elements.OfType<DocumentObject>().Select(TextOf)),
-        Text t => t.Content,
-        Character { SymbolName: SymbolName.LineBreak } => "\n",
-        Character { SymbolName: SymbolName.Blank } ch => new string(' ', Math.Max(1, ch.Count)),
-        _ => "",
-    };
+    private static PdfDocument Open(byte[] bytes) => PdfReader.Open(new MemoryStream(bytes), PdfDocumentOpenMode.Import);
 
-    private static Table DailyLog(Document doc) =>
-        doc.Sections[0]!.Elements.OfType<Table>().Single(t => TextOf(t.Rows[0].Cells[0]) == "Date");
-
-    private static List<Row> BodyRows(Table table) =>
-        Enumerable.Range(1, table.Rows.Count - 1).Select(i => table.Rows[i]).ToList();
-
-    [Fact]
-    public void Render_ProducesTitledPdfWithEmbeddedFonts()
-    {
-        var bytes = Render(Fixture(), From);
-
-        Assert.Equal("%PDF-", Encoding.ASCII.GetString(bytes, 0, 5));
-        using var doc = PdfReader.Open(new MemoryStream(bytes), PdfDocumentOpenMode.Import);
-        Assert.Equal(ReportPdf.Title, doc.Info.Title);
-        Assert.True(doc.PageCount >= 2);
-        // Font names come from the TTFs' own name tables; PDF names write a space as #20.
-        var raw = Encoding.Latin1.GetString(bytes);
-        Assert.Contains("+Lexend", raw);
-        Assert.Contains("+Atkinson#20Hyperlegible#20Next", raw);
-    }
-
-    [Fact]
-    public void Render_EmptyPeriod_StillRenders()
-    {
-        var bytes = Render(new HistoryData(), From);
-
-        using var doc = PdfReader.Open(new MemoryStream(bytes), PdfDocumentOpenMode.Import);
-        Assert.True(doc.PageCount >= 2);
-    }
-
-    [Fact]
-    public void Render_TwoYearsOfHistory_Paginates()
+    /// <summary>Two sessions every day for two years, as in a long All Time report.</summary>
+    private static HistoryData TwoYears()
     {
         var data = new HistoryData();
         var first = Today.AddDays(-729);
@@ -110,14 +68,140 @@ public class ReportPdfTests
             data.Sessions.Add(Rec($"m{i}", start.AddHours(8), 7200, "Noisy", SessionOutcome.Completed));
             data.Sessions.Add(Rec($"e{i}", start.AddHours(15), 5400, "Regular", SessionOutcome.StoppedEarly));
         }
+        return data;
+    }
 
+    /// <summary>
+    /// 90 days like the approved mockup's: about 1 day in 6 skipped, a 5-day gap in mid-September,
+    /// a 2-hour morning session most days and an afternoon one more often as the weeks go on, mostly
+    /// completed, two profiles, a few notes, and a previous 90 days with sessions so the tiles compare.
+    /// </summary>
+    internal static HistoryData Realistic()
+    {
+        var data = new HistoryData();
+        var random = new Random(7);
+        var offset = TimeSpan.FromHours(-7);
+        var first = Today.AddDays(-179);
+
+        void Add(string id, DateOnly day, int hour, string profile)
+        {
+            var start = new DateTimeOffset(day.ToDateTime(new TimeOnly(hour, random.Next(4) * 15)), offset);
+            var roll = random.NextDouble();
+            var (outcome, seconds) = roll < 0.06 ? (SessionOutcome.StoppedEarly, random.Next(30, 100) * 60)
+                : roll < 0.1 ? (SessionOutcome.EndedEarly, random.Next(20, 110) * 60)
+                : (SessionOutcome.Completed, 7200);
+            data.Sessions.Add(Rec(id, start, seconds, profile, outcome));
+        }
+
+        for (var i = 0; i < 180; i++)
+        {
+            var day = first.AddDays(i);
+            var inPeriod = i >= 90;
+            var progress = inPeriod ? (i - 90) / 89.0 : 0;
+            if (random.NextDouble() < (inPeriod ? 0.22 - 0.1 * progress : 0.3) || day >= new DateOnly(2026, 9, 15) && day <= new DateOnly(2026, 9, 19))
+                continue;
+            var afternoonChance = inPeriod ? 0.4 + 0.55 * progress : 0.5;
+            Add($"a{i}", day, 7 + random.Next(3), "Noisy");
+            if (random.NextDouble() < afternoonChance)
+                Add($"b{i}", day, 13 + random.Next(6), random.NextDouble() < 0.3 ? "Regular" : "Noisy");
+        }
+
+        var notes = new (int Month, int Day, string Text)[]
+        {
+            (8, 3, "First week with both gloves."),
+            (8, 12, "Hands felt warm after the morning session."),
+            (8, 20, "Forgot the afternoon session."),
+            (8, 29, "Long drive, only did the morning."),
+            (9, 6, "Tremor felt about the same today."),
+            (9, 14, "Travelling until Saturday, gloves stayed home."),
+            (9, 21, "Back to the usual routine."),
+            (9, 30, "Buttoning a shirt felt a little easier."),
+            (10, 4, "Tired in the evening."),
+            (10, 9, "Doctor visit next month."),
+            (10, 12, "Writing was easier today."),
+            (10, 21, "Skipped the evening session, too tired."),
+            (10, 28, "Tremor felt lighter after lunch."),
+        };
+        foreach (var n in notes)
+            data.Notes.Add(new DayNote { Day = new DateOnly(2026, n.Month, n.Day), Text = n.Text });
+        return data;
+    }
+
+    /// <summary>Everything at its longest: 24 months of rows, 8 profiles, three 200-character notes.</summary>
+    private static HistoryData Crowded()
+    {
+        var data = TwoYears();
+        for (var p = 0; p < 8; p++)
+            data.Sessions.Add(Rec($"p{p}", new DateTimeOffset(2026, 10, 1 + p, 9, 0, 0, TimeSpan.FromHours(-7)), 600, $"Custom Profile With a Long Name {p}", SessionOutcome.EndedEarly));
+        for (var d = 0; d < 3; d++)
+            data.Notes.Add(new DayNote { Day = Today.AddDays(-d), Text = string.Concat(Enumerable.Repeat("Wide words WWWWWWWW MMMMMMMM ", 12)) });
+        data.Notes.Add(new DayNote { Day = Today.AddDays(-3), Text = "https://" + new string('w', 300) });
+        return data;
+    }
+
+    [Fact]
+    public void Render_TwoPagesTitledEmbedded()
+    {
+        var bytes = Render(Fixture(), From);
+
+        Assert.Equal("%PDF-", Encoding.ASCII.GetString(bytes, 0, 5));
+        using var doc = Open(bytes);
+        Assert.Equal(2, doc.PageCount);
+        Assert.Equal(ReportPdf.Title, doc.Info.Title);
+        // Font names come from the TTFs' own name tables; PDF names write a space as #20.
+        var raw = Encoding.Latin1.GetString(bytes);
+        Assert.Contains("+Lexend", raw);
+        Assert.Contains("+Atkinson#20Hyperlegible#20Next", raw);
+    }
+
+    [Fact]
+    public void Render_EmptyAndTwoYears()
+    {
+        using (var empty = Open(Render(new HistoryData(), From)))
+            Assert.Equal(2, empty.PageCount);
+
+        var data = TwoYears();
         var watch = Stopwatch.StartNew();
-        var bytes = Render(data, first);
+        var bytes = ReportPdf.Render(Model(data, Today.AddDays(-729), comparePrevious: false), Assets());
         watch.Stop();
 
-        using var doc = PdfReader.Open(new MemoryStream(bytes), PdfDocumentOpenMode.Import);
-        Assert.True(doc.PageCount > 10);
-        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(10), $"Rendering took {watch.Elapsed}");
+        using var doc = Open(bytes);
+        Assert.Equal(2, doc.PageCount);
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(5), $"Rendering took {watch.Elapsed}");
+    }
+
+    /// <summary>
+    /// PDFsharp can't extract text it wrote with Unicode glyph IDs, so this reads the lines the
+    /// renderer drew on page 2, recorded during the same render that produced the PDF.
+    /// </summary>
+    [Fact]
+    public void Render_ContainsLegalNotices()
+    {
+        var page2 = string.Join(" ", ReportPdf.Draw(Model(Fixture(), From), Assets()).PageText[1]);
+
+        Assert.Contains(LegalNotices.MedicalDisclaimer, page2);
+        Assert.Contains(LegalNotices.ImplantedDeviceNotice, page2);
+    }
+
+    public static TheoryData<string> Layouts => new() { "fixture", "realistic", "empty", "one day", "two years", "crowded" };
+
+    [Theory]
+    [MemberData(nameof(Layouts))]
+    public void Render_NothingOverflowsOrOverlaps(string name)
+    {
+        var (data, from) = name switch
+        {
+            "fixture" => (Fixture(), From),
+            "realistic" => (Realistic(), new DateOnly(2026, 8, 1)),
+            "empty" => (new HistoryData(), From),
+            "one day" => (Fixture(), Today),
+            _ => (name == "crowded" ? Crowded() : TwoYears(), Today.AddDays(-729)),
+        };
+
+        var layout = ReportPdf.Draw(Model(data, from), Assets());
+
+        Assert.True(layout.Page1Bottom <= ReportPdf.BodyBottom, $"Page 1 ends at {layout.Page1Bottom}");
+        Assert.True(layout.NotesBottom <= layout.LegalTop, $"Notes end at {layout.NotesBottom}, legal text starts at {layout.LegalTop}");
     }
 
     [Fact]
@@ -131,84 +215,30 @@ public class ReportPdfTests
     }
 
     [Fact]
-    public void FlowDocument_DayTooLongForOnePage_FlowsInsteadOfBeingKeptTogether()
+    public void BreakLongWords_SplitsUnbrokenRunsSoTheyWrap()
     {
-        var data = new HistoryData();
-        var start = new DateTimeOffset(2026, 10, 28, 0, 0, 0, TimeSpan.FromHours(-7));
-        for (var i = 0; i < 80; i++)
-            data.Sessions.Add(Rec($"s{i}", start.AddMinutes(i * 15), 600, "Noisy", SessionOutcome.Completed));
-
-        var rows = BodyRows(DailyLog(Flow(data)));
-
-        Assert.Equal(80, rows.Count(r => TextOf(r.Cells[4]) == "Completed"));
-        // No day keeps more than 15 rows together; a longer one flows across pages.
-        Assert.All(rows, r => Assert.True(r.KeepWith + 1 <= 15, $"KeepWith {r.KeepWith}"));
-    }
-
-    [Fact]
-    public void FlowDocument_ShortDay_IsKeptTogether()
-    {
-        var rows = BodyRows(DailyLog(Flow(Fixture())));
-
-        // 10-20: one session. 10-28: two sessions and the note row.
-        Assert.Equal(0, rows[0].KeepWith);
-        Assert.Equal(2, rows[1].KeepWith);
-    }
-
-    [Fact]
-    public void FlowDocument_LongNote_SplitsIntoRowsOfFourLines()
-    {
-        var lines = Enumerable.Range(1, 120).Select(n => $"Line {n}").ToList();
-        var data = new HistoryData { Notes = { new DayNote { Day = Today, Text = string.Join("\n", lines) } } };
-
-        var noteRows = BodyRows(DailyLog(Flow(data))).Where(r => r.Cells[0].MergeRight == 4).Select(r => TextOf(r.Cells[0])).ToList();
-
-        Assert.Equal(30, noteRows.Count);
-        Assert.StartsWith("Note: Line 1\n", noteRows[0]);
-        Assert.All(noteRows.Skip(1), t => Assert.DoesNotContain("Note:", t));
-        Assert.All(noteRows, t => Assert.True(t.Split('\n').Length <= 4));
-        Assert.Equal("Note: " + string.Join("\n", lines), string.Join("\n", noteRows));
-    }
-
-    [Fact]
-    public void FlowDocument_LongUnbrokenNoteWord_IsSplitSoItWraps()
-    {
-        // A pasted link: MigraDoc wraps only at spaces, so an unbroken run would leave the page.
+        // A pasted link: the report wraps only at spaces, so an unbroken run would leave the page.
         var word = "https://" + string.Concat(Enumerable.Range(0, 990).Select(i => (char)('a' + i % 26)));
-        var data = new HistoryData { Notes = { new DayNote { Day = Today, Text = word } } };
 
-        var note = BodyRows(DailyLog(Flow(data))).Where(r => r.Cells[0].MergeRight == 4).Select(r => TextOf(r.Cells[0])).Single();
+        var text = ReportPdf.BreakLongWords(word);
 
-        Assert.StartsWith("Note: ", note);
-        var body = note["Note: ".Length..];
-        Assert.All(body.Split(' '), w => Assert.True(w.Length <= 40, $"{w.Length}-character word"));
-        Assert.Equal(word, body.Replace(" ", ""));
+        Assert.All(text.Split(' '), w => Assert.True(w.Length <= 40, $"{w.Length}-character word"));
+        Assert.Equal(word, text.Replace(" ", ""));
     }
 
     [Fact]
-    public void FlowDocument_HasBothLegalNoticesVerbatim()
-    {
-        var paragraphs = Flow(Fixture()).Sections[0]!.Elements.OfType<Paragraph>().Select(p => TextOf(p)).ToList();
-
-        Assert.Contains(LegalNotices.MedicalDisclaimer, paragraphs);
-        Assert.Contains(LegalNotices.ImplantedDeviceNotice, paragraphs);
-    }
-
-    [Fact]
-    public void Report_UnderJapaneseCulture_FormatsDatesAndTimesInEnglish()
+    public void Report_UnderJapaneseCulture_FormatsDatesInEnglish()
     {
         var saved = (CultureInfo.CurrentCulture, CultureInfo.CurrentUICulture);
         try
         {
             CultureInfo.CurrentCulture = CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("ja-JP");
 
-            var cells = BodyRows(DailyLog(Flow(Fixture()))).SelectMany(r => Enumerable.Range(0, 5).Select(i => TextOf(r.Cells[i]))).ToList();
-            var weeks = Flow(Fixture()).Sections[0]!.Elements.OfType<Table>().First();
-            using var doc = PdfReader.Open(new MemoryStream(Render(Fixture(), From)), PdfDocumentOpenMode.Import);
+            var layout = ReportPdf.Draw(Model(Fixture(), From), Assets());
+            using var doc = Open(layout.Pdf);
 
-            Assert.Contains("Oct 20, 2026", cells);
-            Assert.Contains("9:00 AM", cells);
-            Assert.Equal("Oct 16 to Oct 22", TextOf(weeks.Rows[weeks.Rows.Count - 1 - 1].Cells[0]));
+            Assert.Contains("Sep 30, 2026 to Oct 29, 2026 · 30 days", layout.PageText[0]);
+            Assert.Contains(layout.PageText[1], line => line.EndsWith("Oct 28", StringComparison.Ordinal));
             Assert.Equal("Sep 30, 2026 to Oct 29, 2026", doc.Info.Subject);
         }
         finally

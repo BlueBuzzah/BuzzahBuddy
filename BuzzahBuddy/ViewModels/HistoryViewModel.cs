@@ -151,7 +151,8 @@ public partial class HistoryViewModel : BaseViewModel
 		try
 		{
 			var data = await _history.LoadAsync();
-			var (from, to) = HistoryReport.Range((ReportRange)SelectedRange, Today, data.Sessions);
+			var range = (ReportRange)SelectedRange;
+			var (from, to) = HistoryReport.Range(range, Today, data.Sessions);
 			var cache = FileSystem.CacheDirectory;
 			// Earlier reports hold health notes; keep only the one being shared.
 			foreach (var old in Directory.EnumerateFiles(cache, "BuzzahBuddy Report *")
@@ -168,7 +169,7 @@ public partial class HistoryViewModel : BaseViewModel
 				}
 			}
 
-			var model = HistoryReport.Build(data, from, to, DateTimeOffset.Now);
+			var model = HistoryReport.Build(data, from, to, DateTimeOffset.Now, comparePrevious: range != ReportRange.AllTime);
 			var bytes = await Task.Run(() =>
 				ReportPdf.Render(model, ReportAssets.FromEmbedded(typeof(App).Assembly)));
 
@@ -176,7 +177,9 @@ public partial class HistoryViewModel : BaseViewModel
 			var pdf = Path.Combine(cache, $"BuzzahBuddy Report {stamp}.pdf");
 			var csv = Path.Combine(cache, $"BuzzahBuddy Sessions {stamp}.csv");
 			await File.WriteAllBytesAsync(pdf, bytes);
-			await File.WriteAllTextAsync(csv, HistoryReport.Csv(HistoryReport.InRange(data.Sessions, from, to)));
+			await File.WriteAllTextAsync(csv, HistoryReport.Csv(
+				HistoryReport.InRange(data.Sessions, from, to),
+				data.Notes.Where(n => n.Day >= from && n.Day <= to)));
 			IsBusy = false;
 
 			await Share.Default.RequestAsync(new ShareMultipleFilesRequest

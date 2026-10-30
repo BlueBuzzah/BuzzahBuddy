@@ -52,10 +52,10 @@ public class HistoryReportTests
     [Fact]
     public void Csv_HeaderAndRows()
     {
-        var csv = HistoryReport.Csv(Fixture().Sessions);
+        var csv = HistoryReport.Csv(Fixture().Sessions, Array.Empty<DayNote>());
         var lines = csv.Split("\r\n");
-        Assert.Equal("Date,Start,End,Session Minutes,Planned Minutes,Profile,Outcome", lines[0]);
-        Assert.Equal("2026-10-20,09:00,10:00,60,120,Regular,Stopped early", lines[1]);
+        Assert.Equal("Date,Start,End,Session Minutes,Planned Minutes,Profile,Outcome,Day Note", lines[0]);
+        Assert.Equal("2026-10-20,09:00,10:00,60,120,Regular,Stopped early,", lines[1]);
         Assert.EndsWith("\r\n", csv);
     }
 
@@ -63,74 +63,200 @@ public class HistoryReportTests
     public void Csv_QuotesCommasAndQuotes()
     {
         var r = Rec("q", "2026-10-28T08:00:00-07:00", 3600, "Custom, \"Night\"", SessionOutcome.Completed);
-        Assert.Contains(",\"Custom, \"\"Night\"\"\",", HistoryReport.Csv(new[] { r }));
+        Assert.Contains(",\"Custom, \"\"Night\"\"\",", HistoryReport.Csv(new[] { r }, Array.Empty<DayNote>()));
     }
 
     [Fact]
-    public void Build_DailyChartForShortPeriods()
+    public void Csv_DayNoteColumn()
     {
-        var model = HistoryReport.Build(Fixture(), From, Today, Created);
+        var data = Fixture();
+        data.Notes.Add(new DayNote { Day = new DateOnly(2026, 10, 24), Text = "=SUM(A1)" });
 
-        Assert.Equal(30, model.Chart.Count);
-        Assert.Equal("Daily Session Time", model.ChartTitle);
-        Assert.Equal(14400, model.ChartReferenceSeconds);
-        Assert.Equal(14400, model.ChartMaxSeconds);
-        Assert.Equal(From, model.Chart[0].Start);
-        Assert.Equal(14400, model.Chart.Single(p => p.Start == new DateOnly(2026, 10, 28)).Seconds);
-        Assert.Equal("Oct 29", model.Chart[29].Label);
-        Assert.Equal("Oct 22", model.Chart[22].Label);
-        Assert.Equal("", model.Chart[25].Label);
+        var lines = HistoryReport.Csv(data.Sessions, data.Notes).Split("\r\n");
+
+        Assert.EndsWith(",Day Note", lines[0]);
+        Assert.Equal(new[]
+        {
+            "2026-10-20,09:00,10:00,60,120,Regular,Stopped early,",
+            "2026-10-24,,,,,,,'=SUM(A1)",
+            "2026-10-28,08:00,10:00,120,120,Noisy,Completed,Tremor felt lighter after lunch",
+            "2026-10-28,14:00,16:00,120,120,Noisy,Completed,",
+            "",
+        }, lines[1..]);
     }
 
     [Fact]
-    public void Build_WeeklyChartForLongPeriods()
+    public void Csv_GuardsEveryFormulaPrefix()
     {
-        var model = HistoryReport.Build(Fixture(), new DateOnly(2026, 1, 1), Today, Created);
+        foreach (var prefix in new[] { "=", "+", "-", "@", "\t", "\r" })
+        {
+            var r = Rec("f", "2026-10-28T08:00:00-07:00", 3600, prefix + "1", SessionOutcome.Completed);
+            Assert.Contains("'" + prefix + "1", HistoryReport.Csv(new[] { r }, Array.Empty<DayNote>()));
+        }
+    }
 
-        Assert.Equal(302, model.Summary.DaysInPeriod);
-        Assert.Equal(44, model.Chart.Count);
-        Assert.Equal("Weekly Session Time", model.ChartTitle);
-        Assert.Equal(100800, model.ChartReferenceSeconds);
-        Assert.Equal(new DateOnly(2026, 1, 1), model.Chart[0].Start);
-        Assert.Equal(new DateOnly(2026, 10, 23), model.Chart[^1].Start);
-        Assert.Equal(14400, model.Chart[^1].Seconds);
+    private static ReportModel Build(HistoryData data, DateOnly from, bool comparePrevious = true) =>
+        HistoryReport.Build(data, from, Today, Created, comparePrevious);
+
+    [Fact]
+    public void Build_LedeSentences()
+    {
+        Assert.Equal(new[]
+        {
+            "Used on 2 of 30 days, averaging 2 h 30 min on those days.",
+            "Daily time rose from about 0 min in the first half of the period to about 20 min in the second half.",
+            "The longest stretch without a session was 20 days, Sep 30 to Oct 19.",
+        }, Build(Fixture(), From).Lede);
     }
 
     [Fact]
-    public void Build_MaxGrowsPastReference()
+    public void Build_LedeHeldSteadyAndFell()
     {
-        var data = new HistoryData { Sessions = { Rec("x", "2026-10-28T08:00:00-07:00", 5 * 3600 + 600, "Noisy", SessionOutcome.Completed) } };
+        var data = new HistoryData();
+        for (var i = 0; i < 30; i++)
+            data.Sessions.Add(Rec($"d{i}", $"{From.AddDays(i):yyyy-MM-dd}T08:00:00-07:00", i < 15 ? 6600 : 6000, "Noisy", SessionOutcome.Completed));
+        Assert.Equal("Daily time held steady at about 1 h 50 min.", Build(data, From).Lede[1]);
 
-        Assert.Equal(21600, HistoryReport.Build(data, From, Today, Created).ChartMaxSeconds);
+        data.Sessions.Add(Rec("x", "2026-10-01T12:00:00-07:00", 7 * 3600, "Noisy", SessionOutcome.Completed));
+        Assert.Equal("Daily time fell from about 2 h 20 min in the first half of the period to about 1 h 40 min in the second half.", Build(data, From).Lede[1]);
+    }
+
+    [Fact]
+    public void Build_NoSessions_OneSentence()
+    {
+        Assert.Equal(new[] { "No sessions were recorded in this period." }, Build(new HistoryData(), From).Lede);
+    }
+
+    [Fact]
+    public void Build_GapUnderTwoDays()
+    {
+        var data = new HistoryData();
+        for (var i = 0; i < 30; i++)
+            data.Sessions.Add(Rec($"d{i}", $"{From.AddDays(i):yyyy-MM-dd}T08:00:00-07:00", 3600, "Noisy", SessionOutcome.Completed));
+        data.Sessions.RemoveAt(10);
+
+        Assert.Equal("There was no gap longer than a day.", Build(data, From).Lede[2]);
+    }
+
+    [Fact]
+    public void Build_PreviousWindow()
+    {
+        Assert.Null(Build(Fixture(), From).Previous);
+
+        var data = Fixture();
+        data.Sessions.Add(Rec("p", "2026-08-31T08:00:00-07:00", 1800, "Noisy", SessionOutcome.Completed));
+        data.Sessions.Add(Rec("old", "2026-08-30T08:00:00-07:00", 1800, "Noisy", SessionOutcome.Completed));
+        var previous = Build(data, From).Previous;
+
+        Assert.NotNull(previous);
+        Assert.Equal(new DateOnly(2026, 8, 31), previous.From);
+        Assert.Equal(new DateOnly(2026, 9, 29), previous.To);
+        Assert.Equal(30, previous.DaysInPeriod);
+        Assert.Equal(1800, previous.TherapySeconds);
+        Assert.Null(Build(data, From, comparePrevious: false).Previous);
+    }
+
+    [Fact]
+    public void Build_CalendarStyleAndDays()
+    {
+        var thirty = Build(Fixture(), From);
+        Assert.Equal(CalendarStyle.MonthGrids, thirty.Calendar);
+        Assert.Equal(30, thirty.Days.Count);
+        Assert.Equal(From, thirty.Days[0].Day);
+        Assert.Equal(new DayCell(new DateOnly(2026, 10, 28), 14400), thirty.Days[28]);
+
+        Assert.Equal(CalendarStyle.MonthGrids, Build(Fixture(), new DateOnly(2026, 7, 1)).Calendar);
+        Assert.Equal(CalendarStyle.MonthRows, Build(Fixture(), new DateOnly(2026, 6, 30)).Calendar);
+
+        var year = Build(Fixture(), new DateOnly(2026, 1, 1));
+        Assert.Equal(CalendarStyle.MonthRows, year.Calendar);
+        Assert.Equal(302, year.Days.Count);
+
+        var allTime = Build(Fixture(), new DateOnly(2023, 10, 30), comparePrevious: false);
+        Assert.Equal(new DateOnly(2024, 11, 1), allTime.Days[0].Day);
+        Assert.Equal(Today, allTime.Days[^1].Day);
+    }
+
+    [Fact]
+    public void Build_TrendWeeklyAndMonthly()
+    {
+        var weekly = Build(Fixture(), From);
+        Assert.Equal("Weekly Trend", weekly.TrendTitle);
+        Assert.Equal(14400, weekly.TrendReferenceSeconds);
+        Assert.Equal(5, weekly.Trend.Count);
+        Assert.Equal(new ChartPoint(From, "Sep 30", 0), weekly.Trend[0]);
+        Assert.Equal(new ChartPoint(new DateOnly(2026, 10, 16), "Oct 16", 3600 / 7), weekly.Trend[^2]);
+        Assert.Equal(new ChartPoint(new DateOnly(2026, 10, 23), "Oct 23", 14400 / 7), weekly.Trend[^1]);
+
+        var monthly = Build(Fixture(), new DateOnly(2026, 1, 1));
+        Assert.Equal("Monthly Trend", monthly.TrendTitle);
+        Assert.Equal(14400, monthly.TrendReferenceSeconds);
+        Assert.Equal(10, monthly.Trend.Count);
+        Assert.Equal(new ChartPoint(new DateOnly(2026, 1, 1), "Jan 2026", 0), monthly.Trend[0]);
+        // October has 29 days inside the period.
+        Assert.Equal(new ChartPoint(new DateOnly(2026, 10, 1), "Oct 2026", 18000 / 29), monthly.Trend[^1]);
+    }
+
+    [Fact]
+    public void Build_HoursWeekdaysOutcomes()
+    {
+        var model = Build(Fixture(), From);
+
+        Assert.Equal(24, model.StartsByHour.Count);
+        Assert.Equal(1, model.StartsByHour[8]);
+        Assert.Equal(1, model.StartsByHour[9]);
+        Assert.Equal(1, model.StartsByHour[14]);
+        Assert.Equal(3, model.StartsByHour.Sum());
+
+        // Monday first. 09-30..10-29 holds five Wednesdays and four Tuesdays.
+        Assert.Equal(7, model.SecondsByWeekday.Count);
+        Assert.Equal(14400 / 5, model.SecondsByWeekday[2]);
+        Assert.Equal(3600 / 4, model.SecondsByWeekday[1]);
+        Assert.Equal(0, model.SecondsByWeekday[0]);
+
+        Assert.Equal(new OutcomeSplit(2, 1, 0, 6000, 7200), model.Outcomes);
+    }
+
+    [Fact]
+    public void Build_AveragePlanned_SkipsUnplannedSessions()
+    {
+        var data = Fixture();
+        data.Sessions[0].PlannedSeconds = 0;
+
+        Assert.Equal(7200, Build(data, From).Outcomes.AveragePlannedSeconds);
+        Assert.Equal(new OutcomeSplit(0, 0, 0, 0, 0), Build(new HistoryData(), From).Outcomes);
+    }
+
+    [Fact]
+    public void Build_RecentNotes()
+    {
+        var data = new HistoryData();
+        var longNote = new string('a', 250);
+        data.Notes.Add(new DayNote { Day = new DateOnly(2026, 10, 1), Text = "First" });
+        data.Notes.Add(new DayNote { Day = new DateOnly(2026, 10, 5), Text = "Second" });
+        data.Notes.Add(new DayNote { Day = new DateOnly(2026, 10, 9), Text = "  Third  " });
+        data.Notes.Add(new DayNote { Day = new DateOnly(2026, 10, 20), Text = longNote });
+        data.Notes.Add(new DayNote { Day = new DateOnly(2026, 10, 28), Text = "Fifth" });
+        data.Notes.Add(new DayNote { Day = new DateOnly(2026, 10, 29), Text = "" });
+        data.Notes.Add(new DayNote { Day = new DateOnly(2026, 9, 1), Text = "Before the period" });
+
+        var model = Build(data, From);
+
+        Assert.Equal(new[]
+        {
+            new NoteQuote(new DateOnly(2026, 10, 28), "Fifth"),
+            new NoteQuote(new DateOnly(2026, 10, 20), new string('a', 200) + "…"),
+            new NoteQuote(new DateOnly(2026, 10, 9), "Third"),
+        }, model.RecentNotes);
+        Assert.Equal(5, model.NoteCount);
     }
 
     [Fact]
     public void Build_ProfilesByTimeDescending()
     {
-        var model = HistoryReport.Build(Fixture(), From, Today, Created);
+        var model = Build(Fixture(), From);
 
         Assert.Equal(new[] { new ProfileRow("Noisy", 2, 14400), new ProfileRow("Regular", 1, 3600) }, model.Profiles);
-    }
-
-    [Fact]
-    public void Build_WeeksOldestFirst()
-    {
-        var model = HistoryReport.Build(Fixture(), From, Today, Created);
-
-        Assert.Equal(new WeekRow(From, new DateOnly(2026, 10, 1), 0, 0), model.Weeks[0]);
-        Assert.Equal(new WeekRow(new DateOnly(2026, 10, 16), new DateOnly(2026, 10, 22), 1, 3600), model.Weeks[^2]);
-        Assert.Equal(new WeekRow(new DateOnly(2026, 10, 23), Today, 1, 14400), model.Weeks[^1]);
-    }
-
-    [Fact]
-    public void Build_LogDaysOldestFirstWithNotes()
-    {
-        var model = HistoryReport.Build(Fixture(), From, Today, Created);
-
-        Assert.Equal(2, model.LogDays.Count);
-        Assert.Equal(new DateOnly(2026, 10, 20), model.LogDays[0].Day);
-        Assert.Equal(new DateOnly(2026, 10, 28), model.LogDays[1].Day);
-        Assert.Equal("Tremor felt lighter after lunch", model.LogDays[1].Note);
     }
 
     [Fact]

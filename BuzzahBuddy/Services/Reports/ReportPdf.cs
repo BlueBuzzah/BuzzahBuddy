@@ -1,15 +1,10 @@
 using System.Globalization;
 using System.Reflection;
 using BuzzahBuddy.Models;
-using MigraDoc.DocumentObjectModel;
-using MigraDoc.DocumentObjectModel.Tables;
-using MigraDoc.Rendering;
 using PdfSharp;
 using PdfSharp.Drawing;
 using PdfSharp.Fonts;
 using PdfSharp.Pdf;
-using MdColor = MigraDoc.DocumentObjectModel.Color;
-using VerticalAlignment = MigraDoc.DocumentObjectModel.Tables.VerticalAlignment;
 
 namespace BuzzahBuddy.Services.Reports;
 
@@ -50,9 +45,9 @@ public sealed record ReportAssets(Func<string, byte[]> LoadFont, byte[] BrandMar
 }
 
 /// <summary>
-/// Draws the shared session report as a US Letter PDF in the design system's light theme.
-/// Page 1 (Overview) is drawn with XGraphics for rounded chart columns; the tables after it are
-/// MigraDoc flow, rendered into the same document. Holds no MAUI types.
+/// Draws the shared session report as two fixed US Letter pages in the design system's light theme,
+/// with PDFsharp XGraphics. Page 1 shows whether the gloves are used; page 2, how. Every session is
+/// in the CSV, so the PDF has no tables. Holds no MAUI types.
 /// </summary>
 public static class ReportPdf
 {
@@ -67,8 +62,19 @@ public static class ReportPdf
     private static readonly XColor Ink = XColor.FromArgb(0x0b, 0x16, 0x30);
     private static readonly XColor InkMuted = XColor.FromArgb(0x47, 0x55, 0x70);
     private static readonly XColor Brand = XColor.FromArgb(0x00, 0x59, 0xd6);
+    private static readonly XColor Surface = XColor.FromArgb(0xf6, 0xf8, 0xfc);
     private static readonly XColor SurfaceSunken = XColor.FromArgb(0xeb, 0xef, 0xf6);
     private static readonly XColor Line = XColor.FromArgb(0xd6, 0xde, 0xea);
+
+    /// <summary>The calendar's five steps of <c>brand</c> over white: none, under 1 h, 1 to 2 h, 2 to 3 h, 3 h and over.</summary>
+    private static readonly XColor[] Ramp =
+    [
+        SurfaceSunken,
+        XColor.FromArgb(0xc9, 0xd9, 0xf5),
+        XColor.FromArgb(0x8d, 0xb1, 0xec),
+        XColor.FromArgb(0x3f, 0x7f, 0xe0),
+        Brand,
+    ];
 
     // US Letter, 0.75 in margins.
     private const double PageWidth = 612;
@@ -83,27 +89,21 @@ public static class ReportPdf
     private const double RuleY = Margin + MarkHeight + 8;
     private const double BodyTop = RuleY + 22;
     private const double FooterBottom = PageHeight - Margin;
-    private const double BodyBottom = FooterBottom - 24;
+    internal const double BodyBottom = FooterBottom - 24;
 
+    private const int PageCount = 2;
     private const string DateFormat = "MMM d, yyyy";
     private const string ShortDateFormat = "MMM d";
-
-    /// <summary>A day with more Daily Log rows than this isn't kept on one page; it couldn't fit.</summary>
-    internal const int MaxRowsKeptTogether = 15;
-
-    /// <summary>Note lines per Daily Log row, so a long note can break across pages.</summary>
-    internal const int NoteLinesPerRow = 4;
 
     /// <summary>Longest run of non-space characters set in a note before a space is inserted.</summary>
     internal const int MaxWordLength = 40;
 
-    private const double MaxColumnWidth = 24;
+    private const double SectionGap = 18;
+    private const double TrendHeight = 150;
+    private const double MinTrendHeight = 110;
 
     private const string AboutNumbers =
         "Times are what BuzzahBuddy recorded on this phone. Paused time isn't counted. Sessions your gloves ran while this phone wasn't connected may be missing.";
-
-    private const string ChartCaption =
-        "Early studies of vibrotactile coordinated reset used 2 hours, twice a day (Pfeifer et al. 2021). The dashed line marks that schedule.";
 
     private static readonly object FontGate = new();
     private static bool _fontsReady;
@@ -114,8 +114,13 @@ public static class ReportPdf
     /// </summary>
     internal static readonly CultureInfo Culture = CultureInfo.GetCultureInfo("en-US");
 
+    /// <summary>The PDF, the lines of text drawn on each page, and where page content ends, for tests.</summary>
+    internal sealed record Layout(byte[] Pdf, IReadOnlyList<IReadOnlyList<string>> PageText, double Page1Bottom, double NotesBottom, double LegalTop);
+
     /// <summary>The PDF for <paramref name="model"/>.</summary>
-    public static byte[] Render(ReportModel model, ReportAssets assets)
+    public static byte[] Render(ReportModel model, ReportAssets assets) => Draw(model, assets).Pdf;
+
+    internal static Layout Draw(ReportModel model, ReportAssets assets)
     {
         EnsureFonts(assets);
 
@@ -126,30 +131,29 @@ public static class ReportPdf
         pdf.Info.Creator = "BuzzahBuddy";
         pdf.Options.CompressContentStreams = true;
 
-        var renderer = new DocumentRenderer(FlowDocument(model, assets.BrandMarkPng));
-        renderer.PrepareDocument();
-        var total = renderer.FormattedDocument!.PageCount + 1;
-
         using var markStream = new MemoryStream(assets.BrandMarkPng);
         using var mark = XImage.FromStream(markStream);
 
-        using (var gfx = XGraphics.FromPdfPage(AddPage(pdf)))
+        double page1Bottom, notesBottom, legalTop;
+        var page1 = new Canvas(XGraphics.FromPdfPage(AddPage(pdf)));
+        using (page1.G)
         {
-            DrawHeader(gfx, mark);
-            DrawOverview(gfx, model);
-            DrawFooter(gfx, 1, total);
+            DrawHeader(page1, mark);
+            page1Bottom = DrawPage1(page1, model);
+            DrawFooter(page1, 1);
         }
 
-        for (var n = 1; n < total; n++)
+        var page2 = new Canvas(XGraphics.FromPdfPage(AddPage(pdf)));
+        using (page2.G)
         {
-            using var gfx = XGraphics.FromPdfPage(AddPage(pdf));
-            renderer.RenderPage(gfx, n);
-            DrawFooter(gfx, n + 1, total);
+            DrawHeader(page2, mark);
+            (notesBottom, legalTop) = DrawPage2(page2, model);
+            DrawFooter(page2, 2);
         }
 
         using var output = new MemoryStream();
         pdf.Save(output, false);
-        return output.ToArray();
+        return new Layout(output.ToArray(), [page1.Lines, page2.Lines], page1Bottom, notesBottom, legalTop);
     }
 
     /// <summary>The font resolver can be set once per process, so the first assets given serve every report.</summary>
@@ -160,7 +164,6 @@ public static class ReportPdf
             if (_fontsReady)
                 return;
             GlobalFontSettings.FontResolver = new ReportFontResolver(assets.LoadFont);
-            // MigraDoc's text then carries Unicode maps too, so any note text extracts and copies.
             GlobalFontSettings.DefaultFontEncoding = PdfFontEncoding.Unicode;
             _fontsReady = true;
         }
@@ -173,75 +176,138 @@ public static class ReportPdf
         return page;
     }
 
-    // ---- Page furniture (XGraphics) ----
-
-    private static double MarkWidth(XImage mark) => MarkHeight * mark.PixelWidth / mark.PixelHeight;
-
-    private static void DrawHeader(XGraphics gfx, XImage mark)
+    /// <summary>A page's graphics plus each line of text drawn on it, so tests can read the page.</summary>
+    private sealed class Canvas(XGraphics g)
     {
-        var markWidth = MarkWidth(mark);
-        gfx.DrawImage(mark, Margin, Margin, markWidth, MarkHeight);
-        var x = Margin + markWidth + 6;
-        gfx.DrawString("BlueBuzzah", Font(DisplaySemiBold, WordmarkSize), new XSolidBrush(Ink),
-            new XRect(x, Margin, Right - x, MarkHeight), XStringFormats.CenterLeft);
-        gfx.DrawString("Session Report", Font(Body, 9), new XSolidBrush(InkMuted),
-            new XRect(Margin, Margin, ContentWidth, MarkHeight), XStringFormats.CenterRight);
-        gfx.DrawLine(new XPen(Line, 0.75), Margin, RuleY, Right, RuleY);
+        public XGraphics G { get; } = g;
+        public List<string> Lines { get; } = [];
+
+        public void Text(string text, XFont font, XBrush brush, XRect box, XStringFormat format)
+        {
+            Lines.Add(text);
+            G.DrawString(text, font, brush, box, format);
+        }
+
+        /// <summary>Draws one line with its top at <paramref name="top"/>; returns the top of the next line.</summary>
+        public double Line(string text, XFont font, XBrush brush, double top, double x = Margin)
+        {
+            Text(text, font, brush, new XRect(x, top, Right - x, font.GetHeight()), XStringFormats.TopLeft);
+            return top + font.GetHeight();
+        }
+
+        public XSize Measure(string text, XFont font) => G.MeasureString(text, font);
     }
 
-    private static void DrawFooter(XGraphics gfx, int page, int total)
+    // ---- Page furniture ----
+
+    private static void DrawHeader(Canvas c, XImage mark)
+    {
+        var markWidth = MarkHeight * mark.PixelWidth / mark.PixelHeight;
+        c.G.DrawImage(mark, Margin, Margin, markWidth, MarkHeight);
+        var x = Margin + markWidth + 6;
+        c.Text("BlueBuzzah", Font(DisplaySemiBold, WordmarkSize), new XSolidBrush(Ink),
+            new XRect(x, Margin, Right - x, MarkHeight), XStringFormats.CenterLeft);
+        c.Text("Session Report", Font(Body, 9), new XSolidBrush(InkMuted),
+            new XRect(Margin, Margin, ContentWidth, MarkHeight), XStringFormats.CenterRight);
+        c.G.DrawLine(new XPen(Line, 0.75), Margin, RuleY, Right, RuleY);
+    }
+
+    private static void DrawFooter(Canvas c, int page)
     {
         var font = Font(Body, 8);
         var brush = new XSolidBrush(InkMuted);
         var box = new XRect(Margin, FooterBottom - font.GetHeight(), ContentWidth, font.GetHeight());
-        gfx.DrawString("BuzzahBuddy", font, brush, box, XStringFormats.BottomLeft);
-        gfx.DrawString($"Page {page} of {total}", font, brush, box, XStringFormats.BottomRight);
+        c.Text("BuzzahBuddy", font, brush, box, XStringFormats.BottomLeft);
+        c.Text($"Page {page} of {PageCount}", font, brush, box, XStringFormats.BottomRight);
     }
 
-    // ---- Page 1: Overview (XGraphics) ----
+    private static double SectionTitle(Canvas c, string title, double top, double x = Margin) =>
+        c.Line(title, Font(DisplaySemiBold, 13), new XSolidBrush(Ink), top, x) + 6;
 
-    private static void DrawOverview(XGraphics gfx, ReportModel model)
+    // ---- Page 1: are they using it? ----
+
+    /// <summary>Draws page 1; returns the y where its content ends.</summary>
+    private static double DrawPage1(Canvas c, ReportModel model)
     {
         var ink = new XSolidBrush(Ink);
         var muted = new XSolidBrush(InkMuted);
         var sum = model.Summary;
         var y = BodyTop;
 
-        y = TextLine(gfx, "Session Report", Font(Display, 24, bold: true), ink, y);
-        y += 4;
-        y = TextLine(gfx,
+        y = c.Line("Session Report", Font(Display, 24, bold: true), ink, y);
+        y += 2;
+        y = c.Line(
             $"{model.From.ToString(DateFormat, Culture)} to {model.To.ToString(DateFormat, Culture)} · {Count(sum.DaysInPeriod, "day")}",
             Font(Body, 11), muted, y);
-        y += 2;
-        y = TextLine(gfx, $"Created {model.CreatedAt.ToString(DateFormat, Culture)}", Font(Body, 9), muted, y);
-        y += 18;
+        y += 1;
+        y = c.Line($"Created {model.CreatedAt.ToString(DateFormat, Culture)}", Font(Body, 9), muted, y);
+        y += 12;
 
-        y = DrawTiles(gfx, y, new[]
-        {
-            new Tile("Days With Sessions", $"{sum.DaysWithSessions} of {sum.DaysInPeriod}", null),
-            new Tile("Total Time", DurationText.Short(sum.TherapySeconds), null),
-            new Tile("Average per Session Day", DurationText.Short(sum.AverageSecondsPerSessionDay), null),
+        y = DrawLede(c, model.Lede, y);
+        y += 12;
+
+        var prev = model.Previous;
+        string? Previous(string value) => prev is null ? null : $"Previous {prev.DaysInPeriod} days: {value}";
+        y = DrawTiles(c, y,
+        [
+            new Tile("Days With Sessions", $"{sum.DaysWithSessions} of {sum.DaysInPeriod}", Previous(prev?.DaysWithSessions.ToString(Culture) ?? "")),
+            new Tile("Average per Day Used", DurationText.Short(sum.AverageSecondsPerSessionDay), Previous(DurationText.Short(prev?.AverageSecondsPerSessionDay ?? 0))),
+            new Tile("Total Time", DurationText.Short(sum.TherapySeconds), Previous(DurationText.Short(prev?.TherapySeconds ?? 0))),
             new Tile("Sessions", sum.Sessions.ToString(Culture),
-                $"{sum.Completed} completed · {sum.StoppedEarly} stopped early · {sum.EndedEarly} ended early"),
-        });
-        y += 22;
+                sum.DaysWithSessions == 0 ? null : $"{((double)sum.Sessions / sum.DaysWithSessions).ToString("0.0", Culture)} a day when used"),
+        ]);
+        y += SectionGap;
 
-        y = TextLine(gfx, model.ChartTitle, Font(DisplaySemiBold, 13), ink, y);
-        y = DrawChart(gfx, model, y + 18);
-        y += 8;
-        foreach (var line in Wrap(gfx, ChartCaption, Font(Body, 9), ContentWidth))
-            y = TextLine(gfx, line, Font(Body, 9), muted, y);
-        y += 22;
+        y = SectionTitle(c, "Daily Use", y);
+        // The trend section below keeps 150 pt of chart; the calendar takes what's left, and only
+        // if a calendar can't fit at a readable size does the chart give up height (to 110 pt).
+        var trendFixed = TrendSectionHeight();
+        var legendHeight = 4 + Font(Body, 8).GetHeight();
+        var calendarRoom = BodyBottom - y - legendHeight - SectionGap - trendFixed - TrendHeight;
+        var calendarNeeds = CalendarMinHeight(model);
+        var chartHeight = TrendHeight;
+        if (calendarNeeds > calendarRoom)
+        {
+            chartHeight = Math.Max(MinTrendHeight, TrendHeight - (calendarNeeds - calendarRoom));
+            calendarRoom += TrendHeight - chartHeight;
+        }
 
-        y = TextLine(gfx, "Time by Profile", Font(DisplaySemiBold, 13), ink, y);
-        DrawProfiles(gfx, model.Profiles, y + 8);
+        y = model.Calendar == CalendarStyle.MonthGrids
+            ? DrawMonthGrids(c, model.Days, model.From, y, calendarRoom)
+            : DrawMonthRows(c, model.Days, model.From, y, calendarRoom);
+        y = DrawCalendarLegend(c, y + 4, model.Days.Count > 0 && model.Days[0].Day > model.From);
+        y += SectionGap;
+
+        y = SectionTitle(c, model.TrendTitle, y);
+        y = DrawTrend(c, model, y + 4, chartHeight);
+        y += 4;
+        foreach (var line in Wrap(c, "Average time per day. Days without a session count as zero.", Font(Body, 9), ContentWidth))
+            y = c.Line(line, Font(Body, 9), muted, y);
+        return y;
+    }
+
+    /// <summary>The trend section's height apart from the plot: title, gap, date labels and caption.</summary>
+    private static double TrendSectionHeight() =>
+        Font(DisplaySemiBold, 13).GetHeight() + 6 + 4 + 4 + Font(Body, 8).GetHeight() + 4 + Font(Body, 9).GetHeight();
+
+    private static double DrawLede(Canvas c, IReadOnlyList<string> lede, double top)
+    {
+        const double padX = 12, padY = 9;
+        var font = Font(Body, 10.5);
+        var lines = Wrap(c, string.Join(" ", lede), font, ContentWidth - 2 * padX);
+        var height = 2 * padY + lines.Count * font.GetHeight();
+        c.G.DrawRoundedRectangle(new XSolidBrush(Surface), Margin, top, ContentWidth, height, 12, 12);
+        var y = top + padY;
+        foreach (var line in lines)
+            y = c.Line(line, font, new XSolidBrush(Ink), y, Margin + padX);
+        return top + height;
     }
 
     private sealed record Tile(string Label, string Value, string? Detail);
 
-    private static double DrawTiles(XGraphics gfx, double top, IReadOnlyList<Tile> tiles)
+    private static double DrawTiles(Canvas c, double top, IReadOnlyList<Tile> tiles)
     {
-        const double gap = 10, padding = 12;
+        const double gap = 10, padding = 10;
         var width = (ContentWidth - gap * (tiles.Count - 1)) / tiles.Count;
         var inner = width - 2 * padding;
         var labelFont = Font(Body, 9);
@@ -251,119 +317,635 @@ public static class ReportPdf
         var valueSize = 18.0;
         foreach (var t in tiles)
         {
-            var w = gfx.MeasureString(t.Value, Font(DisplaySemiBold, 18)).Width;
+            var w = c.Measure(t.Value, Font(DisplaySemiBold, 18)).Width;
             if (w > inner)
                 valueSize = Math.Min(valueSize, Math.Floor(18 * inner / w * 2) / 2);
         }
         var valueFont = Font(DisplaySemiBold, valueSize);
 
-        var labels = tiles.Select(t => Wrap(gfx, t.Label, labelFont, inner)).ToList();
-        var details = tiles.Select(t => t.Detail is null ? new List<string>() : Wrap(gfx, t.Detail, detailFont, inner)).ToList();
+        var labels = tiles.Select(t => Wrap(c, t.Label, labelFont, inner)).ToList();
+        // A detail too long for one line breaks after its colon, keeping the value whole.
+        List<string> DetailLines(string? d)
+        {
+            if (d is null)
+                return [];
+            var colon = d.IndexOf(": ", StringComparison.Ordinal);
+            return c.Measure(d, detailFont).Width <= inner || colon < 0 ? Wrap(c, d, detailFont, inner) : [d[..(colon + 1)], d[(colon + 2)..]];
+        }
+        var details = tiles.Select(t => DetailLines(t.Detail)).ToList();
         var labelHeight = labels.Max(l => l.Count) * labelFont.GetHeight();
         var detailHeight = details.Max(d => d.Count) * detailFont.GetHeight();
-        var height = padding + labelHeight + 4 + valueFont.GetHeight() + (detailHeight > 0 ? 2 + detailHeight : 0) + padding;
+        var height = padding + labelHeight + 2 + valueFont.GetHeight() + (detailHeight > 0 ? 1 + detailHeight : 0) + padding;
 
         var ink = new XSolidBrush(Ink);
         var muted = new XSolidBrush(InkMuted);
         for (var i = 0; i < tiles.Count; i++)
         {
             var x = Margin + i * (width + gap);
-            gfx.DrawRoundedRectangle(new XSolidBrush(SurfaceSunken), x, top, width, height, 16, 16);
+            c.G.DrawRoundedRectangle(new XSolidBrush(SurfaceSunken), x, top, width, height, 12, 12);
             var y = top + padding;
             foreach (var line in labels[i])
-                y = TextLine(gfx, line, labelFont, muted, y, x + padding);
+                y = c.Line(line, labelFont, muted, y, x + padding);
             // Values share one baseline even when a label wraps.
-            y = top + padding + labelHeight + 4;
-            y = TextLine(gfx, tiles[i].Value, valueFont, ink, y, x + padding);
-            y += 2;
+            y = top + padding + labelHeight + 2;
+            y = c.Line(tiles[i].Value, valueFont, ink, y, x + padding);
+            y += 1;
             foreach (var line in details[i])
-                y = TextLine(gfx, line, detailFont, muted, y, x + padding);
+                y = c.Line(line, detailFont, muted, y, x + padding);
         }
         return top + height;
     }
 
-    /// <summary>The column chart; returns the y below its date labels.</summary>
-    private static double DrawChart(XGraphics gfx, ReportModel model, double plotTop)
+    // ---- Daily Use calendar ----
+
+    private static XColor Shade(int seconds) => seconds switch
     {
-        const double plotHeight = 150, axisWidth = 30;
+        <= 0 => Ramp[0],
+        < 3600 => Ramp[1],
+        < 7200 => Ramp[2],
+        < 10800 => Ramp[3],
+        _ => Ramp[4],
+    };
+
+    /// <summary>Day numbers: white on the two darkest steps; ink on the middle steps; ink-muted on an empty day.</summary>
+    private static XColor DayNumberColor(int seconds) => seconds switch
+    {
+        <= 0 => InkMuted,
+        < 7200 => Ink,
+        _ => XColors.White,
+    };
+
+    private const int MaxGridMonths = 4;
+    private const double GridGap = 16;
+    private const double MaxGridPitch = (ContentWidth - (MaxGridMonths - 1) * GridGap) / MaxGridMonths / 7;
+    private const double MinGridPitch = 13;
+
+    private static List<(int Year, int Month)> Months(IReadOnlyList<DayCell> days)
+    {
+        var months = new List<(int, int)>();
+        if (days.Count == 0)
+            return months;
+        for (var m = new DateOnly(days[0].Day.Year, days[0].Day.Month, 1); m <= days[^1].Day; m = m.AddMonths(1))
+            months.Add((m.Year, m.Month));
+        return months;
+    }
+
+    private static int WeekRows(int year, int month)
+    {
+        var lead = ((int)new DateOnly(year, month, 1).DayOfWeek + 6) % 7;
+        return (lead + DateTime.DaysInMonth(year, month) + 6) / 7;
+    }
+
+    /// <summary>The smallest height the calendar can take and stay readable.</summary>
+    private static double CalendarMinHeight(ReportModel model)
+    {
+        if (model.Calendar == CalendarStyle.MonthGrids)
+        {
+            var rows = Months(model.Days).Select(m => WeekRows(m.Year, m.Month)).DefaultIfEmpty(5).Max();
+            return GridHeaderHeight() + rows * MinGridPitch;
+        }
+        var count = Months(model.Days).Count;
+        return Math.Ceiling(count / (double)RowColumns(count)) * MinRowPitch;
+    }
+
+    private static double GridHeaderHeight() => Font(DisplaySemiBold, 9).GetHeight() + 2 + Font(Body, 6.5).GetHeight() + 1;
+
+    /// <summary>One 7-column grid per month, Monday first, side by side; returns the y below them.</summary>
+    private static double DrawMonthGrids(Canvas c, IReadOnlyList<DayCell> days, DateOnly from, double top, double room)
+    {
+        var months = Months(days);
+        var rows = months.Select(m => WeekRows(m.Year, m.Month)).DefaultIfEmpty(5).Max();
+        var pitch = Math.Min(MaxGridPitch, (room - GridHeaderHeight()) / rows);
+        var gap = Math.Max(1, pitch * 0.1);
+        var cell = pitch - gap;
+        var gridWidth = 7 * pitch - gap;
+        var byDay = days.ToDictionary(d => d.Day, d => d.Seconds);
+        var titleFont = Font(DisplaySemiBold, 9);
+        var letterFont = Font(Body, 6.5);
+        var numberFont = Font(Body, 6);
+        var muted = new XSolidBrush(InkMuted);
+        var hairline = new XPen(Line, 0.5);
+        var to = days.Count == 0 ? from : days[^1].Day;
+
+        for (var i = 0; i < months.Count; i++)
+        {
+            var (year, month) = months[i];
+            var x0 = Margin + i * (gridWidth + GridGap);
+            var y = c.Line(new DateOnly(year, month, 1).ToString("MMMM", Culture), titleFont, new XSolidBrush(Ink), top, x0) + 2;
+            var letters = new[] { "M", "T", "W", "T", "F", "S", "S" };
+            for (var d = 0; d < 7; d++)
+                c.Text(letters[d], letterFont, muted, new XRect(x0 + d * pitch, y, cell, letterFont.GetHeight()), XStringFormats.TopCenter);
+            y += letterFont.GetHeight() + 1;
+
+            var lead = ((int)new DateOnly(year, month, 1).DayOfWeek + 6) % 7;
+            for (var day = 1; day <= DateTime.DaysInMonth(year, month); day++)
+            {
+                var date = new DateOnly(year, month, day);
+                var slot = lead + day - 1;
+                var x = x0 + slot % 7 * pitch;
+                var cy = y + slot / 7 * pitch;
+                var r = Math.Min(2, cell / 4);
+                if (date < from || date > to || !byDay.TryGetValue(date, out var seconds))
+                {
+                    c.G.DrawRoundedRectangle(hairline, XBrushes.White, x + 0.25, cy + 0.25, cell - 0.5, cell - 0.5, 2 * r, 2 * r);
+                    continue;
+                }
+                c.G.DrawRoundedRectangle(new XSolidBrush(Shade(seconds)), x, cy, cell, cell, 2 * r, 2 * r);
+                c.Text(day.ToString(Culture), numberFont, new XSolidBrush(DayNumberColor(seconds)),
+                    new XRect(x, cy, cell, cell), XStringFormats.Center);
+            }
+        }
+        return top + GridHeaderHeight() + rows * pitch - gap;
+    }
+
+    private const double MinRowPitch = 9;
+    private const double MaxRowPitch = 14;
+    private const int MonthsPerColumn = 12;
+
+    /// <summary>Over a year of month rows sits in two columns, so each row stays tall enough to read.</summary>
+    private static int RowColumns(int months) => months > MonthsPerColumn ? 2 : 1;
+
+    /// <summary>One row of 31 squares per month, oldest first; past a year, in two columns. Returns the y below them.</summary>
+    private static double DrawMonthRows(Canvas c, IReadOnlyList<DayCell> days, DateOnly from, double top, double room)
+    {
+        var months = Months(days);
+        var columns = RowColumns(months.Count);
+        var perColumn = (int)Math.Ceiling(months.Count / (double)columns);
+        var labelFont = Font(Body, 7.5);
+        var labelWidth = c.Measure("May 2026", labelFont).Width + 6;
+        var columnWidth = (ContentWidth - (columns - 1) * GridGap) / columns;
+        var squarePitch = (columnWidth - labelWidth) / 31;
+        var rowPitch = Math.Clamp(room / perColumn, MinRowPitch, Math.Max(MinRowPitch, Math.Min(MaxRowPitch, squarePitch + 2)));
+        var square = Math.Min(squarePitch, rowPitch) - Math.Max(1, squarePitch * 0.12);
+        var byDay = days.ToDictionary(d => d.Day, d => d.Seconds);
+        var muted = new XSolidBrush(InkMuted);
+        var hairline = new XPen(Line, 0.5);
+        var to = days.Count == 0 ? from : days[^1].Day;
+        var r = Math.Min(1.5, square / 4);
+
+        for (var i = 0; i < months.Count; i++)
+        {
+            var (year, month) = months[i];
+            var x0 = Margin + i / perColumn * (columnWidth + GridGap);
+            var y = top + i % perColumn * rowPitch;
+            c.Text(new DateOnly(year, month, 1).ToString("MMM yyyy", Culture), labelFont, muted,
+                new XRect(x0, y, labelWidth, rowPitch), XStringFormats.CenterLeft);
+            var sy = y + (rowPitch - square) / 2;
+            for (var day = 1; day <= DateTime.DaysInMonth(year, month); day++)
+            {
+                var date = new DateOnly(year, month, day);
+                var x = x0 + labelWidth + (day - 1) * squarePitch;
+                if (date < from || date > to || !byDay.TryGetValue(date, out var seconds))
+                    c.G.DrawRoundedRectangle(hairline, XBrushes.White, x + 0.25, sy + 0.25, square - 0.5, square - 0.5, 2 * r, 2 * r);
+                else
+                    c.G.DrawRoundedRectangle(new XSolidBrush(Shade(seconds)), x, sy, square, square, 2 * r, 2 * r);
+            }
+        }
+        return top + perColumn * rowPitch;
+    }
+
+    /// <summary>"No session", the five steps, "3 h or more", right-aligned; the 24-month caption on the left.</summary>
+    private static double DrawCalendarLegend(Canvas c, double top, bool cut)
+    {
+        var font = Font(Body, 8);
+        var muted = new XSolidBrush(InkMuted);
+        var height = font.GetHeight();
+        const double swatch = 8, gap = 2;
+        const string low = "No session", high = "3 h or more";
+
+        if (cut)
+            c.Text($"Showing the last {HistoryReport.CalendarMaxMonths} months.", font, muted, new XRect(Margin, top, ContentWidth, height), XStringFormats.TopLeft);
+
+        var highWidth = c.Measure(high, font).Width;
+        var lowWidth = c.Measure(low, font).Width;
+        var x = Right - highWidth - 4 - Ramp.Length * (swatch + gap) + gap - 4 - lowWidth;
+        c.Lines.Add($"{low} {high}");
+        c.G.DrawString(low, font, muted, new XRect(x, top, lowWidth, height), XStringFormats.TopLeft);
+        x += lowWidth + 4;
+        foreach (var color in Ramp)
+        {
+            c.G.DrawRoundedRectangle(new XSolidBrush(color), x, top + (height - swatch) / 2, swatch, swatch, 3, 3);
+            x += swatch + gap;
+        }
+        c.G.DrawString(high, font, muted, new XRect(x - gap + 4, top, highWidth, height), XStringFormats.TopLeft);
+        return top + height;
+    }
+
+    // ---- Trend line ----
+
+    /// <summary>The trend line with hour gridlines and the dashed study schedule; returns the y below its date labels.</summary>
+    private static double DrawTrend(Canvas c, ReportModel model, double plotTop, double plotHeight)
+    {
+        const double axisWidth = 30, inset = 8;
         var plotLeft = Margin + axisWidth;
-        var plotWidth = Right - plotLeft;
         var plotBottom = plotTop + plotHeight;
-        double max = model.ChartMaxSeconds;
+        var largest = model.Trend.Count == 0 ? 0 : model.Trend.Max(p => p.Seconds);
+        // Half an hour of headroom over the schedule line or the largest point, so its label and dots fit.
+        double max = Math.Max(model.TrendReferenceSeconds + 1800, Math.Ceiling((largest + 1800) / 1800.0) * 1800);
         double YFor(double seconds) => plotBottom - seconds / max * plotHeight;
 
         var small = Font(Body, 8);
         var muted = new XSolidBrush(InkMuted);
-
-        // Hour gridlines, every 7th hour past 12 h so the labels stay apart.
-        var stepHours = max > 12 * 3600 ? 7 : 1;
         var grid = new XPen(Line, 0.5);
+        var stepHours = max > 8 * 3600 ? 2 : 1;
         for (var h = 0; h * 3600 <= max; h += stepHours)
         {
             var gy = YFor(h * 3600);
-            gfx.DrawLine(grid, plotLeft, gy, Right, gy);
-            gfx.DrawString(h == 0 ? "0" : $"{h} h", small, muted,
-                new XRect(Margin, gy - 6, axisWidth - 6, 12), XStringFormats.CenterRight);
+            c.G.DrawLine(grid, plotLeft, gy, Right, gy);
+            c.Text(h == 0 ? "0" : $"{h} h", small, muted, new XRect(Margin, gy - 6, axisWidth - 6, 12), XStringFormats.CenterRight);
         }
 
-        var n = model.Chart.Count;
-        var slot = plotWidth / n;
-        var gap = Math.Min(2, slot * 0.3);
-        // At most 24 pt wide, so a period of a day or two doesn't fill the plot with one block;
-        // the columns are then centered in the plot.
-        var width = Math.Min(MaxColumnWidth, (plotWidth - gap * (n - 1)) / n);
-        var columnsLeft = plotLeft + (plotWidth - (n * width + (n - 1) * gap)) / 2;
+        var n = model.Trend.Count;
+        var points = model.Trend
+            .Select((p, i) => new XPoint(
+                n == 1 ? (plotLeft + Right) / 2 : plotLeft + inset + i * (Right - plotLeft - 2 * inset) / (n - 1),
+                YFor(p.Seconds)))
+            .ToArray();
+
+        // The study schedule, dashed and labeled above the line, clear of the data.
+        var ry = YFor(model.TrendReferenceSeconds);
+        c.G.DrawLine(new XPen(InkMuted, 0.75) { DashPattern = [4, 3] }, plotLeft, ry, Right, ry);
+        // An empty period leaves the chart empty rather than drawing a line along zero.
+        var drawn = model.Summary.Sessions == 0 ? [] : points;
+        DrawReferenceLabel(c, $"Study schedule: {DurationText.Short(model.TrendReferenceSeconds)} a day", small, muted, ry, plotLeft, drawn);
+
+        if (drawn.Length > 1)
+            c.G.DrawLines(new XPen(Brand, 2) { LineJoin = XLineJoin.Round, LineCap = XLineCap.Round }, drawn);
+        var ring = new XPen(XColors.White, 1);
         var brand = new XSolidBrush(Brand);
-        var nextLabelX = double.MaxValue;
-        for (var i = n - 1; i >= 0; i--)
+        foreach (var p in drawn)
+            c.G.DrawEllipse(ring, brand, p.X - 2.6, p.Y - 2.6, 5.2, 5.2);
+
+        // First and last dates only.
+        var labelTop = plotBottom + 4;
+        if (n > 0)
         {
-            var p = model.Chart[i];
-            var x = columnsLeft + i * (width + gap);
-            if (p.Seconds > 0)
-                gfx.DrawPath(brand, TopRoundedColumn(x, YFor(p.Seconds), width, plotBottom, Math.Min(2, width / 2)));
-            if (p.Label.Length == 0)
-                continue;
-            // Centered under its column but kept inside the plot; a label that would run into
-            // the newer one beside it is left out.
-            var labelWidth = gfx.MeasureString(p.Label, small).Width;
-            var lx = Math.Clamp(x + width / 2 - labelWidth / 2, plotLeft, Right - labelWidth);
-            if (lx + labelWidth + 6 > nextLabelX)
-                continue;
-            gfx.DrawString(p.Label, small, muted, new XRect(lx, plotBottom + 4, labelWidth, 10), XStringFormats.TopLeft);
-            nextLabelX = lx;
+            var first = model.Trend[0].Label;
+            var firstWidth = c.Measure(first, small).Width;
+            var fx = n == 1 ? points[0].X - firstWidth / 2 : Math.Max(plotLeft, points[0].X - firstWidth / 2);
+            c.Text(first, small, muted, new XRect(fx, labelTop, firstWidth, small.GetHeight()), XStringFormats.TopLeft);
+            if (n > 1)
+            {
+                var last = model.Trend[^1].Label;
+                var lastWidth = c.Measure(last, small).Width;
+                var lx = Math.Min(Right - lastWidth, points[^1].X - lastWidth / 2);
+                c.Text(last, small, muted, new XRect(lx, labelTop, lastWidth, small.GetHeight()), XStringFormats.TopLeft);
+            }
         }
-
-        // The study schedule, dashed and labeled directly above the line on the right.
-        var ry = YFor(model.ChartReferenceSeconds);
-        var dashed = new XPen(InkMuted, 0.75) { DashPattern = [4, 3] };
-        gfx.DrawLine(dashed, plotLeft, ry, Right, ry);
-        var daily = model.ChartReferenceSeconds == HistorySummary.StudyDailySeconds;
-        var refLabel = $"Study schedule: {DurationText.Short(model.ChartReferenceSeconds)} {(daily ? "a day" : "a week")}";
-        DrawReferenceLabel(gfx, refLabel, small, muted, ry, plotLeft, columnsLeft, width, gap, model.Chart.Select(p => YFor(p.Seconds)).ToList());
-
-        return plotBottom + 4 + small.GetHeight();
+        return labelTop + small.GetHeight();
     }
 
     /// <summary>
-    /// Labels the reference line just above it on the right; if a taller column would cover the
-    /// label there, on the left; if both are covered, on the right over a white backing.
+    /// Labels the reference line just above it on the right; if a point would sit in the label there,
+    /// on the left; if both are taken, on the right over a white backing.
     /// </summary>
-    private static void DrawReferenceLabel(XGraphics gfx, string text, XFont font, XBrush brush, double lineY,
-        double plotLeft, double columnsLeft, double columnWidth, double gap, IReadOnlyList<double> columnTops)
+    private static void DrawReferenceLabel(Canvas c, string text, XFont font, XBrush brush, double lineY, double plotLeft, IReadOnlyList<XPoint> points)
     {
-        var size = gfx.MeasureString(text, font);
+        var size = c.Measure(text, font);
         var top = lineY - 2 - size.Height;
-        bool Clear(double x) => !columnTops
-            .Select((columnTop, i) => (columnTop, x0: columnsLeft + i * (columnWidth + gap)))
-            .Any(c => c.columnTop < lineY - 2 && c.x0 < x + size.Width && c.x0 + columnWidth > x);
+        bool Clear(double x) => !points.Any(p => p.X + 4 > x && p.X - 4 < x + size.Width && p.Y + 4 > top && p.Y - 4 < lineY);
 
         var x = Right - size.Width;
         if (!Clear(x) && Clear(plotLeft))
             x = plotLeft;
         else if (!Clear(x))
-            gfx.DrawRectangle(XBrushes.White, x - 3, top, size.Width + 3, size.Height);
-        gfx.DrawString(text, font, brush, new XRect(x, top, size.Width, size.Height), XStringFormats.TopLeft);
+            c.G.DrawRectangle(XBrushes.White, x - 3, top, size.Width + 3, size.Height);
+        c.Text(text, font, brush, new XRect(x, top, size.Width, size.Height), XStringFormats.TopLeft);
     }
+
+    // ---- Page 2: how are they using it? ----
+
+    /// <summary>Draws page 2; returns where Recent Notes ends and where the legal text starts.</summary>
+    private static (double NotesBottom, double LegalTop) DrawPage2(Canvas c, ReportModel model)
+    {
+        var legalTop = DrawLegal(c);
+        // Sections sit 18 pt apart. When many profiles and long notes leave less room above the
+        // legal text, a pass on a scratch page finds the overflow and the four gaps share it (8 pt at least).
+        using var scratch = new PdfDocument();
+        using var measure = XGraphics.FromPdfPage(AddPage(scratch));
+        var overflow = DrawPage2Sections(new Canvas(measure), model, SectionGap, legalTop) + SectionGap - legalTop;
+        var gap = overflow <= 0 ? SectionGap : Math.Max(8, SectionGap - overflow / 4);
+        return (DrawPage2Sections(c, model, gap, legalTop), legalTop);
+    }
+
+    /// <summary>Everything on page 2 above the legal text; returns where Recent Notes ends.</summary>
+    private static double DrawPage2Sections(Canvas c, ReportModel model, double gap, double legalTop)
+    {
+        var y = BodyTop;
+
+        const double columnGap = 24;
+        var columnWidth = (ContentWidth - columnGap) / 2;
+        var hourEnd = DrawTimeOfDay(c, model, Margin, columnWidth, y);
+        var weekEnd = DrawDayOfWeek(c, model, Margin + columnWidth + columnGap, columnWidth, y);
+        y = Math.Max(hourEnd, weekEnd) + gap;
+
+        y = DrawOutcomes(c, model, y) + gap;
+
+        // Profiles get whatever the notes leave above the legal text, 16 to 22 pt a row.
+        var notesHeight = NotesHeight(c, model);
+        y = SectionTitle(c, "Profiles", y);
+        y = DrawProfiles(c, model.Profiles, y, legalTop - gap - notesHeight - gap - y);
+        y += gap;
+
+        return DrawNotes(c, model, y);
+    }
+
+    private static double DrawTimeOfDay(Canvas c, ReportModel model, double left, double width, double top)
+    {
+        var muted = new XSolidBrush(InkMuted);
+        var small = Font(Body, 8);
+        var y = SectionTitle(c, "Time of Day", top, left);
+        const double plotHeight = 56;
+        var plotBottom = y + 6 + plotHeight;
+        var slot = width / 24;
+        var barWidth = Math.Min(7, slot * 0.7);
+        double largest = Math.Max(1, model.StartsByHour.DefaultIfEmpty(0).Max());
+        var brand = new XSolidBrush(Brand);
+        for (var h = 0; h < 24; h++)
+        {
+            var count = model.StartsByHour[h];
+            if (count == 0)
+                continue;
+            var height = count / largest * plotHeight;
+            c.G.DrawPath(brand, TopRoundedColumn(left + h * slot + (slot - barWidth) / 2, plotBottom - height, barWidth, plotBottom, Math.Min(1.5, barWidth / 2)));
+        }
+        c.G.DrawLine(new XPen(Line, 0.75), left, plotBottom, left + width, plotBottom);
+
+        var labels = new[] { "12 am", "6 am", "12 pm", "6 pm", "12 am" };
+        for (var i = 0; i < labels.Length; i++)
+        {
+            var x = left + i * 6 * slot;
+            var format = i == 0 ? XStringFormats.TopLeft : i == labels.Length - 1 ? XStringFormats.TopRight : XStringFormats.TopCenter;
+            var box = i == 0 ? new XRect(x, plotBottom + 3, 40, 10)
+                : i == labels.Length - 1 ? new XRect(x - 40, plotBottom + 3, 40, 10)
+                : new XRect(x - 20, plotBottom + 3, 40, 10);
+            c.Text(labels[i], small, muted, box, format);
+        }
+        y = plotBottom + 3 + small.GetHeight() + 3;
+
+        var total = model.StartsByHour.Sum();
+        if (total == 0)
+            return y;
+        var mornings = (int)Math.Round(100.0 * model.StartsByHour.Take(12).Sum() / total, MidpointRounding.AwayFromZero);
+        foreach (var line in Wrap(c, $"Mornings {mornings}%, afternoons and evenings {100 - mornings}%.", Font(Body, 9), width))
+            y = c.Line(line, Font(Body, 9), muted, y, left);
+        return y;
+    }
+
+    private static double DrawDayOfWeek(Canvas c, ReportModel model, double left, double width, double top)
+    {
+        var muted = new XSolidBrush(InkMuted);
+        var small = Font(Body, 8);
+        var y = SectionTitle(c, "Day of Week", top, left);
+        const double plotHeight = 56, axisWidth = 24;
+        var plotTop = y + 6;
+        var plotBottom = plotTop + plotHeight;
+        var plotLeft = left + axisWidth;
+        var plotWidth = width - axisWidth;
+        // 4 h, the study's daily schedule, is a full bar, as in the app's Last 7 Days chart.
+        var largest = model.SecondsByWeekday.DefaultIfEmpty(0).Max();
+        double max = Math.Max(HistorySummary.StudyDailySeconds, Math.Ceiling(largest / 3600.0) * 3600);
+        var stepHours = max > 8 * 3600 ? 4 : 2;
+        var grid = new XPen(Line, 0.5);
+        for (var h = 0; h * 3600 <= max; h += stepHours)
+        {
+            var gy = plotBottom - h * 3600 / max * plotHeight;
+            c.G.DrawLine(grid, plotLeft, gy, left + width, gy);
+            c.Text(h == 0 ? "0" : $"{h} h", small, muted, new XRect(left, gy - 6, axisWidth - 5, 12), XStringFormats.CenterRight);
+        }
+
+        var slot = plotWidth / 7;
+        var barWidth = Math.Min(16, slot * 0.55);
+        var brand = new XSolidBrush(Brand);
+        var names = new[] { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" };
+        for (var d = 0; d < 7; d++)
+        {
+            var x = plotLeft + d * slot;
+            var seconds = model.SecondsByWeekday[d];
+            if (seconds > 0)
+            {
+                var height = seconds / max * plotHeight;
+                c.G.DrawPath(brand, TopRoundedColumn(x + (slot - barWidth) / 2, plotBottom - height, barWidth, plotBottom, Math.Min(2, barWidth / 2)));
+            }
+            c.Text(names[d], small, muted, new XRect(x, plotBottom + 3, slot, 10), XStringFormats.TopCenter);
+        }
+        y = plotBottom + 3 + small.GetHeight() + 3;
+        foreach (var line in Wrap(c, "Average time per day, including days without a session.", Font(Body, 9), width))
+            y = c.Line(line, Font(Body, 9), muted, y, left);
+        return y;
+    }
+
+    private static readonly XColor[] OutcomeColors = [Brand, Ramp[2], Ramp[1]];
+
+    private static double DrawOutcomes(Canvas c, ReportModel model, double top)
+    {
+        var o = model.Outcomes;
+        var y = SectionTitle(c, "How Sessions Ended", top);
+        const double barHeight = 10, gap = 1.5;
+        var counts = new[] { o.Completed, o.StoppedEarly, o.EndedEarly };
+        var total = counts.Sum();
+        var font = Font(Body, 9.5);
+        var ink = new XSolidBrush(Ink);
+        var muted = new XSolidBrush(InkMuted);
+
+        // Rounded at the bar's two ends only: the segments are clipped to one rounded track.
+        var track = new XGraphicsPath();
+        track.AddRoundedRectangle(Margin, y, ContentWidth, barHeight, barHeight, barHeight);
+        if (total == 0)
+        {
+            c.G.DrawPath(new XSolidBrush(SurfaceSunken), track);
+            return c.Line("No sessions in this period.", font, muted, y + barHeight + 6);
+        }
+        var state = c.G.Save();
+        c.G.IntersectClip(track);
+        var shown = counts.Count(n => n > 0);
+        var width = ContentWidth - gap * (shown - 1);
+        var x = Margin;
+        for (var i = 0; i < counts.Length; i++)
+        {
+            if (counts[i] == 0)
+                continue;
+            var w = width * counts[i] / total;
+            c.G.DrawRectangle(new XSolidBrush(OutcomeColors[i]), x, y, w, barHeight);
+            x += w + gap;
+        }
+        c.G.Restore(state);
+        y += barHeight + 6;
+
+        // Words carry each segment's identity; the swatches only connect them to the bar.
+        var parts = new[] { $"{o.Completed} completed", $"{o.StoppedEarly} stopped early", $"{o.EndedEarly} ended early." };
+        c.Lines.Add(string.Join(" · ", parts));
+        const double swatch = 8;
+        var height = font.GetHeight();
+        x = Margin;
+        for (var i = 0; i < parts.Length; i++)
+        {
+            if (i > 0)
+            {
+                c.G.DrawString(" · ", font, muted, new XRect(x, y, 20, height), XStringFormats.TopLeft);
+                x += c.Measure(" · ", font).Width;
+            }
+            c.G.DrawRoundedRectangle(new XSolidBrush(OutcomeColors[i]), x, y + (height - swatch) / 2, swatch, swatch, 3, 3);
+            x += swatch + 4;
+            c.G.DrawString(parts[i], font, ink, new XRect(x, y, ContentWidth, height), XStringFormats.TopLeft);
+            x += c.Measure(parts[i], font).Width;
+        }
+        y += height + 2;
+
+        var average = o.AveragePlannedSeconds > 0
+            ? $"Average session {DurationText.Short(o.AverageSeconds)} of {DurationText.Short(o.AveragePlannedSeconds)} planned."
+            : $"Average session {DurationText.Short(o.AverageSeconds)}.";
+        return c.Line(average, font, muted, y);
+    }
+
+    /// <summary>Time by profile as bars on tracks; returns the y below the last row.</summary>
+    private static double DrawProfiles(Canvas c, IReadOnlyList<ProfileRow> profiles, double top, double room)
+    {
+        var nameFont = Font(Body, 10);
+        var valueFont = Font(Body, 9);
+        var ink = new XSolidBrush(Ink);
+        var muted = new XSolidBrush(InkMuted);
+
+        if (profiles.Count == 0)
+            return c.Line("No sessions in this period.", nameFont, muted, top);
+
+        // At most 6 rows; past that, the smallest profiles share an "Other" row.
+        const int maxRows = 6;
+        var rows = profiles.Count <= maxRows
+            ? profiles.ToList()
+            : profiles.Take(maxRows - 1)
+                .Append(new ProfileRow("Other", profiles.Skip(maxRows - 1).Sum(p => p.Sessions), profiles.Skip(maxRows - 1).Sum(p => p.Seconds)))
+                .ToList();
+
+        const double gap = 12, track = 8;
+        var rowHeight = Math.Clamp(room / rows.Count, 16, 22);
+        var values = rows.Select(r => $"{DurationText.Short(r.Seconds)} · {Count(r.Sessions, "session")}").ToList();
+        var valueWidth = values.Max(v => c.Measure(v, valueFont).Width);
+        var nameWidth = Math.Min(150, rows.Max(r => c.Measure(Printable(r.Name), nameFont).Width));
+        var trackX = Margin + nameWidth + gap;
+        var trackWidth = Right - valueWidth - gap - trackX;
+        double largest = rows.Max(r => r.Seconds);
+
+        for (var i = 0; i < rows.Count; i++)
+        {
+            var y = top + i * rowHeight;
+            c.Text(Fit(c, Printable(rows[i].Name), nameFont, nameWidth), nameFont, ink, new XRect(Margin, y, nameWidth, rowHeight), XStringFormats.CenterLeft);
+
+            var ty = y + (rowHeight - track) / 2;
+            c.G.DrawRoundedRectangle(new XSolidBrush(SurfaceSunken), trackX, ty, trackWidth, track, track, track);
+            var fill = largest == 0 ? 0 : trackWidth * rows[i].Seconds / largest;
+            if (fill > 0)
+            {
+                var r = Math.Min(track, fill);
+                c.G.DrawRoundedRectangle(new XSolidBrush(Brand), trackX, ty, fill, track, r, r);
+            }
+
+            c.Text(values[i], valueFont, muted, new XRect(Margin, y, ContentWidth, rowHeight), XStringFormats.CenterRight);
+        }
+        return top + rows.Count * rowHeight;
+    }
+
+    /// <summary>Each quote's lines, the date set after the last line when it fits there.</summary>
+    private static List<(string Date, bool DateOnOwnLine, List<string> Lines)> QuoteLines(Canvas c, ReportModel model)
+    {
+        var font = Font(Body, 9.5);
+        var dateFont = Font(Body, 9.5);
+        return model.RecentNotes.Select(n =>
+        {
+            var text = "“" + BreakLongWords(string.Join(" ", n.Text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))) + "”";
+            var date = n.Day.ToString(ShortDateFormat, Culture);
+            var lines = Wrap(c, text, font, ContentWidth);
+            var fits = c.Measure(lines[^1] + "  " + date, dateFont).Width <= ContentWidth;
+            return (date, !fits, lines);
+        }).ToList();
+    }
+
+    private static double NotesHeight(Canvas c, ReportModel model)
+    {
+        var line = Font(Body, 9.5).GetHeight();
+        var height = Font(DisplaySemiBold, 13).GetHeight() + 6;
+        foreach (var q in QuoteLines(c, model))
+            height += (q.Lines.Count + (q.DateOnOwnLine ? 1 : 0)) * line + 4;
+        return height + Font(Body, 9).GetHeight();
+    }
+
+    private static double DrawNotes(Canvas c, ReportModel model, double top)
+    {
+        var font = Font(Body, 9.5);
+        var ink = new XSolidBrush(Ink);
+        var muted = new XSolidBrush(InkMuted);
+        var y = SectionTitle(c, "Recent Notes", top);
+        var height = font.GetHeight();
+
+        foreach (var (date, ownLine, lines) in QuoteLines(c, model))
+        {
+            for (var i = 0; i < lines.Count; i++)
+            {
+                var last = i == lines.Count - 1;
+                if (!last || ownLine)
+                {
+                    y = c.Line(lines[i], font, ink, y);
+                    continue;
+                }
+                c.Lines.Add(lines[i] + "  " + date);
+                c.G.DrawString(lines[i], font, ink, new XRect(Margin, y, ContentWidth, height), XStringFormats.TopLeft);
+                var x = Margin + c.Measure(lines[i] + "  ", font).Width;
+                c.G.DrawString(date, font, muted, new XRect(x, y, Right - x, height), XStringFormats.TopLeft);
+                y += height;
+            }
+            if (ownLine)
+                y = c.Line(date, font, muted, y);
+            y += 4;
+        }
+
+        var count = model.NoteCount == 0 ? "No notes in this period." : $"{Count(model.NoteCount, "note")} in this period.";
+        return c.Line(count, Font(Body, 9), muted, y);
+    }
+
+    /// <summary>About These Numbers and both legal notices, set from the bottom of page 2 up; returns their top.</summary>
+    private static double DrawLegal(Canvas c)
+    {
+        var font = Font(Body, 9);
+        var bold = Font(Body, 9, bold: true);
+        var ink = new XSolidBrush(Ink);
+        var lineHeight = font.GetHeight();
+        const string important = "Important:";
+        var notice = LegalNotices.ImplantedDeviceNotice;
+
+        var about = Wrap(c, AboutNumbers, font, ContentWidth);
+        var disclaimer = Wrap(c, LegalNotices.MedicalDisclaimer, font, ContentWidth);
+        // Wrapped as one run so the bold word's width is close enough to the regular one's; the
+        // first line is re-checked below with the bold word measured as set.
+        var noticeLines = Wrap(c, notice, font, ContentWidth - (c.Measure(important, bold).Width - c.Measure(important, font).Width));
+        const double paragraphGap = 6;
+        var titleHeight = Font(DisplaySemiBold, 13).GetHeight() + 6;
+        var height = titleHeight + (about.Count + disclaimer.Count + noticeLines.Count) * lineHeight + 2 * paragraphGap;
+
+        var top = BodyBottom - height;
+        var y = SectionTitle(c, "About These Numbers", top);
+        foreach (var line in about)
+            y = c.Line(line, font, ink, y);
+        y += paragraphGap;
+        foreach (var line in disclaimer)
+            y = c.Line(line, font, ink, y);
+        y += paragraphGap;
+        for (var i = 0; i < noticeLines.Count; i++)
+        {
+            if (i > 0)
+            {
+                y = c.Line(noticeLines[i], font, ink, y);
+                continue;
+            }
+            c.Lines.Add(noticeLines[0]);
+            c.G.DrawString(important, bold, ink, new XRect(Margin, y, ContentWidth, lineHeight), XStringFormats.TopLeft);
+            var x = Margin + c.Measure(important, bold).Width;
+            c.G.DrawString(noticeLines[0][important.Length..], font, ink, new XRect(x, y, Right - x, lineHeight), XStringFormats.TopLeft);
+            y += lineHeight;
+        }
+        return top;
+    }
+
+    // ---- Helpers ----
 
     /// <summary>A column with its top corners rounded and a square base.</summary>
     private static XGraphicsPath TopRoundedColumn(double x, double top, double width, double bottom, double radius)
@@ -381,277 +963,17 @@ public static class ReportPdf
         return path;
     }
 
-    private static void DrawProfiles(XGraphics gfx, IReadOnlyList<ProfileRow> profiles, double top)
-    {
-        var nameFont = Font(Body, 10);
-        var valueFont = Font(Body, 9);
-        var ink = new XSolidBrush(Ink);
-        var muted = new XSolidBrush(InkMuted);
-
-        if (profiles.Count == 0)
-        {
-            TextLine(gfx, "No sessions in this period.", nameFont, muted, top);
-            return;
-        }
-
-        // At most 6 rows; past that, the smallest profiles share an "Other" row.
-        const int maxRows = 6;
-        var rows = profiles.Count <= maxRows
-            ? profiles.ToList()
-            : profiles.Take(maxRows - 1)
-                .Append(new ProfileRow("Other", profiles.Skip(maxRows - 1).Sum(p => p.Sessions), profiles.Skip(maxRows - 1).Sum(p => p.Seconds)))
-                .ToList();
-
-        const double gap = 12, track = 8;
-        // 24 pt rows, tightened (never below 16 pt) when tall tiles leave less room above the footer.
-        var rowHeight = Math.Clamp((BodyBottom - top) / rows.Count, 16, 24);
-        var values = rows.Select(r => $"{DurationText.Short(r.Seconds)} · {Count(r.Sessions, "session")}").ToList();
-        var valueWidth = values.Max(v => gfx.MeasureString(v, valueFont).Width);
-        var nameWidth = Math.Min(150, rows.Max(r => gfx.MeasureString(r.Name, nameFont).Width));
-        var trackX = Margin + nameWidth + gap;
-        var trackWidth = Right - valueWidth - gap - trackX;
-        double largest = rows.Max(r => r.Seconds);
-
-        for (var i = 0; i < rows.Count; i++)
-        {
-            var y = top + i * rowHeight;
-            var box = new XRect(Margin, y, nameWidth, rowHeight);
-            gfx.DrawString(Fit(gfx, rows[i].Name, nameFont, nameWidth), nameFont, ink, box, XStringFormats.CenterLeft);
-
-            var ty = y + (rowHeight - track) / 2;
-            gfx.DrawRoundedRectangle(new XSolidBrush(SurfaceSunken), trackX, ty, trackWidth, track, track, track);
-            var fill = largest == 0 ? 0 : trackWidth * rows[i].Seconds / largest;
-            if (fill > 0)
-            {
-                var r = Math.Min(track, fill);
-                gfx.DrawRoundedRectangle(new XSolidBrush(Brand), trackX, ty, fill, track, r, r);
-            }
-
-            gfx.DrawString(values[i], valueFont, muted, new XRect(Margin, y, ContentWidth, rowHeight), XStringFormats.CenterRight);
-        }
-    }
-
-    // ---- Pages 2+: tables (MigraDoc) ----
-
-    /// <summary>Pages 2 onward as a MigraDoc document; internal so tests can check its structure.</summary>
-    internal static Document FlowDocument(ReportModel model, byte[] markPng)
-    {
-        var doc = new Document();
-        var normal = doc.Styles[StyleNames.Normal]!;
-        normal.Font.Name = Body;
-        normal.Font.Size = 9.5;
-        normal.Font.Color = Md(Ink);
-
-        var heading = doc.Styles.AddStyle("SectionTitle", StyleNames.Normal);
-        heading.Font.Name = DisplaySemiBold;
-        heading.Font.Size = 13;
-        heading.ParagraphFormat.SpaceBefore = Unit.FromPoint(22);
-        heading.ParagraphFormat.SpaceAfter = Unit.FromPoint(8);
-        heading.ParagraphFormat.KeepWithNext = true;
-
-        var section = doc.AddSection();
-        var setup = section.PageSetup;
-        setup.PageWidth = Unit.FromPoint(PageWidth);
-        setup.PageHeight = Unit.FromPoint(PageHeight);
-        setup.LeftMargin = setup.RightMargin = Unit.FromPoint(Margin);
-        setup.TopMargin = Unit.FromPoint(BodyTop);
-        setup.BottomMargin = Unit.FromPoint(PageHeight - BodyBottom);
-        setup.HeaderDistance = Unit.FromPoint(Margin);
-
-        AddHeader(section, markPng);
-
-        // The first heading sits at the top of the page, like page 1's title.
-        var first = section.AddParagraph("By Week", "SectionTitle");
-        first.Format.SpaceBefore = 0;
-        AddWeeks(section, model.Weeks);
-
-        section.AddParagraph("Daily Log", "SectionTitle");
-        AddDailyLog(section, model.LogDays);
-
-        // The closing section and both notices stay together on one page.
-        section.AddParagraph("About These Numbers", "SectionTitle");
-        section.AddParagraph(AboutNumbers).Format.KeepWithNext = true;
-
-        var disclaimer = section.AddParagraph(LegalNotices.MedicalDisclaimer);
-        disclaimer.Format.SpaceBefore = Unit.FromPoint(12);
-        disclaimer.Format.KeepWithNext = true;
-        var notice = section.AddParagraph();
-        notice.Format.SpaceBefore = Unit.FromPoint(8);
-        const string important = "Important:";
-        notice.AddFormattedText(important, TextFormat.Bold);
-        notice.AddText(LegalNotices.ImplantedDeviceNotice[important.Length..]);
-        return doc;
-    }
-
-    /// <summary>The same header as page 1: mark, wordmark, "Session Report", then a rule 8 pt below.</summary>
-    private static void AddHeader(Section section, byte[] markPng)
-    {
-        using var stream = new MemoryStream(markPng);
-        using var mark = XImage.FromStream(stream);
-        var markWidth = MarkWidth(mark);
-
-        var table = section.Headers.Primary.AddTable();
-        table.LeftPadding = table.RightPadding = table.TopPadding = 0;
-        table.BottomPadding = Unit.FromPoint(RuleY - Margin - MarkHeight);
-        table.AddColumn(Unit.FromPoint(markWidth + 6));
-        table.AddColumn(Unit.FromPoint(ContentWidth / 2 - markWidth - 6));
-        table.AddColumn(Unit.FromPoint(ContentWidth / 2));
-
-        var row = table.AddRow();
-        row.Height = Unit.FromPoint(MarkHeight);
-        row.HeightRule = RowHeightRule.AtLeast;
-        row.VerticalAlignment = VerticalAlignment.Center;
-        row.Borders.Bottom.Width = Unit.FromPoint(0.75);
-        row.Borders.Bottom.Color = Md(Line);
-
-        var image = row.Cells[0].AddImage("base64:" + Convert.ToBase64String(markPng));
-        image.Height = Unit.FromPoint(MarkHeight);
-        image.LockAspectRatio = true;
-
-        var word = row.Cells[1].AddParagraph("BlueBuzzah");
-        word.Format.Font.Name = DisplaySemiBold;
-        word.Format.Font.Size = WordmarkSize;
-
-        var label = row.Cells[2].AddParagraph("Session Report");
-        label.Format.Alignment = ParagraphAlignment.Right;
-        label.Format.Font.Size = 9;
-        label.Format.Font.Color = Md(InkMuted);
-    }
-
-    private static void AddWeeks(Section section, IReadOnlyList<WeekRow> weeks)
-    {
-        var table = NewTable(section, 200, 152, 152);
-        AddHeaderRow(table, "Week", "Days With Sessions", "Session Time");
-        foreach (var w in weeks)
-        {
-            var row = table.AddRow();
-            HairlineBelow(row);
-            row.Cells[0].AddParagraph($"{w.Start.ToString(ShortDateFormat, Culture)} to {w.End.ToString(ShortDateFormat, Culture)}");
-            row.Cells[1].AddParagraph($"{w.DaysWithSessions} of {w.End.DayNumber - w.Start.DayNumber + 1}");
-            row.Cells[2].AddParagraph(DurationText.Short(w.Seconds));
-        }
-    }
-
-    private static void AddDailyLog(Section section, IReadOnlyList<DaySummary> days)
-    {
-        if (days.Count == 0)
-        {
-            section.AddParagraph("No sessions in this period.");
-            return;
-        }
-
-        var table = NewTable(section, 100, 64, 80, 140, 120);
-        AddHeaderRow(table, "Date", "Start", "Length", "Profile", "Outcome");
-        foreach (var d in days)
-        {
-            var hasNote = !string.IsNullOrEmpty(d.Note);
-            var rows = new List<Row>();
-
-            if (d.Sessions.Count == 0)
-            {
-                var row = table.AddRow();
-                row.Cells[1].AddParagraph("No sessions");
-                rows.Add(row);
-            }
-            foreach (var s in d.Sessions)
-            {
-                var row = table.AddRow();
-                row.Cells[1].AddParagraph(Printable(s.StartedAt.ToString(Culture.DateTimeFormat.ShortTimePattern, Culture)));
-                row.Cells[2].AddParagraph(DurationText.Short(s.TherapySeconds));
-                row.Cells[3].AddParagraph(s.ProfileName);
-                row.Cells[4].AddParagraph(HistoryText.OutcomeText(s.Outcome));
-                rows.Add(row);
-            }
-            rows[0].Cells[0].AddParagraph(d.Day.ToString(DateFormat, Culture));
-
-            if (hasNote)
-            {
-                // MigraDoc never splits a row, so a long note runs over several rows of a few
-                // lines each, which can break across pages. They read as one block of text.
-                var lines = d.Note!.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
-                for (var first = 0; first < lines.Length; first += NoteLinesPerRow)
-                {
-                    var row = table.AddRow();
-                    row.Cells[0].MergeRight = 4;
-                    if (first > 0)
-                        row.TopPadding = 0;
-                    if (first + NoteLinesPerRow < lines.Length)
-                        row.BottomPadding = 0;
-                    var note = row.Cells[0].AddParagraph();
-                    note.Format.Font.Color = Md(InkMuted);
-                    var chunk = lines.Skip(first).Take(NoteLinesPerRow).ToList();
-                    for (var i = 0; i < chunk.Count; i++)
-                    {
-                        if (i > 0)
-                            note.AddLineBreak();
-                        var text = first == 0 && i == 0 ? "Note: " + chunk[i] : chunk[i];
-                        if (text.Length > 0)
-                            note.AddText(BreakLongWords(text));
-                    }
-                    rows.Add(row);
-                }
-            }
-
-            // A day's rows stay on one page unless there are too many to fit, then they flow.
-            if (rows.Count <= MaxRowsKeptTogether)
-                rows[0].KeepWith = rows.Count - 1;
-            HairlineBelow(rows[^1]);
-        }
-    }
-
-    private static Table NewTable(Section section, params double[] widths)
-    {
-        var table = section.AddTable();
-        table.Borders.Width = 0;
-        table.LeftPadding = table.RightPadding = Unit.FromPoint(6);
-        table.TopPadding = table.BottomPadding = Unit.FromPoint(4);
-        // Unset, MigraDoc hangs a table left by its cell padding; 0 puts its edges on the margins.
-        table.Rows.LeftIndent = 0;
-        foreach (var w in widths)
-            table.AddColumn(Unit.FromPoint(w));
-        return table;
-    }
-
-    /// <summary>A heading row on <c>surface-sunken</c> that repeats on every page.</summary>
-    private static void AddHeaderRow(Table table, params string[] labels)
-    {
-        var row = table.AddRow();
-        row.HeadingFormat = true;
-        row.Shading.Color = Md(SurfaceSunken);
-        row.Format.Font.Bold = true;
-        row.Format.Font.Size = 9;
-        for (var i = 0; i < labels.Length; i++)
-            row.Cells[i].AddParagraph(labels[i]);
-    }
-
-    private static void HairlineBelow(Row row)
-    {
-        row.Borders.Bottom.Width = Unit.FromPoint(0.5);
-        row.Borders.Bottom.Color = Md(Line);
-    }
-
-    // ---- Helpers ----
-
     private static XFont Font(string family, double size, bool bold = false) =>
         new(family, size, bold ? XFontStyleEx.Bold : XFontStyleEx.Regular, new XPdfFontOptions(PdfFontEncoding.Unicode));
 
-    private static MdColor Md(XColor c) => new(c.R, c.G, c.B);
-
-    /// <summary>Draws one line with its top at <paramref name="top"/>; returns the top of the next line.</summary>
-    private static double TextLine(XGraphics gfx, string text, XFont font, XBrush brush, double top, double x = Margin)
-    {
-        gfx.DrawString(text, font, brush, new XRect(x, top, Right - x, font.GetHeight()), XStringFormats.TopLeft);
-        return top + font.GetHeight();
-    }
-
-    private static List<string> Wrap(XGraphics gfx, string text, XFont font, double width)
+    private static List<string> Wrap(Canvas c, string text, XFont font, double width)
     {
         var lines = new List<string>();
         var current = "";
         foreach (var word in text.Split(' '))
         {
             var candidate = current.Length == 0 ? word : current + " " + word;
-            if (current.Length > 0 && gfx.MeasureString(candidate, font).Width > width)
+            if (current.Length > 0 && c.Measure(candidate, font).Width > width)
             {
                 lines.Add(current);
                 current = word;
@@ -666,23 +988,23 @@ public static class ReportPdf
     }
 
     /// <summary>Shortens <paramref name="text"/> with an ellipsis until it fits <paramref name="width"/>.</summary>
-    private static string Fit(XGraphics gfx, string text, XFont font, double width)
+    private static string Fit(Canvas c, string text, XFont font, double width)
     {
-        if (gfx.MeasureString(text, font).Width <= width)
+        if (c.Measure(text, font).Width <= width)
             return text;
         for (var n = text.Length - 1; n > 0; n--)
         {
             var shorter = text[..n].TrimEnd() + "…";
-            if (gfx.MeasureString(shorter, font).Width <= width)
+            if (c.Measure(shorter, font).Width <= width)
                 return shorter;
         }
         return "…";
     }
 
     /// <summary>
-    /// MigraDoc only wraps at spaces, so a longer unbroken run (a pasted link) would run off the
-    /// page and be lost. Puts a plain space after every <see cref="MaxWordLength"/> characters of
-    /// such a run; the fonts have no glyph for a zero-width space.
+    /// The report wraps only at spaces, so a longer unbroken run (a pasted link) would run off the
+    /// page. Puts a plain space after every <see cref="MaxWordLength"/> characters of such a run;
+    /// the fonts have no glyph for a zero-width space.
     /// </summary>
     internal static string BreakLongWords(string text)
     {
@@ -709,11 +1031,12 @@ public static class ReportPdf
         return result.ToString();
     }
 
-    /// <summary>ICU puts a narrow no-break space before "AM"; the report's fonts have no glyph for it.</summary>
+    /// <summary>ICU puts a narrow no-break space before "AM", which pasted text can carry; the report's fonts have no glyph for it.</summary>
     private static string Printable(string text) => text.Replace('\u202F', ' ');
 
     private static string Count(int n, string noun) => n == 1 ? $"1 {noun}" : $"{n} {noun}s";
 }
+
 
 /// <summary>
 /// Maps report font families to the app's TTFs: "Lexend" to Lexend-Bold when bold, else Lexend-Medium;

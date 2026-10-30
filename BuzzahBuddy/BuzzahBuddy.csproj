@@ -129,7 +129,7 @@
 		<PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.10" />
 		<PackageReference Include="Plugin.BLE" Version="3.2.1" />
-		<PackageReference Include="PDFsharp-MigraDoc" Version="6.2.4" />
+		<PackageReference Include="PDFsharp" Version="6.2.4" />
 		<!-- PDFsharp pulls Pkcs 8.0.1, which has known advisories (NU1902/NU1903); this overrides it. -->
 		<PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.14" />
 	</ItemGroup>
