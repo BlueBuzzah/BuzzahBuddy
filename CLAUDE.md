@@ -96,7 +96,7 @@ bounds link-up through subscribe — iOS never times out a connect itself.
 | `GloveControlService` custom-profile limits | `include/menu_controller.h` `MAX_COMMAND_PARAMS` |
 | parameter validation / amplitude ordering | `src/profile_manager.cpp` `setParameter` |
 | `RxFrameAssembler.InternalMessagePrefixes` | `include/internal_messages.h` `INTERNAL_MESSAGES` |
-| `LastSessionSummary` (`LAST_*`), `SessionStatus.SessionId` | `src/menu_controller.cpp` `handleSessionStatus`, `SessionEndReason` in `include/therapy_engine.h` |
+| `LastSessionSummary` (`LAST_*`), `SessionStatus.SessionId` / `PausedSeconds` | `src/menu_controller.cpp` `handleSessionStatus`, `SessionEndReason` in `include/therapy_engine.h` |
 
 ## Domain Models — `Models/`
 
@@ -115,8 +115,13 @@ bounds link-up through subscribe — iOS never times out a connect itself.
   session's `LAST_*` summary to idle `SESSION_STATUS` replies, and `OpenSession.End` uses it
   when `LAST_ID` matches the `SESSION_ID` the session was tracked under. Otherwise (older
   firmware, a summary of another session) the end is inferred: completed when the last running
-  reading plus the 15 s tolerance (`CompletionToleranceSeconds`) reaches the planned length. Delivered time sums ELAPSED
-  gains while running (paused time excluded); under 60 s (`MinimumSavedSeconds`) isn't saved.
+  reading plus the 15 s tolerance (`CompletionToleranceSeconds`) reaches the planned length, but
+  only on firmware without `PAUSED`; a pause-free clock can't prove completion by timing, so it
+  counts as ended early. Firmware that sends `PAUSED` (`OpenSession.PauseFreeClock`) holds ELAPSED
+  while paused, so every ELAPSED gain is delivered time; older firmware's clock runs through pauses
+  (`SESSION_ID` alone doesn't mark the new clock), so only gains after a running reading count. A
+  matching session id continues a session however long the phone was away. Under 60 s
+  (`MinimumSavedSeconds`) isn't saved.
 - `BatteryReading` — `≤ 0.0 V` is the firmware's "no reading" sentinel → unavailable, not
   0%. 3.0 V = 0%, 4.2 V = 100%, linear.
 

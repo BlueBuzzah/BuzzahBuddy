@@ -31,7 +31,7 @@ public sealed record LastSessionSummary(
     SessionEndReason Reason)
 {
     /// <summary>
-    /// Seconds of therapy delivered: the firmware's ELAPSED clock runs through pauses.
+    /// Seconds of therapy delivered: LAST_ELAPSED is wall time, pauses included.
     /// </summary>
     public int TherapySeconds => Math.Clamp(ElapsedSeconds - PausedSeconds, 0, TotalSeconds);
 

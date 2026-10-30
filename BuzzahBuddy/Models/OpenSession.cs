@@ -5,13 +5,13 @@ namespace BuzzahBuddy.Models;
 /// session survives the app being killed or the link dropping.
 /// <para>
 /// Older firmware never tells the phone how a session finished (current firmware reports its
-/// last session; see <see cref="End"/>). Known Defect 4:
-/// ELAPSED keeps counting through a pause, so delivered time is the sum of ELAPSED gains taken
-/// only while the session was running. Known Defect 7: a finished session can read RUNNING with
-/// ELAPSED:0 TOTAL:0 after a reconnect, so a reading with TOTAL of 0 is never tracked. On
-/// completion the engine stops in the same tick that ELAPSED reaches TOTAL, so the next reading
-/// is IDLE with 0/0/0 and PROGRESS never reaches 100. The end is therefore inferred from the
-/// time since the last reading showing the session running.
+/// last session; see <see cref="End"/>). Older firmware's ELAPSED also keeps counting through a
+/// pause, so without PAUSED (see <see cref="PauseFreeClock"/>) delivered time is the sum of
+/// ELAPSED gains taken only while the session was running, and a session that finished while the
+/// phone was away can read RUNNING with ELAPSED:0 TOTAL:0 after a reconnect, so a reading with
+/// TOTAL of 0 is never tracked. On completion the engine stops in the same tick that ELAPSED
+/// reaches TOTAL, so the next reading is IDLE with 0/0/0 and PROGRESS never reaches 100. The end
+/// is therefore inferred from the time since the last reading showing the session running.
 /// </para>
 /// </summary>
 public sealed class OpenSession
@@ -38,6 +38,12 @@ public sealed class OpenSession
     /// The gloves' SESSION_ID for this session; null on older firmware.
     /// </summary>
     public int? FirmwareSessionId { get; set; }
+
+    /// <summary>
+    /// Whether a reading carried PAUSED, the mark of firmware whose ELAPSED holds while paused.
+    /// SESSION_ID alone isn't enough: it shipped before the clock stopped running through pauses.
+    /// </summary>
+    public bool PauseFreeClock { get; set; }
 
     /// <summary>
     /// Seconds of therapy delivered so far, excluding paused time.
@@ -67,18 +73,19 @@ public sealed class OpenSession
 
     /// <summary>
     /// Starts tracking from a reading. Backdates the start by the elapsed time, which counts
-    /// as delivered (the app may join a session already in progress).
+    /// as delivered (the app may join a session already in progress), plus any time paused.
     /// </summary>
     public static OpenSession Begin(SessionStatus status, DateTimeOffset now, int profileId, string profileName, string? deviceId) =>
         new()
         {
             Id = Guid.NewGuid().ToString("N"),
-            StartedAt = now.AddSeconds(-status.ElapsedTimeSeconds),
+            StartedAt = now.AddSeconds(-(status.ElapsedTimeSeconds + (status.PausedSeconds ?? 0))),
             ProfileId = profileId,
             ProfileName = profileName,
             DeviceId = deviceId,
             PlannedSeconds = status.TotalTimeSeconds,
             FirmwareSessionId = status.SessionId,
+            PauseFreeClock = status.PausedSeconds is not null,
             TherapySeconds = status.ElapsedTimeSeconds,
             LastElapsedSeconds = status.ElapsedTimeSeconds,
             LastRunning = status.IsRunning,
@@ -86,25 +93,31 @@ public sealed class OpenSession
         };
 
     /// <summary>
-    /// Whether a reading belongs to this session rather than a ghost or a different one. The
-    /// session clock runs through pauses, so a session last seen running is over once more than
-    /// its remaining time (plus tolerance) has passed; a reading after that is a later session.
+    /// Whether a reading belongs to this session rather than a ghost or a different one. A
+    /// matching session id decides it: a pause the phone never saw can outlast the remaining
+    /// time. Without ids (older firmware, whose clock runs through pauses), a session last seen
+    /// running is over once more than its remaining time (plus tolerance) has passed; a reading
+    /// after that is a later session.
     /// </summary>
     public bool Continues(SessionStatus status, string? deviceId, DateTimeOffset now) =>
         CanTrack(status)
         && status.TotalTimeSeconds == PlannedSeconds
         && status.ElapsedTimeSeconds >= LastElapsedSeconds
         && (DeviceId is null || DeviceId == deviceId)
-        && (FirmwareSessionId is null || status.SessionId is null || FirmwareSessionId == status.SessionId)
-        && !(LastRunning
-             && (now - LastObservedAt).TotalSeconds > PlannedSeconds - LastElapsedSeconds + CompletionToleranceSeconds);
+        && (FirmwareSessionId is not null && status.SessionId is not null
+            ? FirmwareSessionId == status.SessionId
+            : !(LastRunning
+                && (now - LastObservedAt).TotalSeconds > PlannedSeconds - LastElapsedSeconds + CompletionToleranceSeconds));
 
     /// <summary>
-    /// Records a reading. Time counts only when the previous reading showed the session running.
+    /// Records a reading. Firmware that reports PAUSED holds ELAPSED while paused, so every gain
+    /// is therapy; on older firmware time counts only when the previous reading showed the
+    /// session running.
     /// </summary>
     public void Observe(SessionStatus status, DateTimeOffset now)
     {
-        if (LastRunning)
+        PauseFreeClock |= status.PausedSeconds is not null;
+        if (LastRunning || PauseFreeClock)
         {
             TherapySeconds += Math.Max(0, status.ElapsedTimeSeconds - LastElapsedSeconds);
         }
@@ -163,13 +176,15 @@ public sealed class OpenSession
         && last.ElapsedSeconds >= LastElapsedSeconds;
 
     /// <summary>
-    /// Infers how the session ended when the app was not watching.
+    /// Infers how the session ended when the app was not watching. Only a clock that runs through
+    /// pauses proves completion by timing; on a pause-free clock an unseen pause could have
+    /// outlasted the remaining time, so without the gloves' summary the end counts as early.
     /// </summary>
     public SessionOutcome InferEnd(DateTimeOffset now)
     {
         var remaining = PlannedSeconds - LastElapsedSeconds;
         var gap = (now - LastObservedAt).TotalSeconds;
-        return LastRunning && gap >= remaining - CompletionToleranceSeconds
+        return LastRunning && !PauseFreeClock && gap >= remaining - CompletionToleranceSeconds
             ? SessionOutcome.Completed
             : SessionOutcome.EndedEarly;
     }
