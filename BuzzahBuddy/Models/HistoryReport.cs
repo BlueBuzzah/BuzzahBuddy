@@ -69,7 +69,7 @@ public static class HistoryReport
     private const string ShortDateFormat = "MMM d";
 
     /// <summary>Periods up to this long trend by week; longer ones, by month.</summary>
-    private const int WeeklyTrendMaxDays = 92;
+    public const int WeeklyTrendMaxDays = 92;
 
     /// <summary>Periods spanning this many calendar months or fewer show one grid per month.</summary>
     private const int MonthGridsMaxMonths = 4;
