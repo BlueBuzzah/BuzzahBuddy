@@ -86,9 +86,9 @@ public sealed class OpenSession
         };
 
     /// <summary>
-    /// Whether a reading belongs to this session rather than a ghost or a different one. The
-    /// session clock runs through pauses, so a session last seen running is over once more than
-    /// its remaining time (plus tolerance) has passed; a reading after that is a later session.
+    /// Whether a reading belongs to this session rather than a ghost or a different one. A
+    /// session last seen running is over once more than its remaining time (plus tolerance) has
+    /// passed; a reading after that is a later session.
     /// </summary>
     public bool Continues(SessionStatus status, string? deviceId, DateTimeOffset now) =>
         CanTrack(status)
