@@ -1059,8 +1059,8 @@ public partial class GloveControlViewModel : BaseViewModel
         SessionEndReason.Error => EndReasonFor(SessionState.ERROR, status.Progress),
         SessionEndReason.ConnectionLost => EndReasonFor(SessionState.CONNECTION_LOST, status.Progress),
         SessionEndReason.Battery => EndReasonFor(SessionState.CRITICAL_BATTERY, status.Progress),
-        not null => null,
-        null => EndReasonFor(status.Status, status.Progress)
+        null or SessionEndReason.Unknown => EndReasonFor(status.Status, status.Progress),
+        _ => null
     };
 
     private static string? EndReasonFor(SessionState state, int progress) => state switch
