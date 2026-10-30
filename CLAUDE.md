@@ -109,6 +109,11 @@ bounds link-up through subscribe — iOS never times out a connect itself.
   is edited and saved on the phone (`IDataStorageService`), then `SendSavedCustomProfileAsync`
   sends it on Apply — after the reboot when Apply also loads Custom, since firmware takes
   `PROFILE_CUSTOM` only while Custom is loaded.
+- `SessionRecord` / `OpenSession` — a saved session and the one being tracked. The firmware
+  never reports a finish (the next reading is IDLE 0/0/0), so the end is inferred: a session
+  counts as completed when the last running reading plus the 15 s tolerance
+  (`CompletionToleranceSeconds`) reaches the planned length. Delivered time sums ELAPSED
+  gains while running (paused time excluded); under 60 s (`MinimumSavedSeconds`) isn't saved.
 - `BatteryReading` — `≤ 0.0 V` is the firmware's "no reading" sentinel → unavailable, not
   0%. 3.0 V = 0%, 4.2 V = 100%, linear.
 
@@ -116,7 +121,8 @@ bounds link-up through subscribe — iOS never times out a connect itself.
 
 `BuzzahBuddy.Tests` is plain `net10.0` with **no `ProjectReference`** (it would restore
 every app TFM and fail without mobile workloads); it `Compile Include`s app sources —
-`Models/**`, `Services/Glove/**`, selected `Services/Bluetooth` and `Helpers` files. A
+`Models/**`, `Services/Glove/**`, selected `Services/Bluetooth` and `Helpers` files, and
+`Services/Storage/HistoryStore.cs` + `StorageJsonContext.cs`. A
 new testable source needs its own `Compile Include` in `BuzzahBuddy.Tests.csproj`.
 
 - `BluetoothService.cs` is **excluded**: its ctor hits `CrossBluetoothLE.Current`, which
@@ -185,6 +191,10 @@ button's current `TextColor`.
   verify reflection-adjacent changes with `-c Release` on a device.
 - **Every persisted type needs `[JsonSerializable]` in
   `Services/Storage/StorageJsonContext.cs`**; a missing entry throws at runtime on device.
+- **History storage:** `HistoryStore` writes `history.json` in `FileSystem.AppDataDirectory`
+  (temp file + move). The open session lives in Preferences `open_session`. A file that won't
+  parse is renamed `history.json.corrupt-<timestamp>` and never overwritten. Legacy
+  `therapy_sessions` is migrated once, then cleared.
 - **`XC0023` is suppressed on purpose**: compiled `RelativeSource AncestorType` fails
   inside recycled `CollectionView` items on device; `DeviceListPage` uses
   `Source={x:Reference page}`. `XC0045`: intentional parent-VM `RelativeSource`.

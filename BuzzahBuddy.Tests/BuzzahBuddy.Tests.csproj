@@ -48,5 +48,7 @@
     <Compile Include="../BuzzahBuddy/Services/Bluetooth/MockBluetoothService.cs" LinkBase="AppServicesBluetooth" />
     <Compile Include="../BuzzahBuddy/Services/Bluetooth/SwitchableBluetoothService.cs" LinkBase="AppServicesBluetooth" />
     <Compile Include="../BuzzahBuddy/Services/Glove/**/*.cs" LinkBase="AppServicesGlove" />
+    <Compile Include="../BuzzahBuddy/Services/Storage/HistoryStore.cs" LinkBase="AppServicesStorage" />
+    <Compile Include="../BuzzahBuddy/Services/Storage/StorageJsonContext.cs" LinkBase="AppServicesStorage" />
   </ItemGroup>
 </Project>

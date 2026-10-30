@@ -12,6 +12,7 @@ public class PreferencesStorageService : IDataStorageService
     private const string LastProfileKey = "last_profile_id";
     private const string LastDeviceKey = "last_device";
     private const string CustomProfileKey = "custom_profile";
+    private const string OpenSessionKey = "open_session";
 
     // Source-generated, not reflection-based: see StorageJsonContext for why this is
     // mandatory rather than an optimization (iOS Release AOT cannot JIT the invoke
@@ -156,12 +157,41 @@ public class PreferencesStorageService : IDataStorageService
         }
     }
 
+    public void SaveOpenSession(OpenSession? session)
+    {
+        if (session is null)
+        {
+            Preferences.Default.Remove(OpenSessionKey);
+            return;
+        }
+
+        Preferences.Default.Set(OpenSessionKey, JsonSerializer.Serialize(session, Json.OpenSession));
+    }
+
+    public OpenSession? LoadOpenSession()
+    {
+        var json = Preferences.Default.Get(OpenSessionKey, string.Empty);
+        if (string.IsNullOrEmpty(json))
+            return null;
+
+        try
+        {
+            return JsonSerializer.Deserialize(json, Json.OpenSession);
+        }
+        catch (JsonException ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Deserialize open session error: {ex.Message}");
+            return null;
+        }
+    }
+
     public async Task ClearAllDataAsync()
     {
         Preferences.Default.Remove(SessionsKey);
         Preferences.Default.Remove(LastProfileKey);
         Preferences.Default.Remove(LastDeviceKey);
         Preferences.Default.Remove(CustomProfileKey);
+        Preferences.Default.Remove(OpenSessionKey);
         await Task.CompletedTask;
     }
 }

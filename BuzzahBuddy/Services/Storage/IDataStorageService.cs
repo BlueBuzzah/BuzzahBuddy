@@ -69,6 +69,17 @@ public interface IDataStorageService
     Task<GloveDevice?> GetLastDeviceAsync();
 
     /// <summary>
+    /// Saves the session the app is tracking, or removes it when null. Synchronous so a view
+    /// model can read it before the first status arrives.
+    /// </summary>
+    void SaveOpenSession(OpenSession? session);
+
+    /// <summary>
+    /// Gets the saved open session, or null if none (or unreadable).
+    /// </summary>
+    OpenSession? LoadOpenSession();
+
+    /// <summary>
     /// Clears all stored data (sessions, patterns, device info).
     /// </summary>
     Task ClearAllDataAsync();
