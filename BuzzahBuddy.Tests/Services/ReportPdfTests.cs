@@ -214,22 +214,52 @@ public class ReportPdfTests
     [MemberData(nameof(Layouts))]
     public void Render_NothingOverflowsOrOverlaps(string name)
     {
-        var (data, from) = name switch
+        // The note rows start from a base with no notes, so their three notes are the three newest.
+        var (data, from, notes) = name switch
         {
-            "fixture" => (Fixture(), From),
-            "realistic" => (Realistic(), new DateOnly(2026, 8, 1)),
-            "empty" => (new HistoryData(), From),
-            "one day" => (Fixture(), Today),
-            "wide notes" => (WithNotes(WithProfiles(Fixture()), WideNote, WideNote, WideNote), From),
-            "unbroken note" => (WithNotes(Fixture(), "Short one.", UnbrokenNote, "Another."), From),
-            "all caps" => (WithNotes(WithProfiles(Fixture()), CapsNote, CapsNote, CapsNote), From),
-            _ => (name == "crowded" ? Crowded() : TwoYears(), Today.AddDays(-729)),
+            "fixture" => (Fixture(), From, null),
+            "realistic" => (Realistic(), new DateOnly(2026, 8, 1), null),
+            "empty" => (new HistoryData(), From, null),
+            "one day" => (Fixture(), Today, null),
+            "wide notes" => (WithNotes(WithProfiles(NoNotes(Fixture())), WideNote, WideNote, WideNote), From, new[] { WideNote, WideNote, WideNote }),
+            "unbroken note" => (WithNotes(NoNotes(Fixture()), "Short one.", UnbrokenNote, "Another."), From, new[] { "Short one.", UnbrokenNote, "Another." }),
+            "all caps" => (WithNotes(WithProfiles(NoNotes(Fixture())), CapsNote, CapsNote, CapsNote), From, new[] { CapsNote, CapsNote, CapsNote }),
+            _ => (name == "crowded" ? Crowded() : TwoYears(), Today.AddDays(-729), (string[]?)null),
         };
 
         var layout = ReportPdf.Draw(Model(data, from), Assets());
 
         Assert.True(layout.Page1Bottom <= ReportPdf.BodyBottom, $"Page 1 ends at {layout.Page1Bottom}");
         AssertNothingOverlaps(layout);
+        if (notes is not null)
+            AssertNewestQuotesShown(layout, notes);
+    }
+
+    private static HistoryData NoNotes(HistoryData data)
+    {
+        data.Notes.Clear();
+        return data;
+    }
+
+    /// <summary>
+    /// The quotes shown are the newest of <paramref name="notes"/> (dated today, yesterday, …), in
+    /// order: all of them, or fewer when the oldest were dropped to fit; the count covers them all.
+    /// </summary>
+    private static void AssertNewestQuotesShown(ReportPdf.Layout layout, string[] notes)
+    {
+        var page2 = layout.PageText[1];
+        var openings = page2.Where(l => l.StartsWith("\u201c", StringComparison.Ordinal)).ToList();
+        var shown = layout.Boxes.Count(b => b.Kind == "date");
+
+        Assert.InRange(shown, 1, notes.Length);
+        Assert.Equal(shown, openings.Count);
+        for (var i = 0; i < shown; i++)
+        {
+            Assert.StartsWith("\u201c" + notes[i][..6], openings[i]);
+            var date = Today.AddDays(-i).ToString("MMM d", CultureInfo.InvariantCulture);
+            Assert.Contains(page2, l => l == date || l.EndsWith("  " + date, StringComparison.Ordinal));
+        }
+        Assert.Contains($"{notes.Length} notes in this period.", page2);
     }
 
     /// <summary>

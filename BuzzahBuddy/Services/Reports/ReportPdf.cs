@@ -171,9 +171,11 @@ public static class ReportPdf
         {
             if (_fontsReady)
                 return;
+            // Coverage first: if it throws, the once-only resolver is still unset and a retry can succeed.
+            var glyphs = FontCmap.CodePoints(assets.LoadFont("AtkinsonHyperlegibleNext-Regular"));
             GlobalFontSettings.FontResolver = new ReportFontResolver(assets.LoadFont);
             GlobalFontSettings.DefaultFontEncoding = PdfFontEncoding.Unicode;
-            _bodyGlyphs = FontCmap.CodePoints(assets.LoadFont("AtkinsonHyperlegibleNext-Regular"));
+            _bodyGlyphs = glyphs;
             _fontsReady = true;
         }
     }

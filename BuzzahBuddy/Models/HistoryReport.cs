@@ -240,7 +240,7 @@ public static class HistoryReport
         var since = sinceFirst ? $" since the first session on {summary.From.ToString(ShortDateFormat, CultureInfo.InvariantCulture)}" : "";
         var lede = new List<string>
         {
-            $"Used on {summary.DaysWithSessions} of {summary.DaysInPeriod} days{since}, averaging {DurationText.Short(summary.AverageSecondsPerSessionDay)} on those days.",
+            $"Used on {summary.DaysWithSessions} of {summary.DaysInPeriod} {(summary.DaysInPeriod == 1 ? "day" : "days")}{since}, averaging {DurationText.Short(summary.AverageSecondsPerSessionDay)} on those days.",
         };
 
         // Missed days count as zero. A 1-day period has no first half, so it reads as steady.

@@ -131,6 +131,18 @@ public class HistoryReportTests
     }
 
     [Fact]
+    public void Build_LedeSentences_OneDayWindow_SaysDay()
+    {
+        var earlier = WithEarlierSession(Fixture());
+        var oneDay = new DateOnly(2026, 10, 28);
+        Assert.Equal("Used on 1 of 1 day, averaging 4 h on those days.",
+            HistoryReport.Build(earlier, oneDay, oneDay, Created, comparePrevious: true).Lede[0]);
+
+        var firstToday = new HistoryData { Sessions = { Rec("t", "2026-10-29T08:00:00-07:00", 3600, "Noisy", SessionOutcome.Completed) } };
+        Assert.Equal("Used on 1 of 1 day since the first session on Oct 29, averaging 1 h on those days.", Build(firstToday, From).Lede[0]);
+    }
+
+    [Fact]
     public void Build_AdherenceStartsAtFirstSessionEver()
     {
         var model = Build(Fixture(), From);
