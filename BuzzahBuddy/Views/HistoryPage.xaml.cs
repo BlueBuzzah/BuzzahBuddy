@@ -91,9 +91,12 @@ public partial class HistoryPage : ContentPage
     // and while it is scrolled out of view it is never measured again, so the day cards slide
     // up under an unchanged offset and the page seems to jump far down. After each batch of
     // header changes, bring the header on screen for one layout pass so it measures itself,
-    // then return to the same offset, all before the next frame is drawn. Days is the list
+    // then return to the same offset, all before the next frame is drawn. When the header was
+    // wholly scrolled away (the person is in the day list), its change in height is added too,
+    // so the day cards stay still (a Demo banner appearing, a period change). Days is the list
     // itself, not the header, so it keeps the list's own behavior.
     private CoreGraphics.CGPoint? _heldOffset;
+    private double _heldHeaderHeight;
 
     private void OnViewModelChanging(object? sender, System.ComponentModel.PropertyChangingEventArgs e)
     {
@@ -105,6 +108,7 @@ public partial class HistoryPage : ContentPage
             return;
 
         _heldOffset = list.ContentOffset;
+        _heldHeaderHeight = ListHeader.Height;
         // The list re-lays out on the next pass, and self-sizing can settle a pass later.
         Dispatcher.Dispatch(() => RestoreOffset(root, list, again: true));
     }
@@ -116,8 +120,11 @@ public partial class HistoryPage : ContentPage
         var top = -list.AdjustedContentInset.Top;
         list.SetContentOffset(new CoreGraphics.CGPoint(held.X, top), animated: false);
         root.LayoutIfNeeded();
+        double y = held.Y;
+        if (_heldHeaderHeight > 0 && (double)(held.Y - top) >= _heldHeaderHeight)
+            y += ListHeader.Height - _heldHeaderHeight;
         var bottom = list.ContentSize.Height + list.AdjustedContentInset.Bottom - list.Bounds.Height;
-        list.SetContentOffset(new CoreGraphics.CGPoint(held.X, Math.Max(top, Math.Min(held.Y, bottom))), animated: false);
+        list.SetContentOffset(new CoreGraphics.CGPoint(held.X, Math.Max(top, Math.Min((nfloat)y, bottom))), animated: false);
         root.LayoutIfNeeded();
         if (again)
             Dispatcher.Dispatch(() => RestoreOffset(root, list, again: false));

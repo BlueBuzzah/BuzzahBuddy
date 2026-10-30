@@ -144,7 +144,8 @@ public sealed class CalendarMonthView : ContentView
         var cell = new VerticalStackLayout { Spacing = NumberGap, Children = { top, number } };
         if (day.IsFuture)
         {
-            AutomationProperties.SetIsInAccessibleTree(cell, false);
+            // IsInAccessibleTree on a container leaves its children (the number) in the tree.
+            AutomationProperties.SetExcludedWithChildren(cell, true);
         }
         else
         {
