@@ -144,6 +144,26 @@ public class GloveControlServiceTests
         Assert.Equal(0, service.CurrentSessionStatus.ElapsedTimeSeconds);
     }
 
+    [Theory]
+    [InlineData(SessionState.PAUSED)]
+    [InlineData(SessionState.RUNNING)]
+    public async Task PauseAndResume_KeepTheSessionIdAndPausedTime(SessionState state)
+    {
+        var fake = new FakeBluetoothService();
+        fake.CannedResponses["SESSION_STATUS"] =
+            "SESSION_STATUS:RUNNING\nELAPSED:100\nTOTAL:300\nPROGRESS:33\nSESSION_ID:7\nPAUSED:40\n\x04";
+        fake.CannedResponses["SESSION_PAUSE"] = "SESSION_STATUS:PAUSED\n\x04";
+        fake.CannedResponses["SESSION_RESUME"] = "SESSION_STATUS:RUNNING\n\x04";
+        var service = new GloveControlService(fake);
+        await service.GetSessionStatusAsync();
+
+        await (state == SessionState.PAUSED ? service.PauseSessionAsync() : service.ResumeSessionAsync());
+
+        Assert.Equal(state, service.CurrentSessionStatus.Status);
+        Assert.Equal(7, service.CurrentSessionStatus.SessionId);
+        Assert.Equal(40, service.CurrentSessionStatus.PausedSeconds);
+    }
+
     [Fact]
     public async Task StartSessionAsync_LegacyReplyWithoutTotal_FallsBackToTheProfileDuration()
     {
