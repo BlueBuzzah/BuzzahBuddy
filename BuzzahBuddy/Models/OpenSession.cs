@@ -5,9 +5,9 @@ namespace BuzzahBuddy.Models;
 /// session survives the app being killed or the link dropping.
 /// <para>
 /// Older firmware never tells the phone how a session finished (current firmware reports its
-/// last session; see <see cref="End"/>). Known Defect 4:
-/// ELAPSED keeps counting through a pause, so delivered time is the sum of ELAPSED gains taken
-/// only while the session was running. Known Defect 7: a finished session can read RUNNING with
+/// last session; see <see cref="End"/>). Older firmware's ELAPSED also keeps counting through a
+/// pause, so without a session id delivered time is the sum of ELAPSED gains taken only while
+/// the session was running. Known Defect 6: a finished session can read RUNNING with
 /// ELAPSED:0 TOTAL:0 after a reconnect, so a reading with TOTAL of 0 is never tracked. On
 /// completion the engine stops in the same tick that ELAPSED reaches TOTAL, so the next reading
 /// is IDLE with 0/0/0 and PROGRESS never reaches 100. The end is therefore inferred from the
@@ -87,24 +87,29 @@ public sealed class OpenSession
 
     /// <summary>
     /// Whether a reading belongs to this session rather than a ghost or a different one. A
-    /// session last seen running is over once more than its remaining time (plus tolerance) has
-    /// passed; a reading after that is a later session.
+    /// matching session id decides it: a pause the phone never saw can outlast the remaining
+    /// time. Without ids (older firmware, whose clock runs through pauses), a session last seen
+    /// running is over once more than its remaining time (plus tolerance) has passed; a reading
+    /// after that is a later session.
     /// </summary>
     public bool Continues(SessionStatus status, string? deviceId, DateTimeOffset now) =>
         CanTrack(status)
         && status.TotalTimeSeconds == PlannedSeconds
         && status.ElapsedTimeSeconds >= LastElapsedSeconds
         && (DeviceId is null || DeviceId == deviceId)
-        && (FirmwareSessionId is null || status.SessionId is null || FirmwareSessionId == status.SessionId)
-        && !(LastRunning
-             && (now - LastObservedAt).TotalSeconds > PlannedSeconds - LastElapsedSeconds + CompletionToleranceSeconds);
+        && (FirmwareSessionId is not null && status.SessionId is not null
+            ? FirmwareSessionId == status.SessionId
+            : !(LastRunning
+                && (now - LastObservedAt).TotalSeconds > PlannedSeconds - LastElapsedSeconds + CompletionToleranceSeconds));
 
     /// <summary>
-    /// Records a reading. Time counts only when the previous reading showed the session running.
+    /// Records a reading. Firmware that reports a session id holds ELAPSED while paused, so every
+    /// gain is therapy; on older firmware time counts only when the previous reading showed the
+    /// session running.
     /// </summary>
     public void Observe(SessionStatus status, DateTimeOffset now)
     {
-        if (LastRunning)
+        if (LastRunning || status.SessionId is not null)
         {
             TherapySeconds += Math.Max(0, status.ElapsedTimeSeconds - LastElapsedSeconds);
         }

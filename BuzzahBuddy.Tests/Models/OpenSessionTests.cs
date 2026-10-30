@@ -47,7 +47,7 @@ public class OpenSessionTests
     [InlineData(SessionState.RUNNING, 0, 7200, true)]
     [InlineData(SessionState.PAUSED, 10, 7200, true)]
     [InlineData(SessionState.LOW_BATTERY, 10, 7200, true)]
-    [InlineData(SessionState.RUNNING, 0, 0, false)]   // Defect 7 ghost
+    [InlineData(SessionState.RUNNING, 0, 0, false)]   // Defect 6 ghost
     [InlineData(SessionState.IDLE, 0, 0, false)]
     public void CanTrack_RejectsGhostAndIdle(SessionState state, int elapsed, int total, bool expected) =>
         Assert.Equal(expected, OpenSession.CanTrack(S(state, elapsed, total)));
@@ -67,7 +67,7 @@ public class OpenSessionTests
         open.Observe(S(SessionState.RUNNING, 300), T0.AddSeconds(300));
         open.Observe(S(SessionState.PAUSED, 310), T0.AddSeconds(310));
         Assert.Equal(310, open.TherapySeconds);
-        open.Observe(S(SessionState.RUNNING, 910), T0.AddSeconds(910)); // firmware clock ran through the pause
+        open.Observe(S(SessionState.RUNNING, 910), T0.AddSeconds(910)); // older firmware's clock ran through the pause
         Assert.Equal(310, open.TherapySeconds);
         open.Observe(S(SessionState.RUNNING, 1000), T0.AddSeconds(1000));
         Assert.Equal(400, open.TherapySeconds);
@@ -120,6 +120,28 @@ public class OpenSessionTests
         open.Observe(S(SessionState.RUNNING, 30), seen);
         var now = seen.AddSeconds(7200 - 30 + beyondRemaining);
         Assert.Equal(expected, open.Continues(S(SessionState.RUNNING, 90), "G1", now));
+    }
+
+    [Fact]
+    public void Continues_MatchingIdOutlastsTheRemainingTime()
+    {
+        // Paused just after the last poll, then the phone was away longer than the time left.
+        var open = QuickTest();
+        open.Observe(Sid(SessionState.RUNNING, 100), T0.AddSeconds(100));
+        var later = T0.AddSeconds(100 + 530);
+        Assert.True(open.Continues(Sid(SessionState.PAUSED, 105), "G1", later));
+        var other = Sid(SessionState.PAUSED, 105);
+        other.SessionId = FwId + 1;
+        Assert.False(open.Continues(other, "G1", later));
+    }
+
+    [Fact]
+    public void Observe_WithSessionId_CountsTheGainAfterAResume()
+    {
+        var open = QuickTest();
+        open.Observe(Sid(SessionState.PAUSED, 100), T0.AddSeconds(100));
+        open.Observe(Sid(SessionState.RUNNING, 104), T0.AddSeconds(400));  // ELAPSED held while paused
+        Assert.Equal(104, open.TherapySeconds);
     }
 
     [Fact]
