@@ -16,3 +16,7 @@ temp/
 /node_modules
 /wwwroot/node_modules
 .fake
+
+# Generated App Store screenshots; only the device frame is tracked
+/assets/screenshots/iOS/*
+!/assets/screenshots/iOS/iphone-17-pro-frame.png
