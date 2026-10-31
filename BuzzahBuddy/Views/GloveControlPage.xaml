@@ -29,16 +29,26 @@
                                      Title="{Binding BannerTitle}"
                                      Message="{Binding BannerMessage}"
                                      ActionText="{Binding BannerActionText}"
-                                     ActionCommand="{Binding NavigateToDevicesCommand}"
+                                     ActionCommand="{Binding BannerActionCommand}"
+                                     ActionAtEnd="{Binding BannerActionAtEnd}"
                                      Announce="True"
                                      AutomationId="SessionBanner" />
                 </VerticalStackLayout>
+
+                <!-- Launch auto-connect under way: the summary card, scanning, where it sits once connected -->
+                <controls:GlovesSummaryCard Grid.Row="1"
+                                            Margin="0,24,0,0"
+                                            VerticalOptions="Start"
+                                            IsScanning="{Binding IsAutoConnecting}"
+                                            IsVisible="{Binding IsAutoConnecting}"
+                                            Command="{Binding NavigateToDevicesCommand}"
+                                            AutomationId="GlovesScanning" />
 
                 <!-- Not connected: how to get started -->
                 <Border Grid.Row="1"
                         Style="{StaticResource Card}"
                         VerticalOptions="Center"
-                        IsVisible="{Binding ConnectionInfo.IsConnected, Converter={StaticResource InvertedBoolConverter}}">
+                        IsVisible="{Binding ShowGetStarted}">
                     <VerticalStackLayout Spacing="{StaticResource Space4}">
                         <Label Text="Get Started"
                                Style="{StaticResource TypeTitleM}"
@@ -112,8 +122,9 @@
         <!-- The primary action in easy reach at the bottom, as on Gloves: Scan for Gloves, or the
              session controls (Start alone, full width, or Pause/Resume and Stop side by side). -->
         <Grid Grid.Row="1" Margin="0,12,0,0">
+            <!-- Hidden with Get Started while the launch auto-connect is scanning -->
             <Button Text="Scan for Gloves"
-                    IsVisible="{Binding ConnectionInfo.IsConnected, Converter={StaticResource InvertedBoolConverter}}"
+                    IsVisible="{Binding ShowGetStarted}"
                     Style="{StaticResource ButtonPrimaryXl}"
                     ContentLayout="Left,8"
                     Command="{Binding ScanForGlovesCommand}"

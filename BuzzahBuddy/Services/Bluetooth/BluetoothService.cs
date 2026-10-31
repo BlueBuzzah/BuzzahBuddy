@@ -386,21 +386,43 @@ public class BluetoothService : IBluetoothService
         return Task.FromResult(_bluetoothLE.IsOn);
     }
 
-    public async Task<bool> ConnectToLastKnownDeviceAsync(CancellationToken ct = default)
+    public Task<bool> ConnectToLastKnownDeviceAsync(CancellationToken ct = default)
     {
         if (string.IsNullOrEmpty(_lastConnectedDeviceId))
         {
             System.Diagnostics.Debug.WriteLine("[BLE RECONNECT] No last connected device ID available");
-            return false;
+            return Task.FromResult(false);
         }
 
+        return ConnectByIdAsync(_lastConnectedDeviceId, ConnectionState.Reconnecting, ct);
+    }
+
+    public async Task<bool> ConnectToKnownDeviceAsync(string deviceId, CancellationToken ct = default)
+    {
+        // Right after launch iOS reports Unknown (IsOn false) until CoreBluetooth settles.
+        // ponytail: polled, capped at 3 s; wait on IBluetoothLE.StateChanged if it ever matters.
+        for (var i = 0; i < 30 && _bluetoothLE.State == BluetoothState.Unknown; i++)
+            await Task.Delay(100, ct);
+        if (!_bluetoothLE.IsOn)
+            return false;
+
+        return await ConnectByIdAsync(deviceId, ConnectionState.Connecting, ct);
+    }
+
+    /// <summary>
+    /// Connects by stored GUID without scanning. <see cref="_lastConnectedDeviceId"/> is set
+    /// only on success: ReconnectionService starts its loop on any drop once it's set, so a
+    /// failed launch connect must leave it alone.
+    /// </summary>
+    private async Task<bool> ConnectByIdAsync(string deviceId, ConnectionState progressState, CancellationToken ct)
+    {
         try
         {
-            UpdateConnectionState(ConnectionState.Reconnecting);
+            UpdateConnectionState(progressState);
 
-            if (!Guid.TryParse(_lastConnectedDeviceId, out var guid))
+            if (!Guid.TryParse(deviceId, out var guid))
             {
-                System.Diagnostics.Debug.WriteLine($"[BLE RECONNECT] Invalid GUID: {_lastConnectedDeviceId}");
+                System.Diagnostics.Debug.WriteLine($"[BLE RECONNECT] Invalid GUID: {deviceId}");
                 UpdateConnectionState(ConnectionState.Disconnected);
                 return false;
             }
@@ -456,6 +478,10 @@ public class BluetoothService : IBluetoothService
             }
 
             await RequestLargerMtuAsync(bleDevice);
+
+            // IDENTIFY and the MTU request don't take the token: a Stop Scanning or timeout
+            // during them still ends here, in the catch below, instead of connecting.
+            connectCts.Token.ThrowIfCancellationRequested();
 
             var gloveDevice = new GloveDevice
             {

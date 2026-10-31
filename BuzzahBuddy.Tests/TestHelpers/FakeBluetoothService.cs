@@ -98,6 +98,11 @@ public class FakeBluetoothService : IBluetoothService
         return Task.CompletedTask;
     }
     public Task<bool> ConnectToLastKnownDeviceAsync(CancellationToken ct = default) => Task.FromResult(true);
+
+    /// <summary>What ConnectToKnownDeviceAsync does; defaults to connecting at once.</summary>
+    public Func<string, CancellationToken, Task<bool>> ConnectToKnown { get; set; } = (_, _) => Task.FromResult(true);
+    public Task<bool> ConnectToKnownDeviceAsync(string deviceId, CancellationToken ct = default) => ConnectToKnown(deviceId, ct);
+    public bool BluetoothEnabled { get; set; } = true;
     public int DisconnectForReconnectCalls { get; private set; }
 
     public Task DisconnectForReconnectAsync()
@@ -109,5 +114,5 @@ public class FakeBluetoothService : IBluetoothService
         => Task.FromResult(new ScanResult(ScanOutcome.NoDevicesFound, Enumerable.Empty<GloveDevice>()));
     public Task SubscribeToNotificationsAsync() => Task.CompletedTask;
     public Task UnsubscribeFromNotificationsAsync() => Task.CompletedTask;
-    public Task<bool> IsBluetoothEnabledAsync() => Task.FromResult(true);
+    public Task<bool> IsBluetoothEnabledAsync() => Task.FromResult(BluetoothEnabled);
 }

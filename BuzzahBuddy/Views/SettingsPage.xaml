@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
-<!-- Settings (buzzahbuddy.md Settings): appearance override (design system README "Color"),
-     data, and About with the safety notices verbatim. -->
+<!-- Settings (buzzahbuddy.md Settings): auto-connect, appearance override (design system
+     README "Color"), data, and About with the safety notices verbatim. -->
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:BuzzahBuddy.ViewModels"
@@ -14,6 +14,16 @@
     <ScrollView>
         <VerticalStackLayout Padding="16,0,16,24" Spacing="{StaticResource Space8}">
             <Label Text="Settings" Style="{StaticResource TypeHeadline}" SemanticProperties.HeadingLevel="Level1" />
+
+            <VerticalStackLayout Spacing="{StaticResource Space3}">
+                <Label Text="Gloves" Style="{StaticResource TypeTitleL}" SemanticProperties.HeadingLevel="Level2" />
+                <Border Style="{StaticResource Card}" Padding="0,8">
+                    <controls:SwitchRow Label="Auto-Connect to Last Used Gloves"
+                                        Description="When BuzzahBuddy opens, it connects to the last gloves you used."
+                                        IsToggled="{Binding AutoConnect}"
+                                        AutomationId="AutoConnectSwitch" />
+                </Border>
+            </VerticalStackLayout>
 
             <VerticalStackLayout Spacing="{StaticResource Space3}">
                 <Label Text="Appearance" Style="{StaticResource TypeTitleL}" SemanticProperties.HeadingLevel="Level2" />
