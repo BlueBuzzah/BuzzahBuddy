@@ -21,12 +21,11 @@ public class AutoConnectServiceTests
         service.Start("GLOVE-1"); // the fake completes synchronously
 
         Assert.Equal(AutoConnectState.Failed, service.State);
-        Assert.Equal("Try Again", service.Banner?.Action);
-        Assert.Contains("near your phone", service.Banner?.Message);
+        Assert.Contains("near your phone", service.FailedBanner?.Message);
 
         bluetooth.RaiseConnectionStateChanged(ConnectionState.Connected);
         Assert.Equal(AutoConnectState.Idle, service.State);
-        Assert.Null(service.Banner);
+        Assert.Null(service.FailedBanner);
     }
 
     [Fact]
@@ -39,7 +38,7 @@ public class AutoConnectServiceTests
 
         service.Start("GLOVE-1");
 
-        Assert.Equal("Turn on Bluetooth, then tap Try Again.", service.Banner?.Message);
+        Assert.Equal("Turn on Bluetooth, then tap Try Again.", service.FailedBanner?.Message);
     }
 
     [Fact]
@@ -57,11 +56,11 @@ public class AutoConnectServiceTests
 
         service.Start("GLOVE-1");
         Assert.Equal(AutoConnectState.Connecting, service.State);
-        Assert.Equal("Cancel", service.Banner?.Action);
 
         await service.CancelAsync();
 
         Assert.Equal(AutoConnectState.Idle, service.State);
+        Assert.Null(service.FailedBanner);
     }
 
     [Fact]

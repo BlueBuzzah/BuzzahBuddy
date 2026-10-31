@@ -6,10 +6,10 @@ public enum AutoConnectState { Idle, Connecting, Failed }
 
 /// <summary>
 /// Connects to the remembered gloves when the app opens (Settings, "Auto-Connect to Last
-/// Used Gloves"). One attempt, bounded by the transport's 15 s connect timeout; when it fails
-/// the Session and Gloves banners offer Try Again. Any connection, from here or a manual
-/// connect, returns it to idle and the banner goes (owner override of the Banner README's
-/// "don't auto-dismiss").
+/// Used Gloves"). One attempt, bounded by the transport's 15 s connect timeout. While it runs,
+/// Session and Gloves show their scanning state; when it fails, both show a banner with Try
+/// Again. Any connection, from here or a manual connect, returns it to idle and the banner
+/// goes (owner override of the Banner README's "don't auto-dismiss").
 /// </summary>
 public sealed class AutoConnectService
 {
@@ -39,18 +39,13 @@ public sealed class AutoConnectService
         };
     }
 
-    /// <summary>The banner for the current state, or null when idle. Session and Gloves show the same one.</summary>
-    public (StatusTone Tone, string Title, string Message, string Action)? Banner => State switch
-    {
-        AutoConnectState.Connecting => (StatusTone.Info, "Connecting to Your Gloves",
-            "This can take up to 15 seconds.", "Cancel"),
-        AutoConnectState.Failed => (StatusTone.Warning, "Couldn't Connect to Your Gloves",
+    /// <summary>The failure banner (action "Try Again"), or null. Session and Gloves show the same one.</summary>
+    public (StatusTone Tone, string Title, string Message)? FailedBanner => State == AutoConnectState.Failed
+        ? (StatusTone.Warning, "Couldn't Connect to Your Gloves",
             _bluetoothOff
                 ? "Turn on Bluetooth, then tap Try Again."
-                : "Make sure both gloves are on and near your phone, then tap Try Again.",
-            "Try Again"),
-        _ => null
-    };
+                : "Make sure both gloves are on and near your phone, then tap Try Again.")
+        : null;
 
     /// <summary>Starts the launch attempt for the remembered primary glove.</summary>
     public void Start(string deviceId)

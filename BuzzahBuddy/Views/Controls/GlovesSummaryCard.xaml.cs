@@ -15,6 +15,10 @@ public partial class GlovesSummaryCard : ContentView
         nameof(Secondary), typeof(GloveStatusInfo), typeof(GlovesSummaryCard), null,
         propertyChanged: (b, _, _) => ((GlovesSummaryCard)b).Apply());
 
+    public static readonly BindableProperty IsScanningProperty = BindableProperty.Create(
+        nameof(IsScanning), typeof(bool), typeof(GlovesSummaryCard), false,
+        propertyChanged: (b, _, _) => ((GlovesSummaryCard)b).Apply());
+
     public static readonly BindableProperty CommandProperty = BindableProperty.Create(
         nameof(Command), typeof(ICommand), typeof(GlovesSummaryCard));
 
@@ -41,11 +45,27 @@ public partial class GlovesSummaryCard : ContentView
 
     public GloveStatusInfo? Secondary { get => (GloveStatusInfo?)GetValue(SecondaryProperty); set => SetValue(SecondaryProperty, value); }
 
+    /// <summary>The launch auto-connect is trying: radar, "Scanning for Gloves" and how long it can take.</summary>
+    public bool IsScanning { get => (bool)GetValue(IsScanningProperty); set => SetValue(IsScanningProperty, value); }
+
     /// <summary>Runs on tap; the Session screen opens the Gloves tab.</summary>
     public ICommand? Command { get => (ICommand?)GetValue(CommandProperty); set => SetValue(CommandProperty, value); }
 
     private void Apply()
     {
+        GlyphLabel.IsVisible = !IsScanning;
+        Radar.IsVisible = Radar.IsRunning = IsScanning;
+        if (IsScanning)
+        {
+            IconGround.SetDynamicResource(BackgroundColorProperty, "BrandSoft");
+            TitleText.Text = "Scanning for Gloves";
+            DetailText.Text = "This can take up to 15 seconds.";
+            DetailRow.IsVisible = true;
+            BatteryGlyph.IsVisible = false;
+            SemanticProperties.SetDescription(Root, "Scanning for gloves. This can take up to 15 seconds.");
+            return;
+        }
+
         var primary = Primary ?? new GloveStatusInfo(GloveRole.Primary, GloveLinkStatus.Disconnected, null);
         var secondary = Secondary ?? new GloveStatusInfo(GloveRole.Secondary, GloveLinkStatus.Disconnected, null);
         var (tone, title, detail) = GloveStatusText.Summary(primary, secondary);

@@ -1,10 +1,12 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <!-- Both gloves at a glance on the Session screen: a status icon, "Gloves Connected" and each
      battery. The whole card is one tap target that opens the Gloves tab, where the full
-     GloveStatus cards live. Read by screen readers as one element with a hint. -->
+     GloveStatus cards live. Read by screen readers as one element with a hint. While the
+     launch auto-connect runs (IsScanning) it shows the radar and "Scanning for Gloves". -->
 <ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:helpers="clr-namespace:BuzzahBuddy.Helpers"
+             xmlns:controls="clr-namespace:BuzzahBuddy.Views.Controls"
              x:Class="BuzzahBuddy.Views.Controls.GlovesSummaryCard">
     <Border x:Name="Root" Style="{StaticResource Card}">
         <Border.GestureRecognizers>
@@ -24,7 +26,11 @@
                 <Border.StrokeShape>
                     <RoundRectangle CornerRadius="{StaticResource RadiusFull}" />
                 </Border.StrokeShape>
-                <Label x:Name="GlyphLabel" Style="{StaticResource IconInShape}" HorizontalOptions="Center" />
+                <Grid>
+                    <Label x:Name="GlyphLabel" Style="{StaticResource IconInShape}" HorizontalOptions="Center" />
+                    <controls:RadarSweep x:Name="Radar" WidthRequest="24" HeightRequest="24"
+                                         HorizontalOptions="Center" VerticalOptions="Center" />
+                </Grid>
             </Border>
             <VerticalStackLayout x:Name="TextBlock" Grid.Column="1" Spacing="2" VerticalOptions="Center">
                 <!-- Line height 1: the title line height adds space above it on iOS (below on
@@ -32,11 +38,13 @@
                 <Label x:Name="TitleText" Style="{StaticResource TypeTitleM}" LineHeight="1" />
                 <!-- One battery icon for the line, showing the lower of the two levels. At line height 1
                      a text line is the icon's height, so top alignment keeps the icon on the first
-                     line when the text wraps on narrow phones. -->
-                <Grid x:Name="DetailRow" ColumnDefinitions="Auto,*" ColumnSpacing="{StaticResource Space1}">
+                     line when the text wraps on narrow phones. The gap is the icon's margin (Space1), not
+                     column spacing, so the text lines up with the title when the icon is hidden. -->
+                <Grid x:Name="DetailRow" ColumnDefinitions="Auto,*">
                     <Label x:Name="BatteryGlyph"
                            Style="{StaticResource IconLabel}"
                            FontSize="18"
+                           Margin="0,0,4,0"
                            VerticalOptions="Start" />
                     <Label x:Name="DetailText"
                            Grid.Column="1"

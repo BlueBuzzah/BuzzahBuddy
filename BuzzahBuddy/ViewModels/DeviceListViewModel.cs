@@ -49,7 +49,16 @@ public partial class DeviceListViewModel : BaseViewModel, IQueryAttributable
     [NotifyPropertyChangedFor(nameof(ShowReadyState))]
     [NotifyPropertyChangedFor(nameof(ShowNoResultsState))]
     [NotifyPropertyChangedFor(nameof(ShowScanningWithResults))]
+    [NotifyPropertyChangedFor(nameof(ShowScanning))]
     private bool _isScanning;
+
+    /// <summary>The launch auto-connect is trying: this page shows its scanning state for it.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowReadyState))]
+    [NotifyPropertyChangedFor(nameof(ShowNoResultsState))]
+    [NotifyPropertyChangedFor(nameof(ShowScanning))]
+    [NotifyPropertyChangedFor(nameof(ScanningHint))]
+    private bool _isAutoConnecting;
 
     [ObservableProperty]
     private bool _bluetoothEnabled = true;
@@ -92,6 +101,9 @@ public partial class DeviceListViewModel : BaseViewModel, IQueryAttributable
     private System.Windows.Input.ICommand? _bannerActionCommand;
 
     [ObservableProperty]
+    private bool _bannerActionAtEnd;
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowReadyState))]
     [NotifyPropertyChangedFor(nameof(ShowNoResultsState))]
     private bool _hasCompletedScan;
@@ -106,7 +118,7 @@ public partial class DeviceListViewModel : BaseViewModel, IQueryAttributable
         AutoConnectService autoConnect)
     {
         _autoConnect = autoConnect;
-        _autoConnect.StateChanged += (_, _) => MainThread.BeginInvokeOnMainThread(ResolveBanner);
+        _autoConnect.StateChanged += (_, _) => MainThread.BeginInvokeOnMainThread(OnAutoConnectStateChanged);
         _confirmation = confirmation;
         _bluetoothService = bluetoothService;
         _storageService = storageService;
@@ -143,6 +155,13 @@ public partial class DeviceListViewModel : BaseViewModel, IQueryAttributable
         CheckBluetoothStatusAsync().SafeFireAndForget("[DEVICELIST]");
         UpdateConnectionState();
         // The launch auto-connect starts before Shell builds this page.
+        OnAutoConnectStateChanged();
+    }
+
+    private void OnAutoConnectStateChanged()
+    {
+        IsAutoConnecting = _autoConnect.State == AutoConnectState.Connecting;
+        UpdateScanButtonState();
         ResolveBanner();
     }
 
@@ -152,7 +171,12 @@ public partial class DeviceListViewModel : BaseViewModel, IQueryAttributable
         if (!_scanToggle.TryAcquire())
             return;
 
-        if (IsScanning)
+        if (IsAutoConnecting)
+        {
+            // Stop Scanning here stops the launch auto-connect.
+            await _autoConnect.CancelAsync();
+        }
+        else if (IsScanning)
         {
             // Stop scanning
             await StopScanningAsync();
@@ -185,10 +209,17 @@ public partial class DeviceListViewModel : BaseViewModel, IQueryAttributable
     }
 
     /// <summary>Empty-state variant: before the first scan has run.</summary>
-    public bool ShowReadyState => !HasCompletedScan && !IsScanning;
+    public bool ShowReadyState => !HasCompletedScan && !ShowScanning;
 
     /// <summary>Empty-state variant: a scan finished and found nothing.</summary>
-    public bool ShowNoResultsState => HasCompletedScan && !IsScanning;
+    public bool ShowNoResultsState => HasCompletedScan && !ShowScanning;
+
+    /// <summary>Empty-state variant: a scan, or the launch auto-connect, is under way.</summary>
+    public bool ShowScanning => IsScanning || IsAutoConnecting;
+
+    public string ScanningHint => IsAutoConnecting
+        ? "This can take up to 15 seconds."
+        : "This can take up to 10 seconds.";
 
     /// <summary>Scan still running with devices already listed — the EmptyView scanning
     /// indicator is hidden once the collection is non-empty, so a slim strip covers it.</summary>
@@ -361,7 +392,7 @@ public partial class DeviceListViewModel : BaseViewModel, IQueryAttributable
 
     private void UpdateScanButtonState()
     {
-        if (IsScanning)
+        if (IsScanning || IsAutoConnecting)
         {
             ScanButtonText = "Stop Scanning";
         }
@@ -414,14 +445,14 @@ public partial class DeviceListViewModel : BaseViewModel, IQueryAttributable
         (StatusTone Tone, string Title, string Message, string? Detail, string? Action, System.Windows.Input.ICommand? Command)? banner =
             !BluetoothEnabled ? (StatusTone.Warning, "Bluetooth Is Off", "Turn on Bluetooth to find your gloves.", null, "Open Settings", OpenSettingsCommand)
             : _lastError is { } e ? (StatusTone.Danger, e.Title, e.Message, e.Detail, null, null)
-            : _autoConnect.Banner is { } a ? (a.Tone, a.Title, a.Message, null, a.Action,
-                _autoConnect.State == AutoConnectState.Connecting ? CancelAutoConnectCommand : TryAgainAutoConnectCommand)
+            : _autoConnect.FailedBanner is { } a ? (a.Tone, a.Title, a.Message, null, "Try Again", TryAgainAutoConnectCommand)
             : Settings.ApplyReconnectFailed ? (StatusTone.Warning, "Your Gloves Haven't Reconnected",
                 "The settings were sent. Make sure both gloves are on, then connect again below.", null, null, null)
             : null;
         BannerVisible = banner is not null;
         if (banner is { } b)
             (BannerTone, BannerTitle, BannerMessage, BannerDetail, BannerActionText, BannerActionCommand) = b;
+        BannerActionAtEnd = BannerVisible && BannerActionCommand == TryAgainAutoConnectCommand;
     }
 
     [RelayCommand]
@@ -429,9 +460,6 @@ public partial class DeviceListViewModel : BaseViewModel, IQueryAttributable
 
     [RelayCommand]
     private void TryAgainAutoConnect() => _autoConnect.TryAgain();
-
-    [RelayCommand]
-    private Task CancelAutoConnectAsync() => _autoConnect.CancelAsync();
 
     [RelayCommand]
     private async Task NavigateToControlAsync()

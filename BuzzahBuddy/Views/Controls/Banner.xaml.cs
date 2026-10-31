@@ -28,6 +28,9 @@ public partial class Banner : ContentView
     public static readonly BindableProperty ActionCommandProperty = BindableProperty.Create(
         nameof(ActionCommand), typeof(ICommand), typeof(Banner), null, propertyChanged: Update);
 
+    public static readonly BindableProperty ActionAtEndProperty = BindableProperty.Create(
+        nameof(ActionAtEnd), typeof(bool), typeof(Banner), false, propertyChanged: Update);
+
     public static readonly BindableProperty AnnounceProperty = BindableProperty.Create(
         nameof(Announce), typeof(bool), typeof(Banner), false);
 
@@ -61,6 +64,9 @@ public partial class Banner : ContentView
     public string? ActionText { get => (string?)GetValue(ActionTextProperty); set => SetValue(ActionTextProperty, value); }
 
     public ICommand? ActionCommand { get => (ICommand?)GetValue(ActionCommandProperty); set => SetValue(ActionCommandProperty, value); }
+
+    /// <summary>Right-aligns the action (owner override for the auto-connect Try Again; the README's actions sit at the start).</summary>
+    public bool ActionAtEnd { get => (bool)GetValue(ActionAtEndProperty); set => SetValue(ActionAtEndProperty, value); }
 
     /// <summary>Speak the banner when it appears or its title changes (status changes).</summary>
     public bool Announce { get => (bool)GetValue(AnnounceProperty); set => SetValue(AnnounceProperty, value); }
@@ -125,6 +131,7 @@ public partial class Banner : ContentView
         ActionButton.Text = ActionText;
         ActionButton.Command = ActionCommand;
         ActionButton.IsVisible = !string.IsNullOrEmpty(ActionText);
+        ActionButton.HorizontalOptions = ActionAtEnd ? LayoutOptions.End : LayoutOptions.Start;
         if (ink != _actionInk)
         {
             // ButtonQuiet's states repaint Brand on every state change, Normal included, so

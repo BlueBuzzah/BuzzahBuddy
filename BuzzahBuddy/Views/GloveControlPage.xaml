@@ -30,15 +30,25 @@
                                      Message="{Binding BannerMessage}"
                                      ActionText="{Binding BannerActionText}"
                                      ActionCommand="{Binding BannerActionCommand}"
+                                     ActionAtEnd="{Binding BannerActionAtEnd}"
                                      Announce="True"
                                      AutomationId="SessionBanner" />
                 </VerticalStackLayout>
+
+                <!-- Launch auto-connect under way: the summary card, scanning, where it sits once connected -->
+                <controls:GlovesSummaryCard Grid.Row="1"
+                                            Margin="0,24,0,0"
+                                            VerticalOptions="Start"
+                                            IsScanning="True"
+                                            IsVisible="{Binding IsAutoConnecting}"
+                                            Command="{Binding NavigateToDevicesCommand}"
+                                            AutomationId="GlovesScanning" />
 
                 <!-- Not connected: how to get started -->
                 <Border Grid.Row="1"
                         Style="{StaticResource Card}"
                         VerticalOptions="Center"
-                        IsVisible="{Binding ConnectionInfo.IsConnected, Converter={StaticResource InvertedBoolConverter}}">
+                        IsVisible="{Binding ShowGetStarted}">
                     <VerticalStackLayout Spacing="{StaticResource Space4}">
                         <Label Text="Get Started"
                                Style="{StaticResource TypeTitleM}"

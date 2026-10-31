@@ -216,6 +216,7 @@
                                  Detail="{Binding BannerDetail}"
                                  ActionText="{Binding BannerActionText}"
                                  ActionCommand="{Binding BannerActionCommand}"
+                                 ActionAtEnd="{Binding BannerActionAtEnd}"
                                  Announce="True" />
             </VerticalStackLayout>
 
@@ -229,10 +230,10 @@
                                 <Label Text="Find Your Gloves" Style="{StaticResource TypeTitleM}" HorizontalTextAlignment="Center" SemanticProperties.HeadingLevel="Level2" />
                                 <Label Text="Turn on both gloves, then tap Scan for Gloves." HorizontalTextAlignment="Center" />
                             </VerticalStackLayout>
-                            <VerticalStackLayout Spacing="{StaticResource Space3}" VerticalOptions="Center" IsVisible="{Binding IsScanning}">
-                                <controls:RadarSweep IsRunning="{Binding IsScanning}" WidthRequest="48" HeightRequest="48" HorizontalOptions="Center" />
+                            <VerticalStackLayout Spacing="{StaticResource Space3}" VerticalOptions="Center" IsVisible="{Binding ShowScanning}">
+                                <controls:RadarSweep IsRunning="{Binding ShowScanning}" WidthRequest="48" HeightRequest="48" HorizontalOptions="Center" />
                                 <Label Text="Scanning for Gloves…" Style="{StaticResource TypeTitleM}" HorizontalTextAlignment="Center" SemanticProperties.HeadingLevel="Level2" />
-                                <Label Text="This can take up to 10 seconds." HorizontalTextAlignment="Center" TextColor="{DynamicResource InkMuted}" />
+                                <Label Text="{Binding ScanningHint}" HorizontalTextAlignment="Center" TextColor="{DynamicResource InkMuted}" />
                             </VerticalStackLayout>
                             <VerticalStackLayout Spacing="{StaticResource Space3}" VerticalOptions="Center" IsVisible="{Binding ShowNoResultsState}">
                                 <Label Style="{StaticResource IconLabel}" FontSize="32" HorizontalOptions="Center"
@@ -316,7 +317,7 @@
             </Button.ImageSource>
             <!-- Radar means "scan"; Stop Scanning takes the stop glyph. -->
             <Button.Triggers>
-                <DataTrigger TargetType="Button" Binding="{Binding IsScanning}" Value="True">
+                <DataTrigger TargetType="Button" Binding="{Binding ShowScanning}" Value="True">
                     <Setter Property="ImageSource">
                         <Setter.Value>
                             <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Square}" Size="24" Color="{DynamicResource OnBrand}" />

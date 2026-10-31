@@ -159,6 +159,16 @@ public partial class GloveControlViewModel : BaseViewModel
     [ObservableProperty]
     private System.Windows.Input.ICommand? _bannerActionCommand;
 
+    [ObservableProperty]
+    private bool _bannerActionAtEnd;
+
+    /// <summary>The launch auto-connect is trying: the summary card shows scanning in place of Get Started.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowGetStarted))]
+    private bool _isAutoConnecting;
+
+    public bool ShowGetStarted => !ConnectionInfo.IsConnected && !IsAutoConnecting;
+
     // Null voltage = no reading available (missing key or firmware 0.00 sentinel)
     [ObservableProperty]
     private double? _batteryPrimaryVoltage;
@@ -196,7 +206,7 @@ public partial class GloveControlViewModel : BaseViewModel
     {
         _confirmation = confirmation;
         _autoConnect = autoConnect;
-        _autoConnect.StateChanged += (_, _) => MainThread.BeginInvokeOnMainThread(ResolveBanner);
+        _autoConnect.StateChanged += (_, _) => MainThread.BeginInvokeOnMainThread(OnAutoConnectStateChanged);
         _gloveControlService = gloveControlService;
         _bluetoothService = bluetoothService;
         _storageService = storageService;
@@ -236,6 +246,12 @@ public partial class GloveControlViewModel : BaseViewModel
         UpdateGloves();
         UpdateTimerDisplay(updateSemantics: true);
         // The launch auto-connect starts before Shell builds this page.
+        OnAutoConnectStateChanged();
+    }
+
+    private void OnAutoConnectStateChanged()
+    {
+        IsAutoConnecting = _autoConnect.State == AutoConnectState.Connecting;
         ResolveBanner();
     }
 
@@ -416,9 +432,6 @@ public partial class GloveControlViewModel : BaseViewModel
     [RelayCommand]
     private void TryAgainAutoConnect() => _autoConnect.TryAgain();
 
-    [RelayCommand]
-    private Task CancelAutoConnectAsync() => _autoConnect.CancelAsync();
-
     /// <summary>The profile card's tap: profiles are picked on Gloves. Off during a session.</summary>
     [RelayCommand(CanExecute = nameof(CanChangeProfile))]
     private Task ChangeProfileAsync() => NavigateToDevicesAsync();
@@ -490,7 +503,7 @@ public partial class GloveControlViewModel : BaseViewModel
         string? lowGlove = primaryLow && !secondaryLow ? "Primary" : secondaryLow && !primaryLow ? "Secondary" : null;
 
         (StatusTone Tone, string Title, string Message, bool GoToGloves)? banner = null;
-        (string Text, System.Windows.Input.ICommand Command)? autoConnectAction = null;
+        var autoConnectFailed = false;
         if (_sessionEndedMessage is { } ended)
             banner = (StatusTone.Danger, "Your Session Stopped", ended, false);
         else if (ConnectionInfo.IsReconnecting)
@@ -499,11 +512,10 @@ public partial class GloveControlViewModel : BaseViewModel
                     ? $"Keep your phone near the glove. Try {_reconnectAttempt.Attempt} of {_reconnectAttempt.Max}."
                     : "Keep your phone near the glove.",
                 true);
-        else if (_autoConnect.Banner is { } a)
+        else if (_autoConnect.FailedBanner is { } a)
         {
             banner = (a.Tone, a.Title, a.Message, false);
-            autoConnectAction = (a.Action,
-                _autoConnect.State == AutoConnectState.Connecting ? CancelAutoConnectCommand : TryAgainAutoConnectCommand);
+            autoConnectFailed = true;
         }
         else if (SessionWarningMessage == ConnectionUnstableWarning)
             banner = (StatusTone.Warning, "Connection Is Unstable",
@@ -529,9 +541,10 @@ public partial class GloveControlViewModel : BaseViewModel
             BannerTone = b.Tone;
             BannerTitle = b.Title;
             BannerMessage = b.Message;
-            (BannerActionText, BannerActionCommand) = b.GoToGloves
-                ? ("Go to Gloves", NavigateToDevicesCommand)
-                : (autoConnectAction?.Text, autoConnectAction?.Command);
+            (BannerActionText, BannerActionCommand) = b.GoToGloves ? ("Go to Gloves", NavigateToDevicesCommand)
+                : autoConnectFailed ? ("Try Again", TryAgainAutoConnectCommand)
+                : (null, null);
+            BannerActionAtEnd = autoConnectFailed;
         }
     }
 
@@ -1195,6 +1208,9 @@ public partial class GloveControlViewModel : BaseViewModel
 
     private void OnConnectionInfoPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(IConnectionStateService.IsConnected))
+            OnPropertyChanged(nameof(ShowGetStarted));
+
         if (e.PropertyName is nameof(IConnectionStateService.IsReconnecting) or nameof(IConnectionStateService.ConnectionState))
         {
             UpdateGloves();
