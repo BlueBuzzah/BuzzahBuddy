@@ -74,6 +74,7 @@ public partial class GloveControlViewModel : BaseViewModel
     [NotifyPropertyChangedFor(nameof(SelectedProfileName))]
     [NotifyPropertyChangedFor(nameof(ProfileSummary))]
     [NotifyPropertyChangedFor(nameof(ProfileSummarySpoken))]
+    [NotifyPropertyChangedFor(nameof(ProfileCardSpoken))]
     private TherapyProfile? _selectedProfile;
 
     partial void OnSelectedProfileChanged(TherapyProfile? value) => UpdateTimerDisplay(updateSemantics: true);
@@ -93,10 +94,24 @@ public partial class GloveControlViewModel : BaseViewModel
         ? $"{DurationText.Spoken(p.TimeSession * 60)} sessions"
         : string.Empty;
 
+    /// <summary>The profile card as one screen-reader element.</summary>
+    public string ProfileCardSpoken => SelectedProfile is null
+        ? $"Therapy profile. {SelectedProfileName}"
+        : $"Therapy profile, {SelectedProfileName}, {ProfileSummarySpoken}";
+
+    /// <summary>The profile card's hint: what a tap does, or why it does nothing.</summary>
+    public string ProfileCardHint => CanChangeProfile ? "Opens the Gloves tab to change it" : "Stop your session to change it";
+
+    /// <summary>The profile is locked while a session runs or is paused, as on Gloves.</summary>
+    public bool CanChangeProfile => !IsSessionActive;
+
     [ObservableProperty]
     private SessionStatus _sessionStatus = SessionStatus.CreateIdle();
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanChangeProfile))]
+    [NotifyPropertyChangedFor(nameof(ProfileCardHint))]
+    [NotifyCanExecuteChangedFor(nameof(ChangeProfileCommand))]
     private bool _isSessionActive;
 
     [ObservableProperty]
@@ -387,6 +402,10 @@ public partial class GloveControlViewModel : BaseViewModel
     {
         await Shell.Current.GoToAsync(Routes.Devices);
     }
+
+    /// <summary>The profile card's tap: profiles are picked on Gloves. Off during a session.</summary>
+    [RelayCommand(CanExecute = nameof(CanChangeProfile))]
+    private Task ChangeProfileAsync() => NavigateToDevicesAsync();
 
     [RelayCommand]
     private async Task ScanForGlovesAsync()

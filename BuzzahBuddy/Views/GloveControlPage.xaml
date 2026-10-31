@@ -80,31 +80,29 @@
                                           AccessibleText="{Binding RingAccessibleText}"
                                           AutomationId="SessionTimerRing" />
 
-                    <!-- At large text sizes Change moves under the profile so the name keeps the width. -->
-                    <Border Style="{StaticResource Card}">
-                        <Grid x:Name="ProfileRow" ColumnDefinitions="*,Auto" ColumnSpacing="{StaticResource Space3}" RowSpacing="{StaticResource Space3}">
+                    <!-- The whole card changes the profile (it opens Gloves, where profiles are picked), like
+                         the Gloves summary above. Locked during a session: Change turns gray and taps do
+                         nothing. At large text sizes Change moves under the profile so the name keeps the width. -->
+                    <Border Style="{StaticResource Card}"
+                            SemanticProperties.Description="{Binding ProfileCardSpoken}"
+                            SemanticProperties.Hint="{Binding ProfileCardHint}"
+                            AutomationId="ChangeProfileCard">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Command="{Binding ChangeProfileCommand}" Tapped="OnProfileCardTapped" />
+                        </Border.GestureRecognizers>
+                        <Grid x:Name="ProfileRow"
+                              ColumnDefinitions="*,Auto"
+                              ColumnSpacing="{StaticResource Space3}"
+                              RowSpacing="{StaticResource Space3}"
+                              AutomationProperties.ExcludedWithChildren="True">
                             <VerticalStackLayout Spacing="2" VerticalOptions="Center">
                                 <Label Text="Therapy Profile"
                                        Style="{StaticResource TypeBodyS}"
-                                       TextColor="{DynamicResource InkMuted}"
-                                       SemanticProperties.HeadingLevel="Level2" />
+                                       TextColor="{DynamicResource InkMuted}" />
                                 <Label Text="{Binding SelectedProfileName}" Style="{StaticResource TypeTitleM}" />
-                                <Label Text="{Binding ProfileSummary}" SemanticProperties.Description="{Binding ProfileSummarySpoken}" Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
+                                <Label Text="{Binding ProfileSummary}" Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
                             </VerticalStackLayout>
-                            <Button x:Name="ChangeButton"
-                                    Grid.Column="1"
-                                    Text="Change"
-                                    Style="{StaticResource ButtonQuiet}"
-                                    VerticalOptions="Center"
-                                    ContentLayout="Right,6"
-                                    Command="{Binding NavigateToDevicesCommand}"
-                                    IsEnabled="{Binding IsSessionActive, Converter={StaticResource InvertedBoolConverter}}"
-                                    SemanticProperties.Description="Change"
-                                    AutomationId="ChangeProfileButton">
-                                <Button.ImageSource>
-                                    <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.ChevronRight}" Size="20" Color="{DynamicResource Brand}" />
-                                </Button.ImageSource>
-                            </Button>
+                            <controls:ChevronLink x:Name="ChangeLink" Grid.Column="1" Text="Change" IsEnabled="{Binding CanChangeProfile}" />
                         </Grid>
                     </Border>
                 </VerticalStackLayout>

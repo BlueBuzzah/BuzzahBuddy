@@ -98,7 +98,7 @@
                                         <TapGestureRecognizer x:DataType="{x:Null}"
                                                               Command="{Binding Source={x:Reference page}, Path=BindingContext.Settings.SelectProfileCommand}"
                                                               CommandParameter="{Binding}"
-                                                              Tapped="OnProfileCardTapped" />
+                                                              Tapped="OnCardTapped" />
                                     </Border.GestureRecognizers>
                                     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="{StaticResource Space4}" RowDefinitions="Auto,Auto,Auto" RowSpacing="2">
                                         <!-- Radio indicator: empty 2px ring, or a filled circle with a check -->
@@ -251,8 +251,27 @@
                     </CollectionView.EmptyView>
                     <CollectionView.ItemTemplate>
                         <DataTemplate x:DataType="models:GloveDevice">
-                            <Border Style="{StaticResource Card}" Margin="0,0,0,12">
-                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{StaticResource Space3}">
+                            <!-- The whole card connects, like the Session cards; "Connect ›" says so and turns gray
+                                 while a connection is under way (ConnectAsync ignores taps then). x:DataType
+                                 cleared + x:Reference: RelativeSource silently fails in recycled CollectionView
+                                 containers on device. Don't convert back. -->
+                            <Border Style="{StaticResource Card}"
+                                    Margin="0,0,0,12"
+                                    SemanticProperties.Hint="Connects to these gloves"
+                                    AutomationId="ConnectDeviceButton">
+                                <SemanticProperties.Description>
+                                    <MultiBinding StringFormat="{}{0}, {1}">
+                                        <Binding Path="DisplayName" />
+                                        <Binding Path="SignalStrengthDisplay" />
+                                    </MultiBinding>
+                                </SemanticProperties.Description>
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer x:DataType="{x:Null}"
+                                                          Command="{Binding Source={x:Reference page}, Path=BindingContext.ConnectCommand}"
+                                                          CommandParameter="{Binding}"
+                                                          Tapped="OnCardTapped" />
+                                </Border.GestureRecognizers>
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{StaticResource Space3}" AutomationProperties.ExcludedWithChildren="True">
                                     <VerticalStackLayout VerticalOptions="Center">
                                         <!-- Line height 1: the title line height would sit both lines off center (GlovesSummaryCard). -->
                                         <Label Text="{Binding DisplayName}" Style="{StaticResource TypeTitleM}" LineHeight="1" />
@@ -263,18 +282,10 @@
                                                    LineHeight="1" VerticalOptions="Center" />
                                         </HorizontalStackLayout>
                                     </VerticalStackLayout>
-                                    <!-- x:DataType cleared + x:Reference: RelativeSource silently fails in recycled
-                                         CollectionView containers on device (dead button). Don't convert back. -->
-                                    <Button Grid.Column="1"
-                                            x:DataType="{x:Null}"
-                                            Text="Connect"
-                                            Style="{StaticResource ButtonSecondary}"
-                                            VerticalOptions="Center"
-                                            Command="{Binding Source={x:Reference page}, Path=BindingContext.ConnectCommand}"
-                                            CommandParameter="{Binding}"
-                                            IsEnabled="{Binding Source={x:Reference page}, Path=BindingContext.IsConnecting, Converter={StaticResource InvertedBoolConverter}}"
-                                            SemanticProperties.Description="Connect"
-                                            AutomationId="ConnectDeviceButton" />
+                                    <controls:ChevronLink Grid.Column="1"
+                                                          x:DataType="{x:Null}"
+                                                          Text="Connect"
+                                                          IsEnabled="{Binding Source={x:Reference page}, Path=BindingContext.IsConnecting, Converter={StaticResource InvertedBoolConverter}}" />
                                 </Grid>
                             </Border>
                         </DataTemplate>
