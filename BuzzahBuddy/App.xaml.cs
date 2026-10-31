@@ -29,7 +29,9 @@ public partial class App : Application
 
 	private static async Task StartAutoConnectAsync(AutoConnectService autoConnect, IDataStorageService storage)
 	{
-		if (await storage.GetLastDeviceAsync() is { } gloves)
+		// Real glove IDs are GUIDs on both platforms; older builds saved Demo Mode's "MOCK-…" ID,
+		// which would fail every launch.
+		if (await storage.GetLastDeviceAsync() is { } gloves && Guid.TryParse(gloves.Id, out _))
 			autoConnect.Start(gloves.Id);
 	}
 
