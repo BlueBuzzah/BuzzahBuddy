@@ -670,15 +670,20 @@ public partial class DeviceSettingsViewModel : BaseViewModel
             AvailableProfiles.Add(new ProfileItemViewModel(profile));
         }
 
-        // Load last used profile or default to Noisy (profile 2)
-        int lastProfileId;
-        try
+        // The glove's own profile once it has reported one (this page can be built after the
+        // connect, e.g. launch auto-connect, when DeviceProfileChanged has already fired);
+        // otherwise the last used profile, or Noisy (profile 2).
+        int lastProfileId = _gloveControlService.DeviceProfileId;
+        if (lastProfileId <= 0)
         {
-            lastProfileId = await _storageService.GetLastProfileAsync();
-        }
-        catch
-        {
-            lastProfileId = 2;
+            try
+            {
+                lastProfileId = await _storageService.GetLastProfileAsync();
+            }
+            catch
+            {
+                lastProfileId = 2;
+            }
         }
 
         var selectedItem = AvailableProfiles.FirstOrDefault(p => p.ProfileId == lastProfileId)
