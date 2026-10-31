@@ -85,6 +85,9 @@ public sealed class SwitchableBluetoothService : IBluetoothService
 
     public Task<bool> ConnectToLastKnownDeviceAsync(CancellationToken ct = default) => _active.ConnectToLastKnownDeviceAsync(ct);
 
+    public Task<bool> ConnectToKnownDeviceAsync(string deviceId, CancellationToken ct = default) =>
+        _active.ConnectToKnownDeviceAsync(deviceId, ct);
+
     public Task DisconnectForReconnectAsync() => _active.DisconnectForReconnectAsync();
 
     public Task<ScanResult> ScanForDevicesWithResultAsync(int timeoutMs = 10000, CancellationToken ct = default) =>

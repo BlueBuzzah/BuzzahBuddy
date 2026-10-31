@@ -24,6 +24,7 @@ public partial class SettingsViewModel : BaseViewModel
 	private readonly IConfirmationService _confirmation;
 	private readonly SwitchableBluetoothService _bluetooth;
 	private readonly IReconnectionService _reconnection;
+	private readonly AutoConnectService _autoConnectService;
 	private readonly HistoryStore _history;
 
 	/// <summary>Set while a cancelled confirmation puts the switch back, so it isn't applied.</summary>
@@ -36,6 +37,10 @@ public partial class SettingsViewModel : BaseViewModel
 		new SegmentOption((int)ThemePreference.Light, "Light"),
 		new SegmentOption((int)ThemePreference.Dark, "Dark"),
 	};
+
+	/// <summary>Connect to the remembered gloves at launch (App reads it once per launch).</summary>
+	[ObservableProperty]
+	private bool _autoConnect;
 
 	[ObservableProperty]
 	private int _selectedTheme;
@@ -66,6 +71,7 @@ public partial class SettingsViewModel : BaseViewModel
 		IConfirmationService confirmation,
 		SwitchableBluetoothService bluetooth,
 		IReconnectionService reconnection,
+		AutoConnectService autoConnectService,
 		IGloveControlService gloveControl,
 		HistoryStore history)
 	{
@@ -74,6 +80,7 @@ public partial class SettingsViewModel : BaseViewModel
 		_confirmation = confirmation;
 		_bluetooth = bluetooth;
 		_reconnection = reconnection;
+		_autoConnectService = autoConnectService;
 		_history = history;
 		_demoMode = bluetooth.IsDemoMode;
 		_isSessionActive = gloveControl.CurrentSessionStatus.IsActive;
@@ -88,11 +95,10 @@ public partial class SettingsViewModel : BaseViewModel
 		_highContrast = theme.HighContrast;
 		AppVersion = AppInfo.Current.VersionString;
 
-		// The old "Enable notifications" and "Auto-connect" switches did nothing; drop
-		// what they stored.
-		Preferences.Default.Remove("EnableNotifications");
-		Preferences.Default.Remove("AutoConnect");
+		_autoConnect = Preferences.Default.Get(AutoConnectService.SettingKey, true);
 	}
+
+	partial void OnAutoConnectChanged(bool value) => Preferences.Default.Set(AutoConnectService.SettingKey, value);
 
 	partial void OnSelectedThemeChanged(int value)
 	{
@@ -133,6 +139,7 @@ public partial class SettingsViewModel : BaseViewModel
 
 		// A reconnect loop still looking for the other service's gloves would never find them.
 		_reconnection.CancelReconnect();
+		await _autoConnectService.CancelAsync();
 		await _bluetooth.SetDemoModeAsync(on);
 		Preferences.Default.Set(SwitchableBluetoothService.DemoModeKey, on);
 		WeakReferenceMessenger.Default.Send(new DemoModeChangedMessage(on));

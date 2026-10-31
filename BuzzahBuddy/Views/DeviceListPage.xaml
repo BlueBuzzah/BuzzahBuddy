@@ -215,7 +215,7 @@
                                  Message="{Binding BannerMessage}"
                                  Detail="{Binding BannerDetail}"
                                  ActionText="{Binding BannerActionText}"
-                                 ActionCommand="{Binding OpenSettingsCommand}"
+                                 ActionCommand="{Binding BannerActionCommand}"
                                  Announce="True" />
             </VerticalStackLayout>
 

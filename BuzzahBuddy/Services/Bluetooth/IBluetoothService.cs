@@ -111,6 +111,13 @@ public interface IBluetoothService
     Task<bool> ConnectToLastKnownDeviceAsync(CancellationToken ct = default);
 
     /// <summary>
+    /// Connect to a remembered device by GUID without scanning (auto-connect on launch).
+    /// Shows <see cref="ConnectionState.Connecting"/>; false when Bluetooth is off or the
+    /// glove isn't reached within the connect timeout.
+    /// </summary>
+    Task<bool> ConnectToKnownDeviceAsync(string deviceId, CancellationToken ct = default);
+
+    /// <summary>
     /// Disconnect without setting the user-initiated flag.
     /// Used by health check to trigger reconnection on unhealthy connection.
     /// </summary>

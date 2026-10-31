@@ -34,6 +34,8 @@ public partial class GloveControlViewModel : BaseViewModel
     private string? _sessionEndedMessage;
     private bool _sessionEndedByConnection;
     private bool _wasReconnecting;
+    private ConnectionState _lastLinkState;
+    private readonly AutoConnectService _autoConnect;
     private (int Attempt, int Max) _reconnectAttempt;
     private readonly HistoryStore _history;
     // The session being tracked (persisted, so it survives the app being killed or the
@@ -154,6 +156,9 @@ public partial class GloveControlViewModel : BaseViewModel
     [ObservableProperty]
     private string? _bannerActionText;
 
+    [ObservableProperty]
+    private System.Windows.Input.ICommand? _bannerActionCommand;
+
     // Null voltage = no reading available (missing key or firmware 0.00 sentinel)
     [ObservableProperty]
     private double? _batteryPrimaryVoltage;
@@ -186,9 +191,12 @@ public partial class GloveControlViewModel : BaseViewModel
         IConnectionStateService connectionStateService,
         IAppLifecycleService appLifecycleService,
         IConfirmationService confirmation,
-        HistoryStore history)
+        HistoryStore history,
+        AutoConnectService autoConnect)
     {
         _confirmation = confirmation;
+        _autoConnect = autoConnect;
+        _autoConnect.StateChanged += (_, _) => MainThread.BeginInvokeOnMainThread(ResolveBanner);
         _gloveControlService = gloveControlService;
         _bluetoothService = bluetoothService;
         _storageService = storageService;
@@ -227,6 +235,8 @@ public partial class GloveControlViewModel : BaseViewModel
         UpdateConnectionState();
         UpdateGloves();
         UpdateTimerDisplay(updateSemantics: true);
+        // The launch auto-connect starts before Shell builds this page.
+        ResolveBanner();
     }
 
     /// <summary>
@@ -403,6 +413,12 @@ public partial class GloveControlViewModel : BaseViewModel
         await Shell.Current.GoToAsync(Routes.Devices);
     }
 
+    [RelayCommand]
+    private void TryAgainAutoConnect() => _autoConnect.TryAgain();
+
+    [RelayCommand]
+    private Task CancelAutoConnectAsync() => _autoConnect.CancelAsync();
+
     /// <summary>The profile card's tap: profiles are picked on Gloves. Off during a session.</summary>
     [RelayCommand(CanExecute = nameof(CanChangeProfile))]
     private Task ChangeProfileAsync() => NavigateToDevicesAsync();
@@ -463,7 +479,8 @@ public partial class GloveControlViewModel : BaseViewModel
 
     /// <summary>
     /// Picks the one banner the Session screen shows (plan choice PC13): session ended >
-    /// reconnecting > connection unstable > low battery > status behind > session saved.
+    /// reconnecting > launch auto-connect > connection unstable > low battery > status behind >
+    /// session saved.
     /// </summary>
     private void ResolveBanner()
     {
@@ -473,6 +490,7 @@ public partial class GloveControlViewModel : BaseViewModel
         string? lowGlove = primaryLow && !secondaryLow ? "Primary" : secondaryLow && !primaryLow ? "Secondary" : null;
 
         (StatusTone Tone, string Title, string Message, bool GoToGloves)? banner = null;
+        (string Text, System.Windows.Input.ICommand Command)? autoConnectAction = null;
         if (_sessionEndedMessage is { } ended)
             banner = (StatusTone.Danger, "Your Session Stopped", ended, false);
         else if (ConnectionInfo.IsReconnecting)
@@ -481,6 +499,12 @@ public partial class GloveControlViewModel : BaseViewModel
                     ? $"Keep your phone near the glove. Try {_reconnectAttempt.Attempt} of {_reconnectAttempt.Max}."
                     : "Keep your phone near the glove.",
                 true);
+        else if (_autoConnect.Banner is { } a)
+        {
+            banner = (a.Tone, a.Title, a.Message, false);
+            autoConnectAction = (a.Action,
+                _autoConnect.State == AutoConnectState.Connecting ? CancelAutoConnectCommand : TryAgainAutoConnectCommand);
+        }
         else if (SessionWarningMessage == ConnectionUnstableWarning)
             banner = (StatusTone.Warning, "Connection Is Unstable",
                 "Keep your phone close to your primary glove. The session keeps running.", false);
@@ -505,7 +529,9 @@ public partial class GloveControlViewModel : BaseViewModel
             BannerTone = b.Tone;
             BannerTitle = b.Title;
             BannerMessage = b.Message;
-            BannerActionText = b.GoToGloves ? "Go to Gloves" : null;
+            (BannerActionText, BannerActionCommand) = b.GoToGloves
+                ? ("Go to Gloves", NavigateToDevicesCommand)
+                : (autoConnectAction?.Text, autoConnectAction?.Command);
         }
     }
 
@@ -954,10 +980,13 @@ public partial class GloveControlViewModel : BaseViewModel
             var announcement = state switch
             {
                 ConnectionState.Connected when _wasReconnecting => "Gloves reconnected",
-                ConnectionState.Disconnected or ConnectionState.Error => "Gloves disconnected",
+                // Not after a connect that never came up (a failed launch auto-connect):
+                // nothing was connected, and the failure banner speaks for itself.
+                ConnectionState.Disconnected or ConnectionState.Error when _lastLinkState != ConnectionState.Connecting => "Gloves disconnected",
                 ConnectionState.Reconnecting when !_wasReconnecting => "Reconnecting to Your Primary Glove",
                 _ => null
             };
+            _lastLinkState = state;
             _wasReconnecting = state == ConnectionState.Reconnecting
                 || (_wasReconnecting && state is not (ConnectionState.Connected or ConnectionState.Disconnected));
             if (announcement != null)

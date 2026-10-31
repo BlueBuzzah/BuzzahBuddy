@@ -1,5 +1,7 @@
 ﻿using BuzzahBuddy.Helpers;
 using BuzzahBuddy.Services.AppLifecycle;
+using BuzzahBuddy.Services.Bluetooth;
+using BuzzahBuddy.Services.Storage;
 using BuzzahBuddy.Services.Theme;
 
 namespace BuzzahBuddy;
@@ -9,7 +11,7 @@ public partial class App : Application
 	private readonly IAppLifecycleService _lifecycle;
 	private readonly IThemeService _theme;
 
-	public App(IAppLifecycleService lifecycle, IThemeService theme)
+	public App(IAppLifecycleService lifecycle, IThemeService theme, AutoConnectService autoConnect, IDataStorageService storage)
 	{
 		InitializeComponent();
 		_lifecycle = lifecycle;
@@ -19,6 +21,16 @@ public partial class App : Application
 		// One of four design-system themes, from the OS settings and the in-app override.
 		theme.Apply();
 		RequestedThemeChanged += (_, _) => theme.Apply();
+
+		// Once per launch (the App outlives its windows), when the Settings switch is on.
+		if (Preferences.Default.Get(AutoConnectService.SettingKey, true))
+			StartAutoConnectAsync(autoConnect, storage).SafeFireAndForget("[APP]");
+	}
+
+	private static async Task StartAutoConnectAsync(AutoConnectService autoConnect, IDataStorageService storage)
+	{
+		if (await storage.GetLastDeviceAsync() is { } gloves)
+			autoConnect.Start(gloves.Id);
 	}
 
 	protected override Window CreateWindow(IActivationState? activationState)

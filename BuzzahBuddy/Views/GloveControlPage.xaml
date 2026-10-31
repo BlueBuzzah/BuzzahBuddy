@@ -29,7 +29,7 @@
                                      Title="{Binding BannerTitle}"
                                      Message="{Binding BannerMessage}"
                                      ActionText="{Binding BannerActionText}"
-                                     ActionCommand="{Binding NavigateToDevicesCommand}"
+                                     ActionCommand="{Binding BannerActionCommand}"
                                      Announce="True"
                                      AutomationId="SessionBanner" />
                 </VerticalStackLayout>

@@ -100,6 +100,9 @@ public static class MauiProgram
 
 		builder.Services.AddSingleton<IGloveControlService, GloveControlService>();
 		builder.Services.AddSingleton<IReconnectionService, ReconnectionService>();
+		builder.Services.AddSingleton(sp => new AutoConnectService(
+			sp.GetRequiredService<IBluetoothService>(),
+			text => MainThread.BeginInvokeOnMainThread(() => SemanticScreenReader.Announce(text))));
 		builder.Services.AddSingleton<BuzzahBuddy.Services.ConnectionStateManagement.IConnectionStateService, BuzzahBuddy.Services.ConnectionStateManagement.ConnectionStateService>();
 		builder.Services.AddSingleton<IDataStorageService, PreferencesStorageService>();
 		builder.Services.AddSingleton(_ => new HistoryStore(

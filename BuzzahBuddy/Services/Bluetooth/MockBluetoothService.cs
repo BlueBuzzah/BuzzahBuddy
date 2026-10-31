@@ -146,6 +146,28 @@ public class MockBluetoothService : IBluetoothService
         return true;
     }
 
+    public async Task<bool> ConnectToKnownDeviceAsync(string deviceId, CancellationToken ct = default)
+    {
+        try
+        {
+            return await ConnectToDeviceAsync(new GloveDevice
+            {
+                Id = deviceId,
+                Name = BlueBuzzahConstants.DeviceName,
+                HardwareVersion = "v2",
+                SignalStrength = -45,
+                FirmwareVersion = "2.0.0"
+            }, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            // As the real service: a cancelled attempt ends disconnected instead of throwing.
+            CurrentConnectionState = ConnectionState.Disconnected;
+            ConnectionStateChanged?.Invoke(this, ConnectionState.Disconnected);
+            return false;
+        }
+    }
+
     public Task DisconnectForReconnectAsync()
     {
         _isConnected = false;
