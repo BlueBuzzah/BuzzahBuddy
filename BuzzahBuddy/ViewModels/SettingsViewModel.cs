@@ -156,6 +156,8 @@ public partial class SettingsViewModel : BaseViewModel
 		if (!confirm)
 			return;
 
+		// The failure banner's Try Again would reconnect to the glove just forgotten.
+		await _autoConnectService.CancelAsync();
 		await _storageService.ClearAllDataAsync();
 		try
 		{

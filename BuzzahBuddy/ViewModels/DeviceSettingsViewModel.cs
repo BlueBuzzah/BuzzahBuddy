@@ -84,6 +84,12 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     /// <summary>True after the user saves Custom settings that haven't reached the gloves yet.</summary>
     private bool _customEdited;
 
+    /// <summary>
+    /// True from the user's own profile tap until the gloves report that profile. Until then the
+    /// selection is the page's fallback (saved profile, or Noisy), which the glove's report replaces.
+    /// </summary>
+    private bool _profilePicked;
+
     /// <summary>Saved Custom settings to send once the gloves are back from loading Custom.</summary>
     private TherapyProfile? _customToSend;
 
@@ -254,6 +260,9 @@ public partial class DeviceSettingsViewModel : BaseViewModel
             return;
         }
 
+        // The link comes from the connection, not INFO: a page built after the connect still
+        // shows the primary connected if the INFO below fails.
+        UpdateGloves();
         LoadTherapyLedAsync(DeviceReadingFreshness).SafeFireAndForget("[DEVICESETTINGS]");
 
         // Re-fetch INFO on visits; it also refreshes battery (OnDeviceInfoReceived), so
@@ -287,6 +296,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
 
         // Select the tapped profile
         profileItem.IsSelected = true;
+        _profilePicked = true;
 
         // Ensure PropertyChanged fires on UI thread for nested bindings
         MainThread.BeginInvokeOnMainThread(() =>
@@ -724,7 +734,9 @@ public partial class DeviceSettingsViewModel : BaseViewModel
             // revert their choice. IsProfileDirty compares the selection to the
             // device's just-updated DeviceProfileId, so this only skips the sync
             // when the user has a genuinely different pending pick (Apply stays lit).
-            if (!IsProfileDirty)
+            // A fallback selection (page built before INFO, e.g. during auto-connect)
+            // isn't a pick, so it syncs.
+            if (!IsProfileDirty || !_profilePicked)
             {
                 var match = AvailableProfiles.FirstOrDefault(p => p.Profile?.ProfileId == profileId);
                 if (match != null)
@@ -736,6 +748,9 @@ public partial class DeviceSettingsViewModel : BaseViewModel
                     SelectedProfile = match.Profile;
                 }
             }
+
+            if (SelectedProfile?.ProfileId == profileId)
+                _profilePicked = false;
 
             // The profile baseline changed even if the local selection didn't.
             NotifyPendingChanged();

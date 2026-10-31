@@ -39,7 +39,7 @@
                 <controls:GlovesSummaryCard Grid.Row="1"
                                             Margin="0,24,0,0"
                                             VerticalOptions="Start"
-                                            IsScanning="True"
+                                            IsScanning="{Binding IsAutoConnecting}"
                                             IsVisible="{Binding IsAutoConnecting}"
                                             Command="{Binding NavigateToDevicesCommand}"
                                             AutomationId="GlovesScanning" />

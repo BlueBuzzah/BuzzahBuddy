@@ -171,15 +171,14 @@ public partial class DeviceListViewModel : BaseViewModel, IQueryAttributable
         if (!_scanToggle.TryAcquire())
             return;
 
-        if (IsAutoConnecting)
+        if (IsAutoConnecting || IsScanning)
         {
-            // Stop Scanning here stops the launch auto-connect.
-            await _autoConnect.CancelAsync();
-        }
-        else if (IsScanning)
-        {
-            // Stop scanning
-            await StopScanningAsync();
+            // Stop Scanning stops both: a scan can run alongside the launch auto-connect
+            // (Session's Scan for Gloves, or Try Again during a scan).
+            if (IsAutoConnecting)
+                await _autoConnect.CancelAsync();
+            if (IsScanning)
+                await StopScanningAsync();
         }
         else
         {

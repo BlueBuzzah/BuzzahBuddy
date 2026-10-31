@@ -479,6 +479,10 @@ public class BluetoothService : IBluetoothService
 
             await RequestLargerMtuAsync(bleDevice);
 
+            // IDENTIFY and the MTU request don't take the token: a Stop Scanning or timeout
+            // during them still ends here, in the catch below, instead of connecting.
+            connectCts.Token.ThrowIfCancellationRequested();
+
             var gloveDevice = new GloveDevice
             {
                 Id = bleDevice.Id.ToString(),
