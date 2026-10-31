@@ -260,9 +260,14 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         // no separate BATTERY. DeviceProfileId persists across connections, so a
         // "still set" value can be stale from the previous connection if the
         // post-connect fetch failed — the service holds no reading then, so this
-        // queries. One cheap round-trip keeps this page truthful.
-        _gloveControlService.GetDeviceInfoAsync(DeviceReadingFreshness).SafeFireAndForget("[DEVICESETTINGS]");
+        // queries. One cheap round-trip keeps this page truthful. A cached reading raises no
+        // event, and this page may not have existed for the post-connect one (launch
+        // auto-connect), so apply what comes back.
+        ApplyRecentDeviceInfoAsync().SafeFireAndForget("[DEVICESETTINGS]");
     }
+
+    private async Task ApplyRecentDeviceInfoAsync() =>
+        OnDeviceInfoReceived(this, await _gloveControlService.GetDeviceInfoAsync(DeviceReadingFreshness));
 
     /// <summary>
     /// Selects a profile locally. Nothing is written to the gloves until the user
