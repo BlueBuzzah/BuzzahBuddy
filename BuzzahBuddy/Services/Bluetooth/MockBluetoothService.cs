@@ -1,4 +1,5 @@
 using BuzzahBuddy.Models;
+using System.Globalization;
 using System.Text;
 
 namespace BuzzahBuddy.Services.Bluetooth;
@@ -28,6 +29,12 @@ public class MockBluetoothService : IBluetoothService
     private bool _therapyLedOff;
     private bool _debugMode;
     private const int MockSessionTotalSeconds = 120 * 60; // 2 hours default
+    private const double MockHealthyPrimaryVolts = 3.95;   // 70% on the firmware curve
+    private const double MockHealthySecondaryVolts = 3.91; // 65%
+
+    /// <summary>BATP/BATS volts; settable so tests can put a glove under the low line.</summary>
+    internal double MockPrimaryVolts { get; set; } = MockHealthyPrimaryVolts;
+    internal double MockSecondaryVolts { get; set; } = MockHealthySecondaryVolts;
 
     public ConnectionState CurrentConnectionState { get; private set; } = ConnectionState.Disconnected;
     public GloveDevice? ConnectedDevice => _connectedDevice;
@@ -113,6 +120,9 @@ public class MockBluetoothService : IBluetoothService
         _mockSessionPauseTime = null;
         _mockElapsedTime = TimeSpan.Zero;
         _isInCalibrationMode = false;
+        // Demo gloves come back charged, or a demo that reached LOW_BATTERY could never start again
+        MockPrimaryVolts = MockHealthyPrimaryVolts;
+        MockSecondaryVolts = MockHealthySecondaryVolts;
 
         return Task.CompletedTask;
     }
@@ -284,8 +294,7 @@ public class MockBluetoothService : IBluetoothService
                "HW:v2\n" +
                "MOTORS:4\n" +
                $"PROFILE:{_mockCurrentProfile}:{ProfileNameFor(_mockCurrentProfile)}\n" +
-               "BATP:3.72\n" +
-               "BATS:3.68\n" +
+               MockBatteryLines() +
                $"STATUS:{_mockSessionState}\n" +
                "\x04";
     }
@@ -307,10 +316,13 @@ public class MockBluetoothService : IBluetoothService
         await Task.Delay(800, cancellationToken);
 
         // Per BLE protocol v2.0.0: Use BATP/BATS for battery keys
-        return "BATP:3.72\n" +
-               "BATS:3.68\n" +
-               "\x04";
+        return MockBatteryLines() + "\x04";
     }
+
+    private string MockBatteryLines() => string.Create(CultureInfo.InvariantCulture,
+        $"BATP:{MockPrimaryVolts:F2}\nBATS:{MockSecondaryVolts:F2}\n");
+
+    private bool MockBatteryLow => BatteryReading.IsLow(MockPrimaryVolts) || BatteryReading.IsLow(MockSecondaryVolts);
 
     private string GetMockProfileListResponse()
     {
@@ -381,6 +393,12 @@ public class MockBluetoothService : IBluetoothService
         if (_mockSessionState != SessionState.IDLE)
         {
             return "ERROR:Session already active\n\x04";
+        }
+
+        // Like firmware: either glove too low to finish a 2-hour session
+        if (MockBatteryLow)
+        {
+            return "ERROR:Battery too low\n\x04";
         }
 
         // Simulate VL↔VR synchronization (takes ~500ms)
@@ -526,11 +544,15 @@ public class MockBluetoothService : IBluetoothService
 
         var progress = Math.Min(100, (int)((double)elapsedSeconds / totalSeconds * 100));
 
-        var stateStr = _mockSessionState.ToString();
+        // Exercise the app's low-battery handling in Demo Mode: the secondary sags under the
+        // low line near the end, and like firmware a running session then reports LOW_BATTERY.
         if (_mockSessionState == SessionState.RUNNING && progress >= 95)
         {
-            stateStr = "LOW_BATTERY";   // exercise the app's non-trivial state handling in Debug builds
+            MockSecondaryVolts = Math.Min(MockSecondaryVolts, 3.78);
         }
+        var stateStr = _mockSessionState == SessionState.RUNNING && MockBatteryLow
+            ? "LOW_BATTERY"
+            : _mockSessionState.ToString();
 
         return $"SESSION_STATUS:{stateStr}\n" +
                $"ELAPSED:{elapsedSeconds}\n" +

@@ -107,6 +107,7 @@ bounds link-up through subscribe — iOS never times out a connect itself.
 | `GloveControlService` custom-profile limits | `include/menu_controller.h` `MAX_COMMAND_PARAMS` |
 | parameter validation / amplitude ordering | `src/profile_manager.cpp` `setParameter` |
 | `RxFrameAssembler.InternalMessagePrefixes` | `include/internal_messages.h` `INTERNAL_MESSAGES` |
+| `BatteryReading` curve, `LowVoltage` | `src/hardware.cpp` `VOLTAGE_CURVE`, `include/board_config.h` `BATTERY_LOW_VOLTAGE` |
 | `LastSessionSummary` (`LAST_*`), `SessionStatus.SessionId` / `PausedSeconds` | `src/menu_controller.cpp` `handleSessionStatus`, `SessionEndReason` in `include/therapy_engine.h` |
 
 ## Domain Models — `Models/`
@@ -134,7 +135,10 @@ bounds link-up through subscribe — iOS never times out a connect itself.
   matching session id continues a session however long the phone was away. Under 60 s
   (`MinimumSavedSeconds`) isn't saved.
 - `BatteryReading` — `≤ 0.0 V` is the firmware's "no reading" sentinel → unavailable, not
-  0%. 3.0 V = 0%, 4.2 V = 100%, linear.
+  0%. Percent uses the firmware's discharge curve. `LowVoltage` (3.80 V, provisional) is the
+  one low line: GloveStatus "Low", the Session charge banner and the glove's orange LED, below
+  which firmware refuses `SESSION_START` (`ERROR:Battery too low`). Firmware holds low until
+  3.90 V; the app can't see that latch, so a glove just above 3.80 V may still refuse.
 
 ## Testing
 

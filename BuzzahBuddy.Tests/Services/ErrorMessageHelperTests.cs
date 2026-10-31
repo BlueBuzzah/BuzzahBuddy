@@ -34,6 +34,15 @@ public class ErrorMessageHelperTests
     }
 
     [Fact]
+    public void Refused_start_for_low_battery_says_charge_both_gloves()
+    {
+        var error = ErrorMessageHelper.GetFriendlyError("Battery too low");
+        Assert.Equal("Charge Your Gloves", error.Title);
+        Assert.Equal("A glove battery is too low to finish a session. Charge both gloves, then try again.", error.Message);
+        Assert.Equal("Battery too low", error.Detail);
+    }
+
+    [Fact]
     public void Unknown_command_points_to_the_updater()
     {
         var error = ErrorMessageHelper.GetFriendlyError("Unknown command: FOO");

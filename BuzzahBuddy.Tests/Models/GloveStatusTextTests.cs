@@ -1,3 +1,4 @@
+using BuzzahBuddy.Helpers;
 using BuzzahBuddy.Models;
 using Xunit;
 
@@ -36,10 +37,10 @@ public class GloveStatusTextTests
             GloveStatusText.Describe(new GloveStatusInfo(GloveRole.Primary, GloveLinkStatus.Disconnected, 50)));
 
     [Theory]
-    [InlineData(20, false)]
-    [InlineData(19, true)]
+    [InlineData(40, false)]
+    [InlineData(39, true)]
     [InlineData(null, false)]
-    public void Low_is_under_20(int? percent, bool low) => Assert.Equal(low, GloveStatusText.IsLow(percent));
+    public void Low_is_under_40(int? percent, bool low) => Assert.Equal(low, GloveStatusText.IsLow(percent));
 
     [Fact]
     public void Badges()
@@ -58,15 +59,28 @@ public class GloveStatusTextTests
     public void Volts_have_two_decimals_and_no_space() =>
         Assert.Equal("3.72V", BatteryReading.FormatVolts(3.72));
 
-    // The Session banner's "Charge your glove" and the GloveStatus "Low" use one threshold:
-    // 3.28 V reads 23%, which the badge doesn't call low.
-    [Fact]
-    public void Low_voltage_matches_the_low_badge()
+    // The Session banner's "Charge your glove", the GloveStatus "Low" and the glove's orange
+    // LED use one threshold: the firmware's 3.80 V.
+    [Theory]
+    [InlineData(3.79, true)]
+    [InlineData(3.7999, true)]
+    [InlineData(3.80, false)]
+    [InlineData(3.81, false)]
+    public void Low_voltage_matches_the_low_badge(double volts, bool low)
     {
-        Assert.False(GloveStatusText.IsLowVoltage(3.28));
-        Assert.True(GloveStatusText.IsLowVoltage(3.2));
-        Assert.False(GloveStatusText.IsLowVoltage(null));
+        Assert.Equal(low, GloveStatusText.IsLowVoltage(volts));
+        Assert.Equal(low, GloveStatusText.IsLow(BatteryReading.ToPercentage(volts)));
     }
+
+    [Fact]
+    public void No_reading_is_never_low() => Assert.False(GloveStatusText.IsLowVoltage(null));
+
+    [Theory]
+    [InlineData(70, LucideIcons.BatteryFull)]
+    [InlineData(40, LucideIcons.BatteryMedium)]
+    [InlineData(39, LucideIcons.BatteryLow)]
+    public void Battery_glyph_turns_low_with_the_word(int percent, string glyph) =>
+        Assert.Equal(glyph, GloveStatusText.BatteryGlyph(percent));
 
     private static GloveStatusInfo Glove(GloveRole role, GloveLinkStatus status, int? percent) => new(role, status, percent);
 
