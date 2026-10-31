@@ -2,6 +2,7 @@
 using BuzzahBuddy.Services.AppLifecycle;
 using BuzzahBuddy.Services.Bluetooth;
 using BuzzahBuddy.Services.Storage;
+using BuzzahBuddy.ViewModels;
 using BuzzahBuddy.Services.Theme;
 
 namespace BuzzahBuddy;
@@ -11,7 +12,12 @@ public partial class App : Application
 	private readonly IAppLifecycleService _lifecycle;
 	private readonly IThemeService _theme;
 
-	public App(IAppLifecycleService lifecycle, IThemeService theme, AutoConnectService autoConnect, IDataStorageService storage)
+	// The Session view model is taken here only to build it before the launch auto-connect: with
+	// it come GloveControlService (post-connect INFO/SESSION_STATUS sync), ReconnectionService
+	// and the connection state, all otherwise built lazily by Shell. A connect that lands
+	// before them skips the sync and shows a running session as idle.
+	public App(IAppLifecycleService lifecycle, IThemeService theme, AutoConnectService autoConnect,
+		IDataStorageService storage, GloveControlViewModel session)
 	{
 		InitializeComponent();
 		_lifecycle = lifecycle;
