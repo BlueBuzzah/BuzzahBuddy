@@ -190,6 +190,10 @@ public partial class GloveControlViewModel : BaseViewModel
     [ObservableProperty]
     private double? _batterySecondaryVoltage;
 
+    // The gloves' own low verdicts (BATLP/BATLS); null on firmware that sends voltages only
+    private bool? _batteryPrimaryLow;
+    private bool? _batterySecondaryLow;
+
     [ObservableProperty]
     private string? _sessionWarningMessage;
 
@@ -464,8 +468,8 @@ public partial class GloveControlViewModel : BaseViewModel
 
         try
         {
-            var (primaryVoltage, secondaryVoltage) = await _gloveControlService.GetBatteryAsync();
-            await ApplyBatteryReadingAsync(primaryVoltage, secondaryVoltage, warnIfLow);
+            var (primaryVoltage, secondaryVoltage, primaryLow, secondaryLow) = await _gloveControlService.GetBatteryAsync();
+            await ApplyBatteryReadingAsync(primaryVoltage, secondaryVoltage, primaryLow, secondaryLow, warnIfLow);
         }
         catch (Exception ex)
         {
@@ -473,8 +477,11 @@ public partial class GloveControlViewModel : BaseViewModel
         }
     }
 
-    private async Task ApplyBatteryReadingAsync(double? primaryVoltage, double? secondaryVoltage, bool warnIfLow)
+    private async Task ApplyBatteryReadingAsync(double? primaryVoltage, double? secondaryVoltage,
+        bool? primaryLow, bool? secondaryLow, bool warnIfLow)
     {
+        _batteryPrimaryLow = primaryLow;
+        _batterySecondaryLow = secondaryLow;
         BatteryPrimaryVoltage = primaryVoltage;
         BatterySecondaryVoltage = secondaryVoltage;
         UpdateGloves();
@@ -500,9 +507,11 @@ public partial class GloveControlViewModel : BaseViewModel
         // The next link's INFO reports afresh: don't hold Start off on the last one's word.
         if (link != GloveLinkStatus.Connected)
             _secondaryLinked = null;
-        PrimaryGlove = new GloveStatusInfo(GloveRole.Primary, link, Percent(BatteryPrimaryVoltage));
+        PrimaryGlove = new GloveStatusInfo(GloveRole.Primary, link, Percent(BatteryPrimaryVoltage),
+            BatteryLow: BatteryReading.IsLow(BatteryPrimaryVoltage, _batteryPrimaryLow));
         var secondaryLink = GloveStatusText.SecondaryLink(link, _secondaryLinked, BatterySecondaryVoltage);
-        SecondaryGlove = new GloveStatusInfo(GloveRole.Secondary, secondaryLink, Percent(BatterySecondaryVoltage));
+        SecondaryGlove = new GloveStatusInfo(GloveRole.Secondary, secondaryLink, Percent(BatterySecondaryVoltage),
+            BatteryLow: BatteryReading.IsLow(BatterySecondaryVoltage, _batterySecondaryLow));
     }
 
     /// <summary>
@@ -512,9 +521,8 @@ public partial class GloveControlViewModel : BaseViewModel
     /// </summary>
     private void ResolveBanner()
     {
-        static bool Low(double? v) => GloveStatusText.IsLowVoltage(v);
-        var primaryLow = Low(BatteryPrimaryVoltage);
-        var secondaryLow = Low(BatterySecondaryVoltage);
+        var primaryLow = BatteryReading.IsLow(BatteryPrimaryVoltage, _batteryPrimaryLow);
+        var secondaryLow = BatteryReading.IsLow(BatterySecondaryVoltage, _batterySecondaryLow);
         string? lowGlove = primaryLow && !secondaryLow ? "Primary" : secondaryLow && !primaryLow ? "Secondary" : null;
 
         (StatusTone Tone, string Title, string Message, bool GoToGloves)? banner = null;
@@ -580,7 +588,8 @@ public partial class GloveControlViewModel : BaseViewModel
             var warnIfLow = _warnOnNextBatteryReading && connectReading;
             _warnOnNextBatteryReading = false;
             _secondaryLinked = info.SecondaryLinked;
-            ApplyBatteryReadingAsync(info.BatteryPrimaryVoltage, info.BatterySecondaryVoltage, warnIfLow)
+            ApplyBatteryReadingAsync(info.BatteryPrimaryVoltage, info.BatterySecondaryVoltage,
+                    info.BatteryPrimaryLow, info.BatterySecondaryLow, warnIfLow)
                 .SafeFireAndForget("[GLOVECONTROL]");
         });
     }
@@ -995,7 +1004,7 @@ public partial class GloveControlViewModel : BaseViewModel
                 IsConnectionHealthy = false;
                 // Readings from the old link say nothing about the next one (which may
                 // even be a different glove)
-                ApplyBatteryReadingAsync(null, null, warnIfLow: false).SafeFireAndForget("[GLOVECONTROL]");
+                ApplyBatteryReadingAsync(null, null, null, null, warnIfLow: false).SafeFireAndForget("[GLOVECONTROL]");
             }
 
             // Session UI teardown on disconnect. The open session is kept: the gloves

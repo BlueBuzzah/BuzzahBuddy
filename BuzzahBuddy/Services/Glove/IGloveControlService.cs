@@ -106,9 +106,10 @@ public interface IGloveControlService
     /// Command: BATTERY
     /// Note: May take up to 1 second as Primary queries Secondary via BLE.
     /// A null voltage means no reading was available (missing key or the
-    /// firmware's 0.00 "no reading" sentinel).
+    /// firmware's 0.00 "no reading" sentinel). primaryLow/secondaryLow are the gloves'
+    /// own BATLP/BATLS verdicts; null on firmware that doesn't send them.
     /// </summary>
-    Task<(double? primaryVoltage, double? secondaryVoltage)> GetBatteryAsync();
+    Task<(double? primaryVoltage, double? secondaryVoltage, bool? primaryLow, bool? secondaryLow)> GetBatteryAsync();
 
     /// <summary>
     /// Pings the device to test connection health.

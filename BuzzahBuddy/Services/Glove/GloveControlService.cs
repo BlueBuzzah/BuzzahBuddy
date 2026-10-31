@@ -354,7 +354,7 @@ public class GloveControlService : IGloveControlService
         });
     }
 
-    public async Task<(double? primaryVoltage, double? secondaryVoltage)> GetBatteryAsync()
+    public async Task<(double? primaryVoltage, double? secondaryVoltage, bool? primaryLow, bool? secondaryLow)> GetBatteryAsync()
     {
         EnsureConnected();
         // BATTERY command may take up to 1 second (Primary queries Secondary)
@@ -375,7 +375,9 @@ public class GloveControlService : IGloveControlService
 
         System.Diagnostics.Debug.WriteLine($"[BATTERY CMD] Parsed values - BATP: {primaryVoltage}, BATS: {secondaryVoltage}");
 
-        return (primaryVoltage, secondaryVoltage);
+        return (primaryVoltage, secondaryVoltage,
+            BatteryReading.GloveLow(response.GetString("BATLP")),
+            BatteryReading.GloveLow(response.GetString("BATLS")));
     }
 
     public async Task<bool> PingAsync(int timeoutMs = 2000)
