@@ -19,7 +19,7 @@ public partial class DeviceListPage : ContentPage
         _viewModel.OnPageAppearing();
     }
 
-    private async void OnProfileCardTapped(object? sender, TappedEventArgs e)
+    private async void OnCardTapped(object? sender, TappedEventArgs e)
     {
         // Micro-feedback: tremor users need visible tap acknowledgment. Pure visual, no logic.
         if (sender is not VisualElement card)

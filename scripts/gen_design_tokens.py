@@ -22,6 +22,12 @@ THEMES = [("light", "Light"), ("dark", "Dark"), ("light-hc", "LightHc"), ("dark-
 FONT_KEYS = {("display", 500): "FontDisplay500", ("display", 600): "FontDisplay600",
              ("sans", 400): "FontSans400", ("sans", 700): "FontSans700", ("mono", 400): "FontMono400"}
 
+# Each family's natural line height per font size (hhea ascender - descender + line gap, over
+# units per em): Lexend 1.25, Atkinson Hyperlegible Next and Mono 1.30. MAUI's LineHeight
+# multiplies this natural height, not the font size as CSS line-height does.
+# ponytail: hard-coded; read them from Resources/Fonts/*.ttf if the fonts ever change.
+NATURAL_LINE_HEIGHT = {"display": 1.25, "sans": 1.30, "mono": 1.30}
+
 
 def pascal(name):
     return "".join(part.capitalize() for part in name.split("-"))
@@ -151,7 +157,10 @@ def gen_type(ds, version):
             lines.append(f'    <Style x:Key="Type{pascal(s["name"])}" TargetType="Label">')
             lines.append(f'        <Setter Property="FontFamily" Value="{{DynamicResource {FONT_KEYS[(family, s["fontWeight"])]}}}" />')
             lines.append(f'        <Setter Property="FontSize" Value="{num(size)}" />')
-            lines.append(f'        <Setter Property="LineHeight" Value="{line_height / size:.4g}" />')
+            # The design system's line height in MAUI's terms. iOS puts the extra space above each
+            # line, so the old CSS ratios sat text low. Never below 1: iOS clips the first line.
+            multiple = max(1.0, line_height / (size * NATURAL_LINE_HEIGHT[family]))
+            lines.append(f'        <Setter Property="LineHeight" Value="{multiple:.4g}" />')
             if "letterSpacing" in s:
                 em = float(s["letterSpacing"].removesuffix("em"))
                 lines.append(f'        <Setter Property="CharacterSpacing" Value="{em * size:.4g}" />')

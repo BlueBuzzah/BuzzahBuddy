@@ -160,11 +160,11 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     private bool _isWaitingLong;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsNotRefreshingBattery))]
-    private bool _isRefreshingBattery;
+    [NotifyPropertyChangedFor(nameof(IsNotRefreshingDeviceInfo))]
+    private bool _isRefreshingDeviceInfo;
 
-    /// <summary>Inverse of IsRefreshingBattery for XAML MultiBinding.</summary>
-    public bool IsNotRefreshingBattery => !IsRefreshingBattery;
+    /// <summary>Inverse of IsRefreshingDeviceInfo for XAML MultiBinding.</summary>
+    public bool IsNotRefreshingDeviceInfo => !IsRefreshingDeviceInfo;
 
     /// <summary>
     /// Device setting: turn the status LED off during therapy sessions (THERAPY_LED_OFF).
@@ -464,26 +464,29 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         await Shell.Current.GoToAsync(Routes.Calibration);
     }
 
+    /// <summary>
+    /// Asks for a fresh INFO: firmware version and both batteries. Its reply lands in
+    /// OnDeviceInfoReceived like the post-connect one.
+    /// </summary>
     [RelayCommand]
-    private async Task RefreshBatteryAsync()
+    private async Task RefreshDeviceInfoAsync()
     {
         if (!ConnectionInfo.IsConnected)
             return;
 
-        IsRefreshingBattery = true;
+        IsRefreshingDeviceInfo = true;
 
         try
         {
-            var (primaryVoltage, secondaryVoltage) = await _gloveControlService.GetBatteryAsync();
-            ApplyBatteryReading(primaryVoltage, secondaryVoltage);
+            await _gloveControlService.GetDeviceInfoAsync();
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Battery refresh error: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"Device info refresh error: {ex.Message}");
         }
         finally
         {
-            IsRefreshingBattery = false;
+            IsRefreshingDeviceInfo = false;
         }
     }
 

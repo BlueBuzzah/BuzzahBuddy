@@ -13,26 +13,32 @@
              Shell.NavBarIsVisible="False"
              SafeAreaEdges="Container">
 
-    <ScrollView>
-        <VerticalStackLayout Padding="16,0,16,24" Spacing="{StaticResource Space6}">
+    <Grid RowDefinitions="*,Auto" Padding="16,0,16,16">
+        <ScrollView x:Name="Scroller">
+            <!-- At least the viewport's height (code-behind), so Get Started centers in the space
+                 between the title and Scan for Gloves. No row spacing: an even gap above and below
+                 the card; the connected content takes its 24 as a margin. -->
+            <Grid x:Name="ScrollContent" RowDefinitions="Auto,*">
+                <VerticalStackLayout Spacing="{StaticResource Space6}">
+                    <Label Text="Session"
+                           Style="{StaticResource TypeHeadline}"
+                           SemanticProperties.HeadingLevel="Level1" />
 
-            <Label Text="Session"
-                   Style="{StaticResource TypeHeadline}"
-                   SemanticProperties.HeadingLevel="Level1" />
+                    <controls:Banner IsVisible="{Binding BannerVisible}"
+                                     Tone="{Binding BannerTone}"
+                                     Title="{Binding BannerTitle}"
+                                     Message="{Binding BannerMessage}"
+                                     ActionText="{Binding BannerActionText}"
+                                     ActionCommand="{Binding NavigateToDevicesCommand}"
+                                     Announce="True"
+                                     AutomationId="SessionBanner" />
+                </VerticalStackLayout>
 
-            <controls:Banner IsVisible="{Binding BannerVisible}"
-                             Tone="{Binding BannerTone}"
-                             Title="{Binding BannerTitle}"
-                             Message="{Binding BannerMessage}"
-                             ActionText="{Binding BannerActionText}"
-                             ActionCommand="{Binding NavigateToDevicesCommand}"
-                             Announce="True"
-                             AutomationId="SessionBanner" />
-
-            <!-- Not connected: how to get started -->
-            <VerticalStackLayout Spacing="{StaticResource Space6}"
-                                 IsVisible="{Binding ConnectionInfo.IsConnected, Converter={StaticResource InvertedBoolConverter}}">
-                <Border Style="{StaticResource Card}">
+                <!-- Not connected: how to get started -->
+                <Border Grid.Row="1"
+                        Style="{StaticResource Card}"
+                        VerticalOptions="Center"
+                        IsVisible="{Binding ConnectionInfo.IsConnected, Converter={StaticResource InvertedBoolConverter}}">
                     <VerticalStackLayout Spacing="{StaticResource Space4}">
                         <Label Text="Get Started"
                                Style="{StaticResource TypeTitleM}"
@@ -57,111 +63,115 @@
                     </VerticalStackLayout>
                 </Border>
 
-                <Button Text="Scan for Gloves"
+                <!-- Connected -->
+                <VerticalStackLayout Grid.Row="1"
+                                     Margin="0,24,0,0"
+                                     Spacing="{StaticResource Space6}"
+                                     IsVisible="{Binding ConnectionInfo.IsConnected}">
+                    <controls:GlovesSummaryCard Primary="{Binding PrimaryGlove}"
+                                                Secondary="{Binding SecondaryGlove}"
+                                                Command="{Binding NavigateToDevicesCommand}"
+                                                AutomationId="GlovesSummary" />
+
+                    <controls:SessionRing IsVisible="{Binding ConnectionInfo.IsConnected}"
+                                          State="{Binding RingState}"
+                                          Progress="{Binding RingProgress}"
+                                          Time="{Binding RingTimeText}"
+                                          AccessibleText="{Binding RingAccessibleText}"
+                                          AutomationId="SessionTimerRing" />
+
+                    <!-- The whole card changes the profile (it opens Gloves, where profiles are picked), like
+                         the Gloves summary above. Locked during a session: Change turns gray and taps do
+                         nothing. At large text sizes Change moves under the profile so the name keeps the width. -->
+                    <Border Style="{StaticResource Card}"
+                            SemanticProperties.Description="{Binding ProfileCardSpoken}"
+                            SemanticProperties.Hint="{Binding ProfileCardHint}"
+                            AutomationId="ChangeProfileCard">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Command="{Binding ChangeProfileCommand}" Tapped="OnProfileCardTapped" />
+                        </Border.GestureRecognizers>
+                        <Grid x:Name="ProfileRow"
+                              ColumnDefinitions="*,Auto"
+                              ColumnSpacing="{StaticResource Space3}"
+                              RowSpacing="{StaticResource Space3}"
+                              AutomationProperties.ExcludedWithChildren="True">
+                            <VerticalStackLayout Spacing="2" VerticalOptions="Center">
+                                <Label Text="Therapy Profile"
+                                       Style="{StaticResource TypeBodyS}"
+                                       TextColor="{DynamicResource InkMuted}" />
+                                <Label Text="{Binding SelectedProfileName}" Style="{StaticResource TypeTitleM}" />
+                                <Label Text="{Binding ProfileSummary}" Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
+                            </VerticalStackLayout>
+                            <controls:ChevronLink x:Name="ChangeLink" Grid.Column="1" Text="Change" IsEnabled="{Binding CanChangeProfile}" />
+                        </Grid>
+                    </Border>
+                </VerticalStackLayout>
+            </Grid>
+        </ScrollView>
+
+        <!-- The primary action in easy reach at the bottom, as on Gloves: Scan for Gloves, or the
+             session controls (Start alone, full width, or Pause/Resume and Stop side by side). -->
+        <Grid Grid.Row="1" Margin="0,12,0,0">
+            <Button Text="Scan for Gloves"
+                    IsVisible="{Binding ConnectionInfo.IsConnected, Converter={StaticResource InvertedBoolConverter}}"
+                    Style="{StaticResource ButtonPrimaryXl}"
+                    ContentLayout="Left,8"
+                    Command="{Binding ScanForGlovesCommand}"
+                    SemanticProperties.Description="Scan for Gloves"
+                    AutomationId="FindDevicesButton">
+                <Button.ImageSource>
+                    <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Radar}" Size="24" Color="{DynamicResource OnBrand}" />
+                </Button.ImageSource>
+            </Button>
+
+            <!-- Session controls: xl; Start alone, full width, or Pause/Resume and Stop side by side -->
+            <VerticalStackLayout Spacing="{StaticResource TargetGap}" IsVisible="{Binding ConnectionInfo.IsConnected}">
+                <Button Text="Start Session"
                         Style="{StaticResource ButtonPrimaryXl}"
+                        Command="{Binding StartSessionCommand}"
+                        IsVisible="{Binding IsSessionActive, Converter={StaticResource InvertedBoolConverter}}"
+                        IsEnabled="{Binding IsNotBusy}"
                         ContentLayout="Left,8"
-                        Command="{Binding ScanForGlovesCommand}"
-                        SemanticProperties.Description="Scan for Gloves"
-                        AutomationId="FindDevicesButton">
+                        SemanticProperties.Description="Start Session"
+                        AutomationId="SessionControlButton">
                     <Button.ImageSource>
-                        <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Radar}" Size="24" Color="{DynamicResource OnBrand}" />
+                        <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Play}" Size="24" Color="{DynamicResource OnBrand}" />
                     </Button.ImageSource>
                 </Button>
-            </VerticalStackLayout>
-
-            <!-- Connected -->
-            <VerticalStackLayout Spacing="{StaticResource Space6}"
-                                 IsVisible="{Binding ConnectionInfo.IsConnected}">
-
-                <controls:GlovesSummaryCard Primary="{Binding PrimaryGlove}"
-                                            Secondary="{Binding SecondaryGlove}"
-                                            Command="{Binding NavigateToDevicesCommand}"
-                                            AutomationId="GlovesSummary" />
-
-                <controls:SessionRing IsVisible="{Binding ConnectionInfo.IsConnected}"
-                                      State="{Binding RingState}"
-                                      Progress="{Binding RingProgress}"
-                                      Time="{Binding RingTimeText}"
-                                      AccessibleText="{Binding RingAccessibleText}"
-                                      AutomationId="SessionTimerRing" />
-
-                <!-- At large text sizes Change moves under the profile so the name keeps the width. -->
-                <Border Style="{StaticResource Card}">
-                    <Grid x:Name="ProfileRow" ColumnDefinitions="*,Auto" ColumnSpacing="{StaticResource Space3}" RowSpacing="{StaticResource Space3}">
-                        <VerticalStackLayout Spacing="2" VerticalOptions="Center">
-                            <Label Text="Therapy Profile"
-                                   Style="{StaticResource TypeBodyS}"
-                                   TextColor="{DynamicResource InkMuted}"
-                                   SemanticProperties.HeadingLevel="Level2" />
-                            <Label Text="{Binding SelectedProfileName}" Style="{StaticResource TypeTitleM}" />
-                            <Label Text="{Binding ProfileSummary}" SemanticProperties.Description="{Binding ProfileSummarySpoken}" Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
-                        </VerticalStackLayout>
-                        <Button x:Name="ChangeButton"
-                                Grid.Column="1"
-                                Text="Change"
-                                Style="{StaticResource ButtonQuiet}"
-                                VerticalOptions="Center"
-                                ContentLayout="Right,6"
-                                Command="{Binding NavigateToDevicesCommand}"
-                                IsEnabled="{Binding IsSessionActive, Converter={StaticResource InvertedBoolConverter}}"
-                                SemanticProperties.Description="Change"
-                                AutomationId="ChangeProfileButton">
-                            <Button.ImageSource>
-                                <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.ChevronRight}" Size="20" Color="{DynamicResource Brand}" />
-                            </Button.ImageSource>
-                        </Button>
-                    </Grid>
-                </Border>
-
-                <!-- Session controls: xl; Start alone, full width, or Pause/Resume and Stop side by side -->
-                <VerticalStackLayout Spacing="{StaticResource TargetGap}">
-                    <Button Text="Start Session"
-                            Style="{StaticResource ButtonPrimaryXl}"
-                            Command="{Binding StartSessionCommand}"
-                            IsVisible="{Binding IsSessionActive, Converter={StaticResource InvertedBoolConverter}}"
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="{StaticResource TargetGap}" IsVisible="{Binding IsSessionActive}">
+                    <Button Text="{Binding PauseResumeText}"
+                            Style="{StaticResource ButtonSecondaryXl}"
+                            Command="{Binding PauseResumeCommand}"
                             IsEnabled="{Binding IsNotBusy}"
                             ContentLayout="Left,8"
-                            SemanticProperties.Description="Start Session"
-                            AutomationId="SessionControlButton">
+                            SemanticProperties.Description="{Binding PauseResumeText}"
+                            AutomationId="PauseResumeButton">
+                        <Button.Triggers>
+                            <DataTrigger TargetType="Button" Binding="{Binding IsSessionPaused}" Value="True">
+                                <Setter Property="ImageSource">
+                                    <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Play}" Size="24" Color="{DynamicResource Brand}" />
+                                </Setter>
+                            </DataTrigger>
+                        </Button.Triggers>
                         <Button.ImageSource>
-                            <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Play}" Size="24" Color="{DynamicResource OnBrand}" />
+                            <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Pause}" Size="24" Color="{DynamicResource Brand}" />
                         </Button.ImageSource>
                     </Button>
-                    <Grid ColumnDefinitions="*,*" ColumnSpacing="{StaticResource TargetGap}" IsVisible="{Binding IsSessionActive}">
-                        <Button Text="{Binding PauseResumeText}"
-                                Style="{StaticResource ButtonSecondaryXl}"
-                                Command="{Binding PauseResumeCommand}"
-                                IsEnabled="{Binding IsNotBusy}"
-                                ContentLayout="Left,8"
-                                SemanticProperties.Description="{Binding PauseResumeText}"
-                                AutomationId="PauseResumeButton">
-                            <Button.Triggers>
-                                <DataTrigger TargetType="Button" Binding="{Binding IsSessionPaused}" Value="True">
-                                    <Setter Property="ImageSource">
-                                        <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Play}" Size="24" Color="{DynamicResource Brand}" />
-                                    </Setter>
-                                </DataTrigger>
-                            </Button.Triggers>
-                            <Button.ImageSource>
-                                <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Pause}" Size="24" Color="{DynamicResource Brand}" />
-                            </Button.ImageSource>
-                        </Button>
-                        <Button Grid.Column="1"
-                                Text="Stop"
-                                Style="{StaticResource ButtonDangerXl}"
-                                Command="{Binding StopSessionCommand}"
-                                IsEnabled="{Binding IsNotBusy}"
-                                ContentLayout="Left,8"
-                                SemanticProperties.Description="Stop"
-                                AutomationId="StopSessionButton">
-                            <Button.ImageSource>
-                                <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Square}" Size="24" Color="{DynamicResource OnStatus}" />
-                            </Button.ImageSource>
-                        </Button>
-                    </Grid>
-                </VerticalStackLayout>
+                    <Button Grid.Column="1"
+                            Text="Stop"
+                            Style="{StaticResource ButtonDangerXl}"
+                            Command="{Binding StopSessionCommand}"
+                            IsEnabled="{Binding IsNotBusy}"
+                            ContentLayout="Left,8"
+                            SemanticProperties.Description="Stop"
+                            AutomationId="StopSessionButton">
+                        <Button.ImageSource>
+                            <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Square}" Size="24" Color="{DynamicResource OnStatus}" />
+                        </Button.ImageSource>
+                    </Button>
+                </Grid>
             </VerticalStackLayout>
-        </VerticalStackLayout>
-    </ScrollView>
+        </Grid>
+    </Grid>
 
 </ContentPage>

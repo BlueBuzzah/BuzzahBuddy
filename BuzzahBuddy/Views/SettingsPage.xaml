@@ -26,7 +26,7 @@
                         <controls:SwitchRow Label="High Contrast"
                                             Description="Stronger colors and edges. When this is off, BuzzahBuddy follows your phone's setting."
                                             IsToggled="{Binding HighContrast}"
-                                            Margin="-16,0"
+                                            Margin="-16,0,-16,-8"
                                             AutomationId="HighContrastSwitch" />
                     </VerticalStackLayout>
                 </Border>
@@ -62,7 +62,7 @@
                              from assets/Logos, never recolored; clear space ≥ a quarter of its width. -->
                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{StaticResource Space4}">
                             <VerticalStackLayout VerticalOptions="Center">
-                                <Label Text="BuzzahBuddy" Style="{StaticResource TypeTitleM}" />
+                                <Label Text="BuzzahBuddy" Style="{StaticResource TypeTitleM}" LineHeight="1" />
                                 <Label Text="{Binding AppVersion, StringFormat='Version {0}'}" Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
                             </VerticalStackLayout>
                             <Image Grid.Column="1"

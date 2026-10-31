@@ -79,8 +79,16 @@ public partial class SessionRing : ContentView
         _maxSize = Math.Max(_baseSize, width - 32); // the screen's 16pt gutters
         // bundle.js: under 300 the time shrinks to 20% of the ring.
         _baseFont = Math.Round(_baseSize * 0.2);
-        TimeText.FontSize = _baseFont;
+        SetTimeFont(_baseFont);
         SetSize(_baseSize);
+    }
+
+    // Lexend keeps 0.3em empty above its caps (ascender 1.0em, cap height 0.7em) and digits have
+    // no descenders, so the time and state word sat low in the ring. Trim that space off the top.
+    private void SetTimeFont(double font)
+    {
+        TimeText.FontSize = font;
+        TimeText.Margin = new Thickness(0, -0.3 * font, 0, 0);
     }
 
     private void SetSize(double size)
@@ -105,7 +113,7 @@ public partial class SessionRing : ContentView
         var font = Math.Min(_baseFont, Math.Floor(_baseFont * (_maxSize - inset) / atBase));
         if (Math.Abs(font - TimeText.FontSize) >= 1)
         {
-            TimeText.FontSize = font; // its SizeChanged calls back here
+            SetTimeFont(font); // its SizeChanged calls back here
             return;
         }
         var size = Math.Clamp(Math.Ceiling(natural + inset), _baseSize, _maxSize);

@@ -106,7 +106,7 @@
                     <Label Text="Calendar" Style="{StaticResource TypeTitleL}" SemanticProperties.HeadingLevel="Level2" />
                     <Border Style="{StaticResource Card}">
                         <VerticalStackLayout Spacing="{StaticResource Space4}">
-                            <Label Text="{Binding Calendar.Title}" Style="{StaticResource TypeTitleM}" />
+                            <Label Text="{Binding Calendar.Title}" Style="{StaticResource TypeTitleM}" LineHeight="1" />
                             <controls:CalendarMonthView Month="{Binding Calendar}" />
                             <!-- Narrow padding keeps each one-word label on one line on a 320 pt phone. -->
                             <Grid ColumnDefinitions="*,*" ColumnSpacing="{StaticResource Space3}">
@@ -209,7 +209,8 @@
                     <VerticalStackLayout Spacing="{StaticResource Space3}">
                         <!-- One sentence for screen readers; the lines inside are left out of the tree. -->
                         <VerticalStackLayout Spacing="{StaticResource Space1}" SemanticProperties.Description="{Binding Spoken}">
-                            <Label Text="{Binding Title}" Style="{StaticResource TypeTitleM}" AutomationProperties.IsInAccessibleTree="False" />
+                            <!-- Line height 1: iOS adds the title's line height above it, which sat the card's text low. -->
+                            <Label Text="{Binding Title}" Style="{StaticResource TypeTitleM}" LineHeight="1" AutomationProperties.IsInAccessibleTree="False" />
                             <Label Text="{Binding Total}" Style="{StaticResource TypeMetric}" AutomationProperties.IsInAccessibleTree="False" />
                             <VerticalStackLayout BindableLayout.ItemsSource="{Binding SessionLines}" Spacing="{StaticResource Space1}">
                                 <BindableLayout.ItemTemplate>

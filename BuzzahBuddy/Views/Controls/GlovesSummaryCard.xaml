@@ -27,7 +27,9 @@
                 <Label x:Name="GlyphLabel" Style="{StaticResource IconInShape}" HorizontalOptions="Center" />
             </Border>
             <VerticalStackLayout x:Name="TextBlock" Grid.Column="1" Spacing="2" VerticalOptions="Center">
-                <Label x:Name="TitleText" Style="{StaticResource TypeTitleM}" />
+                <!-- Line height 1: the title line height adds space above it on iOS (below on
+                     Android), which sat both lines off center in the card. -->
+                <Label x:Name="TitleText" Style="{StaticResource TypeTitleM}" LineHeight="1" />
                 <!-- One battery icon for the line, showing the lower of the two levels. At line height 1
                      a text line is the icon's height, so top alignment keeps the icon on the first
                      line when the text wraps on narrow phones. -->
