@@ -76,6 +76,33 @@ public class MockParityTests
 
         var raw = await mock.GetRawResponseAsync("SESSION_STATUS");
         Assert.Contains("SESSION_STATUS:LOW_BATTERY", raw);
+
+        // Like firmware, LOW_BATTERY means a glove really reads under the low line.
+        var battery = await mock.GetRawResponseAsync("BATTERY");
+        Assert.Contains("\nBATS:3.78\n", battery);
+    }
+
+    [Fact]
+    public async Task Battery_DemoGloves_StartAboveLowLine()
+    {
+        var mock = await ConnectedMock();
+        var raw = await mock.GetRawResponseAsync("INFO");
+        Assert.Contains("\nBATP:3.95\nBATS:3.91\n", raw);
+    }
+
+    // Firmware refuses SESSION_START while either glove is under 3.80 V.
+    [Theory]
+    [InlineData(3.95, 3.79, true)]
+    [InlineData(3.79, 3.95, true)]
+    [InlineData(3.80, 3.80, false)]
+    public async Task SessionStart_GloveBelowLowLine_IsRefused_LikeFirmware(double primary, double secondary, bool refused)
+    {
+        var mock = await ConnectedMock();
+        mock.MockPrimaryVolts = primary;
+        mock.MockSecondaryVolts = secondary;
+        var raw = await mock.GetRawResponseAsync("SESSION_START");
+        Assert.Equal(refused, raw.Contains("\nERROR:Battery too low\n"));
+        Assert.Equal(!refused, raw.Contains("\nSESSION_STATUS:RUNNING\n"));
     }
 
     [Fact]

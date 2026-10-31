@@ -527,9 +527,9 @@ public partial class GloveControlViewModel : BaseViewModel
         else if (!IsSessionActive && ConnectionInfo.IsConnected && (primaryLow || secondaryLow))
             banner = primaryLow && secondaryLow
                 ? (StatusTone.Warning, "Charge Both Gloves",
-                    $"Primary is at {BatteryReading.ToPercentage(BatteryPrimaryVoltage!.Value)}% and secondary at {BatteryReading.ToPercentage(BatterySecondaryVoltage!.Value)}%, which may not last a full session.", false)
+                    $"Primary is at {BatteryReading.ToPercentage(BatteryPrimaryVoltage!.Value)}% and secondary at {BatteryReading.ToPercentage(BatterySecondaryVoltage!.Value)}%, too low to finish a session. Charge both gloves before you start.", false)
                 : (StatusTone.Warning, $"Charge Your {lowGlove} Glove",
-                    $"It's at {BatteryReading.ToPercentage((primaryLow ? BatteryPrimaryVoltage : BatterySecondaryVoltage)!.Value)}%, which may not last a full session.", false);
+                    $"It's at {BatteryReading.ToPercentage((primaryLow ? BatteryPrimaryVoltage : BatterySecondaryVoltage)!.Value)}%, too low to finish a session. Charge it before you start.", false);
         else if (SessionWarningMessage is not null)
             banner = (StatusTone.Info, "Session Time May Be Behind", "We're waiting for an update from your primary glove.", false);
         else if (_showComplete)

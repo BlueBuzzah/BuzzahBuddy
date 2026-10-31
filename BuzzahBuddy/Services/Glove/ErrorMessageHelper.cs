@@ -40,7 +40,7 @@ public static class ErrorMessageHelper
 
         if (lowerError.Contains("battery too low") || lowerError.Contains("low battery") || lowerError.Contains("charge"))
             return new("Charge Your Gloves",
-                "The battery is too low to start a session. Charge both gloves, then try again.", detail);
+                "A glove battery is too low to finish a session. Charge both gloves, then try again.", detail);
 
         if (lowerError.Contains("session active") || lowerError.Contains("session running") || lowerError.Contains("already running"))
             return new("A Session Is Already Running", "Stop the current session before starting a new one.", detail);

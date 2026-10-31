@@ -28,14 +28,17 @@ public static class GloveStatusText
         _ => (StatusTone.Danger, "Not Connected"),
     };
 
-    /// <summary>Under 20% the battery turns warning and says "Low".</summary>
-    public static bool IsLow(int? percent) => percent is < 20;
+    /// <summary>
+    /// Below the firmware's low line (<see cref="BatteryReading.LowVoltage"/>, 40%) the battery
+    /// turns warning and says "Low", matching the glove's orange LED.
+    /// </summary>
+    public static bool IsLow(int? percent) => percent < BatteryReading.LowPercent;
 
     /// <summary>The same threshold for a voltage; null (no reading) is never low.</summary>
-    public static bool IsLowVoltage(double? volts) => volts is { } v && IsLow(BatteryReading.ToPercentage(v));
+    public static bool IsLowVoltage(double? volts) => BatteryReading.IsLow(volts);
 
     public static string BatteryGlyph(int percent) =>
-        percent >= 70 ? LucideIcons.BatteryFull : percent >= 20 ? LucideIcons.BatteryMedium : LucideIcons.BatteryLow;
+        percent >= 70 ? LucideIcons.BatteryFull : !IsLow(percent) ? LucideIcons.BatteryMedium : LucideIcons.BatteryLow;
 
     /// <summary>
     /// Both gloves in one line for the Session screen: "Gloves Connected" over each battery.
