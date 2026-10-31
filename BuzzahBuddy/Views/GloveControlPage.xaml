@@ -122,8 +122,9 @@
         <!-- The primary action in easy reach at the bottom, as on Gloves: Scan for Gloves, or the
              session controls (Start alone, full width, or Pause/Resume and Stop side by side). -->
         <Grid Grid.Row="1" Margin="0,12,0,0">
+            <!-- Hidden with Get Started while the launch auto-connect is scanning -->
             <Button Text="Scan for Gloves"
-                    IsVisible="{Binding ConnectionInfo.IsConnected, Converter={StaticResource InvertedBoolConverter}}"
+                    IsVisible="{Binding ShowGetStarted}"
                     Style="{StaticResource ButtonPrimaryXl}"
                     ContentLayout="Left,8"
                     Command="{Binding ScanForGlovesCommand}"

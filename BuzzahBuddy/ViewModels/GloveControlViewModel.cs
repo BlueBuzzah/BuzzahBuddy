@@ -162,7 +162,7 @@ public partial class GloveControlViewModel : BaseViewModel
     [ObservableProperty]
     private bool _bannerActionAtEnd;
 
-    /// <summary>The launch auto-connect is trying: the summary card shows scanning in place of Get Started.</summary>
+    /// <summary>The launch auto-connect is trying: the summary card shows scanning in place of Get Started and Scan for Gloves.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowGetStarted))]
     private bool _isAutoConnecting;
