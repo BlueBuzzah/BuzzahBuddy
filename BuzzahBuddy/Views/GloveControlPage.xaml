@@ -102,12 +102,7 @@
                                 <Label Text="{Binding SelectedProfileName}" Style="{StaticResource TypeTitleM}" />
                                 <Label Text="{Binding ProfileSummary}" Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
                             </VerticalStackLayout>
-                            <HorizontalStackLayout x:Name="ChangeLink" Grid.Column="1" Spacing="{StaticResource Space1}" VerticalOptions="Center">
-                                <!-- Colors set in code (UpdateChangeLink): a trigger would restore a fixed color and
-                                     miss in-app theme switches. -->
-                                <Label x:Name="ChangeText" Text="Change" Style="{StaticResource TypeLabel}" VerticalOptions="Center" />
-                                <Label x:Name="ChangeChevron" Text="{x:Static helpers:LucideIcons.ChevronRight}" Style="{StaticResource IconLabel}" FontSize="20" VerticalOptions="Center" />
-                            </HorizontalStackLayout>
+                            <controls:ChevronLink x:Name="ChangeLink" Grid.Column="1" Text="Change" IsEnabled="{Binding CanChangeProfile}" />
                         </Grid>
                     </Border>
                 </VerticalStackLayout>

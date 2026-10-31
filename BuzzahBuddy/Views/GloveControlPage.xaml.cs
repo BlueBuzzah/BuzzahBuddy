@@ -13,12 +13,6 @@ public partial class GloveControlPage : ContentPage
         _viewModel = viewModel;
         BindingContext = viewModel;
         ProfileRow.TrackTextScale(UpdateProfileLayout);
-        UpdateChangeLink();
-        viewModel.PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName == nameof(GloveControlViewModel.CanChangeProfile))
-                UpdateChangeLink();
-        };
         // The content fills the viewport at least, so its star row (Get Started) can center.
         Scroller.SizeChanged += (_, _) => ScrollContent.MinimumHeightRequest = Scroller.Height;
     }
@@ -35,14 +29,6 @@ public partial class GloveControlPage : ContentPage
         Grid.SetRow(ChangeLink, stacked ? 1 : 0);
         Grid.SetColumn(ChangeLink, stacked ? 0 : 1);
         ChangeLink.HorizontalOptions = stacked ? LayoutOptions.End : LayoutOptions.Fill;
-    }
-
-    // Brand, or gray while a session locks the profile. Dynamic resources, so theme switches follow.
-    private void UpdateChangeLink()
-    {
-        var ink = _viewModel.CanChangeProfile ? "Brand" : "InkDisabled";
-        ChangeText.SetDynamicResource(Label.TextColorProperty, ink);
-        ChangeChevron.SetDynamicResource(Label.TextColorProperty, ink);
     }
 
     // Visible acknowledgment for tremor, as on the Gloves summary; only when the tap does something.
