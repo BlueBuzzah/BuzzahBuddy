@@ -79,7 +79,7 @@ public class MockParityTests
 
         // Like firmware, LOW_BATTERY means a glove really reads under the low line.
         var battery = await mock.GetRawResponseAsync("BATTERY");
-        Assert.Contains("\nBATS:3.78\n", battery);
+        Assert.Contains("\nBATS:3.78\nBATLS:LOW\n", battery);
     }
 
     [Fact]
@@ -87,7 +87,7 @@ public class MockParityTests
     {
         var mock = await ConnectedMock();
         var raw = await mock.GetRawResponseAsync("INFO");
-        Assert.Contains("\nBATP:3.95\nBATS:3.91\n", raw);
+        Assert.Contains("\nBATP:3.95\nBATLP:NORMAL\nBATS:3.91\nBATLS:NORMAL\n", raw);
     }
 
     // Firmware refuses SESSION_START while either glove is under 3.80 V.

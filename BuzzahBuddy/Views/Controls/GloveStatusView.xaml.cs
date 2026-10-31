@@ -54,8 +54,8 @@ public partial class GloveStatusView : ContentView
         BatteryRow.IsVisible = showBattery;
         if (info.BatteryPercent is { } percent)
         {
-            var low = GloveStatusText.IsLow(percent);
-            BatteryGlyph.Text = GloveStatusText.BatteryGlyph(percent);
+            var low = info.BatteryLow;
+            BatteryGlyph.Text = GloveStatusText.BatteryGlyph(percent, low);
             BatteryGlyph.SetDynamicResource(Label.TextColorProperty, low ? "Warning" : "InkMuted");
             PercentText.Text = $"{percent}%";
             PercentText.SetDynamicResource(Label.TextColorProperty, low ? "Warning" : "Ink");

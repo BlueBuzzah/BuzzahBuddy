@@ -708,10 +708,23 @@ public class GloveControlServiceTests
         fake.CannedResponses["BATTERY"] = "BATP:3.72\nBATS:3.68\n\x04";
         var service = new GloveControlService(fake);
 
-        var (primary, secondary) = await service.GetBatteryAsync();
+        var (primary, secondary, _, _) = await service.GetBatteryAsync();
 
         Assert.Equal(3.72, primary);
         Assert.Equal(3.68, secondary);
+    }
+
+    [Fact]
+    public async Task GetBatteryAsync_ReturnsGloveLevels()
+    {
+        var fake = new FakeBluetoothService();
+        fake.CannedResponses["BATTERY"] = "BATP:3.85\nBATLP:LOW\nBATS:3.95\nBATLS:NORMAL\n\x04";
+        var service = new GloveControlService(fake);
+
+        var (_, _, primaryLow, secondaryLow) = await service.GetBatteryAsync();
+
+        Assert.True(primaryLow);
+        Assert.False(secondaryLow);
     }
 
     [Fact]
@@ -723,7 +736,7 @@ public class GloveControlServiceTests
         fake.CannedResponses["BATTERY"] = "STATUS:IDLE\n\x04";
         var service = new GloveControlService(fake);
 
-        var (primary, secondary) = await service.GetBatteryAsync();
+        var (primary, secondary, _, _) = await service.GetBatteryAsync();
 
         Assert.Null(primary);
         Assert.Null(secondary);
@@ -738,7 +751,7 @@ public class GloveControlServiceTests
         fake.CannedResponses["BATTERY"] = "BATP:0.00\nBATS:0.00\n\x04";
         var service = new GloveControlService(fake);
 
-        var (primary, secondary) = await service.GetBatteryAsync();
+        var (primary, secondary, _, _) = await service.GetBatteryAsync();
 
         Assert.Null(primary);
         Assert.Null(secondary);

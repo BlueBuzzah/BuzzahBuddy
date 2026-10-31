@@ -23,7 +23,7 @@ public class GloveStatusTextTests
     [Fact]
     public void Low_battery_says_low() =>
         Assert.Equal("Secondary glove, connected, battery 12 percent, low",
-            GloveStatusText.Describe(new GloveStatusInfo(GloveRole.Secondary, GloveLinkStatus.Connected, 12)));
+            GloveStatusText.Describe(new GloveStatusInfo(GloveRole.Secondary, GloveLinkStatus.Connected, 12, BatteryLow: true)));
 
     [Fact]
     public void No_reading() =>
@@ -35,12 +35,6 @@ public class GloveStatusTextTests
     public void Disconnected_hides_battery() =>
         Assert.Equal("Primary glove, not connected",
             GloveStatusText.Describe(new GloveStatusInfo(GloveRole.Primary, GloveLinkStatus.Disconnected, 50)));
-
-    [Theory]
-    [InlineData(40, false)]
-    [InlineData(39, true)]
-    [InlineData(null, false)]
-    public void Low_is_under_40(int? percent, bool low) => Assert.Equal(low, GloveStatusText.IsLow(percent));
 
     [Fact]
     public void Badges()
@@ -59,30 +53,17 @@ public class GloveStatusTextTests
     public void Volts_have_two_decimals_and_no_space() =>
         Assert.Equal("3.72V", BatteryReading.FormatVolts(3.72));
 
-    // The Session banner's "Charge your glove", the GloveStatus "Low" and the glove's orange
-    // LED use one threshold: the firmware's 3.80 V.
+    // A glove latched low reads above 40% after resting; the low glyph follows the word.
     [Theory]
-    [InlineData(3.79, true)]
-    [InlineData(3.7999, true)]
-    [InlineData(3.80, false)]
-    [InlineData(3.81, false)]
-    public void Low_voltage_matches_the_low_badge(double volts, bool low)
-    {
-        Assert.Equal(low, GloveStatusText.IsLowVoltage(volts));
-        Assert.Equal(low, GloveStatusText.IsLow(BatteryReading.ToPercentage(volts)));
-    }
+    [InlineData(70, false, LucideIcons.BatteryFull)]
+    [InlineData(40, false, LucideIcons.BatteryMedium)]
+    [InlineData(39, true, LucideIcons.BatteryLow)]
+    [InlineData(45, true, LucideIcons.BatteryLow)]
+    public void Battery_glyph_turns_low_with_the_word(int percent, bool low, string glyph) =>
+        Assert.Equal(glyph, GloveStatusText.BatteryGlyph(percent, low));
 
-    [Fact]
-    public void No_reading_is_never_low() => Assert.False(GloveStatusText.IsLowVoltage(null));
-
-    [Theory]
-    [InlineData(70, LucideIcons.BatteryFull)]
-    [InlineData(40, LucideIcons.BatteryMedium)]
-    [InlineData(39, LucideIcons.BatteryLow)]
-    public void Battery_glyph_turns_low_with_the_word(int percent, string glyph) =>
-        Assert.Equal(glyph, GloveStatusText.BatteryGlyph(percent));
-
-    private static GloveStatusInfo Glove(GloveRole role, GloveLinkStatus status, int? percent) => new(role, status, percent);
+    private static GloveStatusInfo Glove(GloveRole role, GloveLinkStatus status, int? percent, bool low = false) =>
+        new(role, status, percent, BatteryLow: low);
 
     [Fact]
     public void Summary_both_connected_lists_batteries() =>
@@ -95,7 +76,7 @@ public class GloveStatusTextTests
     public void Summary_low_battery_warns_and_says_low() =>
         Assert.Equal((StatusTone.Warning, "Gloves Connected", "Primary 87% · Secondary 12% Low"),
             GloveStatusText.Summary(Glove(GloveRole.Primary, GloveLinkStatus.Connected, 87),
-                Glove(GloveRole.Secondary, GloveLinkStatus.Connected, 12)));
+                Glove(GloveRole.Secondary, GloveLinkStatus.Connected, 12, low: true)));
 
     // The secondary is only known through the primary's report of its battery.
     [Fact]

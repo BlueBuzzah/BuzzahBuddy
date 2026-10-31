@@ -18,6 +18,30 @@ public class GloveDeviceInfoTests
     }
 
     [Fact]
+    public void FromCommandResponse_BatteryLevels_ParsesGloveVerdicts()
+    {
+        var response = CommandResponse.Parse(
+            "ROLE:PRIMARY\nNAME:BlueBuzzah\nFW:2.1.0\nBATP:4.02\nBATLP:NORMAL\nBATS:3.85\nBATLS:LOW\nSTATUS:IDLE\n\x04");
+
+        var info = GloveDeviceInfo.FromCommandResponse(response);
+
+        Assert.False(info.BatteryPrimaryLow);
+        Assert.True(info.BatterySecondaryLow);
+    }
+
+    [Fact]
+    public void FromCommandResponse_OlderFirmware_LevelsAreNull()
+    {
+        var response = CommandResponse.Parse(
+            "ROLE:PRIMARY\nNAME:BlueBuzzah\nFW:2.1.0\nBATP:3.72\nBATS:3.68\nSTATUS:IDLE\n\x04");
+
+        var info = GloveDeviceInfo.FromCommandResponse(response);
+
+        Assert.Null(info.BatteryPrimaryLow);
+        Assert.Null(info.BatterySecondaryLow);
+    }
+
+    [Fact]
     public void FromCommandResponse_BatteryMissing_VoltagesAreNull()
     {
         var response = CommandResponse.Parse(

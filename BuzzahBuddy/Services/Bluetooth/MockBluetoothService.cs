@@ -319,8 +319,12 @@ public class MockBluetoothService : IBluetoothService
         return MockBatteryLines() + "\x04";
     }
 
+    // Like firmware, each voltage is followed by the glove's level. The mock doesn't
+    // latch low until 3.90 V; firmware does.
     private string MockBatteryLines() => string.Create(CultureInfo.InvariantCulture,
-        $"BATP:{MockPrimaryVolts:F2}\nBATS:{MockSecondaryVolts:F2}\n");
+        $"BATP:{MockPrimaryVolts:F2}\nBATLP:{MockLevel(MockPrimaryVolts)}\nBATS:{MockSecondaryVolts:F2}\nBATLS:{MockLevel(MockSecondaryVolts)}\n");
+
+    private static string MockLevel(double volts) => BatteryReading.IsLow(volts) ? "LOW" : "NORMAL";
 
     private bool MockBatteryLow => BatteryReading.IsLow(MockPrimaryVolts) || BatteryReading.IsLow(MockSecondaryVolts);
 

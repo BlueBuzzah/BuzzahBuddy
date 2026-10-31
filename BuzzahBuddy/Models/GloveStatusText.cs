@@ -11,9 +11,12 @@ public enum GloveRole { Primary, Secondary }
 /// </summary>
 public enum GloveLinkStatus { Connected, Connecting, Disconnected, NoReading }
 
-/// <summary>What one GloveStatus shows: role, link, battery, and optional technical lines.</summary>
+/// <summary>
+/// What one GloveStatus shows: role, link, battery, and optional technical lines. BatteryLow
+/// comes from <see cref="BatteryReading.IsLow(double?, bool?)"/>, so it matches the glove's LED.
+/// </summary>
 public sealed record GloveStatusInfo(GloveRole Role, GloveLinkStatus Status, int? BatteryPercent,
-    string? Detail = null);
+    string? Detail = null, bool BatteryLow = false);
 
 /// <summary>GloveStatus words and thresholds, after the design system's bundle.js GloveStatus.</summary>
 public static class GloveStatusText
@@ -28,17 +31,9 @@ public static class GloveStatusText
         _ => (StatusTone.Danger, "Not Connected"),
     };
 
-    /// <summary>
-    /// Below the firmware's low line (<see cref="BatteryReading.LowVoltage"/>, 40%) the battery
-    /// turns warning and says "Low", matching the glove's orange LED.
-    /// </summary>
-    public static bool IsLow(int? percent) => percent < BatteryReading.LowPercent;
-
-    /// <summary>The same threshold for a voltage; null (no reading) is never low.</summary>
-    public static bool IsLowVoltage(double? volts) => BatteryReading.IsLow(volts);
-
-    public static string BatteryGlyph(int percent) =>
-        percent >= 70 ? LucideIcons.BatteryFull : !IsLow(percent) ? LucideIcons.BatteryMedium : LucideIcons.BatteryLow;
+    /// <summary>A low battery shows the low glyph, whatever its percentage.</summary>
+    public static string BatteryGlyph(int percent, bool low) =>
+        low ? LucideIcons.BatteryLow : percent >= 70 ? LucideIcons.BatteryFull : LucideIcons.BatteryMedium;
 
     /// <summary>
     /// Both gloves in one line for the Session screen: "Gloves Connected" over each battery.
@@ -57,10 +52,10 @@ public static class GloveStatusText
             if (glove.Status == GloveLinkStatus.NoReading)
                 parts.Add($"{Name(glove.Role)} no reading");
             else if (glove.BatteryPercent is { } percent)
-                parts.Add($"{Name(glove.Role)} {percent}%{(IsLow(percent) ? " Low" : "")}");
+                parts.Add($"{Name(glove.Role)} {percent}%{(glove.BatteryLow ? " Low" : "")}");
         }
         var bothUp = secondary.Status == GloveLinkStatus.Connected;
-        var warn = !bothUp || IsLow(primary.BatteryPercent) || IsLow(secondary.BatteryPercent);
+        var warn = !bothUp || primary.BatteryLow || secondary.BatteryLow;
         return (warn ? StatusTone.Warning : StatusTone.Success,
             bothUp ? "Gloves Connected" : "Primary Glove Connected",
             parts.Count > 0 ? string.Join(" · ", parts) : null);
@@ -71,7 +66,7 @@ public static class GloveStatusText
     {
         var text = $"{Name(info.Role)} glove, {Badge(info.Status).Text.ToLowerInvariant()}";
         if (info.Status == GloveLinkStatus.Connected && info.BatteryPercent is { } percent)
-            text += $", battery {percent} percent{(IsLow(percent) ? ", low" : "")}";
+            text += $", battery {percent} percent{(info.BatteryLow ? ", low" : "")}";
         return text;
     }
 }
