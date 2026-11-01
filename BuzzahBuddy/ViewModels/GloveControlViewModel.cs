@@ -524,8 +524,8 @@ public partial class GloveControlViewModel : BaseViewModel
         else if (ConnectionInfo.IsReconnecting)
             banner = (StatusTone.Warning, "Reconnecting to Your Primary Glove",
                 _reconnectAttempt.Max > 0
-                    ? $"Keep your phone near the glove. Try {_reconnectAttempt.Attempt} of {_reconnectAttempt.Max}."
-                    : "Keep your phone near the glove.",
+                    ? $"Keep your {DeviceWords.This} near the glove. Try {_reconnectAttempt.Attempt} of {_reconnectAttempt.Max}."
+                    : $"Keep your {DeviceWords.This} near the glove.",
                 true);
         else if (_autoConnect.FailedBanner is { } a)
         {
@@ -534,7 +534,7 @@ public partial class GloveControlViewModel : BaseViewModel
         }
         else if (SessionWarningMessage == ConnectionUnstableWarning)
             banner = (StatusTone.Warning, "Connection Is Unstable",
-                "Keep your phone close to your primary glove. The session keeps running.", false);
+                $"Keep your {DeviceWords.This} close to your primary glove. The session keeps running.", false);
         else if (SessionStatus.Status == SessionState.LOW_BATTERY)
             banner = (StatusTone.Warning,
                 lowGlove is null ? "A Glove Battery Is Low" : $"Your {lowGlove} Glove Battery Is Low",
@@ -1193,7 +1193,7 @@ public partial class GloveControlViewModel : BaseViewModel
             {
                 var notes = await Shell.Current.DisplayPromptAsync(
                     "Add a Note?",
-                    "Write anything you want to remember about this session. It stays on this phone.",
+                    $"Write anything you want to remember about this session. It stays on this {DeviceWords.This}.",
                     accept: "Save Note",
                     cancel: "Skip",
                     placeholder: "For example: Tremor felt lighter after lunch",

@@ -210,7 +210,7 @@
 
                 <VerticalStackLayout Spacing="{StaticResource Space3}">
                     <Label Text="Days" Style="{StaticResource TypeTitleL}" SemanticProperties.HeadingLevel="Level2" />
-                    <Label Text="Times are what this phone recorded. Paused time isn't counted."
+                    <Label Text="{Binding Source={x:Static helpers:DeviceWords.This}, StringFormat='Times are what this {0} recorded. Paused time isn\'t counted.'}"
                            Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
                 </VerticalStackLayout>
             </VerticalStackLayout>

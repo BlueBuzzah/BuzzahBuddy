@@ -109,8 +109,8 @@ public static class ReportPdf
     internal const string TrendCaption =
         "Average time per day. Days without a session count as zero. The dashed line is the schedule early studies used (Pfeifer et al. 2021).";
 
-    private const string AboutNumbers =
-        "Times are what BuzzahBuddy recorded on this phone. Paused time isn't counted. Sessions your gloves ran while this phone wasn't connected may be missing.";
+    private static string AboutNumbers(string device) =>
+        $"Times are what BuzzahBuddy recorded on this {device}. Paused time isn't counted. Sessions your gloves ran while this {device} wasn't connected may be missing.";
 
     private static readonly object FontGate = new();
     private static bool _fontsReady;
@@ -644,7 +644,7 @@ public static class ReportPdf
     /// <summary>Draws page 2; returns where Recent Notes ends and where the legal text starts.</summary>
     private static (double NotesBottom, double LegalTop) DrawPage2(Canvas c, ReportModel model)
     {
-        var legalTop = DrawLegal(c);
+        var legalTop = DrawLegal(c, model.Device);
         // Sections sit 18 pt apart. When many profiles and long notes leave less room above the
         // legal text, passes on a scratch page find the overflow: the four gaps share it (6 pt at
         // least), and if that isn't enough the oldest quote shown is dropped, then the next.
@@ -964,7 +964,7 @@ public static class ReportPdf
     }
 
     /// <summary>About These Numbers and both legal notices, set from the bottom of page 2 up; returns their top.</summary>
-    private static double DrawLegal(Canvas c)
+    private static double DrawLegal(Canvas c, string device)
     {
         var font = Font(Body, 9);
         var bold = Font(Body, 9, bold: true);
@@ -973,7 +973,7 @@ public static class ReportPdf
         const string important = "Important:";
         var notice = LegalNotices.ImplantedDeviceNotice;
 
-        var about = Wrap(c, AboutNumbers, font, ContentWidth);
+        var about = Wrap(c, AboutNumbers(device), font, ContentWidth);
         var disclaimer = Wrap(c, LegalNotices.MedicalDisclaimer, font, ContentWidth);
         // Wrapped as one run so the bold word's width is close enough to the regular one's; the
         // first line is re-checked below with the bold word measured as set.

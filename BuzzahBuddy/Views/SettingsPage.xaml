@@ -5,6 +5,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:BuzzahBuddy.ViewModels"
              xmlns:controls="clr-namespace:BuzzahBuddy.Views.Controls"
+             xmlns:helpers="clr-namespace:BuzzahBuddy.Helpers"
              x:Class="BuzzahBuddy.Views.SettingsPage"
              x:DataType="vm:SettingsViewModel"
              Title="{Binding Title}"
@@ -34,7 +35,7 @@
                                                    SelectedValue="{Binding SelectedTheme}"
                                                    AutomationId="ThemeControl" />
                         <controls:SwitchRow Label="High Contrast"
-                                            Description="Stronger colors and edges. When this is off, BuzzahBuddy follows your phone's setting."
+                                            Description="{Binding Source={x:Static helpers:DeviceWords.This}, StringFormat='Stronger colors and edges. When this is off, BuzzahBuddy follows your {0}\'s setting.'}"
                                             IsToggled="{Binding HighContrast}"
                                             Margin="-16,0,-16,-8"
                                             AutomationId="HighContrastSwitch" />
@@ -55,7 +56,7 @@
 
             <VerticalStackLayout Spacing="{StaticResource Space3}">
                 <Label Text="Data" Style="{StaticResource TypeTitleL}" SemanticProperties.HeadingLevel="Level2" />
-                <Label Text="Saved sessions and notes stay on this phone." Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
+                <Label Text="{Binding Source={x:Static helpers:DeviceWords.This}, StringFormat='Saved sessions and notes stay on this {0}.'}" Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
                 <Button Text="Clear All Data"
                         Style="{StaticResource ButtonDanger}"
                         Command="{Binding ClearDataCommand}"

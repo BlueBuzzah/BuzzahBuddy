@@ -377,7 +377,7 @@ public partial class DeviceListViewModel : BaseViewModel, IQueryAttributable
 
         var openSettings = await Shell.Current.DisplayAlert(
             "Bluetooth Isn't Allowed",
-            "Turn on Bluetooth for BuzzahBuddy in your phone's settings, then scan again.",
+            $"Turn on Bluetooth for BuzzahBuddy in your {DeviceWords.This}'s settings, then scan again.",
             "Open Settings",
             "Not Now");
         if (openSettings)
@@ -409,7 +409,7 @@ public partial class DeviceListViewModel : BaseViewModel, IQueryAttributable
 
         var confirm = await _confirmation.ConfirmAsync(new ConfirmRequest(
             "Disconnect Your Gloves?",
-            "Your phone stops controlling the gloves. A running session keeps going on the gloves.",
+            $"Your {DeviceWords.This} stops controlling the gloves. A running session keeps going on the gloves.",
             "Disconnect",
             Destructive: true));
 

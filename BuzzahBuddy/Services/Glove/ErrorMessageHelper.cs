@@ -76,7 +76,7 @@ public static class ErrorMessageHelper
             return new("That Finger Isn't Available", "Pick one of the finger buttons on this screen.", detail);
 
         if (lowerError.Contains("timeout") || lowerError.Contains("no response"))
-            return new("Your Glove Didn't Answer", "Move your phone closer to your primary glove, then try again.", detail);
+            return new("Your Glove Didn't Answer", $"Move your {DeviceNoun.Current} closer to your primary glove, then try again.", detail);
 
         if (lowerError.Contains("disconnected") || lowerError.Contains("not connected"))
             return new("Connection Lost", "Connect again on the Gloves tab, then try again.", detail);
@@ -97,7 +97,7 @@ public static class ErrorMessageHelper
     {
         BlueBuzzahCommandException command => GetFriendlyError(command.Message),
         TimeoutException => new("Your Glove Didn't Answer",
-            "Move your phone closer to your primary glove, then try again.", ex.Message),
+            $"Move your {DeviceNoun.Current} closer to your primary glove, then try again.", ex.Message),
         _ => new(Generic, TryAgain, ex.Message),
     };
 }

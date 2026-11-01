@@ -44,7 +44,7 @@ public sealed class AutoConnectService
         ? (StatusTone.Warning, "Couldn't Connect to Your Gloves",
             _bluetoothOff
                 ? "Turn on Bluetooth, then tap Try Again."
-                : "Make sure both gloves are on and near your phone, then tap Try Again.")
+                : $"Make sure both gloves are on and near your {DeviceNoun.Current}, then tap Try Again.")
         : null;
 
     /// <summary>Starts the launch attempt for the remembered primary glove.</summary>

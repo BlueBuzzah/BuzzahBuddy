@@ -254,7 +254,7 @@
                                         <Label Text="Check these, then scan again:" Style="{StaticResource TypeBodyStrong}" />
                                         <Label Text="• Bluetooth is on." />
                                         <Label Text="• Both gloves are charged and turned on." />
-                                        <Label Text="• Your phone is within 30 feet of the gloves." />
+                                        <Label Text="{Binding Source={x:Static helpers:DeviceWords.This}, StringFormat='• Your {0} is within 30 feet of the gloves.'}" />
                                     </VerticalStackLayout>
                                 </Border>
                             </VerticalStackLayout>

@@ -16,7 +16,7 @@
 
     <ScrollView>
         <VerticalStackLayout x:Name="Column" Padding="0,0,0,24" Spacing="{StaticResource Space6}">
-            <Label Text="These settings make up your Custom profile. They're saved on this phone, and your gloves get them when you pick Custom and tap Apply Settings." />
+            <Label Text="{Binding Source={x:Static helpers:DeviceWords.This}, StringFormat='These settings make up your Custom profile. They\'re saved on this {0}, and your gloves get them when you pick Custom and tap Apply Settings.'}" />
 
             <controls:Banner IsVisible="{Binding DeviatesBannerVisible}"
                              Tone="Warning"

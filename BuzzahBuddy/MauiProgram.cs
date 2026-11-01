@@ -61,6 +61,8 @@ public static class MauiProgram
 
 	public static MauiApp CreateMauiApp()
 	{
+		// Models and services that compile into the tests read the noun here, not from DeviceInfo.
+		BuzzahBuddy.Models.DeviceNoun.Current = BuzzahBuddy.Helpers.DeviceWords.This;
 		var builder = MauiApp.CreateBuilder();
 		builder
 			.UseMauiApp<App>()

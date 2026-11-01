@@ -4,6 +4,7 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:BuzzahBuddy.ViewModels"
+             xmlns:helpers="clr-namespace:BuzzahBuddy.Helpers"
              x:Class="BuzzahBuddy.Views.ApplyingSettingsPage"
              x:DataType="vm:DeviceSettingsViewModel"
              Shell.NavBarIsVisible="False"
@@ -37,7 +38,7 @@
             <Label Text="Still Waiting for Your Gloves"
                    Style="{StaticResource TypeHeadline}"
                    SemanticProperties.HeadingLevel="Level1" />
-            <Label Text="Make sure both gloves are on and near your phone." />
+            <Label Text="{Binding Source={x:Static helpers:DeviceWords.This}, StringFormat='Make sure both gloves are on and near your {0}.'}" />
             <Button Text="Keep Waiting"
                     Style="{StaticResource ButtonPrimary}"
                     Command="{Binding KeepWaitingCommand}"
