@@ -817,6 +817,20 @@ public class GloveControlService : IGloveControlService
             await Task.Delay(SyncNotReadyRetryInterval);
             EnsureConnected();
         }
+
+        // The secondary dropped since the last INFO. Refresh it so the Session banner shows
+        // with the alert, and the missing secondary battery keeps INFO re-asked until it's back.
+        if (response.ErrorMessage?.Contains("secondary not connected", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            try
+            {
+                await GetDeviceInfoAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[GLOVE_SERVICE] INFO after refused start failed: {ex.Message}");
+            }
+        }
         response.ThrowIfError();
 
         // Firmware that reports the real duration (correct for a Custom profile)
