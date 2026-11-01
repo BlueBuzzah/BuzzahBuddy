@@ -136,6 +136,9 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     [ObservableProperty]
     private GloveStatusInfo _secondaryGlove = new(GloveRole.Secondary, GloveLinkStatus.Disconnected, null);
 
+    // INFO's SECONDARY key; null on older firmware or before this link's first INFO
+    private bool? _secondaryLinked;
+
     // The connected view's one banner (Banner README).
     [ObservableProperty]
     private bool _bannerVisible;
@@ -514,18 +517,18 @@ public partial class DeviceSettingsViewModel : BaseViewModel
 
     /// <summary>
     /// GloveStatus for both gloves, with raw volts in code-s (design system
-    /// Principles #4). The secondary's state is inferred from the primary's report of its
-    /// battery (plan choice PC15).
+    /// Principles #4). The secondary's state comes from the primary's INFO
+    /// (<see cref="GloveStatusText.SecondaryLink"/>).
     /// </summary>
     private void UpdateGloves()
     {
         var link = ConnectionInfo.IsConnected ? GloveLinkStatus.Connected : GloveLinkStatus.Disconnected;
         int? Percent(double? v) => v is { } volts ? BatteryReading.ToPercentage(volts) : null;
+        if (link != GloveLinkStatus.Connected)
+            _secondaryLinked = null;
         PrimaryGlove = new GloveStatusInfo(GloveRole.Primary, link, Percent(BatteryPrimaryVoltage),
             BatteryReading.FormatVolts(BatteryPrimaryVoltage));
-        var secondaryLink = link != GloveLinkStatus.Connected ? GloveLinkStatus.Disconnected
-            : BatterySecondaryVoltage is null ? GloveLinkStatus.NoReading
-            : GloveLinkStatus.Connected;
+        var secondaryLink = GloveStatusText.SecondaryLink(link, _secondaryLinked, BatterySecondaryVoltage);
         SecondaryGlove = new GloveStatusInfo(GloveRole.Secondary, secondaryLink, Percent(BatterySecondaryVoltage),
             Detail: BatteryReading.FormatVolts(BatterySecondaryVoltage));
     }
@@ -597,6 +600,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         MainThread.BeginInvokeOnMainThread(() =>
         {
             FirmwareVersion = info.FirmwareVersion is { Length: > 0 } and not "0.0.0" ? info.FirmwareVersion : null;
+            _secondaryLinked = info.SecondaryLinked;
             ApplyBatteryReading(info.BatteryPrimaryVoltage, info.BatterySecondaryVoltage);
         });
     }

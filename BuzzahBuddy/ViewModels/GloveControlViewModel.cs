@@ -135,10 +135,24 @@ public partial class GloveControlViewModel : BaseViewModel
     private string _ringAccessibleText = string.Empty;
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(StartSessionCommand))]
     private GloveStatusInfo _primaryGlove = new(GloveRole.Primary, GloveLinkStatus.Disconnected, null);
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(StartSessionCommand))]
     private GloveStatusInfo _secondaryGlove = new(GloveRole.Secondary, GloveLinkStatus.Disconnected, null);
+
+    // INFO's SECONDARY key; null on older firmware or before this link's first INFO
+    private bool? _secondaryLinked;
+
+    /// <summary>
+    /// The primary is connected and reports the secondary unlinked. Firmware refuses to
+    /// start then, so Start is off and a banner says why. Older firmware never reports it.
+    /// </summary>
+    private bool SecondaryMissing =>
+        PrimaryGlove.Status == GloveLinkStatus.Connected && SecondaryGlove.Status == GloveLinkStatus.Disconnected;
+
+    private bool CanStartSession => !SecondaryMissing;
 
     // One banner slot, highest priority wins (plan choice PC13; Banner README).
     [ObservableProperty]
@@ -277,7 +291,7 @@ public partial class GloveControlViewModel : BaseViewModel
     }
 
     /// <summary>Start session (the xl primary button while idle).</summary>
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanStartSession))]
     private async Task StartSessionAsync()
     {
         if (IsSessionActive || !_sessionControls.TryAcquire())
@@ -472,7 +486,7 @@ public partial class GloveControlViewModel : BaseViewModel
 
     /// <summary>
     /// GloveStatus for both gloves. The app only links to the primary; the secondary's
-    /// state comes from the primary's report of its battery (plan choice PC15).
+    /// state comes from the primary's INFO (<see cref="GloveStatusText.SecondaryLink"/>).
     /// </summary>
     private void UpdateGloves()
     {
@@ -483,17 +497,18 @@ public partial class GloveControlViewModel : BaseViewModel
             _ => GloveLinkStatus.Disconnected,
         };
         int? Percent(double? v) => v is { } volts ? BatteryReading.ToPercentage(volts) : null;
+        // The next link's INFO reports afresh: don't hold Start off on the last one's word.
+        if (link != GloveLinkStatus.Connected)
+            _secondaryLinked = null;
         PrimaryGlove = new GloveStatusInfo(GloveRole.Primary, link, Percent(BatteryPrimaryVoltage));
-        var secondaryLink = link != GloveLinkStatus.Connected ? GloveLinkStatus.Disconnected
-            : BatterySecondaryVoltage is null ? GloveLinkStatus.NoReading
-            : GloveLinkStatus.Connected;
+        var secondaryLink = GloveStatusText.SecondaryLink(link, _secondaryLinked, BatterySecondaryVoltage);
         SecondaryGlove = new GloveStatusInfo(GloveRole.Secondary, secondaryLink, Percent(BatterySecondaryVoltage));
     }
 
     /// <summary>
     /// Picks the one banner the Session screen shows (plan choice PC13): session ended >
-    /// reconnecting > launch auto-connect > connection unstable > low battery > status behind >
-    /// session saved.
+    /// reconnecting > launch auto-connect > connection unstable > low battery > secondary not
+    /// connected > charge before you start > status behind > session saved.
     /// </summary>
     private void ResolveBanner()
     {
@@ -524,6 +539,9 @@ public partial class GloveControlViewModel : BaseViewModel
             banner = (StatusTone.Warning,
                 lowGlove is null ? "A Glove Battery Is Low" : $"Your {lowGlove} Glove Battery Is Low",
                 "The session keeps running. Charge the glove after this session.", false);
+        else if (!IsSessionActive && SecondaryMissing)
+            banner = (StatusTone.Warning, ErrorMessageHelper.SecondaryNotLinkedTitle,
+                ErrorMessageHelper.SecondaryNotLinkedMessage, false);
         else if (!IsSessionActive && ConnectionInfo.IsConnected && (primaryLow || secondaryLow))
             banner = primaryLow && secondaryLow
                 ? (StatusTone.Warning, "Charge Both Gloves",
@@ -561,6 +579,7 @@ public partial class GloveControlViewModel : BaseViewModel
         {
             var warnIfLow = _warnOnNextBatteryReading && connectReading;
             _warnOnNextBatteryReading = false;
+            _secondaryLinked = info.SecondaryLinked;
             ApplyBatteryReadingAsync(info.BatteryPrimaryVoltage, info.BatterySecondaryVoltage, warnIfLow)
                 .SafeFireAndForget("[GLOVECONTROL]");
         });

@@ -20,6 +20,16 @@ public static class GloveStatusText
 {
     public static string Name(GloveRole role) => role == GloveRole.Primary ? "Primary" : "Secondary";
 
+    /// <summary>
+    /// The secondary's link as the app can know it: INFO's SECONDARY key when the firmware
+    /// sends it, otherwise inferred from whether the primary reports the secondary's battery.
+    /// </summary>
+    public static GloveLinkStatus SecondaryLink(GloveLinkStatus primary, bool? linked, double? secondaryVolts) =>
+        primary != GloveLinkStatus.Connected ? GloveLinkStatus.Disconnected
+        : linked is { } up ? (up ? GloveLinkStatus.Connected : GloveLinkStatus.Disconnected)
+        : secondaryVolts is null ? GloveLinkStatus.NoReading
+        : GloveLinkStatus.Connected;
+
     public static (StatusTone Tone, string Text) Badge(GloveLinkStatus status) => status switch
     {
         GloveLinkStatus.Connected => (StatusTone.Success, "Connected"),

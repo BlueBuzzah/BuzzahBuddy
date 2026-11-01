@@ -36,6 +36,9 @@ public class MockBluetoothService : IBluetoothService
     internal double MockPrimaryVolts { get; set; } = MockHealthyPrimaryVolts;
     internal double MockSecondaryVolts { get; set; } = MockHealthySecondaryVolts;
 
+    /// <summary>INFO SECONDARY; settable so tests can switch the secondary off.</summary>
+    internal bool MockSecondaryLinked { get; set; } = true;
+
     public ConnectionState CurrentConnectionState { get; private set; } = ConnectionState.Disconnected;
     public GloveDevice? ConnectedDevice => _connectedDevice;
     public string? LastConnectedDeviceId => _lastConnectedDeviceId;
@@ -294,7 +297,7 @@ public class MockBluetoothService : IBluetoothService
                "HW:v2\n" +
                "MOTORS:4\n" +
                $"PROFILE:{_mockCurrentProfile}:{ProfileNameFor(_mockCurrentProfile)}\n" +
-               MockBatteryLines() +
+               MockBatteryLines(withLink: true) +
                $"STATUS:{_mockSessionState}\n" +
                "\x04";
     }
@@ -316,11 +319,16 @@ public class MockBluetoothService : IBluetoothService
         await Task.Delay(800, cancellationToken);
 
         // Per BLE protocol v2.0.0: Use BATP/BATS for battery keys
-        return MockBatteryLines() + "\x04";
+        return MockBatteryLines(withLink: false) + "\x04";
     }
 
-    private string MockBatteryLines() => string.Create(CultureInfo.InvariantCulture,
-        $"BATP:{MockPrimaryVolts:F2}\nBATS:{MockSecondaryVolts:F2}\n");
+    // Like firmware: INFO puts SECONDARY between the two; no secondary reads BATS:0.00
+    private string MockBatteryLines(bool withLink)
+    {
+        var link = withLink ? $"SECONDARY:{(MockSecondaryLinked ? 1 : 0)}\n" : "";
+        var secondary = MockSecondaryLinked ? MockSecondaryVolts : 0;
+        return string.Create(CultureInfo.InvariantCulture, $"BATP:{MockPrimaryVolts:F2}\n{link}BATS:{secondary:F2}\n");
+    }
 
     private bool MockBatteryLow => BatteryReading.IsLow(MockPrimaryVolts) || BatteryReading.IsLow(MockSecondaryVolts);
 
@@ -393,6 +401,12 @@ public class MockBluetoothService : IBluetoothService
         if (_mockSessionState != SessionState.IDLE)
         {
             return "ERROR:Session already active\n\x04";
+        }
+
+        // Like firmware: never on the primary alone, checked before the battery
+        if (!MockSecondaryLinked)
+        {
+            return "ERROR:Secondary not connected\n\x04";
         }
 
         // Like firmware: either glove too low to finish a 2-hour session

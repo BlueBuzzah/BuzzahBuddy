@@ -43,6 +43,22 @@ public class ErrorMessageHelperTests
     }
 
     [Fact]
+    public void Refused_start_without_secondary_matches_the_session_banner()
+    {
+        var error = ErrorMessageHelper.GetFriendlyError("Secondary not connected");
+        Assert.Equal("Secondary Glove Not Connected", error.Title);
+        Assert.Equal(ErrorMessageHelper.SecondaryNotLinkedMessage, error.Message);
+        Assert.Equal("Secondary not connected", error.Detail);
+    }
+
+    [Fact]
+    public void Test_motors_relay_without_secondary_keeps_its_own_advice()
+    {
+        var error = ErrorMessageHelper.GetFriendlyError("Secondary glove not connected");
+        Assert.NotEqual(ErrorMessageHelper.SecondaryNotLinkedMessage, error.Message);
+    }
+
+    [Fact]
     public void Unknown_command_points_to_the_updater()
     {
         var error = ErrorMessageHelper.GetFriendlyError("Unknown command: FOO");

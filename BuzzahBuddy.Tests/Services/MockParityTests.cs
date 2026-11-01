@@ -87,7 +87,21 @@ public class MockParityTests
     {
         var mock = await ConnectedMock();
         var raw = await mock.GetRawResponseAsync("INFO");
-        Assert.Contains("\nBATP:3.95\nBATS:3.91\n", raw);
+        Assert.Contains("\nBATP:3.95\nSECONDARY:1\nBATS:3.91\n", raw);
+    }
+
+    // Firmware refuses SESSION_START without the secondary, before the battery check.
+    [Fact]
+    public async Task SessionStart_SecondaryOff_IsRefused_LikeFirmware()
+    {
+        var mock = await ConnectedMock();
+        mock.MockSecondaryLinked = false;
+        mock.MockPrimaryVolts = 3.70;
+
+        Assert.Contains("\nSECONDARY:0\nBATS:0.00\n", await mock.GetRawResponseAsync("INFO"));
+        var raw = await mock.GetRawResponseAsync("SESSION_START");
+        Assert.Contains("\nERROR:Secondary not connected\n", raw);
+        Assert.DoesNotContain("SESSION_STATUS", raw);
     }
 
     // Firmware refuses SESSION_START while either glove is under 3.80 V.
