@@ -15,11 +15,14 @@
              Shell.NavBarIsVisible="False"
              SafeAreaEdges="Container">
 
-    <Grid RowDefinitions="*,Auto" Padding="16,0,16,16">
+    <Grid x:Name="Root" RowDefinitions="*,Auto" Padding="0,0,0,16">
 
         <!-- Connected -->
+        <!-- One instance of each section; ApplyLayout moves them between LeftStack and RightStack. -->
         <ScrollView Grid.Row="0" Grid.RowSpan="2" IsVisible="{Binding ConnectionInfo.IsConnected}">
-            <VerticalStackLayout Spacing="{StaticResource Space6}" Padding="0,0,0,8">
+            <Grid x:Name="ConnectedGrid" Padding="0,0,0,8">
+            <VerticalStackLayout x:Name="LeftStack" Grid.Column="0" Spacing="{StaticResource Space6}">
+            <VerticalStackLayout x:Name="HeaderSection" Spacing="{StaticResource Space6}">
                 <Label Text="Gloves" Style="{StaticResource TypeHeadline}" SemanticProperties.HeadingLevel="Level1" />
 
                 <controls:Banner IsVisible="{Binding Settings.BannerVisible}"
@@ -73,9 +76,10 @@
                         </Button.ImageSource>
                     </Button>
                 </VerticalStackLayout>
+            </VerticalStackLayout>
 
                 <!-- Therapy profile: a single-choice list (plan choice PC27) -->
-                <VerticalStackLayout Spacing="{StaticResource Space3}">
+                <VerticalStackLayout x:Name="ProfileSection" Spacing="{StaticResource Space3}">
                     <Label Text="Therapy Profile" Style="{StaticResource TypeTitleL}" SemanticProperties.HeadingLevel="Level2" />
                     <Label Text="Pick a profile, then tap Apply Settings. Your gloves restart to use it."
                            Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
@@ -145,6 +149,7 @@
                 </VerticalStackLayout>
 
                 <!-- Device options -->
+                <VerticalStackLayout x:Name="OptionsSection" Spacing="{StaticResource Space6}">
                 <VerticalStackLayout Spacing="{StaticResource Space3}">
                     <Label Text="Device Options" Style="{StaticResource TypeTitleL}" SemanticProperties.HeadingLevel="Level2" />
                     <Border Style="{StaticResource Card}" Padding="0,8" IsVisible="{Binding Settings.TherapyLedLoaded}">
@@ -168,11 +173,12 @@
                         <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Vibrate}" Size="20" Color="{DynamicResource Brand}" />
                     </Button.ImageSource>
                 </Button>
+                </VerticalStackLayout>
 
                 <!-- Apply: the screen's one primary action. Available whenever no session is running or
                      paused (owner's choice): with nothing changed it applies everything again, which
                      helps when troubleshooting. -->
-                <VerticalStackLayout Spacing="{StaticResource Space2}">
+                <VerticalStackLayout x:Name="ApplySection" Spacing="{StaticResource Space2}">
                     <Button Text="Apply Settings"
                             Style="{StaticResource ButtonPrimaryXl}"
                             ContentLayout="Left,8"
@@ -192,6 +198,7 @@
                     </Button>
                 </VerticalStackLayout>
 
+                <VerticalStackLayout x:Name="DisconnectSection">
                 <Button Text="Disconnect"
                         Style="{StaticResource ButtonDangerXl}"
                         ContentLayout="Left,8"
@@ -202,11 +209,14 @@
                         <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Unplug}" Size="24" Color="{DynamicResource OnStatus}" />
                     </Button.ImageSource>
                 </Button>
+                </VerticalStackLayout>
             </VerticalStackLayout>
+            <VerticalStackLayout x:Name="RightStack" Grid.Column="1" Spacing="{StaticResource Space6}" IsVisible="False" />
+            </Grid>
         </ScrollView>
 
         <!-- Not connected: scan and connect -->
-        <Grid Grid.Row="0" RowDefinitions="Auto,*,Auto" IsVisible="{Binding Settings.ShowDisconnectedView}">
+        <Grid x:Name="ScanGrid" Grid.Row="0" RowDefinitions="Auto,*,Auto" IsVisible="{Binding Settings.ShowDisconnectedView}">
             <VerticalStackLayout Grid.Row="0" Spacing="{StaticResource Space6}" Margin="0,0,0,16">
                 <Label Text="Gloves" Style="{StaticResource TypeHeadline}" SemanticProperties.HeadingLevel="Level1" />
                 <controls:Banner IsVisible="{Binding BannerVisible}"
@@ -303,7 +313,7 @@
         </Grid>
 
         <!-- Primary action in easy reach at the bottom -->
-        <Button Grid.Row="1"
+        <Button x:Name="ScanButton" Grid.Row="1"
                 Text="{Binding ScanButtonText}"
                 Style="{StaticResource ButtonPrimaryXl}"
                 Command="{Binding ToggleScanCommand}"
@@ -328,9 +338,9 @@
         </Button>
 
         <!-- Connecting overlay -->
-        <Grid Grid.Row="0" Grid.RowSpan="2" Margin="-16,-16,-16,-16" BackgroundColor="{DynamicResource Scrim}" IsVisible="{Binding IsConnecting}">
-            <Border Style="{StaticResource Card}" BackgroundColor="{DynamicResource SurfaceOverlay}" Shadow="{DynamicResource Shadow3}"
-                    Margin="32,0" VerticalOptions="Center" Padding="{StaticResource Space6}">
+        <Grid Grid.Row="0" Grid.RowSpan="2" Margin="0,0,0,-16" BackgroundColor="{DynamicResource Scrim}" IsVisible="{Binding IsConnecting}">
+            <Border x:Name="OverlayCard" Style="{StaticResource Card}" BackgroundColor="{DynamicResource SurfaceOverlay}" Shadow="{DynamicResource Shadow3}"
+                    Margin="32,0" HorizontalOptions="Center" VerticalOptions="Center" Padding="{StaticResource Space6}">
                 <VerticalStackLayout Spacing="{StaticResource Space3}">
                     <ActivityIndicator IsRunning="{Binding IsConnecting}" HeightRequest="32" WidthRequest="32"
                                        AutomationProperties.IsInAccessibleTree="False" />
