@@ -32,6 +32,7 @@ public partial class ConfirmSheetPage : ContentPage
             var edges = new SafeAreaEdges(SafeAreaRegions.Container, SafeAreaRegions.Container, SafeAreaRegions.Container, SafeAreaRegions.None);
             SafeAreaEdges = edges;
             Root.SafeAreaEdges = edges;
+            Avail.SafeAreaEdges = edges;
         }
         SizeChanged += (_, _) => LayoutSheet();
         Avail.SizeChanged += (_, _) => CapSheet();
