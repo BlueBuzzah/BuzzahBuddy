@@ -24,7 +24,7 @@ public static class HistoryText
     /// <summary>The monthly average chart shows at most this many months, the most recent.</summary>
     public const int MonthlyRowLimit = 12;
 
-    private const string UsualShareText = "as a PDF and a spreadsheet. It leaves this phone only when you share it.";
+    private static string UsualShareText => $"as a PDF and a spreadsheet. It leaves this {DeviceNoun.Current} only when you share it.";
 
     /// <summary>The four overview tiles: Total Time, Days Used, Average Day, Sessions.</summary>
     public static IReadOnlyList<StatTile> Tiles(ReportModel m, ReportRange range, CultureInfo culture)

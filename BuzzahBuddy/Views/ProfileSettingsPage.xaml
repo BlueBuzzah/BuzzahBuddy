@@ -15,8 +15,8 @@
              SafeAreaEdges="Container">
 
     <ScrollView>
-        <VerticalStackLayout Padding="16,0,16,24" Spacing="{StaticResource Space6}">
-            <Label Text="These settings make up your Custom profile. They're saved on this phone, and your gloves get them when you pick Custom and tap Apply Settings." />
+        <VerticalStackLayout x:Name="Column" Padding="0,0,0,24" Spacing="{StaticResource Space6}">
+            <Label Text="{x:Static helpers:DeviceWords.CustomProfileNote}" />
 
             <controls:Banner IsVisible="{Binding DeviatesBannerVisible}"
                              Tone="Warning"

@@ -4,6 +4,7 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:BuzzahBuddy.ViewModels"
+             xmlns:helpers="clr-namespace:BuzzahBuddy.Helpers"
              x:Class="BuzzahBuddy.Views.ApplyingSettingsPage"
              x:DataType="vm:DeviceSettingsViewModel"
              Shell.NavBarIsVisible="False"
@@ -12,7 +13,7 @@
     <!-- Scrolls so Keep Waiting and Stop Waiting stay reachable at large text sizes: the page
          blocks back and swipe, so they are the only way out. -->
     <ScrollView>
-    <VerticalStackLayout Spacing="{StaticResource Space6}" VerticalOptions="Center" Padding="{StaticResource Space8}">
+    <VerticalStackLayout x:Name="Column" Spacing="{StaticResource Space6}" VerticalOptions="Center" Padding="16,32">
         <!-- Waiting -->
         <VerticalStackLayout Spacing="{StaticResource Space4}"
                              IsVisible="{Binding IsWaitingLong, Converter={StaticResource InvertedBoolConverter}}">
@@ -37,7 +38,7 @@
             <Label Text="Still Waiting for Your Gloves"
                    Style="{StaticResource TypeHeadline}"
                    SemanticProperties.HeadingLevel="Level1" />
-            <Label Text="Make sure both gloves are on and near your phone." />
+            <Label Text="{x:Static helpers:DeviceWords.ApplyingNearNote}" />
             <Button Text="Keep Waiting"
                     Style="{StaticResource ButtonPrimary}"
                     Command="{Binding KeepWaitingCommand}"

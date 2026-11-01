@@ -196,6 +196,22 @@ and `MainThread.BeginInvokeOnMainThread` in service-event handlers.
 - **Safe area:** every `ContentPage` sets `SafeAreaEdges="Container"` (.NET 10 defaults
   to `None`; Android 16 forces edge-to-edge, under the gesture bar). `SoftInput` unused.
 
+- **Width model:** lay out by window size, never `DeviceIdiom` (only `DeviceWords`/`DeviceNoun`
+  use it, for copy). `AdaptiveLayout.For(width, height, textScale)` gives a `PageLayout`; two panes
+  at text-relative width (width ÷ max(1, text scale)) ≥ 900. Pages call `TrackLayout(update)`
+  and `ApplyColumn(layout)` (`Helpers/LayoutTracking.cs`). `ColumnWidth` is content width, so
+  pages drop their root horizontal padding (the gutter is the view's own `Margin`, or it doubles).
+  `ApplyColumn` sets `WidthRequest` + `Center`: `MaximumWidthRequest` clips wrapping labels on iOS.
+- **Two-pane screens:** Session only in landscape and connected; Gloves when connected (options +
+  Apply Settings left, profile list right); History (summary | day list). Test Motors stays one
+  centered column, the gloves' finger sections side by side in step 3. Forms stay one column.
+- **iPad share sheets** need an anchor: pass `ShareAnchor.Bounds`, or the popover has no source.
+- **Orientation:** `Info.plist` is iPhone portrait only, iPad all four; `UIApplicationSupportsMultipleScenes`
+  stays false. Incremental iOS builds may not re-copy an edited `Info.plist`: delete
+  `obj/Debug/net10.0-ios/iossimulator-arm64/AppManifest.plist` and `_CompileAppManifest.inputs`.
+- **AOT label trap:** `{Binding Source={x:Static ...}, StringFormat=...}` labels did not render under
+  iOS Release AOT. Use `x:Static` strings.
+
 ### Tokens and styles
 
 `scripts/gen_design_tokens.py` writes `Resources/Styles/Themes/*Theme.g.xaml(.cs)` (four

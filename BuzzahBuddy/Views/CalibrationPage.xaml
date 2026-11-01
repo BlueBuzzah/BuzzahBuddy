@@ -12,9 +12,9 @@
              Title="{Binding Title}"
              SafeAreaEdges="Container">
 
-    <Grid Padding="16,0,16,16">
+    <Grid Padding="0,0,0,16">
         <ScrollView>
-            <VerticalStackLayout Spacing="{StaticResource Space6}" Padding="0,0,0,16">
+            <VerticalStackLayout x:Name="Column" Spacing="{StaticResource Space6}" Padding="0,0,0,16">
                 <Label Text="Check that each finger motor buzzes. Pick a strength and a buzz length, then tap each finger." />
 
                 <controls:Banner IsVisible="{Binding ShowNotConnected}"
@@ -51,7 +51,8 @@
                                                    Options="{Binding DurationOptions}"
                                                    SelectedValue="{Binding Duration}" />
 
-                        <VerticalStackLayout Spacing="{StaticResource Space3}" IsVisible="{Binding IsStep3}">
+                        <Grid x:Name="FingerGrid" RowDefinitions="Auto,Auto" RowSpacing="{StaticResource Space3}" IsVisible="{Binding IsStep3}">
+                        <VerticalStackLayout x:Name="PrimarySection" Spacing="{StaticResource Space3}">
                         <Label Text="Primary Glove" Style="{StaticResource TypeTitleS}" SemanticProperties.HeadingLevel="Level3" />
                         <FlexLayout Wrap="Wrap" Margin="-6,0" BindableLayout.ItemsSource="{Binding PrimaryFingers}">
                             <BindableLayout.ItemTemplate>
@@ -83,6 +84,8 @@
                                 </DataTemplate>
                             </BindableLayout.ItemTemplate>
                         </FlexLayout>
+                        </VerticalStackLayout>
+                        <VerticalStackLayout x:Name="SecondarySection" Grid.Row="1" Spacing="{StaticResource Space3}">
                         <Label Text="Secondary Glove" Style="{StaticResource TypeTitleS}" SemanticProperties.HeadingLevel="Level3" />
                         <FlexLayout Wrap="Wrap" Margin="-6,0" BindableLayout.ItemsSource="{Binding SecondaryFingers}">
                             <BindableLayout.ItemTemplate>
@@ -115,6 +118,7 @@
                             </BindableLayout.ItemTemplate>
                         </FlexLayout>
                         </VerticalStackLayout>
+                        </Grid>
 
                         <Grid ColumnDefinitions="*,*" ColumnSpacing="{StaticResource TargetGap}">
                             <Button Text="Back"

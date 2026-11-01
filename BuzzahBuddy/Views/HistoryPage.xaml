@@ -15,189 +15,202 @@
              Shell.NavBarIsVisible="False"
              SafeAreaEdges="Container">
 
+    <ContentPage.Resources>
+        <!-- Set from code (ApplyLayout) so the cards line up with the centered column or the right pane. -->
+        <Thickness x:Key="DayCardMargin">16,0,16,24</Thickness>
+    </ContentPage.Resources>
+
+    <Grid x:Name="PageGrid">
+    <ScrollView x:Name="SummaryScroll" IsVisible="False" Padding="0,0,0,24" />
     <CollectionView x:Name="DayList" ItemsSource="{Binding Days}" SelectionMode="None" ItemSizingStrategy="MeasureAllItems">
         <CollectionView.Header>
             <VerticalStackLayout x:Name="ListHeader" Padding="16,0,16,12" Spacing="{StaticResource Space8}">
-                <Label Text="History" Style="{StaticResource TypeHeadline}" SemanticProperties.HeadingLevel="Level1" />
+                <!-- Everything above Days: one instance, moved into SummaryScroll on wide windows (page code-behind). -->
+                <VerticalStackLayout x:Name="SummaryPanel" Spacing="{StaticResource Space8}">
+                    <Label Text="History" Style="{StaticResource TypeHeadline}" SemanticProperties.HeadingLevel="Level1" />
 
-                <controls:Banner Tone="Info"
-                                 Message="Demo Mode is on. History shows 60 days of sample sessions. Your own history comes back when you turn Demo Mode off."
-                                 IsVisible="{Binding IsDemoMode}"
-                                 AutomationId="DemoHistoryBanner" />
+                    <controls:Banner Tone="Info"
+                                     Message="Demo Mode is on. History shows 60 days of sample sessions. Your own history comes back when you turn Demo Mode off."
+                                     IsVisible="{Binding IsDemoMode}"
+                                     AutomationId="DemoHistoryBanner" />
 
-                <VerticalStackLayout Spacing="{StaticResource Space3}">
-                    <Label Text="Overview" Style="{StaticResource TypeTitleL}" SemanticProperties.HeadingLevel="Level2" />
-                    <Border Style="{StaticResource Card}">
-                        <VerticalStackLayout Spacing="{StaticResource Space4}">
-                            <!-- One period for the overview, the averages and the shared report. -->
-                            <controls:SegmentedControl Label="Period"
-                                                       Options="{Binding RangeOptions}"
-                                                       SelectedValue="{Binding SelectedRange}"
-                                                       AutomationId="PeriodControl" />
-                            <Label Text="Your sessions will show up here after your first one."
-                                   IsVisible="{Binding HasSessions, Converter={StaticResource InvertedBoolConverter}}" />
-                            <!-- EmptyPeriodText is set only when there is history but none in the period. -->
-                            <controls:Banner Tone="Info"
-                                             Message="{Binding EmptyPeriodText}"
-                                             IsVisible="{Binding EmptyPeriodText, Converter={StaticResource IsNotNullConverter}}"
-                                             AutomationId="EmptyPeriodBanner" />
-                            <!-- 2x2, or one column at large text (page code-behind). LineHeight 1: the styles'
-                                 line heights render about twice the font size on iOS, so wrapped lines drift apart. -->
-                            <Grid x:Name="TileGrid" IsVisible="{Binding HasSessions}">
-                            <Border BackgroundColor="{DynamicResource SurfaceSunken}" StrokeThickness="0" Padding="{StaticResource Space3}">
-                                <Border.StrokeShape>
-                                    <RoundRectangle CornerRadius="{StaticResource RadiusMd}" />
-                                </Border.StrokeShape>
-                                <VerticalStackLayout Spacing="{StaticResource Space1}" SemanticProperties.Description="{Binding Tiles[0].Spoken}">
-                                    <Label Text="{Binding Tiles[0].Label}" Style="{StaticResource TypeLabel}" LineHeight="1" TextColor="{DynamicResource InkMuted}"
-                                           AutomationProperties.IsInAccessibleTree="False" />
-                                    <Label Text="{Binding Tiles[0].Value}" Style="{StaticResource TypeTitleL}" LineHeight="1" helpers:Typography.TabularNumbers="True"
-                                           AutomationProperties.IsInAccessibleTree="False" />
-                                    <Label Text="{Binding Tiles[0].Detail}" Style="{StaticResource TypeBodyS}" LineHeight="1" TextColor="{DynamicResource InkMuted}"
-                                           AutomationProperties.IsInAccessibleTree="False" />
-                                </VerticalStackLayout>
-                            </Border>
-                            <Border BackgroundColor="{DynamicResource SurfaceSunken}" StrokeThickness="0" Padding="{StaticResource Space3}">
-                                <Border.StrokeShape>
-                                    <RoundRectangle CornerRadius="{StaticResource RadiusMd}" />
-                                </Border.StrokeShape>
-                                <VerticalStackLayout Spacing="{StaticResource Space1}" SemanticProperties.Description="{Binding Tiles[1].Spoken}">
-                                    <Label Text="{Binding Tiles[1].Label}" Style="{StaticResource TypeLabel}" LineHeight="1" TextColor="{DynamicResource InkMuted}"
-                                           AutomationProperties.IsInAccessibleTree="False" />
-                                    <Label Text="{Binding Tiles[1].Value}" Style="{StaticResource TypeTitleL}" LineHeight="1" helpers:Typography.TabularNumbers="True"
-                                           AutomationProperties.IsInAccessibleTree="False" />
-                                    <Label Text="{Binding Tiles[1].Detail}" Style="{StaticResource TypeBodyS}" LineHeight="1" TextColor="{DynamicResource InkMuted}"
-                                           AutomationProperties.IsInAccessibleTree="False" />
-                                </VerticalStackLayout>
-                            </Border>
-                            <Border BackgroundColor="{DynamicResource SurfaceSunken}" StrokeThickness="0" Padding="{StaticResource Space3}">
-                                <Border.StrokeShape>
-                                    <RoundRectangle CornerRadius="{StaticResource RadiusMd}" />
-                                </Border.StrokeShape>
-                                <VerticalStackLayout Spacing="{StaticResource Space1}" SemanticProperties.Description="{Binding Tiles[2].Spoken}">
-                                    <Label Text="{Binding Tiles[2].Label}" Style="{StaticResource TypeLabel}" LineHeight="1" TextColor="{DynamicResource InkMuted}"
-                                           AutomationProperties.IsInAccessibleTree="False" />
-                                    <Label Text="{Binding Tiles[2].Value}" Style="{StaticResource TypeTitleL}" LineHeight="1" helpers:Typography.TabularNumbers="True"
-                                           AutomationProperties.IsInAccessibleTree="False" />
-                                    <Label Text="{Binding Tiles[2].Detail}" Style="{StaticResource TypeBodyS}" LineHeight="1" TextColor="{DynamicResource InkMuted}"
-                                           AutomationProperties.IsInAccessibleTree="False" />
-                                </VerticalStackLayout>
-                            </Border>
-                            <Border BackgroundColor="{DynamicResource SurfaceSunken}" StrokeThickness="0" Padding="{StaticResource Space3}">
-                                <Border.StrokeShape>
-                                    <RoundRectangle CornerRadius="{StaticResource RadiusMd}" />
-                                </Border.StrokeShape>
-                                <VerticalStackLayout Spacing="{StaticResource Space1}" SemanticProperties.Description="{Binding Tiles[3].Spoken}">
-                                    <Label Text="{Binding Tiles[3].Label}" Style="{StaticResource TypeLabel}" LineHeight="1" TextColor="{DynamicResource InkMuted}"
-                                           AutomationProperties.IsInAccessibleTree="False" />
-                                    <Label Text="{Binding Tiles[3].Value}" Style="{StaticResource TypeTitleL}" LineHeight="1" helpers:Typography.TabularNumbers="True"
-                                           AutomationProperties.IsInAccessibleTree="False" />
-                                    <Label Text="{Binding Tiles[3].Detail}" Style="{StaticResource TypeBodyS}" LineHeight="1" TextColor="{DynamicResource InkMuted}"
-                                           AutomationProperties.IsInAccessibleTree="False" />
-                                </VerticalStackLayout>
-                            </Border>
-                            </Grid>
-                        </VerticalStackLayout>
-                    </Border>
-                </VerticalStackLayout>
-
-                <!-- Hidden at large text: seven columns can't hold the day numbers there. -->
-                <VerticalStackLayout Spacing="{StaticResource Space3}" IsVisible="{Binding ShowCalendar}">
-                    <Label Text="Calendar" Style="{StaticResource TypeTitleL}" SemanticProperties.HeadingLevel="Level2" />
-                    <Border Style="{StaticResource Card}">
-                        <VerticalStackLayout Spacing="{StaticResource Space4}">
-                            <Label Text="{Binding Calendar.Title}" Style="{StaticResource TypeTitleM}" LineHeight="1" />
-                            <controls:CalendarMonthView Month="{Binding Calendar}" />
-                            <!-- Narrow padding keeps each one-word label on one line on a 320 pt phone. -->
-                            <Grid ColumnDefinitions="*,*" ColumnSpacing="{StaticResource Space3}">
-                                <Button Text="Previous"
-                                        Style="{StaticResource ButtonSecondary}"
-                                        Padding="12,0"
-                                        ContentLayout="Left,8"
-                                        Command="{Binding PreviousMonthCommand}"
-                                        SemanticProperties.Description="Previous month"
-                                        AutomationId="PreviousMonthButton">
-                                    <Button.ImageSource>
-                                        <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.ChevronLeft}" Size="20" Color="{DynamicResource Brand}" />
-                                    </Button.ImageSource>
-                                </Button>
-                                <Button Grid.Column="1"
-                                        Text="Next"
-                                        Style="{StaticResource ButtonSecondary}"
-                                        Padding="12,0"
-                                        ContentLayout="Right,8"
-                                        Command="{Binding NextMonthCommand}"
-                                        SemanticProperties.Description="Next month"
-                                        AutomationId="NextMonthButton">
-                                    <Button.ImageSource>
-                                        <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.ChevronRight}" Size="20" Color="{DynamicResource Brand}" />
-                                    </Button.ImageSource>
-                                </Button>
-                            </Grid>
-                            <Label Text="A full square is 4 hours, the daily time early studies used."
-                                   Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
-                        </VerticalStackLayout>
-                    </Border>
-                </VerticalStackLayout>
-
-                <VerticalStackLayout Spacing="{StaticResource Space3}" IsVisible="{Binding HasPeriodSessions}">
-                    <Label Text="{Binding TrendTitle}" Style="{StaticResource TypeTitleL}" SemanticProperties.HeadingLevel="Level2" />
-                    <Border Style="{StaticResource Card}">
-                        <VerticalStackLayout Spacing="{StaticResource Space4}">
-                            <!-- Label and time on one line, the bar under them; at large text the time
-                                 moves under the label (page code-behind). -->
-                            <VerticalStackLayout x:Name="TrendRowList" BindableLayout.ItemsSource="{Binding TrendRows}" Spacing="{StaticResource Space3}">
-                                <BindableLayout.ItemTemplate>
-                                    <DataTemplate x:DataType="models:BarRow">
-                                        <Grid ColumnDefinitions="*,Auto"
-                                              RowDefinitions="Auto,Auto"
-                                              ColumnSpacing="{StaticResource Space3}"
-                                              RowSpacing="{StaticResource Space1}"
-                                              SemanticProperties.Description="{Binding Spoken}"
-                                              Loaded="OnTrendRowLoaded">
-                                            <Label Text="{Binding Label}" Style="{StaticResource TypeLabel}" LineHeight="1" VerticalOptions="Center"
-                                                   AutomationProperties.IsInAccessibleTree="False" />
-                                            <Label Grid.Column="1" Text="{Binding Value}" Style="{StaticResource TypeBodyS}" LineHeight="1" VerticalOptions="Center" HorizontalTextAlignment="End"
-                                                   AutomationProperties.IsInAccessibleTree="False" />
-                                            <controls:MeterBar Grid.Row="1" Grid.ColumnSpan="2" Fraction="{Binding Fraction}" />
-                                        </Grid>
-                                    </DataTemplate>
-                                </BindableLayout.ItemTemplate>
-                            </VerticalStackLayout>
-                            <Label Text="{Binding TrendCaption}"
-                                   Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
-                        </VerticalStackLayout>
-                    </Border>
-                </VerticalStackLayout>
-
-                <VerticalStackLayout Spacing="{StaticResource Space3}">
-                    <Label Text="Share a Report" Style="{StaticResource TypeTitleL}" SemanticProperties.HeadingLevel="Level2" />
-                    <Border Style="{StaticResource Card}">
-                        <VerticalStackLayout Spacing="{StaticResource Space4}">
-                            <Label Text="{Binding ShareText}" />
-                            <VerticalStackLayout Spacing="{StaticResource Space2}">
-                                <Button Text="Share Report"
-                                        Style="{StaticResource ButtonPrimary}"
-                                        ContentLayout="Left,8"
-                                        Command="{Binding ShareReportCommand}"
-                                        IsEnabled="{Binding HasSessions}"
-                                        SemanticProperties.Description="Share Report"
-                                        AutomationId="ShareReportButton">
-                                    <Button.ImageSource>
-                                        <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Share}" Size="20" Color="{DynamicResource OnBrand}" />
-                                    </Button.ImageSource>
-                                </Button>
-                                <Label Text="Run a session first. Your report needs at least one."
-                                       Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}"
+                    <VerticalStackLayout Spacing="{StaticResource Space3}">
+                        <Label Text="Overview" Style="{StaticResource TypeTitleL}" SemanticProperties.HeadingLevel="Level2" />
+                        <Border Style="{StaticResource Card}">
+                            <VerticalStackLayout Spacing="{StaticResource Space4}">
+                                <!-- One period for the overview, the averages and the shared report. -->
+                                <controls:SegmentedControl Label="Period"
+                                                           Options="{Binding RangeOptions}"
+                                                           SelectedValue="{Binding SelectedRange}"
+                                                           AutomationId="PeriodControl" />
+                                <Label Text="Your sessions will show up here after your first one."
                                        IsVisible="{Binding HasSessions, Converter={StaticResource InvertedBoolConverter}}" />
+                                <!-- EmptyPeriodText is set only when there is history but none in the period. -->
+                                <controls:Banner Tone="Info"
+                                                 Message="{Binding EmptyPeriodText}"
+                                                 IsVisible="{Binding EmptyPeriodText, Converter={StaticResource IsNotNullConverter}}"
+                                                 AutomationId="EmptyPeriodBanner" />
+                                <!-- 2x2, or one column at large text (page code-behind). LineHeight 1: the styles'
+                                     line heights render about twice the font size on iOS, so wrapped lines drift apart. -->
+                                <Grid x:Name="TileGrid" IsVisible="{Binding HasSessions}">
+                                <Border BackgroundColor="{DynamicResource SurfaceSunken}" StrokeThickness="0" Padding="{StaticResource Space3}">
+                                    <Border.StrokeShape>
+                                        <RoundRectangle CornerRadius="{StaticResource RadiusMd}" />
+                                    </Border.StrokeShape>
+                                    <VerticalStackLayout Spacing="{StaticResource Space1}" SemanticProperties.Description="{Binding Tiles[0].Spoken}">
+                                        <Label Text="{Binding Tiles[0].Label}" Style="{StaticResource TypeLabel}" LineHeight="1" TextColor="{DynamicResource InkMuted}"
+                                               AutomationProperties.IsInAccessibleTree="False" />
+                                        <Label Text="{Binding Tiles[0].Value}" Style="{StaticResource TypeTitleL}" LineHeight="1" helpers:Typography.TabularNumbers="True"
+                                               AutomationProperties.IsInAccessibleTree="False" />
+                                        <Label Text="{Binding Tiles[0].Detail}" Style="{StaticResource TypeBodyS}" LineHeight="1" TextColor="{DynamicResource InkMuted}"
+                                               AutomationProperties.IsInAccessibleTree="False" />
+                                    </VerticalStackLayout>
+                                </Border>
+                                <Border BackgroundColor="{DynamicResource SurfaceSunken}" StrokeThickness="0" Padding="{StaticResource Space3}">
+                                    <Border.StrokeShape>
+                                        <RoundRectangle CornerRadius="{StaticResource RadiusMd}" />
+                                    </Border.StrokeShape>
+                                    <VerticalStackLayout Spacing="{StaticResource Space1}" SemanticProperties.Description="{Binding Tiles[1].Spoken}">
+                                        <Label Text="{Binding Tiles[1].Label}" Style="{StaticResource TypeLabel}" LineHeight="1" TextColor="{DynamicResource InkMuted}"
+                                               AutomationProperties.IsInAccessibleTree="False" />
+                                        <Label Text="{Binding Tiles[1].Value}" Style="{StaticResource TypeTitleL}" LineHeight="1" helpers:Typography.TabularNumbers="True"
+                                               AutomationProperties.IsInAccessibleTree="False" />
+                                        <Label Text="{Binding Tiles[1].Detail}" Style="{StaticResource TypeBodyS}" LineHeight="1" TextColor="{DynamicResource InkMuted}"
+                                               AutomationProperties.IsInAccessibleTree="False" />
+                                    </VerticalStackLayout>
+                                </Border>
+                                <Border BackgroundColor="{DynamicResource SurfaceSunken}" StrokeThickness="0" Padding="{StaticResource Space3}">
+                                    <Border.StrokeShape>
+                                        <RoundRectangle CornerRadius="{StaticResource RadiusMd}" />
+                                    </Border.StrokeShape>
+                                    <VerticalStackLayout Spacing="{StaticResource Space1}" SemanticProperties.Description="{Binding Tiles[2].Spoken}">
+                                        <Label Text="{Binding Tiles[2].Label}" Style="{StaticResource TypeLabel}" LineHeight="1" TextColor="{DynamicResource InkMuted}"
+                                               AutomationProperties.IsInAccessibleTree="False" />
+                                        <Label Text="{Binding Tiles[2].Value}" Style="{StaticResource TypeTitleL}" LineHeight="1" helpers:Typography.TabularNumbers="True"
+                                               AutomationProperties.IsInAccessibleTree="False" />
+                                        <Label Text="{Binding Tiles[2].Detail}" Style="{StaticResource TypeBodyS}" LineHeight="1" TextColor="{DynamicResource InkMuted}"
+                                               AutomationProperties.IsInAccessibleTree="False" />
+                                    </VerticalStackLayout>
+                                </Border>
+                                <Border BackgroundColor="{DynamicResource SurfaceSunken}" StrokeThickness="0" Padding="{StaticResource Space3}">
+                                    <Border.StrokeShape>
+                                        <RoundRectangle CornerRadius="{StaticResource RadiusMd}" />
+                                    </Border.StrokeShape>
+                                    <VerticalStackLayout Spacing="{StaticResource Space1}" SemanticProperties.Description="{Binding Tiles[3].Spoken}">
+                                        <Label Text="{Binding Tiles[3].Label}" Style="{StaticResource TypeLabel}" LineHeight="1" TextColor="{DynamicResource InkMuted}"
+                                               AutomationProperties.IsInAccessibleTree="False" />
+                                        <Label Text="{Binding Tiles[3].Value}" Style="{StaticResource TypeTitleL}" LineHeight="1" helpers:Typography.TabularNumbers="True"
+                                               AutomationProperties.IsInAccessibleTree="False" />
+                                        <Label Text="{Binding Tiles[3].Detail}" Style="{StaticResource TypeBodyS}" LineHeight="1" TextColor="{DynamicResource InkMuted}"
+                                               AutomationProperties.IsInAccessibleTree="False" />
+                                    </VerticalStackLayout>
+                                </Border>
+                                </Grid>
                             </VerticalStackLayout>
-                        </VerticalStackLayout>
-                    </Border>
+                        </Border>
+                    </VerticalStackLayout>
+
+                    <!-- Hidden at large text: seven columns can't hold the day numbers there. -->
+                    <VerticalStackLayout Spacing="{StaticResource Space3}" IsVisible="{Binding ShowCalendar}">
+                        <Label Text="Calendar" Style="{StaticResource TypeTitleL}" SemanticProperties.HeadingLevel="Level2" />
+                        <Border Style="{StaticResource Card}">
+                            <VerticalStackLayout Spacing="{StaticResource Space4}">
+                                <Label Text="{Binding Calendar.Title}" Style="{StaticResource TypeTitleM}" LineHeight="1" />
+                                <controls:CalendarMonthView Month="{Binding Calendar}" />
+                                <!-- Narrow padding keeps each one-word label on one line on a 320 pt phone. -->
+                                <Grid ColumnDefinitions="*,*" ColumnSpacing="{StaticResource Space3}">
+                                    <Button Text="Previous"
+                                            Style="{StaticResource ButtonSecondary}"
+                                            Padding="12,0"
+                                            ContentLayout="Left,8"
+                                            Command="{Binding PreviousMonthCommand}"
+                                            SemanticProperties.Description="Previous month"
+                                            AutomationId="PreviousMonthButton">
+                                        <Button.ImageSource>
+                                            <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.ChevronLeft}" Size="20" Color="{DynamicResource Brand}" />
+                                        </Button.ImageSource>
+                                    </Button>
+                                    <Button Grid.Column="1"
+                                            Text="Next"
+                                            Style="{StaticResource ButtonSecondary}"
+                                            Padding="12,0"
+                                            ContentLayout="Right,8"
+                                            Command="{Binding NextMonthCommand}"
+                                            SemanticProperties.Description="Next month"
+                                            AutomationId="NextMonthButton">
+                                        <Button.ImageSource>
+                                            <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.ChevronRight}" Size="20" Color="{DynamicResource Brand}" />
+                                        </Button.ImageSource>
+                                    </Button>
+                                </Grid>
+                                <Label Text="A full square is 4 hours, the daily time early studies used."
+                                       Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
+                            </VerticalStackLayout>
+                        </Border>
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Spacing="{StaticResource Space3}" IsVisible="{Binding HasPeriodSessions}">
+                        <Label Text="{Binding TrendTitle}" Style="{StaticResource TypeTitleL}" SemanticProperties.HeadingLevel="Level2" />
+                        <Border Style="{StaticResource Card}">
+                            <VerticalStackLayout Spacing="{StaticResource Space4}">
+                                <!-- Label and time on one line, the bar under them; at large text the time
+                                     moves under the label (page code-behind). -->
+                                <VerticalStackLayout x:Name="TrendRowList" BindableLayout.ItemsSource="{Binding TrendRows}" Spacing="{StaticResource Space3}">
+                                    <BindableLayout.ItemTemplate>
+                                        <DataTemplate x:DataType="models:BarRow">
+                                            <Grid ColumnDefinitions="*,Auto"
+                                                  RowDefinitions="Auto,Auto"
+                                                  ColumnSpacing="{StaticResource Space3}"
+                                                  RowSpacing="{StaticResource Space1}"
+                                                  SemanticProperties.Description="{Binding Spoken}"
+                                                  Loaded="OnTrendRowLoaded">
+                                                <Label Text="{Binding Label}" Style="{StaticResource TypeLabel}" LineHeight="1" VerticalOptions="Center"
+                                                       AutomationProperties.IsInAccessibleTree="False" />
+                                                <Label Grid.Column="1" Text="{Binding Value}" Style="{StaticResource TypeBodyS}" LineHeight="1" VerticalOptions="Center" HorizontalTextAlignment="End"
+                                                       AutomationProperties.IsInAccessibleTree="False" />
+                                                <controls:MeterBar Grid.Row="1" Grid.ColumnSpan="2" Fraction="{Binding Fraction}" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </BindableLayout.ItemTemplate>
+                                </VerticalStackLayout>
+                                <Label Text="{Binding TrendCaption}"
+                                       Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
+                            </VerticalStackLayout>
+                        </Border>
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Spacing="{StaticResource Space3}">
+                        <Label Text="Share a Report" Style="{StaticResource TypeTitleL}" SemanticProperties.HeadingLevel="Level2" />
+                        <Border Style="{StaticResource Card}">
+                            <VerticalStackLayout Spacing="{StaticResource Space4}">
+                                <Label Text="{Binding ShareText}" />
+                                <VerticalStackLayout Spacing="{StaticResource Space2}">
+                                    <Button x:Name="ShareReportButton"
+                                            Text="Share Report"
+                                            Style="{StaticResource ButtonPrimary}"
+                                            ContentLayout="Left,8"
+                                            Command="{Binding ShareReportCommand}"
+                                            CommandParameter="{x:Reference ShareReportButton}"
+                                            IsEnabled="{Binding HasSessions}"
+                                            SemanticProperties.Description="Share Report"
+                                            AutomationId="ShareReportButton">
+                                        <Button.ImageSource>
+                                            <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Share}" Size="20" Color="{DynamicResource OnBrand}" />
+                                        </Button.ImageSource>
+                                    </Button>
+                                    <Label Text="Run a session first. Your report needs at least one."
+                                           Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}"
+                                           IsVisible="{Binding HasSessions, Converter={StaticResource InvertedBoolConverter}}" />
+                                </VerticalStackLayout>
+                            </VerticalStackLayout>
+                        </Border>
+                    </VerticalStackLayout>
+
                 </VerticalStackLayout>
 
                 <VerticalStackLayout Spacing="{StaticResource Space3}">
                     <Label Text="Days" Style="{StaticResource TypeTitleL}" SemanticProperties.HeadingLevel="Level2" />
-                    <Label Text="Times are what this phone recorded. Paused time isn't counted."
+                    <Label Text="{x:Static helpers:DeviceWords.DaysNote}"
                            Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
                 </VerticalStackLayout>
             </VerticalStackLayout>
@@ -205,7 +218,7 @@
 
         <CollectionView.ItemTemplate>
             <DataTemplate x:DataType="models:DayRow">
-                <Border Style="{StaticResource Card}" Margin="16,0,16,24">
+                <Border Style="{StaticResource Card}" Margin="{DynamicResource DayCardMargin}">
                     <VerticalStackLayout Spacing="{StaticResource Space3}">
                         <!-- One sentence for screen readers; the lines inside are left out of the tree. -->
                         <VerticalStackLayout Spacing="{StaticResource Space1}" SemanticProperties.Description="{Binding Spoken}">
@@ -248,4 +261,5 @@
             </DataTemplate>
         </CollectionView.ItemTemplate>
     </CollectionView>
+    </Grid>
 </ContentPage>

@@ -1,3 +1,4 @@
+using BuzzahBuddy.Helpers;
 using BuzzahBuddy.ViewModels;
 using Microsoft.Maui.Controls.PlatformConfiguration;
 using Microsoft.Maui.Controls.PlatformConfiguration.iOSSpecific;
@@ -17,6 +18,7 @@ public partial class ApplyingSettingsPage : ContentPage
 
         // Full screen on iOS so the sheet can't be swipe-dismissed mid-apply.
         On<iOS>().SetModalPresentationStyle(UIModalPresentationStyle.FullScreen);
+        this.TrackLayout(layout => Column.ApplyColumn(layout));
     }
 
     // Block Android hardware/gesture back while applying.

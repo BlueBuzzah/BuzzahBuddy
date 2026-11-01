@@ -54,7 +54,7 @@ public partial class SessionRing : ContentView
             if (e.PropertyName == nameof(IsVisible))
                 Apply();
         };
-        SetBaseSize();
+        SetDefaultSize();
     }
 
     public SessionRingState State { get => (SessionRingState)GetValue(StateProperty); set => SetValue(StateProperty, value); }
@@ -70,17 +70,37 @@ public partial class SessionRing : ContentView
 
     private static void Update(BindableObject bindable, object oldValue, object newValue) => ((SessionRing)bindable).Apply();
 
-    /// <summary>280, or 240 on phones under 360 wide (SessionRing README).</summary>
-    private void SetBaseSize()
+    /// <summary>
+    /// Until the page calls <see cref="Fit"/>: 280, or 240 on phones under 360 wide, with the
+    /// screen's 16pt gutters as the limit (SessionRing README).
+    /// </summary>
+    private void SetDefaultSize()
     {
         var display = DeviceDisplay.MainDisplayInfo;
         var width = display.Density > 0 ? display.Width / display.Density : 400;
-        _baseSize = width > 0 && width < 360 ? 240 : 280;
-        _maxSize = Math.Max(_baseSize, width - 32); // the screen's 16pt gutters
+        Resize(width > 0 && width < 360 ? 240 : 280, width - 32);
+    }
+
+    /// <summary>
+    /// Sizes the ring from its space. <paramref name="sizingWidth"/> and <paramref name="paneHeight"/> pick
+    /// the base size (<see cref="SessionRingSize.For"/>); <paramref name="availableWidth"/> is the column or
+    /// pane width the time may grow into at large text sizes. Safe to call again on rotation.
+    /// </summary>
+    public void Fit(double sizingWidth, double? paneHeight, double availableWidth)
+    {
+        // A page that hasn't been laid out yet reports -1 or NaN: keep the current size.
+        if (!(sizingWidth > 0) || !(availableWidth > 0) || paneHeight is { } h && !(h > 0))
+            return;
+        Resize(SessionRingSize.For(sizingWidth, paneHeight), availableWidth);
+    }
+
+    private void Resize(double baseSize, double availableWidth)
+    {
+        _baseSize = baseSize;
+        _maxSize = Math.Max(baseSize, availableWidth);
         // bundle.js: under 300 the time shrinks to 20% of the ring.
-        _baseFont = Math.Round(_baseSize * 0.2);
-        SetTimeFont(_baseFont);
-        SetSize(_baseSize);
+        _baseFont = Math.Round(baseSize * 0.2);
+        FitSize(); // settles font and size right here; it never waits for a SizeChanged
     }
 
     // Lexend keeps 0.3em empty above its caps (ascender 1.0em, cap height 0.7em) and digits have
@@ -107,18 +127,21 @@ public partial class SessionRing : ContentView
         // The laid-out width is already clipped to the ring, so measure the time unconstrained.
         var natural = TimeText.Measure(double.PositiveInfinity, double.PositiveInfinity).Width;
         if (natural <= 0)
+        {
+            // Not measurable yet (not attached): the base look; the time's SizeChanged fits it later.
+            SetTimeFont(_baseFont);
+            SetSize(_baseSize);
             return;
+        }
         // Worked out from the base size, so the time grows back if the text size drops again.
         var atBase = natural * _baseFont / TimeText.FontSize;
         var font = Math.Min(_baseFont, Math.Floor(_baseFont * (_maxSize - inset) / atBase));
         if (Math.Abs(font - TimeText.FontSize) >= 1)
         {
-            SetTimeFont(font); // its SizeChanged calls back here
-            return;
+            SetTimeFont(font);
+            natural = atBase * font / _baseFont; // the width at the new font, without a layout pass
         }
-        var size = Math.Clamp(Math.Ceiling(natural + inset), _baseSize, _maxSize);
-        if (Math.Abs(size - Root.WidthRequest) > 1)
-            SetSize(size);
+        SetSize(Math.Clamp(Math.Ceiling(natural + inset), _baseSize, _maxSize));
     }
 
     private void Apply()

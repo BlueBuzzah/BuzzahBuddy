@@ -251,6 +251,26 @@ public class ReportPdfTests
             AssertNewestQuotesShown(layout, notes);
     }
 
+    [Fact]
+    public void Build_WithoutADevice_UsesTheCurrentOne() =>
+        Assert.Equal(DeviceNoun.Current, HistoryReport.Build(Fixture(), From, Today, Created, comparePrevious: true).Device);
+
+    [Theory]
+    [InlineData("phone")]
+    [InlineData("iPad")]
+    [InlineData("tablet")]
+    public void Render_NamesTheDeviceTheReportWasRecordedOn(string noun)
+    {
+        var model = HistoryReport.Build(Fixture(), From, Today, Created, comparePrevious: true, device: noun);
+        var layout = ReportPdf.Draw(model, Assets());
+
+        var text = string.Join(" ", layout.PageText.SelectMany(p => p));
+        Assert.Contains($"recorded on this {noun}.", text);
+        Assert.Contains($"while this {noun} wasn't connected", text);
+        AssertNothingOverlaps(layout);
+        Assert.True(layout.Page1Bottom <= ReportPdf.BodyBottom);
+    }
+
     [Theory]
     [InlineData(ReportRange.Last30Days)]
     [InlineData(ReportRange.Last90Days)]
