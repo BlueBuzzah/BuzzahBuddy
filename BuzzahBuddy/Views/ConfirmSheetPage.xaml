@@ -12,7 +12,7 @@
 
     <!-- The sheet never grows past the screen: the title and message scroll, and the
          buttons stay in a fixed row beneath them, so both are always reachable. Avail is the
-         space the safe area leaves; LayoutSheet caps the sheet to it. -->
+         space the safe area leaves; CapSheet caps the message scroll to it. -->
     <Grid x:Name="Root" Padding="0,48,0,0">
         <Grid x:Name="Avail">
         <Border x:Name="Sheet"
@@ -26,8 +26,8 @@
                 <RoundRectangle CornerRadius="28,28,0,0" />
             </Border.StrokeShape>
 
-            <Grid RowDefinitions="*,Auto">
-                <ScrollView>
+            <Grid RowDefinitions="Auto,Auto">
+                <ScrollView x:Name="MessageScroll">
                     <VerticalStackLayout Spacing="{StaticResource Space3}">
                         <Label x:Name="TitleLabel"
                                Style="{StaticResource TypeTitleL}"
@@ -36,7 +36,7 @@
                     </VerticalStackLayout>
                 </ScrollView>
 
-                <VerticalStackLayout Grid.Row="1">
+                <VerticalStackLayout x:Name="Buttons" Grid.Row="1">
                 <Button x:Name="ConfirmButton"
                         Margin="0,12,0,0"
                         Clicked="OnConfirmClicked"

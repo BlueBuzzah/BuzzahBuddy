@@ -35,6 +35,7 @@ public partial class ConfirmSheetPage : ContentPage
         }
         SizeChanged += (_, _) => LayoutSheet();
         Avail.SizeChanged += (_, _) => CapSheet();
+        Buttons.SizeChanged += (_, _) => CapSheet();
 
         // Screen readers start on the title. Not in OnAppearing: the label has no handler yet.
         Loaded += (_, _) => TitleLabel.SetSemanticFocus();
@@ -85,13 +86,18 @@ public partial class ConfirmSheetPage : ContentPage
 
     /// <summary>
     /// The sheet never grows past the space Avail really has (the window minus the safe
-    /// area and the top gap); the star row then makes the title and message scroll while
-    /// the buttons keep their own height. Short messages stay content-sized.
+    /// area and the top gap). Rows are Auto, so a short message keeps the sheet content-sized
+    /// on both platforms; only the message scroll is capped, to what is left once the sheet's
+    /// margin, padding, border and the measured buttons are taken out. The buttons' height
+    /// does not depend on the cap, so this settles after one pass.
     /// </summary>
     private void CapSheet()
     {
-        if (Avail.Height > 0)
-            Sheet.MaximumHeightRequest = Math.Max(0, Avail.Height - Sheet.Margin.VerticalThickness);
+        if (Avail.Height <= 0 || Buttons.Height <= 0)
+            return;
+        MessageScroll.MaximumHeightRequest = Math.Max(96,
+            Avail.Height - Sheet.Margin.VerticalThickness - Sheet.Padding.VerticalThickness
+            - 2 * Sheet.StrokeThickness - Buttons.Height);
     }
 
     private void SlideIn(object? sender, EventArgs e)
