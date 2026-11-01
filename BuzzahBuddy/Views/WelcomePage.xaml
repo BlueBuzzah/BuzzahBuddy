@@ -7,9 +7,9 @@
              x:Class="BuzzahBuddy.Views.WelcomePage"
              Shell.NavBarIsVisible="False"
              SafeAreaEdges="Container">
-    <Grid RowDefinitions="*,Auto" Padding="16,0,16,16">
+    <Grid RowDefinitions="*,Auto" Padding="0,0,0,16">
         <ScrollView>
-            <VerticalStackLayout Spacing="{StaticResource Space6}" Padding="0,0,0,24">
+            <VerticalStackLayout x:Name="Column" Spacing="{StaticResource Space6}" Padding="0,0,0,24">
                 <!-- Headline left, the mark right, centered on each other. The mark comes from
                      assets/Logos, never recolored; clear space ≥ a quarter of its width. -->
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="{StaticResource Space6}">
@@ -37,7 +37,8 @@
                 </controls:Banner>
             </VerticalStackLayout>
         </ScrollView>
-        <Button Grid.Row="1"
+        <Button x:Name="ContinueButton"
+                Grid.Row="1"
                 Text="Continue"
                 Style="{StaticResource ButtonPrimary}"
                 Margin="0,12,0,0"

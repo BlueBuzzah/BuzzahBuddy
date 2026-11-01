@@ -12,7 +12,7 @@
     <!-- Scrolls so Keep Waiting and Stop Waiting stay reachable at large text sizes: the page
          blocks back and swipe, so they are the only way out. -->
     <ScrollView>
-    <VerticalStackLayout Spacing="{StaticResource Space6}" VerticalOptions="Center" Padding="{StaticResource Space8}">
+    <VerticalStackLayout x:Name="Column" Spacing="{StaticResource Space6}" VerticalOptions="Center" Padding="16,32">
         <!-- Waiting -->
         <VerticalStackLayout Spacing="{StaticResource Space4}"
                              IsVisible="{Binding IsWaitingLong, Converter={StaticResource InvertedBoolConverter}}">

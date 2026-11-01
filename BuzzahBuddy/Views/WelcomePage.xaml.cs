@@ -14,6 +14,12 @@ public partial class WelcomePage : ContentPage
         InitializeComponent();
         // Full screen, not iOS's swipe-to-dismiss card: the notices can't be swiped away.
         On<iOS>().SetModalPresentationStyle(UIModalPresentationStyle.FullScreen);
+        // Continue stays inside the column, so it lines up with the notices above it.
+        this.TrackLayout(layout =>
+        {
+            Column.ApplyColumn(layout);
+            ContinueButton.ApplyColumn(layout);
+        });
     }
 
     protected override bool OnBackButtonPressed() => true;
