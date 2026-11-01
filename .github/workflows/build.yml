@@ -8,6 +8,8 @@ on:
     paths:
       - "BuzzahBuddy/**"
       - "BuzzahBuddy.Tests/**"
+      - "BuzzahBuddy.Native.Binding/**"
+      - "native/**"
       - ".github/workflows/build.yml"
 jobs:
   test:
