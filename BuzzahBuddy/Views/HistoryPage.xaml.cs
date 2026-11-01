@@ -22,6 +22,7 @@ public partial class HistoryPage : ContentPage
             ArrangeTiles(_viewModel.LargeText);
             foreach (var row in TrendRowList.Children.OfType<Grid>())
                 ArrangeTrendRow(row);
+            HoldCalendarSize(force: true);
         });
 #if IOS
         _viewModel.PropertyChanging += OnViewModelChanging;
@@ -141,6 +142,26 @@ public partial class HistoryPage : ContentPage
         }
     }
 
+    // ponytail: paging months changes the calendar, its title and which of Previous and Next is
+    // enabled, but never the card's size (always six week rows). Any change inside the list header
+    // moves the page on iOS (see OnViewModelChanging), so the card's content is held at its measured
+    // size: MAUI stops a measure invalidation at a view with both size requests set, and it never
+    // reaches the list. Measured again only when the card's width or the text size changes.
+    private double _calendarWidth = -1;
+
+    private void OnCalendarCardSizeChanged(object? sender, EventArgs e) => HoldCalendarSize(force: false);
+
+    private void HoldCalendarSize(bool force)
+    {
+        var width = CalendarCard.Width - CalendarCard.Padding.HorizontalThickness - 2 * CalendarCard.StrokeThickness;
+        if (width <= 0 || (width == _calendarWidth && !force))
+            return;
+        _calendarWidth = width;
+        CalendarBody.WidthRequest = width;
+        CalendarBody.HeightRequest = -1;
+        CalendarBody.HeightRequest = CalendarBody.Measure(width, double.PositiveInfinity).Height;
+    }
+
     private void OnTrendRowLoaded(object? sender, EventArgs e)
     {
         if (sender is Grid row)
@@ -199,6 +220,8 @@ public partial class HistoryPage : ContentPage
             || _twoPane // the header holds only the Days heading then, so nothing to hold still
             || e.PropertyName is nameof(HistoryViewModel.Days) or nameof(HistoryViewModel.IsBusy)
                 or nameof(HistoryViewModel.IsRefreshing) or nameof(HistoryViewModel.Title)
+                // the calendar card holds its size (HoldCalendarSize), so its changes stay inside it
+                or nameof(HistoryViewModel.Calendar)
             || DayList.Handler?.PlatformView is not UIKit.UIView root
             || FindList(root) is not { } list)
             return;

@@ -113,9 +113,10 @@
                     <!-- Hidden at large text: seven columns can't hold the day numbers there. -->
                     <VerticalStackLayout Spacing="{StaticResource Space3}" IsVisible="{Binding ShowCalendar}">
                         <Label Text="Calendar" Style="{StaticResource TypeTitleL}" SemanticProperties.HeadingLevel="Level2" />
-                        <Border Style="{StaticResource Card}">
-                            <VerticalStackLayout Spacing="{StaticResource Space4}">
-                                <Label Text="{Binding Calendar.Title}" Style="{StaticResource TypeTitleM}" LineHeight="1" />
+                        <!-- The card's content is held at a fixed size (page code-behind). -->
+                        <Border x:Name="CalendarCard" Style="{StaticResource Card}" SizeChanged="OnCalendarCardSizeChanged">
+                            <VerticalStackLayout x:Name="CalendarBody" Spacing="{StaticResource Space4}">
+                                <!-- Shows the month's title too, so the two change together. -->
                                 <controls:CalendarMonthView Month="{Binding Calendar}" />
                                 <!-- Narrow padding keeps each one-word label on one line on a 320 pt phone. -->
                                 <Grid ColumnDefinitions="*,*" ColumnSpacing="{StaticResource Space3}">
