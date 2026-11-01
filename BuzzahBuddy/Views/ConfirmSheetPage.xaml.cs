@@ -24,6 +24,8 @@ public partial class ConfirmSheetPage : ContentPage
         SemanticProperties.SetDescription(ConfirmButton, request.ConfirmText);
         CancelButton.Text = request.CancelText;
         SemanticProperties.SetDescription(CancelButton, request.CancelText);
+        // space-8 below Confirm, so a repeat tap where the first landed hits Cancel.
+        CancelButton.Margin = new Thickness(0, (double)Microsoft.Maui.Controls.Application.Current!.Resources["Space8"], 0, 0);
 
         // iOS: let the sheet's background run under the home indicator (the scrim would
         // otherwise show as a strip below it); LayoutSheet pads the buttons above it.
@@ -49,7 +51,7 @@ public partial class ConfirmSheetPage : ContentPage
 
     /// <summary>Slides the sheet back down; the caller then removes the page.</summary>
     public Task SlideOutAsync() =>
-        Motion.Reduce ? Task.CompletedTask : Sheet.TranslateToAsync(0, Sheet.Height, Duration("DurationBase"), Motion.Standard);
+        Motion.Reduce ? Task.CompletedTask : Sheet.TranslateToAsync(0, Sheet.Height + Sheet.Margin.Bottom, Duration("DurationBase"), Motion.Standard);
 
     private const double WideWindow = 600, SheetMaxWidth = 560, FloatingMargin = 24, SheetCorner = 28;
 
@@ -108,7 +110,7 @@ public partial class ConfirmSheetPage : ContentPage
         Sheet.SizeChanged -= SlideIn;
         if (Motion.Reduce)
             return;
-        Sheet.TranslationY = Sheet.Height;
+        Sheet.TranslationY = Sheet.Height + Sheet.Margin.Bottom;
         _ = Sheet.TranslateToAsync(0, 0, Duration("DurationSlow"), Motion.Standard);
     }
 

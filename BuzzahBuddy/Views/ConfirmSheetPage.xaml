@@ -43,7 +43,6 @@
                         AutomationId="ConfirmSheetConfirm" />
                 <Button x:Name="CancelButton"
                         Style="{StaticResource ButtonQuiet}"
-                        Margin="0,20,0,0"
                         Clicked="OnCancelClicked"
                         AutomationId="ConfirmSheetCancel" />
                 </VerticalStackLayout>
