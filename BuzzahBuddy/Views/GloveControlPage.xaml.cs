@@ -67,7 +67,7 @@ public partial class GloveControlPage : ContentPage
             {
                 RingPane.Remove(Ring);
                 Ring.VerticalOptions = LayoutOptions.Fill;
-                ConnectedStack.Insert(1, Ring);
+                ConnectedStack.Insert(1, Ring); // index 1 = right after GlovesSummaryCard
                 RingPane.IsVisible = false;
                 _twoPane = false;
             }
