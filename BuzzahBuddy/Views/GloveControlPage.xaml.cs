@@ -7,7 +7,7 @@ namespace BuzzahBuddy.Views;
 public partial class GloveControlPage : ContentPage
 {
     private readonly GloveControlViewModel _viewModel;
-    private PageLayout _layout;
+    private PageLayout? _layout;
     private bool _twoPane;
 
     public GloveControlPage(GloveControlViewModel viewModel)
@@ -21,6 +21,12 @@ public partial class GloveControlPage : ContentPage
         // The ring fits the pane's allocated size, so it follows the pane, not a guess.
         RingPane.SizeChanged += (_, _) => FitRing();
         this.TrackLayout(ApplyLayout);
+        // Two panes only while connected; the page is a singleton and ConnectionInfo is get-only, so one subscription.
+        viewModel.ConnectionInfo.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is "IsConnected" or null or "" && _layout is { } l)
+                ApplyLayout(l);
+        };
     }
 
     // Wide landscape: the ring alone in the left pane, everything else in the right. Otherwise one
@@ -29,7 +35,7 @@ public partial class GloveControlPage : ContentPage
     private void ApplyLayout(PageLayout layout)
     {
         _layout = layout;
-        var twoPane = layout.TwoPane && layout.Landscape;
+        var twoPane = layout.TwoPane && layout.Landscape && _viewModel.ConnectionInfo.IsConnected;
         if (twoPane)
         {
             Root.Padding = new Thickness(layout.Gutter, 0, layout.Gutter, 16);

@@ -17,8 +17,6 @@
          (ApplyColumn). In two panes (wide landscape) the code-behind pads it and moves the ring
          into RingPane, alone, left of MainColumn. -->
     <Grid x:Name="Root" Padding="0,0,0,16">
-        <Grid x:Name="RingPane" IsVisible="False" />
-
         <Grid x:Name="MainColumn" RowDefinitions="*,Auto">
         <ScrollView x:Name="Scroller">
             <!-- At least the viewport's height (code-behind), so Get Started centers in the space
@@ -192,6 +190,9 @@
             </VerticalStackLayout>
         </Grid>
         </Grid>
+
+        <!-- After MainColumn so screen readers reach the Session heading first and the ring last. -->
+        <Grid x:Name="RingPane" IsVisible="False" />
     </Grid>
 
 </ContentPage>
