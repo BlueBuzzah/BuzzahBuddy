@@ -35,6 +35,16 @@ public static class ErrorMessageHelper
         var detail = errorMessage;
         var lowerError = errorMessage.ToLowerInvariant();
 
+        // Before the "secondary" check below: a glove in ERROR is connected but can't run.
+        if (lowerError.Contains("primary glove error"))
+            return new("Restart Your Primary Glove", GloveErrorMessage("primary"), detail);
+
+        if (lowerError.Contains("secondary glove error"))
+            return new("Restart Your Secondary Glove", GloveErrorMessage("secondary"), detail);
+
+        if (lowerError.Contains("cannot start in current state"))
+            return new("Can't Start Right Now", "Wait a moment, then try again.", detail);
+
         if (lowerError.Contains("secondary not connected"))
             return new(SecondaryNotLinkedTitle, SecondaryNotLinkedMessage, detail);
 
@@ -91,6 +101,11 @@ public static class ErrorMessageHelper
 
         return new(Generic, TryAgain, detail);
     }
+
+    // Firmware holds a glove in ERROR (red slow blink) until reboot when its motors don't start.
+    private static string GloveErrorMessage(string role) =>
+        $"Restart your {role} glove, then try again. It found a hardware problem when it turned on, " +
+        "so its light blinks red slowly. If it keeps happening, check its motor connections.";
 
     /// <summary>Maps an exception; its message is kept as the detail.</summary>
     public static UserError FromException(Exception ex) => ex switch

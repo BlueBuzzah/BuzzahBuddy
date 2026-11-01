@@ -23,7 +23,7 @@ public class RxFrameAssembler
     private static readonly string[] InternalMessagePrefixes =
     {
         "BUZZ", "PING", "PONG", "PARAM_UPDATE", "SEED", "GET_BATTERY",
-        "BATRESPONSE", "ACK_PARAM_UPDATE", "SYNC_", "FIRST_SYNC", "ACK_SYNC",
+        "BATRESPONSE", "GLOVE_ERROR", "ACK_PARAM_UPDATE", "SYNC_", "FIRST_SYNC", "ACK_SYNC",
         "START_SESSION", "PAUSE_SESSION", "RESUME_SESSION", "STOP_SESSION",
         "IDENTIFY:", "LED_OFF_SYNC", "DEBUG_FLASH", "DEBUG_SYNC", "MC:", "MC_ACK:",
         "CALIB_BUZZ:", "CALIB_STOP",
