@@ -220,17 +220,28 @@ public class GloveControlServiceTests
         Assert.Single(fake.SentCommands, c => c == "SESSION_START");
     }
 
+    // The secondary dropped after the last INFO: the refusal refreshes INFO so the
+    // Session screen learns it, and isn't retried.
     [Fact]
-    public async Task StartSessionAsync_SecondaryNotConnected_IsNotRetried()
+    public async Task StartSessionAsync_SecondaryNotConnected_RefreshesInfo_AndIsNotRetried()
     {
         var fake = new FakeBluetoothService();
         fake.CannedResponses["SESSION_START"] = "CMD:SESSION_START\nERROR:Secondary not connected\n\x04";
-        var service = new GloveControlService(fake) { SyncNotReadyRetryInterval = TimeSpan.FromMilliseconds(1) };
+        fake.CannedResponses["INFO"] = "CMD:INFO\nROLE:PRIMARY\nBATP:4.00\nSECONDARY:0\nBATS:0.00\nSTATUS:IDLE\n\x04";
+        var service = new GloveControlService(fake)
+        {
+            SyncNotReadyRetryInterval = TimeSpan.FromMilliseconds(1),
+            SecondaryBatteryRetryDelays = [TimeSpan.FromSeconds(30)],
+        };
+        bool? linked = null;
+        service.DeviceInfoReceived += (_, info) => linked = info.SecondaryLinked;
 
         var ex = await Assert.ThrowsAsync<BlueBuzzahCommandException>(() => service.StartSessionAsync());
 
         Assert.Contains("Secondary not connected", ex.Message);
         Assert.Single(fake.SentCommands, c => c == "SESSION_START");
+        Assert.Single(fake.SentCommands, c => c == "INFO");
+        Assert.False(linked);
     }
 
     [Fact]
