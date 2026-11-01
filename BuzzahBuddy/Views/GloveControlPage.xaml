@@ -13,7 +13,13 @@
              Shell.NavBarIsVisible="False"
              SafeAreaEdges="Container">
 
-    <Grid RowDefinitions="*,Auto" Padding="16,0,16,16">
+    <!-- Root has no horizontal padding in one column: the column's own margin is the gutter
+         (ApplyColumn). In two panes (wide landscape) the code-behind pads it and moves the ring
+         into RingPane, alone, left of MainColumn. -->
+    <Grid x:Name="Root" Padding="0,0,0,16">
+        <Grid x:Name="RingPane" IsVisible="False" />
+
+        <Grid x:Name="MainColumn" RowDefinitions="*,Auto">
         <ScrollView x:Name="Scroller">
             <!-- At least the viewport's height (code-behind), so Get Started centers in the space
                  between the title and Scan for Gloves. No row spacing: an even gap above and below
@@ -74,7 +80,8 @@
                 </Border>
 
                 <!-- Connected -->
-                <VerticalStackLayout Grid.Row="1"
+                <VerticalStackLayout x:Name="ConnectedStack"
+                                     Grid.Row="1"
                                      Margin="0,24,0,0"
                                      Spacing="{StaticResource Space6}"
                                      IsVisible="{Binding ConnectionInfo.IsConnected}">
@@ -83,7 +90,8 @@
                                                 Command="{Binding NavigateToDevicesCommand}"
                                                 AutomationId="GlovesSummary" />
 
-                    <controls:SessionRing IsVisible="{Binding ConnectionInfo.IsConnected}"
+                    <controls:SessionRing x:Name="Ring"
+                                          IsVisible="{Binding ConnectionInfo.IsConnected}"
                                           State="{Binding RingState}"
                                           Progress="{Binding RingProgress}"
                                           Time="{Binding RingTimeText}"
@@ -121,7 +129,7 @@
 
         <!-- The primary action in easy reach at the bottom, as on Gloves: Scan for Gloves, or the
              session controls (Start alone, full width, or Pause/Resume and Stop side by side). -->
-        <Grid Grid.Row="1" Margin="0,12,0,0">
+        <Grid x:Name="Controls" Grid.Row="1" Margin="0,12,0,0">
             <!-- Hidden with Get Started while the launch auto-connect is scanning -->
             <Button Text="Scan for Gloves"
                     IsVisible="{Binding ShowGetStarted}"
@@ -182,6 +190,7 @@
                     </Button>
                 </Grid>
             </VerticalStackLayout>
+        </Grid>
         </Grid>
     </Grid>
 
