@@ -54,7 +54,7 @@ public partial class SessionRing : ContentView
             if (e.PropertyName == nameof(IsVisible))
                 Apply();
         };
-        SetBaseSize();
+        SetDefaultSize();
     }
 
     public SessionRingState State { get => (SessionRingState)GetValue(StateProperty); set => SetValue(StateProperty, value); }
@@ -70,17 +70,34 @@ public partial class SessionRing : ContentView
 
     private static void Update(BindableObject bindable, object oldValue, object newValue) => ((SessionRing)bindable).Apply();
 
-    /// <summary>280, or 240 on phones under 360 wide (SessionRing README).</summary>
-    private void SetBaseSize()
+    /// <summary>
+    /// Until the page calls <see cref="Fit"/>: 280, or 240 on phones under 360 wide, with the
+    /// screen's 16pt gutters as the limit (SessionRing README).
+    /// </summary>
+    private void SetDefaultSize()
     {
         var display = DeviceDisplay.MainDisplayInfo;
         var width = display.Density > 0 ? display.Width / display.Density : 400;
-        _baseSize = width > 0 && width < 360 ? 240 : 280;
-        _maxSize = Math.Max(_baseSize, width - 32); // the screen's 16pt gutters
+        Resize(width > 0 && width < 360 ? 240 : 280, width - 32);
+    }
+
+    /// <summary>
+    /// Sizes the ring from its space. <paramref name="sizingWidth"/> and <paramref name="paneHeight"/> pick
+    /// the base size (<see cref="SessionRingSize.For"/>); <paramref name="availableWidth"/> is the column or
+    /// pane width the time may grow into at large text sizes. Safe to call again on rotation.
+    /// </summary>
+    public void Fit(double sizingWidth, double? paneHeight, double availableWidth) =>
+        Resize(SessionRingSize.For(sizingWidth, paneHeight), availableWidth);
+
+    private void Resize(double baseSize, double availableWidth)
+    {
+        _baseSize = baseSize;
+        _maxSize = Math.Max(baseSize, availableWidth);
         // bundle.js: under 300 the time shrinks to 20% of the ring.
-        _baseFont = Math.Round(_baseSize * 0.2);
+        _baseFont = Math.Round(baseSize * 0.2);
         SetTimeFont(_baseFont);
-        SetSize(_baseSize);
+        SetSize(baseSize);
+        FitSize(); // the time is already laid out, so its SizeChanged may not fire
     }
 
     // Lexend keeps 0.3em empty above its caps (ascender 1.0em, cap height 0.7em) and digits have
