@@ -79,7 +79,14 @@ public partial class ConfirmSheetPage : ContentPage
             Sheet.Padding = new Thickness(pad, pad, pad, pad + inset);
             Sheet.StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(SheetCorner, SheetCorner, 0, 0) };
         }
+        // The text scrolls only when the buttons would not fit. A star row filled the whole
+        // window on Android, so the row is Auto and its height is capped here instead.
+        MessageScroll.MaximumHeightRequest = Math.Max(96,
+            Height - Root.Padding.Top - Sheet.Margin.Bottom - Sheet.Padding.VerticalThickness - ButtonsHeight);
     }
+
+    // Confirm (56) and Cancel (56) plus the 12 and 20 above them.
+    private const double ButtonsHeight = 144;
 
     private void SlideIn(object? sender, EventArgs e)
     {
