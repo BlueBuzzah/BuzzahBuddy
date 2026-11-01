@@ -1,4 +1,5 @@
 using BuzzahBuddy.Helpers;
+using BuzzahBuddy.Models;
 using BuzzahBuddy.ViewModels;
 using BuzzahBuddy.Views.Controls;
 
@@ -26,6 +27,66 @@ public partial class HistoryPage : ContentPage
         _viewModel.PropertyChanging += OnViewModelChanging;
 #endif
         _viewModel.DataSourceChanged += (_, _) => ScrollToTop();
+        this.TrackLayout(ApplyLayout);
+    }
+
+    // The page starts as one column: SummaryPanel in the list header (XAML).
+    private bool _twoPane;
+
+    // Wide windows: the summary scrolls on its own in the left pane and the day list takes the right.
+    // Otherwise one list with the summary in its header, in a centered column. SummaryPanel is one
+    // instance moved between the two, so its bindings and AutomationIds stay intact; it moves only
+    // when the mode changes, since re-attaching the list header can reset the scroll position.
+    private void ApplyLayout(PageLayout layout)
+    {
+        var two = layout.TwoPane;
+        var cardBottom = 24;
+        if (two)
+        {
+            var gap = (double)Application.Current!.Resources["Space8"];
+            // Equal content widths; the right column also holds its own gutter, inside the list.
+            var pane = Math.Max(0, (layout.Width - 2 * layout.Gutter - gap) / 2);
+            PageGrid.Padding = new Thickness(layout.Gutter, 0, 0, 0);
+            PageGrid.ColumnSpacing = gap;
+            PageGrid.ColumnDefinitions = new ColumnDefinitionCollection(
+                new ColumnDefinition(new GridLength(pane)), new ColumnDefinition(GridLength.Star));
+            Grid.SetColumn(DayList, 1);
+            Grid.SetColumnSpan(DayList, 1);
+            ListHeader.Padding = new Thickness(0, 0, layout.Gutter, 12);
+            Resources["DayCardMargin"] = new Thickness(0, 0, layout.Gutter, cardBottom);
+            // Don't let the summary stretch past what reads well.
+            var cap = AdaptiveLayout.ColumnMaxWidth * Math.Max(1, OsAccessibility.TextScale);
+            SummaryPanel.WidthRequest = pane > cap ? cap : -1;
+            SummaryPanel.HorizontalOptions = pane > cap ? LayoutOptions.Start : LayoutOptions.Fill;
+        }
+        else
+        {
+            var side = Math.Max(0, (layout.Width - layout.ColumnWidth) / 2);
+            PageGrid.Padding = new Thickness(0);
+            PageGrid.ColumnSpacing = 0;
+            PageGrid.ColumnDefinitions = new ColumnDefinitionCollection(new ColumnDefinition(GridLength.Star));
+            Grid.SetColumn(DayList, 0);
+            Grid.SetColumnSpan(DayList, 1);
+            ListHeader.Padding = new Thickness(side, 0, side, 12);
+            Resources["DayCardMargin"] = new Thickness(side, 0, side, cardBottom);
+            SummaryPanel.WidthRequest = -1;
+            SummaryPanel.HorizontalOptions = LayoutOptions.Fill;
+        }
+
+        if (two == _twoPane)
+            return;
+        _twoPane = two;
+        if (two)
+        {
+            ListHeader.Remove(SummaryPanel);
+            SummaryScroll.Content = SummaryPanel;
+        }
+        else
+        {
+            SummaryScroll.Content = null;
+            ListHeader.Insert(0, SummaryPanel);
+        }
+        SummaryScroll.IsVisible = two;
     }
 
     // The list header (History's title) is the first row of the platform list on both platforms.
@@ -130,6 +191,7 @@ public partial class HistoryPage : ContentPage
     private void OnViewModelChanging(object? sender, System.ComponentModel.PropertyChangingEventArgs e)
     {
         if (_heldOffset is not null
+            || _twoPane // the header holds only the Days heading then, so nothing to hold still
             || e.PropertyName is nameof(HistoryViewModel.Days) or nameof(HistoryViewModel.IsBusy)
                 or nameof(HistoryViewModel.IsRefreshing) or nameof(HistoryViewModel.Title)
             || DayList.Handler?.PlatformView is not UIKit.UIView root
