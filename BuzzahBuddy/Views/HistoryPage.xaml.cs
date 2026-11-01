@@ -94,6 +94,9 @@ public partial class HistoryPage : ContentPage
     // The list header (History's title) is the first row of the platform list on both platforms.
     private void ScrollToTop()
     {
+        // The summary pane only exists beside the list in two-pane mode.
+        if (_twoPane)
+            _ = SummaryScroll.ScrollToAsync(0, 0, false);
 #if IOS
         if (DayList.Handler?.PlatformView is not UIKit.UIView root || FindList(root) is not { } list)
             return;
