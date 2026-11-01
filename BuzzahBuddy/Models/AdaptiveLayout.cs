@@ -30,7 +30,7 @@ public static class AdaptiveLayout
     {
         var scale = Math.Max(1, textScale);
         var gutter = width >= WideGutterMinWidth ? 24 : 16;
-        var column = Math.Min(width - 2 * gutter, ColumnMaxWidth * scale);
+        var column = Math.Max(0, Math.Min(width - 2 * gutter, ColumnMaxWidth * scale));
         return new PageLayout(width, height, width / scale >= TwoPaneMinWidth, column, gutter);
     }
 }

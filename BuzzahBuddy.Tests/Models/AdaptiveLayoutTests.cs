@@ -54,4 +54,8 @@ public class AdaptiveLayoutTests
         Assert.True(AdaptiveLayout.For(1376, 1032, 1).Landscape);
         Assert.False(AdaptiveLayout.For(1032, 1376, 1).Landscape);
     }
+
+    [Fact]
+    public void Column_is_never_negative_in_a_tiny_window() =>
+        Assert.Equal(0, AdaptiveLayout.For(20, 800, 1).ColumnWidth);
 }

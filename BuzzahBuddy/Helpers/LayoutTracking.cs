@@ -56,7 +56,8 @@ public static class LayoutTracking
     /// </summary>
     public static void ApplyColumn(this View column, PageLayout layout)
     {
-        column.WidthRequest = layout.ColumnWidth;
+        // A zero column (a transient tiny window) leaves the width unset rather than requesting 0.
+        column.WidthRequest = layout.ColumnWidth > 0 ? layout.ColumnWidth : -1;
         column.HorizontalOptions = LayoutOptions.Center;
         var m = column.Margin;
         column.Margin = new Thickness(layout.Gutter, m.Top, layout.Gutter, m.Bottom);
