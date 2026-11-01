@@ -152,20 +152,25 @@
 	</ItemGroup>
 
 	<!-- iOS discovers App Intents only from Metadata.appintents inside the .app. The binding's
-	     ExtractAppIntentsMetadata target takes it out of the framework's xcarchive; this copies it
-	     in. Keep the slash after $(AppBundleDir): without it the folder lands beside the bundle
+	     ExtractAppIntentsMetadata target takes the device and simulator copies out of the
+	     framework's xcarchives; this copies the one matching the build in, replacing any earlier
+	     copy. Keep the slash after $(AppBundleDir): without it the folder lands beside the bundle
 	     and every intent fails silently. -->
 	<Target Name="CopyAppIntentsMetadata" AfterTargets="_CopyResourcesToBundle"
 		Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">
 		<PropertyGroup>
-			<_BindingMetadataDir>..\BuzzahBuddy.Native.Binding\obj\$(Configuration)\$(TargetFramework)\xcode\Metadata.appintents</_BindingMetadataDir>
+			<_AppIntentsVariant Condition="'$(SdkIsSimulator)' == 'true'">simulator</_AppIntentsVariant>
+			<_AppIntentsVariant Condition="'$(SdkIsSimulator)' != 'true'">device</_AppIntentsVariant>
+			<_BindingMetadataDir>..\BuzzahBuddy.Native.Binding\obj\$(Configuration)\$(TargetFramework)\xcode\AppIntentsMetadata\$(_AppIntentsVariant)\Metadata.appintents</_BindingMetadataDir>
 		</PropertyGroup>
 		<ItemGroup>
 			<_AppIntentsMetadata Include="$(_BindingMetadataDir)\**\*" Condition="Exists('$(_BindingMetadataDir)')" />
 		</ItemGroup>
 		<Error Text="Metadata.appintents not found at $(_BindingMetadataDir); Siri would find no intents." Condition="'@(_AppIntentsMetadata)' == ''" />
+		<RemoveDir Directories="$(AppBundleDir)/Metadata.appintents" />
 		<Copy SourceFiles="@(_AppIntentsMetadata)"
 			DestinationFolder="$(AppBundleDir)/Metadata.appintents/%(RecursiveDir)" />
+		<Message Importance="high" Text="Copied $(_AppIntentsVariant) Metadata.appintents from $(_BindingMetadataDir)" />
 	</Target>
 
 </Project>

@@ -16,7 +16,7 @@ public class AppDelegate : MauiUIApplicationDelegate
 	{
 		// Before base.FinishedLaunching, so an intent that launched the app finds the provider.
 		if (OperatingSystem.IsIOSVersionAtLeast(16))
-			VoiceBridge.Shared.Provider = new SpikeVoiceProvider();
+			VoiceBridge.Shared.Provider = new SpikeVoiceProvider(Stopwatch.GetTimestamp());
 		IndexForSpotlight();
 		return base.FinishedLaunching(application, launchOptions);
 	}
@@ -47,11 +47,13 @@ public class AppDelegate : MauiUIApplicationDelegate
 	// in Release too, unlike Debug.WriteLine.
 	sealed class SpikeVoiceProvider : VoiceCommandProvider
 	{
-		// Taken in FinishedLaunching (first use of this class), milliseconds after process start.
-		static readonly long LaunchTimestamp = Stopwatch.GetTimestamp();
+		// Taken in FinishedLaunching, milliseconds after process start.
+		readonly long _launchTimestamp;
 
-		static void Log(string message) =>
-			Console.WriteLine($"[VOICE] {message} launch+{(long)Stopwatch.GetElapsedTime(LaunchTimestamp).TotalMilliseconds}");
+		public SpikeVoiceProvider(long launchTimestamp) => _launchTimestamp = launchTimestamp;
+
+		void Log(string message) =>
+			Console.WriteLine($"[VOICE] {message} launch+{(long)Stopwatch.GetElapsedTime(_launchTimestamp).TotalMilliseconds}");
 
 		public override void Run(string command, nint profileId, Action<NSString> completion)
 		{

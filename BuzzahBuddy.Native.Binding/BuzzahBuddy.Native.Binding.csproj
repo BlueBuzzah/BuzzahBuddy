@@ -23,15 +23,22 @@
 		</XcodeProject>
 	</ItemGroup>
 
-	<!-- iOS finds App Intents only in the app bundle's Metadata.appintents. Take it out of the
-	     xcarchive here; the app's CopyAppIntentsMetadata target copies it into the bundle. -->
+	<!-- iOS finds App Intents only in the app bundle's Metadata.appintents. The device and
+	     simulator archives each carry their own (the Siri phrase model nlu.lzfse differs), so
+	     both are taken out here, from the current XcodeProject output folder only (older
+	     BuzzahBuddyKit-<hash> folders may hold stale metadata). The app's CopyAppIntentsMetadata
+	     target copies the one matching its build into the bundle. -->
 	<Target Name="ExtractAppIntentsMetadata" AfterTargets="_BuildXcodeProjects">
 		<PropertyGroup>
-			<_MetadataOutputDir>$(IntermediateOutputPath)xcode/Metadata.appintents</_MetadataOutputDir>
-			<_XcodeOutputDir>$(IntermediateOutputPath)xcode</_XcodeOutputDir>
+			<_AppIntentsMetadataRoot>$(IntermediateOutputPath)xcode/AppIntentsMetadata</_AppIntentsMetadataRoot>
 		</PropertyGroup>
-		<Exec Command="rm -rf &quot;$(_MetadataOutputDir)&quot;" Condition="Exists('$(_MetadataOutputDir)')" />
-		<Exec Command="METADATA_SRC=%24(find &quot;$(_XcodeOutputDir)&quot; -path &apos;*/archives/*Metadata.appintents&apos; -type d | head -1) &amp;&amp; if [ -n &quot;%24METADATA_SRC&quot; ]; then cp -R &quot;%24METADATA_SRC&quot; &quot;$(_MetadataOutputDir)&quot; &amp;&amp; echo &quot;Copied Metadata.appintents&quot;; else echo &quot;WARNING: Metadata.appintents not found&quot;; fi" />
+		<ItemGroup>
+			<_AppIntentsArchiveMetadata Include="@(XcodeProject->'%(OutputPath)archives/%(SchemeName)$(TargetPlatformIdentifier).xcarchive/Products/Library/Frameworks/%(SchemeName).framework/Metadata.appintents')" Variant="device" />
+			<_AppIntentsArchiveMetadata Include="@(XcodeProject->'%(OutputPath)archives/%(SchemeName)$(TargetPlatformIdentifier)Simulator.xcarchive/Products/Library/Frameworks/%(SchemeName).framework/Metadata.appintents')" Variant="simulator" />
+		</ItemGroup>
+		<Error Text="Metadata.appintents not found at %(_AppIntentsArchiveMetadata.Identity)" Condition="!Exists('%(_AppIntentsArchiveMetadata.Identity)')" />
+		<RemoveDir Directories="$(_AppIntentsMetadataRoot)" />
+		<Exec Command="ditto &quot;%(_AppIntentsArchiveMetadata.Identity)&quot; &quot;$(_AppIntentsMetadataRoot)/%(_AppIntentsArchiveMetadata.Variant)/Metadata.appintents&quot;" />
 	</Target>
 
 </Project>
