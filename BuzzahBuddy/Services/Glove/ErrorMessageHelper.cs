@@ -21,6 +21,11 @@ public static class ErrorMessageHelper
     private const string Generic = "Something Went Wrong";
     private const string TryAgain = "Try again. If it keeps happening, restart both gloves.";
 
+    /// <summary>Firmware refuses SESSION_START without the secondary; the Session banner says the same.</summary>
+    public const string SecondaryNotLinkedTitle = "Secondary Glove Not Connected";
+    public const string SecondaryNotLinkedMessage =
+        "Turn on your secondary glove and keep it near your primary glove. You can start once they connect.";
+
     /// <summary>Maps a firmware error string; the original text is kept as the detail.</summary>
     public static UserError GetFriendlyError(string errorMessage)
     {
@@ -29,6 +34,9 @@ public static class ErrorMessageHelper
 
         var detail = errorMessage;
         var lowerError = errorMessage.ToLowerInvariant();
+
+        if (lowerError.Contains("secondary not connected"))
+            return new(SecondaryNotLinkedTitle, SecondaryNotLinkedMessage, detail);
 
         if (lowerError.Contains("secondary"))
             return new("Secondary Glove Not Connected",

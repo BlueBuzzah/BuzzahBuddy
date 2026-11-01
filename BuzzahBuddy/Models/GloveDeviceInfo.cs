@@ -39,6 +39,12 @@ public class GloveDeviceInfo
     public double? BatterySecondaryVoltage { get; set; }
 
     /// <summary>
+    /// Whether the secondary is linked to the primary (INFO SECONDARY:1/0); null when the
+    /// firmware predates the key.
+    /// </summary>
+    public bool? SecondaryLinked { get; set; }
+
+    /// <summary>
     /// Current session status (IDLE, RUNNING, PAUSED).
     /// </summary>
     public string Status { get; set; } = "IDLE";
@@ -76,7 +82,8 @@ public class GloveDeviceInfo
             // Missing keys and the firmware's 0.00 sentinel both mean "no reading".
             BatteryPrimaryVoltage = BatteryReading.FromRaw(response.GetDouble("BATP")),
             BatterySecondaryVoltage = BatteryReading.FromRaw(response.GetDouble("BATS")),
-            Status = response.GetString("STATUS") ?? "IDLE"
+            Status = response.GetString("STATUS") ?? "IDLE",
+            SecondaryLinked = response.GetInt("SECONDARY") is { } linked ? linked != 0 : null
         };
 
         info.Motors = response.GetInt("MOTORS") ?? 4;

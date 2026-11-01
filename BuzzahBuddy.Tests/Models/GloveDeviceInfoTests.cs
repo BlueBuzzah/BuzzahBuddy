@@ -42,4 +42,15 @@ public class GloveDeviceInfoTests
         Assert.Null(info.BatteryPrimaryVoltage);
         Assert.Null(info.BatterySecondaryVoltage);
     }
+
+    [Theory]
+    [InlineData("BATP:4.02\nSECONDARY:1\nBATS:0.00\n", true)]   // linked, battery reply timed out
+    [InlineData("BATP:4.02\nSECONDARY:0\nBATS:0.00\n", false)]
+    [InlineData("BATP:4.02\nBATS:3.85\n", null)]                 // firmware before the key
+    public void FromCommandResponse_ParsesSecondaryLink(string battery, bool? linked)
+    {
+        var response = CommandResponse.Parse($"ROLE:PRIMARY\nFW:2.1.0\n{battery}STATUS:IDLE\n\x04");
+
+        Assert.Equal(linked, GloveDeviceInfo.FromCommandResponse(response).SecondaryLinked);
+    }
 }

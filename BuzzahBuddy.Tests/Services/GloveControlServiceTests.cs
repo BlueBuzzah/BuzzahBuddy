@@ -221,6 +221,19 @@ public class GloveControlServiceTests
     }
 
     [Fact]
+    public async Task StartSessionAsync_SecondaryNotConnected_IsNotRetried()
+    {
+        var fake = new FakeBluetoothService();
+        fake.CannedResponses["SESSION_START"] = "CMD:SESSION_START\nERROR:Secondary not connected\n\x04";
+        var service = new GloveControlService(fake) { SyncNotReadyRetryInterval = TimeSpan.FromMilliseconds(1) };
+
+        var ex = await Assert.ThrowsAsync<BlueBuzzahCommandException>(() => service.StartSessionAsync());
+
+        Assert.Contains("Secondary not connected", ex.Message);
+        Assert.Single(fake.SentCommands, c => c == "SESSION_START");
+    }
+
+    [Fact]
     public async Task OnConnect_SyncsInfoThenSessionStatusThenLed_WithoutSeparateBatteryOrPing()
     {
         var fake = new FakeBluetoothService();

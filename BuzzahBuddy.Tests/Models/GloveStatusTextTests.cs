@@ -51,6 +51,16 @@ public class GloveStatusTextTests
         Assert.Equal((StatusTone.Neutral, "No Reading"), GloveStatusText.Badge(GloveLinkStatus.NoReading));
     }
 
+    [Theory]
+    [InlineData(GloveLinkStatus.Connected, true, null, GloveLinkStatus.Connected)]      // linked, battery timed out
+    [InlineData(GloveLinkStatus.Connected, false, 3.9, GloveLinkStatus.Disconnected)]   // the key beats a stale reading
+    [InlineData(GloveLinkStatus.Connected, null, null, GloveLinkStatus.NoReading)]      // older firmware: inferred
+    [InlineData(GloveLinkStatus.Connected, null, 3.9, GloveLinkStatus.Connected)]
+    [InlineData(GloveLinkStatus.Connecting, true, 3.9, GloveLinkStatus.Disconnected)]   // no primary, no secondary
+    [InlineData(GloveLinkStatus.Disconnected, true, 3.9, GloveLinkStatus.Disconnected)]
+    public void Secondary_link_prefers_the_info_key(GloveLinkStatus primary, bool? linked, double? volts, GloveLinkStatus expected) =>
+        Assert.Equal(expected, GloveStatusText.SecondaryLink(primary, linked, volts));
+
     [Fact]
     public void Sentinel_voltage_formats_as_no_reading() =>
         Assert.Equal("—", BatteryReading.Format(BatteryReading.FromRaw(0.0)));
