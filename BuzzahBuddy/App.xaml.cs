@@ -19,6 +19,7 @@ public partial class App : Application
 	public App(IAppLifecycleService lifecycle, IThemeService theme, AutoConnectService autoConnect,
 		IDataStorageService storage, GloveControlViewModel session)
 	{
+		Console.WriteLine("[VOICE] App ctor"); // SPIKE: removed in Task 5
 		InitializeComponent();
 		_lifecycle = lifecycle;
 		_theme = theme;

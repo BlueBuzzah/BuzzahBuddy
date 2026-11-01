@@ -57,5 +57,24 @@
 	     ever ships its own crypto. -->
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<!-- Siri phrases say \(.applicationName); these let "Glove", "Gloves" or "BlueBuzzah"
+	     stand in for BuzzahBuddy ("Check Glove battery"). Three is iOS's limit per language. -->
+	<key>INAlternativeAppNames</key>
+	<array>
+		<dict>
+			<key>INAlternativeAppName</key>
+			<string>Glove</string>
+		</dict>
+		<dict>
+			<key>INAlternativeAppName</key>
+			<string>Gloves</string>
+		</dict>
+		<dict>
+			<key>INAlternativeAppName</key>
+			<string>BlueBuzzah</string>
+			<key>INAlternativeAppNamePronunciationHint</key>
+			<string>blue buzzah</string>
+		</dict>
+	</array>
 </dict>
 </plist>

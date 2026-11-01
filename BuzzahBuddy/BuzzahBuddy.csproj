@@ -145,4 +145,27 @@
 		<EmbeddedResource Include="Resources\Brand\bluebuzzah-mark.png" LogicalName="BuzzahBuddy.Report.%(Filename)%(Extension)" />
 	</ItemGroup>
 
+	<!-- Siri voice commands (iOS only): the Swift App Intents framework in native/BuzzahBuddyKit,
+	     built and bound by BuzzahBuddy.Native.Binding. -->
+	<ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">
+		<ProjectReference Include="..\BuzzahBuddy.Native.Binding\BuzzahBuddy.Native.Binding.csproj" />
+	</ItemGroup>
+
+	<!-- iOS discovers App Intents only from Metadata.appintents inside the .app. The binding's
+	     ExtractAppIntentsMetadata target takes it out of the framework's xcarchive; this copies it
+	     in. Keep the slash after $(AppBundleDir): without it the folder lands beside the bundle
+	     and every intent fails silently. -->
+	<Target Name="CopyAppIntentsMetadata" AfterTargets="_CopyResourcesToBundle"
+		Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">
+		<PropertyGroup>
+			<_BindingMetadataDir>..\BuzzahBuddy.Native.Binding\obj\$(Configuration)\$(TargetFramework)\xcode\Metadata.appintents</_BindingMetadataDir>
+		</PropertyGroup>
+		<ItemGroup>
+			<_AppIntentsMetadata Include="$(_BindingMetadataDir)\**\*" Condition="Exists('$(_BindingMetadataDir)')" />
+		</ItemGroup>
+		<Error Text="Metadata.appintents not found at $(_BindingMetadataDir); Siri would find no intents." Condition="'@(_AppIntentsMetadata)' == ''" />
+		<Copy SourceFiles="@(_AppIntentsMetadata)"
+			DestinationFolder="$(AppBundleDir)/Metadata.appintents/%(RecursiveDir)" />
+	</Target>
+
 </Project>

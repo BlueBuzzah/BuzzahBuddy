@@ -1,0 +1,22 @@
+# Edit this, then run `xcodegen generate` and commit the project.
+name: BuzzahBuddyKit
+options:
+  deploymentTarget:
+    iOS: "15.0"
+targets:
+  BuzzahBuddyKit:
+    type: framework
+    platform: iOS
+    deploymentTarget: "15.0"
+    sources:
+      - Voice
+    scheme: {}
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.rbonestell.buzzahbuddy.kit
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: "5.0"
+        SKIP_INSTALL: NO
+        SWIFT_REFLECTION_METADATA_LEVEL: all
+        BUILD_LIBRARY_FOR_DISTRIBUTION: YES
+        OTHER_LDFLAGS: -weak_framework AppIntents
