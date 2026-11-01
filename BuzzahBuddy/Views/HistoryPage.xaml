@@ -185,10 +185,12 @@
                             <VerticalStackLayout Spacing="{StaticResource Space4}">
                                 <Label Text="{Binding ShareText}" />
                                 <VerticalStackLayout Spacing="{StaticResource Space2}">
-                                    <Button Text="Share Report"
+                                    <Button x:Name="ShareReportButton"
+                                            Text="Share Report"
                                             Style="{StaticResource ButtonPrimary}"
                                             ContentLayout="Left,8"
                                             Command="{Binding ShareReportCommand}"
+                                            CommandParameter="{x:Reference ShareReportButton}"
                                             IsEnabled="{Binding HasSessions}"
                                             SemanticProperties.Description="Share Report"
                                             AutomationId="ShareReportButton">

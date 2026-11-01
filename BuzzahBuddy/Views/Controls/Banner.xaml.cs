@@ -130,6 +130,8 @@ public partial class Banner : ContentView
         // Actions inside a banner follow its tone and are always outlined (Banner README).
         ActionButton.Text = ActionText;
         ActionButton.Command = ActionCommand;
+        // Share-style actions anchor their iPad popover on this button; other commands ignore it.
+        ActionButton.CommandParameter = ActionButton;
         ActionButton.IsVisible = !string.IsNullOrEmpty(ActionText);
         ActionButton.HorizontalOptions = ActionAtEnd ? LayoutOptions.End : LayoutOptions.Start;
         if (ink != _actionInk)

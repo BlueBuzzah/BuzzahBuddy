@@ -1,5 +1,6 @@
 using BuzzahBuddy.Helpers;
 using BuzzahBuddy.Services.Dialogs;
+using Microsoft.Maui.Controls.Shapes;
 using Microsoft.Maui.Controls.PlatformConfiguration;
 using Microsoft.Maui.Controls.PlatformConfiguration.iOSSpecific;
 
@@ -24,6 +25,16 @@ public partial class ConfirmSheetPage : ContentPage
         CancelButton.Text = request.CancelText;
         SemanticProperties.SetDescription(CancelButton, request.CancelText);
 
+        // iOS: let the sheet's background run under the home indicator (the scrim would
+        // otherwise show as a strip below it); LayoutSheet pads the buttons above it.
+        if (DeviceInfo.Platform == DevicePlatform.iOS)
+        {
+            var edges = new SafeAreaEdges(SafeAreaRegions.Container, SafeAreaRegions.Container, SafeAreaRegions.Container, SafeAreaRegions.None);
+            SafeAreaEdges = edges;
+            Root.SafeAreaEdges = edges;
+        }
+        SizeChanged += (_, _) => LayoutSheet();
+
         // Screen readers start on the title. Not in OnAppearing: the label has no handler yet.
         Loaded += (_, _) => TitleLabel.SetSemanticFocus();
         // The page is pushed without animation so the scrim shows at once; only the sheet slides.
@@ -36,6 +47,39 @@ public partial class ConfirmSheetPage : ContentPage
     /// <summary>Slides the sheet back down; the caller then removes the page.</summary>
     public Task SlideOutAsync() =>
         Motion.Reduce ? Task.CompletedTask : Sheet.TranslateToAsync(0, Sheet.Height, Duration("DurationBase"), Motion.Standard);
+
+    private const double WideWindow = 600, SheetMaxWidth = 560, FloatingMargin = 24, SheetCorner = 28;
+
+    /// <summary>
+    /// Narrow windows: a full-width bottom sheet. From 600 wide: a centered card, at most 560
+    /// wide, floating 24 above the bottom with all corners round. Re-runs on every size
+    /// change so rotating with the sheet open re-centers it.
+    /// </summary>
+    private void LayoutSheet()
+    {
+        if (Width <= 0)
+            return;
+        var pad = (double)Microsoft.Maui.Controls.Application.Current!.Resources["Space8"];
+        var inset = DeviceInfo.Platform == DevicePlatform.iOS ? On<iOS>().SafeAreaInsets().Bottom : 0;
+        if (Width >= WideWindow)
+        {
+            Sheet.MaximumWidthRequest = SheetMaxWidth;
+            Sheet.WidthRequest = Math.Min(SheetMaxWidth, Width);
+            Sheet.HorizontalOptions = LayoutOptions.Center;
+            Sheet.Margin = new Thickness(0, 0, 0, Math.Max(FloatingMargin, inset));
+            Sheet.Padding = new Thickness(pad);
+            Sheet.StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(SheetCorner) };
+        }
+        else
+        {
+            Sheet.MaximumWidthRequest = double.PositiveInfinity;
+            Sheet.WidthRequest = -1;
+            Sheet.HorizontalOptions = LayoutOptions.Fill;
+            Sheet.Margin = new Thickness(0);
+            Sheet.Padding = new Thickness(pad, pad, pad, pad + inset);
+            Sheet.StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(SheetCorner, SheetCorner, 0, 0) };
+        }
+    }
 
     private void SlideIn(object? sender, EventArgs e)
     {

@@ -12,7 +12,7 @@
 
     <!-- The sheet never grows past the screen: the title and message scroll, and the
          buttons stay in a fixed row beneath them, so both are always reachable. -->
-    <Grid Padding="0,48,0,0">
+    <Grid x:Name="Root" Padding="0,48,0,0">
         <Border x:Name="Sheet"
                 VerticalOptions="End"
                 BackgroundColor="{DynamicResource SurfaceOverlay}"

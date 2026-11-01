@@ -286,7 +286,7 @@ public partial class HistoryViewModel : BaseViewModel
 	}
 
 	[RelayCommand]
-	private async Task ShareReportAsync()
+	private async Task ShareReportAsync(VisualElement? anchor)
 	{
 		if (!_shareGuard.TryAcquire())
 			return;
@@ -333,6 +333,7 @@ public partial class HistoryViewModel : BaseViewModel
 			{
 				Title = sample ? "BuzzahBuddy Sample Report" : "BuzzahBuddy Report",
 				Files = [new ShareFile(pdf, "application/pdf"), new ShareFile(csv, "text/csv")],
+				PresentationSourceBounds = ShareAnchor.Bounds(anchor),
 			});
 		}
 		catch (Exception ex)
