@@ -8,12 +8,15 @@ public partial class DeviceListPage : ContentPage
 {
     private readonly DeviceListViewModel _viewModel;
     private PageLayout? _layout;
+    private bool? _twoPane;
 
     public DeviceListPage(DeviceListViewModel viewModel)
     {
         InitializeComponent();
         _viewModel = viewModel;
         BindingContext = viewModel;
+        LeftStack.GroupForScreenReader();
+        RightStack.GroupForScreenReader();
         this.TrackLayout(ApplyLayout);
         // Two panes only while connected; the page is a singleton and ConnectionInfo is get-only, so one subscription.
         viewModel.ConnectionInfo.PropertyChanged += (_, e) =>
@@ -32,8 +35,13 @@ public partial class DeviceListPage : ContentPage
         _layout = layout;
         var twoPane = layout.TwoPane && _viewModel.ConnectionInfo.IsConnected;
 
-        LeftStack.Clear();
-        RightStack.Clear();
+        var modeChanged = _twoPane != twoPane;
+        _twoPane = twoPane;
+        if (modeChanged)
+        {
+            LeftStack.Clear();
+            RightStack.Clear();
+        }
         if (twoPane)
         {
             ConnectedGrid.WidthRequest = -1;
@@ -41,11 +49,14 @@ public partial class DeviceListPage : ContentPage
             ConnectedGrid.Margin = new Thickness(layout.Gutter, 0);
             ConnectedGrid.ColumnSpacing = (double)Application.Current!.Resources["Space8"];
             ConnectedGrid.ColumnDefinitions = new ColumnDefinitionCollection(new ColumnDefinition(GridLength.Star), new ColumnDefinition(GridLength.Star));
-            LeftStack.Add(HeaderSection);
-            LeftStack.Add(OptionsSection);
-            LeftStack.Add(ApplySection);
-            LeftStack.Add(DisconnectSection);
-            RightStack.Add(ProfileSection);
+            if (modeChanged)
+            {
+                LeftStack.Add(HeaderSection);
+                LeftStack.Add(OptionsSection);
+                LeftStack.Add(ApplySection);
+                LeftStack.Add(DisconnectSection);
+                RightStack.Add(ProfileSection);
+            }
             RightStack.IsVisible = true;
         }
         else
@@ -54,11 +65,14 @@ public partial class DeviceListPage : ContentPage
             ConnectedGrid.ApplyColumn(layout);
             ConnectedGrid.ColumnSpacing = 0;
             ConnectedGrid.ColumnDefinitions = new ColumnDefinitionCollection(new ColumnDefinition(GridLength.Star));
-            LeftStack.Add(HeaderSection);
-            LeftStack.Add(ProfileSection);
-            LeftStack.Add(OptionsSection);
-            LeftStack.Add(ApplySection);
-            LeftStack.Add(DisconnectSection);
+            if (modeChanged)
+            {
+                LeftStack.Add(HeaderSection);
+                LeftStack.Add(ProfileSection);
+                LeftStack.Add(OptionsSection);
+                LeftStack.Add(ApplySection);
+                LeftStack.Add(DisconnectSection);
+            }
             RightStack.IsVisible = false;
         }
 

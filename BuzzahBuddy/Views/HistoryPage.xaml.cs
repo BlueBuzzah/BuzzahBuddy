@@ -27,6 +27,8 @@ public partial class HistoryPage : ContentPage
         _viewModel.PropertyChanging += OnViewModelChanging;
 #endif
         _viewModel.DataSourceChanged += (_, _) => ScrollToTop();
+        SummaryScroll.GroupForScreenReader();
+        DayList.GroupForScreenReader();
         this.TrackLayout(ApplyLayout);
     }
 

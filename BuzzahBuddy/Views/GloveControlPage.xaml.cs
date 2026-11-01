@@ -20,6 +20,8 @@ public partial class GloveControlPage : ContentPage
         Scroller.SizeChanged += (_, _) => ScrollContent.MinimumHeightRequest = Scroller.Height;
         // The ring fits the pane's allocated size, so it follows the pane, not a guess.
         RingPane.SizeChanged += (_, _) => FitRing();
+        MainColumn.GroupForScreenReader();
+        RingPane.GroupForScreenReader();
         this.TrackLayout(ApplyLayout);
         // Two panes only while connected; the page is a singleton and ConnectionInfo is get-only, so one subscription.
         viewModel.ConnectionInfo.PropertyChanged += (_, e) =>

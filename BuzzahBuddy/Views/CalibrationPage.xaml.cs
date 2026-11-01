@@ -17,6 +17,8 @@ public partial class CalibrationPage : ContentPage
 
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
         Unloaded += OnPageUnloaded;
+        PrimarySection.GroupForScreenReader();
+        SecondarySection.GroupForScreenReader();
         this.TrackLayout(ApplyLayout);
     }
 
