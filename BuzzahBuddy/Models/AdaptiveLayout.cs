@@ -26,6 +26,17 @@ public static class AdaptiveLayout
     /// <summary>Prose width (42rem) at default text size; it scales with the OS text size like rem.</summary>
     public const double ColumnMaxWidth = 672;
 
+    /// <summary>
+    /// True when a page has to re-apply its layout. Height alone doesn't count (an on-screen keyboard,
+    /// navigation bar or in-call status bar changes it); only <see cref="PageLayout.Landscape"/> reads it.
+    /// </summary>
+    public static bool NeedsRelayout(PageLayout previous, PageLayout next) =>
+        previous.Width != next.Width
+        || previous.TwoPane != next.TwoPane
+        || previous.Landscape != next.Landscape
+        || previous.ColumnWidth != next.ColumnWidth
+        || previous.Gutter != next.Gutter;
+
     public static PageLayout For(double width, double height, double textScale)
     {
         var scale = Math.Max(1, textScale);

@@ -58,4 +58,16 @@ public class AdaptiveLayoutTests
     [Fact]
     public void Column_is_never_negative_in_a_tiny_window() =>
         Assert.Equal(0, AdaptiveLayout.For(20, 800, 1).ColumnWidth);
+
+    [Fact]
+    public void Height_only_change_needs_no_relayout() =>
+        Assert.False(AdaptiveLayout.NeedsRelayout(AdaptiveLayout.For(1032, 1376, 1), AdaptiveLayout.For(1032, 1300, 1)));
+
+    [Fact]
+    public void Rotation_needs_relayout() =>
+        Assert.True(AdaptiveLayout.NeedsRelayout(AdaptiveLayout.For(1032, 1376, 1), AdaptiveLayout.For(1376, 1032, 1)));
+
+    [Fact]
+    public void Height_change_that_flips_landscape_needs_relayout() =>
+        Assert.True(AdaptiveLayout.NeedsRelayout(AdaptiveLayout.For(800, 700, 1), AdaptiveLayout.For(800, 900, 1)));
 }

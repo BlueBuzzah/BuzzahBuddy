@@ -21,7 +21,7 @@ public static class LayoutTracking
             if (page.Width <= 0 || page.Height <= 0)
                 return;
             var layout = AdaptiveLayout.For(page.Width, page.Height, OsAccessibility.TextScale);
-            if (layout == last)
+            if (last is { } previous && !AdaptiveLayout.NeedsRelayout(previous, layout))
                 return;
             last = layout;
             update(layout);
