@@ -191,7 +191,9 @@
         </Grid>
         </Grid>
 
-        <!-- After MainColumn so screen readers reach the Session heading first and the ring last. -->
+        <!-- After MainColumn so VoiceOver (tree order, grouped per pane) reaches the Session heading first and
+             the ring last. TalkBack orders siblings by on-screen position (top, then left), so in two panes
+             it reads the left ring pane before the right column; panes read left to right. -->
         <Grid x:Name="RingPane" IsVisible="False" />
     </Grid>
 
