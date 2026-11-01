@@ -38,7 +38,7 @@
             <Label Text="Still Waiting for Your Gloves"
                    Style="{StaticResource TypeHeadline}"
                    SemanticProperties.HeadingLevel="Level1" />
-            <Label Text="{Binding Source={x:Static helpers:DeviceWords.This}, StringFormat='Make sure both gloves are on and near your {0}.'}" />
+            <Label Text="{x:Static helpers:DeviceWords.ApplyingNearNote}" />
             <Button Text="Keep Waiting"
                     Style="{StaticResource ButtonPrimary}"
                     Command="{Binding KeepWaitingCommand}"

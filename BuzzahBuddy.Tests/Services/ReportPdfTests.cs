@@ -251,6 +251,10 @@ public class ReportPdfTests
             AssertNewestQuotesShown(layout, notes);
     }
 
+    [Fact]
+    public void Build_WithoutADevice_UsesTheCurrentOne() =>
+        Assert.Equal(DeviceNoun.Current, HistoryReport.Build(Fixture(), From, Today, Created, comparePrevious: true).Device);
+
     [Theory]
     [InlineData("phone")]
     [InlineData("iPad")]

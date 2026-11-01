@@ -63,7 +63,7 @@ public sealed record ReportModel(
     IReadOnlyList<NoteQuote> RecentNotes,
     int NoteCount,
     bool Sample = false,
-    string Device = "phone");
+    string Device = "");
 
 /// <summary>The PDF report model and CSV the History tab hands to the share sheet.</summary>
 public static class HistoryReport
@@ -157,8 +157,8 @@ public static class HistoryReport
     /// <summary>Everything the PDF report shows for <paramref name="from"/> to <paramref name="to"/>, inclusive.</summary>
     /// <param name="comparePrevious">Compare with the same number of days before <paramref name="from"/>; false for All Time.</param>
     /// <param name="sample">The data is Demo Mode's sample, which the report says on every page.</param>
-    /// <param name="device">The noun for the device the report was recorded on, from <see cref="DeviceNoun"/>.</param>
-    public static ReportModel Build(HistoryData data, DateOnly from, DateOnly to, DateTimeOffset createdAt, bool comparePrevious, bool sample = false, string device = "phone")
+    /// <param name="device">The noun for the device the report was recorded on, from <see cref="DeviceNoun"/>; <see cref="DeviceNoun.Current"/> when null.</param>
+    public static ReportModel Build(HistoryData data, DateOnly from, DateOnly to, DateTimeOffset createdAt, bool comparePrevious, bool sample = false, string? device = null)
     {
         var sessions = InRange(data.Sessions, from, to).ToList();
         var secondsByDay = sessions.GroupBy(s => s.Day).ToDictionary(g => g.Key, g => g.Sum(s => s.TherapySeconds));
@@ -256,7 +256,7 @@ public static class HistoryReport
             recentNotes,
             notes.Count,
             sample,
-            device);
+            device ?? DeviceNoun.Current);
     }
 
     /// <summary>The summary sentences above the tiles.</summary>
