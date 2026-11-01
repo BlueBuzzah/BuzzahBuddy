@@ -34,6 +34,7 @@ public partial class ConfirmSheetPage : ContentPage
             Root.SafeAreaEdges = edges;
         }
         SizeChanged += (_, _) => LayoutSheet();
+        Avail.SizeChanged += (_, _) => CapSheet();
 
         // Screen readers start on the title. Not in OnAppearing: the label has no handler yet.
         Loaded += (_, _) => TitleLabel.SetSemanticFocus();
@@ -79,14 +80,19 @@ public partial class ConfirmSheetPage : ContentPage
             Sheet.Padding = new Thickness(pad, pad, pad, pad + inset);
             Sheet.StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(SheetCorner, SheetCorner, 0, 0) };
         }
-        // The text scrolls only when the buttons would not fit. A star row filled the whole
-        // window on Android, so the row is Auto and its height is capped here instead.
-        MessageScroll.MaximumHeightRequest = Math.Max(96,
-            Height - Root.Padding.Top - Sheet.Margin.Bottom - Sheet.Padding.VerticalThickness - ButtonsHeight);
+        CapSheet();
     }
 
-    // Confirm (56) and Cancel (56) plus the 12 and 20 above them.
-    private const double ButtonsHeight = 144;
+    /// <summary>
+    /// The sheet never grows past the space Avail really has (the window minus the safe
+    /// area and the top gap); the star row then makes the title and message scroll while
+    /// the buttons keep their own height. Short messages stay content-sized.
+    /// </summary>
+    private void CapSheet()
+    {
+        if (Avail.Height > 0)
+            Sheet.MaximumHeightRequest = Math.Max(0, Avail.Height - Sheet.Margin.VerticalThickness);
+    }
 
     private void SlideIn(object? sender, EventArgs e)
     {
