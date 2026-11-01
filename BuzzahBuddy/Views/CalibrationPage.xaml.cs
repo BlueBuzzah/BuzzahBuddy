@@ -22,21 +22,12 @@ public partial class CalibrationPage : ContentPage
 
     private bool? _twoPane;
 
-    // Wide window: the step card fills the window and the two gloves sit side by side. Otherwise one
-    // centered column with Primary above Secondary. The two sections are moved, never recreated, so
+    // Always one centered column. On a wide window the two gloves sit side by side inside it;
+    // otherwise Primary sits above Secondary. The two sections are moved, never recreated, so
     // their bindings and AutomationIds stay intact; they are only re-arranged on a mode change.
     private void ApplyLayout(PageLayout layout)
     {
-        if (layout.TwoPane)
-        {
-            Column.WidthRequest = -1;
-            Column.HorizontalOptions = LayoutOptions.Fill;
-            Column.Margin = new Thickness(layout.Gutter, 0);
-        }
-        else
-        {
-            Column.ApplyColumn(layout);
-        }
+        Column.ApplyColumn(layout);
 
         if (_twoPane == layout.TwoPane)
             return;
