@@ -185,4 +185,22 @@
 		<Message Importance="high" Text="Copied $(_AppIntentsVariant) Metadata.appintents from $(_BindingMetadataDir)" />
 	</Target>
 
+	<!-- The framework's build trains Siri's phrase model (Metadata.appintents/nlu) under the
+	     framework's bundle id, so Siri may not file the phrases under this app. Retrain it here
+	     under the app's id, from the compiled app manifest: its display name, INAlternativeAppNames
+	     and CFBundleDevelopmentRegion (no region, no model). The options are Xcode's own. -->
+	<Target Name="TrainAppIntentsPhrases" AfterTargets="CopyAppIntentsMetadata"
+		Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">
+		<PropertyGroup>
+			<_AppIntentsTrainingDir>$(IntermediateOutputPath)appintents-ssu</_AppIntentsTrainingDir>
+			<_AppIntentsMetadataDir>$(AppBundleDir)/Metadata.appintents</_AppIntentsMetadataDir>
+		</PropertyGroup>
+		<RemoveDir Directories="$(_AppIntentsMetadataDir)/nlu;$(_AppIntentsTrainingDir)" />
+		<MakeDir Directories="$(_AppIntentsTrainingDir)" />
+		<WriteLinesToFile File="$(_AppIntentsTrainingDir)/dependencies.list" Lines="" Overwrite="true" />
+		<Exec Command="xcrun appintentsnltrainingprocessor --infoplist-path &quot;$(_TemporaryAppManifest)&quot; --source-file &quot;$(_TemporaryAppManifest)&quot; --bundle-id $(ApplicationId) --extracted-metadata-path &quot;$(_AppIntentsMetadataDir)&quot; --product-path &quot;$(AppBundleDir)&quot; --temp-dir-path &quot;$(_AppIntentsTrainingDir)&quot; --metadata-file-list &quot;$(_AppIntentsTrainingDir)/dependencies.list&quot; --deployment-postprocessing --archive-ssu-assets" />
+		<Error Text="Siri phrase training produced no model; check CFBundleDevelopmentRegion in Platforms/iOS/Info.plist." Condition="!Exists('$(_AppIntentsMetadataDir)/nlu/nlu.lzfse')" />
+		<Message Importance="high" Text="Trained Siri phrases for $(ApplicationId)" />
+	</Target>
+
 </Project>

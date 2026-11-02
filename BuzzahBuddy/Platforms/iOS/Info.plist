@@ -4,6 +4,10 @@
 <dict>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- Siri's phrase model is trained per development language: without it the build's
+	     TrainAppIntentsPhrases target produces no model and fails. -->
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
 	<!-- iPhone and iPad (1, 2). iPhone stays portrait for reach: the bottom-anchored
 	     controls are laid out for tremor-friendly one-handed use. iPad multitasking
 	     needs all four orientations and live resizing (App Store validation,
