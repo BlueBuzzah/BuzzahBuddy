@@ -83,6 +83,7 @@ public static class MauiProgram
 		TintButtonIconsWithText();
 #if IOS
 		builder.ConfigureMauiHandlers(handlers => handlers.AddHandler<Shell, TabBarShellRenderer>());
+		WindowControlsInset.Register();
 #endif
 		BuzzahBuddy.Helpers.Typography.RegisterHandlers();
 
