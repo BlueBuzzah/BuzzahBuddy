@@ -3,6 +3,13 @@ namespace BuzzahBuddy.Tests.TestHelpers;
 /// <summary>
 /// A clock tests move by hand. Timers (and so <c>Task.Delay(delay, time)</c>) fire only
 /// when <see cref="Advance"/> reaches their due time, on the caller's thread.
+/// <para>
+/// <see cref="Advance"/> picks the due timers once, before firing any, so two edges follow.
+/// A timer created (or re-armed) by a callback during an <see cref="Advance"/> doesn't fire in
+/// that call, even if its due time falls inside the same jump; the next Advance fires it.
+/// A timer already in the due batch still fires even if an earlier callback re-armed it
+/// (Change) to a later time; only Dispose stops it.
+/// </para>
 /// </summary>
 public sealed class ManualTimeProvider : TimeProvider
 {
