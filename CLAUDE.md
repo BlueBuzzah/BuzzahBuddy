@@ -197,6 +197,11 @@ and `MainThread.BeginInvokeOnMainThread` in service-event handlers.
   body; Android 14+ already scales large text less.
 - **Safe area:** every `ContentPage` sets `SafeAreaEdges="Container"` (.NET 10 defaults
   to `None`; Android 16 forces edge-to-edge, under the gesture bar). `SoftInput` unused.
+  In an iPadOS 26+ window the close/resize controls sit outside the safe area;
+  `Platforms/iOS/WindowControlsInset` pushes every page that hides its nav bar below them.
+- **Windowed iPad testing:** a build whose app manifest lists iPhone only runs as a scaled-up
+  iPhone app in the window (huge text, clipped tab labels), which looks like a layout bug.
+  Check the installed bundle's `UIDeviceFamily` before debugging the layout.
 
 - **Width model:** lay out by window size, never `DeviceIdiom` (only `DeviceWords`/`DeviceNoun`
   use it, for copy). `AdaptiveLayout.For(width, height, textScale)` gives a `PageLayout`; two panes
@@ -209,8 +214,8 @@ and `MainThread.BeginInvokeOnMainThread` in service-event handlers.
   centered column, the gloves' finger sections side by side in step 3. Forms stay one column.
 - **iPad share sheets** need an anchor: pass `ShareAnchor.Bounds`, or the popover has no source.
 - **Orientation:** `Info.plist` is iPhone portrait only, iPad all four; `UIApplicationSupportsMultipleScenes`
-  stays false. Incremental iOS builds may not re-copy an edited `Info.plist`: delete
-  `obj/Debug/net10.0-ios/iossimulator-arm64/AppManifest.plist` and `_CompileAppManifest.inputs`.
+  stays false. The iOS SDK doesn't rebuild the app manifest when only `Info.plist` changes;
+  the csproj's `AddInfoPlistToAppManifestInputs` target makes it, so don't delete `obj/` files by hand.
 - **AOT label trap:** `{Binding Source={x:Static ...}, StringFormat=...}` labels did not render under
   iOS Release AOT. Use `x:Static` strings.
 

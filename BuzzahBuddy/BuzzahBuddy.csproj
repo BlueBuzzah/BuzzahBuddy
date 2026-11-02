@@ -149,4 +149,12 @@
 		<EmbeddedResource Include="Resources\Brand\bluebuzzah-mark.png" LogicalName="BuzzahBuddy.Report.%(Filename)%(Extension)" />
 	</ItemGroup>
 
+	<!-- The iOS SDK's _CompileAppManifest doesn't list Info.plist among its Inputs, so an edited
+	     (or merged) Info.plist leaves the old obj/.../AppManifest.plist in the app. -->
+	<Target Name="AddInfoPlistToAppManifestInputs" AfterTargets="_CompileAppManifestInputs">
+		<ItemGroup>
+			<_CompileAppManifestInputFile Include="$(AppBundleManifest)" />
+		</ItemGroup>
+	</Target>
+
 </Project>
