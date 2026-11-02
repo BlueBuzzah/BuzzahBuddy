@@ -931,16 +931,6 @@ public partial class GloveControlViewModel : BaseViewModel
     }
 
     /// <summary>
-    /// Keeps the displayed profile in lockstep with the device. GloveControlService
-    /// fetches INFO once per (re)connect and raises this for every INFO response.
-    /// </summary>
-    /// <summary>
-    /// Mirrors the service's session state. StartSessionAsync/PauseSessionAsync/etc.
-    /// synthesize a status on command success, so the session UI (progress card,
-    /// button text, Stop button) updates even if the follow-up SESSION_STATUS poll
-    /// fails or is slow while the gloves establish sync.
-    /// </summary>
-    /// <summary>
     /// A stop the gloves accepted, from the Stop button or Siri, so the IDLE that follows
     /// closes the session as stopped, not ended early. The service raises this and then the
     /// IDLE <see cref="OnServiceSessionStateChanged"/> on one thread with no await between, and
@@ -951,6 +941,16 @@ public partial class GloveControlViewModel : BaseViewModel
     private void OnServiceSessionStopRequested(object? sender, EventArgs e) =>
         MainThread.BeginInvokeOnMainThread(() => _userRequestedStop = true);
 
+    /// <summary>
+    /// Keeps the displayed profile in lockstep with the device. GloveControlService
+    /// fetches INFO once per (re)connect and raises this for every INFO response.
+    /// </summary>
+    /// <summary>
+    /// Mirrors the service's session state. StartSessionAsync/PauseSessionAsync/etc.
+    /// synthesize a status on command success, so the session UI (progress card,
+    /// button text, Stop button) updates even if the follow-up SESSION_STATUS poll
+    /// fails or is slow while the gloves establish sync.
+    /// </summary>
     private void OnServiceSessionStateChanged(object? sender, SessionStatus status)
     {
         MainThread.BeginInvokeOnMainThread(() =>
