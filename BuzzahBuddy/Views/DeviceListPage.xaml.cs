@@ -97,7 +97,7 @@ public partial class DeviceListPage : ContentPage
             return;
         // duration-fast, ease-standard (design system Motion).
         var fast = (uint)(int)Application.Current!.Resources["DurationFast"];
-        await card.ScaleTo(0.98, fast, Helpers.Motion.Standard);
-        await card.ScaleTo(1.0, fast, Helpers.Motion.Standard);
+        await card.ScaleToAsync(0.98, fast, Helpers.Motion.Standard);
+        await card.ScaleToAsync(1.0, fast, Helpers.Motion.Standard);
     }
 }

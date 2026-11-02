@@ -316,7 +316,7 @@ public partial class GloveControlViewModel : BaseViewModel
     {
         if (!ConnectionInfo.IsConnected)
         {
-            await Shell.Current.DisplayAlert(
+            await Shell.Current.DisplayAlertAsync(
                 "Connection Lost",
                 "Connect again on the Gloves tab, then try again.",
                 "OK");
@@ -325,7 +325,7 @@ public partial class GloveControlViewModel : BaseViewModel
 
         if (!IsSessionActive && SelectedProfile == null)
         {
-            await Shell.Current.DisplayAlert(
+            await Shell.Current.DisplayAlertAsync(
                 "Choose a Profile First",
                 "Go to Gloves, pick a therapy profile, then tap Apply Settings.",
                 "OK");
@@ -342,7 +342,7 @@ public partial class GloveControlViewModel : BaseViewModel
                     SelectedProfile != null &&
                     SelectedProfile.ProfileId != _gloveControlService.DeviceProfileId)
                 {
-                    await Shell.Current.DisplayAlert(
+                    await Shell.Current.DisplayAlertAsync(
                         "Apply Your Profile First",
                         $"Your gloves are still using another profile. Go to Gloves and tap Apply Settings to use \u201c{SelectedProfile.Name}\u201d.",
                         "OK");
@@ -377,12 +377,12 @@ public partial class GloveControlViewModel : BaseViewModel
         catch (BlueBuzzahCommandException ex)
         {
             var error = ErrorMessageHelper.GetFriendlyError(ex.Message);
-            await Shell.Current.DisplayAlert(error.Title, error.ForAlert, "OK");
+            await Shell.Current.DisplayAlertAsync(error.Title, error.ForAlert, "OK");
         }
         catch (Exception ex)
         {
             var error = ErrorMessageHelper.FromException(ex);
-            await Shell.Current.DisplayAlert(error.Title, error.ForAlert, "OK");
+            await Shell.Current.DisplayAlertAsync(error.Title, error.ForAlert, "OK");
         }
         finally
         {
@@ -426,13 +426,13 @@ public partial class GloveControlViewModel : BaseViewModel
             // The session carries on: a later natural end isn't a stop.
             _userRequestedStop = false;
             var error = ErrorMessageHelper.GetFriendlyError(ex.Message);
-            await Shell.Current.DisplayAlert(error.Title, error.ForAlert, "OK");
+            await Shell.Current.DisplayAlertAsync(error.Title, error.ForAlert, "OK");
         }
         catch (Exception ex)
         {
             _userRequestedStop = false;
             var error = ErrorMessageHelper.FromException(ex);
-            await Shell.Current.DisplayAlert(error.Title, error.ForAlert, "OK");
+            await Shell.Current.DisplayAlertAsync(error.Title, error.ForAlert, "OK");
         }
         finally
         {
