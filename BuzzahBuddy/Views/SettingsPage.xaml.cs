@@ -1,3 +1,4 @@
+using BuzzahBuddy.Helpers;
 using BuzzahBuddy.ViewModels;
 
 namespace BuzzahBuddy.Views;
@@ -11,5 +12,6 @@ public partial class SettingsPage : ContentPage
         InitializeComponent();
         _viewModel = viewModel;
         BindingContext = viewModel;
+        this.TrackLayout(layout => Column.ApplyColumn(layout));
     }
 }

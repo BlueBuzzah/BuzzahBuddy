@@ -568,7 +568,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     /// Updater and offers to send its download link to a computer.
     /// </summary>
     [RelayCommand]
-    private async Task ShowFirmwareUpdateAsync()
+    private async Task ShowFirmwareUpdateAsync(VisualElement? anchor)
     {
         var share = await _confirmation.ConfirmAsync(new ConfirmRequest(
             "Update Your Glove Firmware",
@@ -583,6 +583,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
             {
                 Title = "BlueBuzzah Updater",
                 Uri = LatestFirmware.UpdaterUrl,
+                PresentationSourceBounds = ShareAnchor.Bounds(anchor),
             });
     }
 

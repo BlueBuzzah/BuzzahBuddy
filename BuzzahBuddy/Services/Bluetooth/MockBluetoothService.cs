@@ -39,6 +39,10 @@ public class MockBluetoothService : IBluetoothService
     /// <summary>INFO SECONDARY; settable so tests can switch the secondary off.</summary>
     internal bool MockSecondaryLinked { get; set; } = true;
 
+    /// <summary>Boot hardware fault (firmware ERROR); settable so tests can break either glove.</summary>
+    internal bool MockPrimaryFault { get; set; }
+    internal bool MockSecondaryFault { get; set; }
+
     public ConnectionState CurrentConnectionState { get; private set; } = ConnectionState.Disconnected;
     public GloveDevice? ConnectedDevice => _connectedDevice;
     public string? LastConnectedDeviceId => _lastConnectedDeviceId;
@@ -401,6 +405,16 @@ public class MockBluetoothService : IBluetoothService
         if (_mockSessionState != SessionState.IDLE)
         {
             return "ERROR:Session already active\n\x04";
+        }
+
+        // Like firmware: a glove in ERROR refuses, checked before the secondary link
+        if (MockPrimaryFault)
+        {
+            return "ERROR:Primary glove error\n\x04";
+        }
+        if (MockSecondaryLinked && MockSecondaryFault)
+        {
+            return "ERROR:Secondary glove error\n\x04";
         }
 
         // Like firmware: never on the primary alone, checked before the battery

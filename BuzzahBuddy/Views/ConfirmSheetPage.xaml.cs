@@ -1,5 +1,6 @@
 using BuzzahBuddy.Helpers;
 using BuzzahBuddy.Services.Dialogs;
+using Microsoft.Maui.Controls.Shapes;
 using Microsoft.Maui.Controls.PlatformConfiguration;
 using Microsoft.Maui.Controls.PlatformConfiguration.iOSSpecific;
 
@@ -23,6 +24,21 @@ public partial class ConfirmSheetPage : ContentPage
         SemanticProperties.SetDescription(ConfirmButton, request.ConfirmText);
         CancelButton.Text = request.CancelText;
         SemanticProperties.SetDescription(CancelButton, request.CancelText);
+        // space-8 below Confirm, so a repeat tap where the first landed hits Cancel.
+        CancelButton.Margin = new Thickness(0, (double)Microsoft.Maui.Controls.Application.Current!.Resources["Space8"], 0, 0);
+
+        // iOS: let the sheet's background run under the home indicator (the scrim would
+        // otherwise show as a strip below it); LayoutSheet pads the buttons above it.
+        if (DeviceInfo.Platform == DevicePlatform.iOS)
+        {
+            var edges = new SafeAreaEdges(SafeAreaRegions.Container, SafeAreaRegions.Container, SafeAreaRegions.Container, SafeAreaRegions.None);
+            SafeAreaEdges = edges;
+            Root.SafeAreaEdges = edges;
+            Avail.SafeAreaEdges = edges;
+        }
+        SizeChanged += (_, _) => LayoutSheet();
+        Avail.SizeChanged += (_, _) => CapSheet();
+        Buttons.SizeChanged += (_, _) => CapSheet();
 
         // Screen readers start on the title. Not in OnAppearing: the label has no handler yet.
         Loaded += (_, _) => TitleLabel.SetSemanticFocus();
@@ -35,7 +51,57 @@ public partial class ConfirmSheetPage : ContentPage
 
     /// <summary>Slides the sheet back down; the caller then removes the page.</summary>
     public Task SlideOutAsync() =>
-        Motion.Reduce ? Task.CompletedTask : Sheet.TranslateToAsync(0, Sheet.Height, Duration("DurationBase"), Motion.Standard);
+        Motion.Reduce ? Task.CompletedTask : Sheet.TranslateToAsync(0, Sheet.Height + Sheet.Margin.Bottom, Duration("DurationBase"), Motion.Standard);
+
+    private const double WideWindow = 600, SheetMaxWidth = 560, FloatingMargin = 24, SheetCorner = 28;
+
+    /// <summary>
+    /// Narrow windows: a full-width bottom sheet. From 600 wide: a centered card, at most 560
+    /// wide, floating 24 above the bottom with all corners round. Re-runs on every size
+    /// change so rotating with the sheet open re-centers it.
+    /// </summary>
+    private void LayoutSheet()
+    {
+        if (Width <= 0)
+            return;
+        var pad = (double)Microsoft.Maui.Controls.Application.Current!.Resources["Space8"];
+        var inset = DeviceInfo.Platform == DevicePlatform.iOS ? On<iOS>().SafeAreaInsets().Bottom : 0;
+        if (Width >= WideWindow)
+        {
+            Sheet.MaximumWidthRequest = SheetMaxWidth;
+            Sheet.WidthRequest = Math.Min(SheetMaxWidth, Width);
+            Sheet.HorizontalOptions = LayoutOptions.Center;
+            Sheet.Margin = new Thickness(0, 0, 0, Math.Max(FloatingMargin, inset));
+            Sheet.Padding = new Thickness(pad);
+            Sheet.StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(SheetCorner) };
+        }
+        else
+        {
+            Sheet.MaximumWidthRequest = double.PositiveInfinity;
+            Sheet.WidthRequest = -1;
+            Sheet.HorizontalOptions = LayoutOptions.Fill;
+            Sheet.Margin = new Thickness(0);
+            Sheet.Padding = new Thickness(pad, pad, pad, pad + inset);
+            Sheet.StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(SheetCorner, SheetCorner, 0, 0) };
+        }
+        CapSheet();
+    }
+
+    /// <summary>
+    /// The sheet never grows past the space Avail really has (the window minus the safe
+    /// area and the top gap). Rows are Auto, so a short message keeps the sheet content-sized
+    /// on both platforms; only the message scroll is capped, to what is left once the sheet's
+    /// margin, padding, border and the measured buttons are taken out. The buttons' height
+    /// does not depend on the cap, so this settles after one pass.
+    /// </summary>
+    private void CapSheet()
+    {
+        if (Avail.Height <= 0 || Buttons.Height <= 0)
+            return;
+        MessageScroll.MaximumHeightRequest = Math.Max(96,
+            Avail.Height - Sheet.Margin.VerticalThickness - Sheet.Padding.VerticalThickness
+            - 2 * Sheet.StrokeThickness - Buttons.Height);
+    }
 
     private void SlideIn(object? sender, EventArgs e)
     {
@@ -44,7 +110,7 @@ public partial class ConfirmSheetPage : ContentPage
         Sheet.SizeChanged -= SlideIn;
         if (Motion.Reduce)
             return;
-        Sheet.TranslationY = Sheet.Height;
+        Sheet.TranslationY = Sheet.Height + Sheet.Margin.Bottom;
         _ = Sheet.TranslateToAsync(0, 0, Duration("DurationSlow"), Motion.Standard);
     }
 

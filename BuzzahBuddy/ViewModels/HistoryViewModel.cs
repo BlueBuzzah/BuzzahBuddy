@@ -253,7 +253,7 @@ public partial class HistoryViewModel : BaseViewModel
 
 		var result = await Shell.Current.DisplayPromptAsync(
 			$"Note for {row.Title}",
-			"Write how you felt or anything you want to remember. It stays on this phone.",
+			$"Write how you felt or anything you want to remember. It stays on this {DeviceWords.This}.",
 			accept: "Save Note",
 			cancel: "Cancel",
 			placeholder: "For example: Tremor felt lighter after lunch",
@@ -286,7 +286,7 @@ public partial class HistoryViewModel : BaseViewModel
 	}
 
 	[RelayCommand]
-	private async Task ShareReportAsync()
+	private async Task ShareReportAsync(VisualElement? anchor)
 	{
 		if (!_shareGuard.TryAcquire())
 			return;
@@ -315,7 +315,7 @@ public partial class HistoryViewModel : BaseViewModel
 				}
 			}
 
-			var model = HistoryReport.Build(data, from, to, DateTimeOffset.Now, comparePrevious: range != ReportRange.AllTime, sample);
+			var model = HistoryReport.Build(data, from, to, DateTimeOffset.Now, comparePrevious: range != ReportRange.AllTime, sample, DeviceWords.This);
 			var bytes = await Task.Run(() =>
 				ReportPdf.Render(model, ReportAssets.FromEmbedded(typeof(App).Assembly)));
 
@@ -333,6 +333,7 @@ public partial class HistoryViewModel : BaseViewModel
 			{
 				Title = sample ? "BuzzahBuddy Sample Report" : "BuzzahBuddy Report",
 				Files = [new ShareFile(pdf, "application/pdf"), new ShareFile(csv, "text/csv")],
+				PresentationSourceBounds = ShareAnchor.Bounds(anchor),
 			});
 		}
 		catch (Exception ex)

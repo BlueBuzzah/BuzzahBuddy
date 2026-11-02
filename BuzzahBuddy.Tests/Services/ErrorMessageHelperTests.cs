@@ -51,6 +51,27 @@ public class ErrorMessageHelperTests
         Assert.Equal("Secondary not connected", error.Detail);
     }
 
+    [Theory]
+    [InlineData("Primary glove error", "Restart Your Primary Glove", "Restart your primary glove")]
+    [InlineData("Secondary glove error", "Restart Your Secondary Glove", "Restart your secondary glove")]
+    public void Refused_start_for_glove_error_says_restart_that_glove(string raw, string title, string start)
+    {
+        var error = ErrorMessageHelper.GetFriendlyError(raw);
+        Assert.Equal(title, error.Title);
+        Assert.StartsWith(start, error.Message);
+        Assert.Contains("motor connections", error.Message);
+        Assert.Equal(raw, error.Detail);
+    }
+
+    [Fact]
+    public void Refused_start_in_wrong_state_says_try_again()
+    {
+        var error = ErrorMessageHelper.GetFriendlyError("Cannot start in current state");
+        Assert.Equal("Can't Start Right Now", error.Title);
+        Assert.Equal("Wait a moment, then try again.", error.Message);
+        Assert.Equal("Cannot start in current state", error.Detail);
+    }
+
     [Fact]
     public void Test_motors_relay_without_secondary_keeps_its_own_advice()
     {

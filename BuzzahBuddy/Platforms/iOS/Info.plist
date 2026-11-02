@@ -4,15 +4,16 @@
 <dict>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
-	<!-- iPhone only (1). Declaring iPad (2) obliges the app to offer all four
-	     orientations for multitasking, which App Store validation rejects
-	     against a portrait lock (ITMS-90474). The lock is deliberate: the
-	     bottom-anchored controls are laid out for tremor-friendly reach.
+	<!-- iPhone and iPad (1, 2). iPhone stays portrait for reach: the bottom-anchored
+	     controls are laid out for tremor-friendly one-handed use. iPad multitasking
+	     needs all four orientations and live resizing (App Store validation,
+	     ITMS-90474), which the adaptive layouts handle.
 	     UIRequiresFullScreen is not an escape hatch; it is ignored for apps
 	     built against the iOS 26 SDK. -->
 	<key>UIDeviceFamily</key>
 	<array>
 		<integer>1</integer>
+		<integer>2</integer>
 	</array>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
@@ -21,6 +22,13 @@
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<!-- iOS 27 refuses to launch apps without a scene manifest. -->
 	<key>UIApplicationSceneManifest</key>

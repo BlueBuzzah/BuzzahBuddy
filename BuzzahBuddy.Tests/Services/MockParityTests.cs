@@ -104,6 +104,35 @@ public class MockParityTests
         Assert.DoesNotContain("SESSION_STATUS", raw);
     }
 
+    // Firmware refuses SESSION_START when a glove is in ERROR, right after "Session already
+    // active" and before the secondary link and battery checks. An unlinked faulty secondary
+    // can't report, so it reads as not connected.
+    [Theory]
+    [InlineData(true, false, true, "Primary glove error")]
+    [InlineData(true, true, false, "Primary glove error")]
+    [InlineData(false, true, true, "Secondary glove error")]
+    [InlineData(false, true, false, "Secondary not connected")]
+    public async Task SessionStart_GloveFault_IsRefused_LikeFirmware(bool primaryFault, bool secondaryFault, bool linked, string error)
+    {
+        var mock = await ConnectedMock();
+        mock.MockPrimaryFault = primaryFault;
+        mock.MockSecondaryFault = secondaryFault;
+        mock.MockSecondaryLinked = linked;
+        mock.MockPrimaryVolts = 3.70;
+        var raw = await mock.GetRawResponseAsync("SESSION_START");
+        Assert.Contains($"\nERROR:{error}\n", raw);
+        Assert.DoesNotContain("SESSION_STATUS", raw);
+    }
+
+    [Fact]
+    public async Task SessionStart_WhileRunning_SaysAlreadyActive_BeforeGloveFault()
+    {
+        var mock = await ConnectedMock();
+        await mock.GetRawResponseAsync("SESSION_START");
+        mock.MockPrimaryFault = true;
+        Assert.Contains("\nERROR:Session already active\n", await mock.GetRawResponseAsync("SESSION_START"));
+    }
+
     // Firmware refuses SESSION_START while either glove is under 3.80 V.
     [Theory]
     [InlineData(3.95, 3.79, true)]
