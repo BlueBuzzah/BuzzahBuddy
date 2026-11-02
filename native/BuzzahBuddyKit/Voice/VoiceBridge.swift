@@ -18,10 +18,24 @@ import Foundation
 @objc(BBVoice) public final class VoiceBridge: NSObject {
     @objc public static let shared = VoiceBridge()
 
-    /// Written once in AppDelegate.FinishedLaunching, before base.FinishedLaunching and before any
-    /// intent is delivered, so it needs no lock. An intent can still arrive before the app's services
-    /// exist; the C# provider waits for them itself.
-    @objc public var provider: VoiceCommandProvider?
+    /// Written once in AppDelegate.FinishedLaunching, before base.FinishedLaunching. Nothing orders a
+    /// background cold launch's intent after that, so it's locked and VoiceRouter waits for it. An
+    /// intent can also arrive before the app's services exist; the C# provider waits for them itself.
+    @objc public var provider: VoiceCommandProvider? {
+        get {
+            lock.lock()
+            defer { lock.unlock() }
+            return _provider
+        }
+        set {
+            lock.lock()
+            defer { lock.unlock() }
+            _provider = newValue
+        }
+    }
+
+    private let lock = NSLock()
+    private var _provider: VoiceCommandProvider?
 
     private override init() {
         super.init()
@@ -31,8 +45,24 @@ import Foundation
 enum VoiceRouter {
     static let notConnected = "Your gloves aren't connected."
 
+    /// How long an intent waits for AppDelegate to register the provider, then says notConnected.
+    /// Short: Siri gives up after about 10 s, and the app's own waits follow this one.
+    private static let providerWaitNanoseconds: UInt64 = 3_000_000_000
+    private static let providerPollNanoseconds: UInt64 = 100_000_000
+
+    /// The provider, waiting for it on a cold launch that delivered the intent first.
+    private static func awaitProvider() async -> VoiceCommandProvider? {
+        var waited: UInt64 = 0
+        while true {
+            if let provider = VoiceBridge.shared.provider { return provider }
+            if waited >= providerWaitNanoseconds || Task.isCancelled { return nil }
+            try? await Task.sleep(nanoseconds: providerPollNanoseconds)
+            waited += providerPollNanoseconds
+        }
+    }
+
     static func run(_ command: String, profileId: Int = 0) async -> String {
-        guard let provider = VoiceBridge.shared.provider else { return notConnected }
+        guard let provider = await awaitProvider() else { return notConnected }
         return await withCheckedContinuation { continuation in
             let once = ResumeOnce(continuation, label: "run \(command)")
             provider.run(command, profileId: profileId) { once.resume($0) }
@@ -40,7 +70,7 @@ enum VoiceRouter {
     }
 
     static func stopPrecheck() async -> String? {
-        guard let provider = VoiceBridge.shared.provider else { return notConnected }
+        guard let provider = await awaitProvider() else { return notConnected }
         return await withCheckedContinuation { continuation in
             let once = ResumeOnce(continuation, label: "stopPrecheck")
             provider.stopPrecheck { once.resume($0) }

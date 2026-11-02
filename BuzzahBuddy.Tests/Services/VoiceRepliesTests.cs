@@ -252,6 +252,15 @@ public class VoiceRepliesTests
     }
 
     [Fact]
+    public void CheckProfile_Idle_ProfileUnknown_SaysItCouldNotRead()
+    {
+        // Connected, but the profile wasn't read (INFO failed, or firmware without PROFILE).
+        var d = VoiceReplies.Decide(VoiceCommand.CheckProfile, 0, Snap(profile: 0));
+        Assert.Equal("Couldn't read your gloves' profile. Open BuzzahBuddy to try again.", d.Reply);
+        Assert.Equal(VoiceAction.None, d.Action);
+    }
+
+    [Fact]
     public void CheckProfile_RunningAndPaused_WithTimeLeft()
     {
         var running = VoiceReplies.Decide(VoiceCommand.CheckProfile, 0, Snap(session: Running()));
@@ -316,6 +325,7 @@ public class VoiceRepliesTests
         Assert.Equal("Your gloves aren't connected.", VoiceReplies.NotConnected);
         Assert.Equal("Your gloves are restarting. Your session will start soon.", VoiceReplies.Restarting);
         Assert.Equal("Your gloves need charging before a session.", VoiceReplies.NeedsCharging);
+        Assert.Equal("Your secondary glove isn't connected.", VoiceReplies.NoSecondary);
         Assert.Equal("Couldn't start your session. Open BuzzahBuddy to try again.", VoiceReplies.StartFailed);
         Assert.Equal("Session paused.", VoiceReplies.Paused);
         Assert.Equal("Your session is already paused.", VoiceReplies.AlreadyPaused);
@@ -328,6 +338,20 @@ public class VoiceRepliesTests
         Assert.Equal("Couldn't pause your session. Open BuzzahBuddy to try again.", VoiceReplies.PauseFailed);
         Assert.Equal("Couldn't resume your session. Open BuzzahBuddy to try again.", VoiceReplies.ResumeFailed);
         Assert.Equal("Couldn't end your session. Open BuzzahBuddy to try again.", VoiceReplies.StopFailed);
+        Assert.Equal("Couldn't read your gloves' profile. Open BuzzahBuddy to try again.", VoiceReplies.ProfileUnreadable);
+    }
+
+    // Swift speaks these itself (the stop confirmation, and no provider), so it hard-codes them.
+    [Theory]
+    [InlineData(VoiceReplies.ConfirmStop)]
+    [InlineData(VoiceReplies.StopDeclined)]
+    [InlineData(VoiceReplies.NotConnected)]
+    public void SwiftIntents_SpeakTheSameReplies(string reply)
+    {
+        var swift = string.Concat(Directory.GetFiles(Path.Combine(AppContext.BaseDirectory, "Swift"), "*.swift")
+            .Select(File.ReadAllText));
+
+        Assert.Contains($"\"{reply}\"", swift);
     }
 
     [Fact]

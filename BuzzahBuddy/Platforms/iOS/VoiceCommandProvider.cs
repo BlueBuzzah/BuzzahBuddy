@@ -15,8 +15,8 @@ sealed class VoiceCommandProvider : BuzzahBuddy.Native.Binding.VoiceCommandProvi
 {
 	// The provider is registered before base.FinishedLaunching builds the services, and an intent can
 	// arrive on a background cold launch before then. Commands wait this long for ServicesReady, then
-	// give the failure reply.
-	static readonly TimeSpan ServicesWait = TimeSpan.FromSeconds(10);
+	// give the failure reply. Short: Siri gives up after about 10 s, and the connect wait follows.
+	static readonly TimeSpan ServicesWait = TimeSpan.FromSeconds(3);
 
 	readonly TaskCompletionSource _servicesReady = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -51,11 +51,13 @@ sealed class VoiceCommandProvider : BuzzahBuddy.Native.Binding.VoiceCommandProvi
 		var parsed = Parse(command);
 		string reply;
 		VoiceCommandService? service = null;
+		var followThrough = Task.CompletedTask;
 		try
 		{
 			if (parsed is not { } voiceCommand)
 				throw new ArgumentException($"Unknown command \"{command}\"", nameof(command));
 			service = await GetServiceAsync();
+			followThrough = service.FollowThrough;
 			// Only the voice profiles (1-5) can be asked for; anything else is a plain Start.
 			reply = await service.RunAsync(voiceCommand, profileId is >= 1 and <= 5 ? (int)profileId : 0);
 		}
@@ -74,7 +76,9 @@ sealed class VoiceCommandProvider : BuzzahBuddy.Native.Binding.VoiceCommandProvi
 		}
 		// Outside the try: a throw from the completion must not lead to a second call.
 		completion(new NSString(reply));
-		if (service is not null)
+		// Only a switch this command started: a Pause or Check Battery during another command's
+		// switch doesn't hold its background task for it.
+		if (service is not null && !ReferenceEquals(service.FollowThrough, followThrough))
 			await service.FollowThrough; // never throws: it logs and swallows its own errors
 	}
 
@@ -95,13 +99,23 @@ sealed class VoiceCommandProvider : BuzzahBuddy.Native.Binding.VoiceCommandProvi
 
 	/// <summary>
 	/// A UIKit background task, ended exactly once: on Dispose, or by iOS's expiration handler.
+	/// Best effort: if iOS won't begin one, the command runs without it.
 	/// </summary>
 	sealed class BackgroundRun : IDisposable
 	{
-		nint _id;
+		nint _id = UIApplication.BackgroundTaskInvalid;
 
-		public BackgroundRun(string name) =>
-			_id = UIApplication.SharedApplication.BeginBackgroundTask(name, Dispose);
+		public BackgroundRun(string name)
+		{
+			try
+			{
+				_id = UIApplication.SharedApplication.BeginBackgroundTask(name, Dispose);
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine($"[VOICE] No background task: {ex.GetType().Name}: {ex.Message}");
+			}
+		}
 
 		public void Dispose()
 		{

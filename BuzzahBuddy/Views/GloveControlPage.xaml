@@ -39,12 +39,12 @@
                                      AutomationId="SessionBanner" />
                 </VerticalStackLayout>
 
-                <!-- Launch auto-connect under way: the summary card, scanning, where it sits once connected -->
+                <!-- Launch auto-connect or a reconnect under way: the summary card, scanning, where it sits once connected -->
                 <controls:GlovesSummaryCard Grid.Row="1"
                                             Margin="0,24,0,0"
                                             VerticalOptions="Start"
-                                            IsScanning="{Binding IsAutoConnecting}"
-                                            IsVisible="{Binding IsAutoConnecting}"
+                                            IsScanning="{Binding ShowGlovesScanning}"
+                                            IsVisible="{Binding ShowGlovesScanning}"
                                             Command="{Binding NavigateToDevicesCommand}"
                                             AutomationId="GlovesScanning" />
 
@@ -128,7 +128,7 @@
         <!-- The primary action in easy reach at the bottom, as on Gloves: Scan for Gloves, or the
              session controls (Start alone, full width, or Pause/Resume and Stop side by side). -->
         <Grid x:Name="Controls" Grid.Row="1" Margin="0,12,0,0">
-            <!-- Hidden with Get Started while the launch auto-connect is scanning -->
+            <!-- Hidden with Get Started while the launch auto-connect or a reconnect is scanning -->
             <Button Text="Scan for Gloves"
                     IsVisible="{Binding ShowGetStarted}"
                     Style="{StaticResource ButtonPrimaryXl}"

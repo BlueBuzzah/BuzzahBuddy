@@ -75,7 +75,7 @@ bounds link-up through subscribe — iOS never times out a connect itself.
 - **Launch auto-connect** (`AutoConnectService`; Settings switch, Preferences `AutoConnect`,
   default on): `App` makes one `ConnectToKnownDeviceAsync` attempt per launch for
   `last_device`. While it runs, Session's summary card and Gloves' scan view show
-  scanning (Gloves' Stop Scanning cancels it); on failure both show a banner with Try Again. `_lastConnectedDeviceId` is set only on success: set earlier, a failed launch
+  scanning (Gloves' Stop Scanning cancels it; both show the post-drop reconnect loop the same way); on failure both show a banner with Try Again. `_lastConnectedDeviceId` is set only on success: set earlier, a failed launch
   connect starts `ReconnectionService`'s loop. Demo Mode never saves `last_device`.
 - `PROFILE_LOAD` and `RESTART` **reboot the glove**. `GloveControlService` sets
   `ExpectingReboot` (`ExpectingRebootTtl` 30 s) before sending and disconnects on
@@ -283,7 +283,8 @@ button's current `TextColor`.
   and commit the generated project), built and bound by `BuzzahBuddy.Native.Binding`. The app's
   `CopyAppIntentsMetadata` target copies `Metadata.appintents` into `$(AppBundleDir)/`; keep the
   trailing slash, or every intent fails silently. Siri's phrases are trained from the framework's
-  `Info.plist`, so its `INAlternativeAppNames` must match the app's. C#: `VoiceCommandService`
+  `Info.plist`, so its `INAlternativeAppNames` must match the app's. Siri phrases are trained for
+  English only (`CFBundleDevelopmentRegion` en). C#: `VoiceCommandService`
   (tested) behind `Platforms/iOS/VoiceCommandProvider`; voice and the Session buttons share
   `SessionCommandLock`. In the simulator, Shortcuts says "Unable to run App Shortcut" unless the
   build has a team ID: re-sign a copy with your Apple Development identity (`codesign -f -s` the

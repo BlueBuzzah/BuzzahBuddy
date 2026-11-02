@@ -545,6 +545,11 @@ public class BluetoothService : IBluetoothService
 
     private void OnRxCharacteristicValueUpdated(object? sender, CharacteristicUpdatedEventArgs e)
     {
+        // Only the live link's RX counts: a characteristic from a dropped link that is still
+        // subscribed fires again on every notification of the next link, carrying its own
+        // last value (a frozen SESSION_STATUS from before the drop).
+        if (!ReferenceEquals(e.Characteristic, _rxCharacteristic))
+            return;
         try
         {
             var data = e.Characteristic.Value;
@@ -726,11 +731,22 @@ public class BluetoothService : IBluetoothService
         // reconnect path raise Connected once the UART characteristics are live.
     }
 
+    /// <summary>
+    /// Drops the lost link's RX characteristic and its notification handler. A dropped link
+    /// gets no StopUpdatesAsync, so the handler must come off here or it stays subscribed.
+    /// </summary>
+    private void DetachRx()
+    {
+        if (_rxCharacteristic != null)
+            _rxCharacteristic.ValueUpdated -= OnRxCharacteristicValueUpdated;
+        _rxCharacteristic = null;
+    }
+
     private void OnDeviceDisconnected(object? sender, DeviceEventArgs e)
     {
         _connectedBleDevice = null;
         _txCharacteristic = null;
-        _rxCharacteristic = null;
+        DetachRx();
 
         // Clear stale response data before cancelling pending commands
         ResetRxAssembler();
@@ -748,7 +764,7 @@ public class BluetoothService : IBluetoothService
     {
         _connectedBleDevice = null;
         _txCharacteristic = null;
-        _rxCharacteristic = null;
+        DetachRx();
 
         // Clear stale response data before cancelling pending commands
         ResetRxAssembler();

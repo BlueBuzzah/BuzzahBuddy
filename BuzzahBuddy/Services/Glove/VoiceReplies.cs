@@ -37,6 +37,8 @@ public static class VoiceReplies
     public const string PauseFailed = "Couldn't pause your session. Open BuzzahBuddy to try again.";
     public const string ResumeFailed = "Couldn't resume your session. Open BuzzahBuddy to try again.";
     public const string StopFailed = "Couldn't end your session. Open BuzzahBuddy to try again.";
+    /// <summary>Check Profile while connected but the profile wasn't read (INFO failed, or no PROFILE key).</summary>
+    public const string ProfileUnreadable = "Couldn't read your gloves' profile. Open BuzzahBuddy to try again.";
 
     public static string Starting(string? profile) => $"Starting your {Named(profile)}session.";
     public static string AlreadyRunning(string? profile) => $"Your {Named(profile)}session is already running.";
@@ -132,7 +134,7 @@ public static class VoiceReplies
         var name = NameOf(s.DeviceProfileId);
         var session = s.Session;
         if (!session.IsRunning && !session.IsPaused)
-            return name is null ? "Your gloves are set." : $"Your gloves are set to {name}.";
+            return name is null ? ProfileUnreadable : $"Your gloves are set to {name}.";
 
         var state = session.IsPaused ? "paused" : "running";
         var remaining = session.TotalTimeSeconds - session.ElapsedTimeSeconds;

@@ -15,8 +15,8 @@ public class VoiceCommandServiceTests
 {
     private static readonly TimeSpan Bound = TimeSpan.FromSeconds(5);
 
-    private static string Info(int profile = 1, string batteries = "BATP:4.02\nBATS:4.02") =>
-        $"CMD:INFO\nROLE:PRIMARY\nMOTORS:4\nPROFILE:{profile}:preset\n{batteries}\nSECONDARY:1\nSTATUS:IDLE\n\x04";
+    private static string Info(int profile = 1, string batteries = "BATP:4.02\nBATS:4.02", int secondary = 1) =>
+        $"CMD:INFO\nROLE:PRIMARY\nMOTORS:4\nPROFILE:{profile}:preset\n{batteries}\nSECONDARY:{secondary}\nSTATUS:IDLE\n\x04";
 
     private const string Idle = "CMD:SESSION_STATUS\nSESSION_STATUS:IDLE\n\x04";
     private const string Running = "CMD:SESSION_STATUS\nSESSION_STATUS:RUNNING\nELAPSED:600\nTOTAL:3600\n\x04";
@@ -167,14 +167,16 @@ public class VoiceCommandServiceTests
     }
 
     [Fact]
-    public async Task ReconnectionRunning_WaitsUpTo15s()
+    public async Task ReconnectionRunning_RepliesWithinSirisLimit()
     {
+        // A reconnect with the gloves off runs for minutes; Siri gives up after about 10 s.
+        Assert.True(VoiceCommandService.ConnectWait <= TimeSpan.FromSeconds(5));
         var rig = new Rig(connected: false);
         rig.AutoConnect.SkipLaunch();
         rig.Reconnection.Raise(ReconnectionState.Reconnecting);
 
         var reply = rig.Service.RunAsync(VoiceCommand.Start, 0);
-        rig.Time.Advance(TimeSpan.FromSeconds(14));
+        rig.Time.Advance(VoiceCommandService.ConnectWait - TimeSpan.FromSeconds(1));
         Assert.False(reply.IsCompleted);
 
         rig.Time.Advance(TimeSpan.FromSeconds(1));
@@ -292,6 +294,48 @@ public class VoiceCommandServiceTests
 
         Assert.Equal(VoiceReplies.NeedsCharging, reply);
         Assert.Single(rig.Sent, c => c == "SESSION_START");
+    }
+
+    // The cached status stops updating while the app is in the background, where Siri runs:
+    // a session that ended there still reads RUNNING until the gloves are asked.
+    [Fact]
+    public async Task Start_CachedRunningButTheGlovesAreIdle_Starts()
+    {
+        var rig = new Rig();
+        rig.Bluetooth.CannedResponses["SESSION_STATUS"] = Running;
+        await rig.Glove.GetSessionStatusAsync();
+        rig.Bluetooth.CannedResponses["SESSION_STATUS"] = Idle;
+        rig.Sent.Clear();
+
+        var reply = await rig.Service.RunAsync(VoiceCommand.Start, 0).WaitAsync(Bound);
+
+        Assert.Equal("Starting your Regular session.", reply);
+        Assert.Single(rig.Sent, c => c == "SESSION_START");
+    }
+
+    [Fact]
+    public async Task Start_SecondaryNotLinked_NoSecondary()
+    {
+        var rig = new Rig();
+        rig.Bluetooth.CannedResponses["INFO"] = Info(secondary: 0);
+
+        var reply = await rig.Service.RunAsync(VoiceCommand.Start, 0).WaitAsync(Bound);
+
+        Assert.Equal(VoiceReplies.NoSecondary, reply);
+        Assert.DoesNotContain("SESSION_START", rig.Sent);
+    }
+
+    // The primary's own low level wins over a voltage that would read fine.
+    [Fact]
+    public async Task Start_PrimaryReportsLow_NeedsCharging()
+    {
+        var rig = new Rig();
+        rig.Bluetooth.CannedResponses["INFO"] = Info(batteries: "BATP:4.02\nBATS:4.02\nBATLP:LOW\nBATLS:NORMAL");
+
+        var reply = await rig.Service.RunAsync(VoiceCommand.Start, 0).WaitAsync(Bound);
+
+        Assert.Equal(VoiceReplies.NeedsCharging, reply);
+        Assert.DoesNotContain("SESSION_START", rig.Sent);
     }
 
     [Fact]
@@ -559,6 +603,53 @@ public class VoiceCommandServiceTests
         await rig.Service.FollowThrough.WaitAsync(Bound);
 
         Assert.Single(rig.Sent, c => c == "SESSION_START");
+        Assert.False(rig.Service.IsSwitching);
+    }
+
+    /// <summary>Switches to Noisy and brings the gloves back with the first start timing out.</summary>
+    private static async Task<Rig> SwitchedWithStartTimingOutAsync()
+    {
+        var rig = new Rig();
+        await rig.Service.RunAsync(VoiceCommand.Start, 2).WaitAsync(Bound);
+        rig.Bluetooth.ThrowOnCommand["SESSION_START"] = new TimeoutException("Command 'SESSION_START' timed out after 7000ms");
+        await rig.RebootAndReconnectAsync(profile: 2);
+        // The backstop plus the first retry's wait: the timed-out start is done
+        await rig.Time.WhenPendingTimers(2).WaitAsync(Bound);
+        Assert.Single(rig.Sent, c => c == "SESSION_START");
+        Assert.True(rig.Service.IsSwitching);
+        rig.Bluetooth.ThrowOnCommand.Remove("SESSION_START");
+        return rig;
+    }
+
+    // Right after the reboot the primary is busy re-syncing the secondary and can starve a command.
+    [Fact]
+    public async Task SwitchThenStart_StartTimesOut_RetriesUntilAccepted()
+    {
+        var rig = await SwitchedWithStartTimingOutAsync();
+
+        rig.Time.Advance(TimeSpan.FromSeconds(3));
+        await rig.Service.FollowThrough.WaitAsync(Bound);
+
+        Assert.Equal(2, rig.Sent.Count(c => c == "SESSION_START"));
+        // The retry asked the gloves first
+        var first = rig.Sent.IndexOf("SESSION_START");
+        Assert.Contains("SESSION_STATUS", rig.Sent.Skip(first + 1).TakeWhile(c => c != "SESSION_START"));
+        Assert.True(rig.Glove.CurrentSessionStatus.IsRunning);
+        Assert.False(rig.Service.IsSwitching);
+    }
+
+    // The timed-out start was accepted; only its reply was lost. Never start a running session again.
+    [Fact]
+    public async Task SwitchThenStart_TimedOutStartWasAccepted_NoSecondStart()
+    {
+        var rig = await SwitchedWithStartTimingOutAsync();
+        rig.Bluetooth.CannedResponses["SESSION_STATUS"] = Running;
+
+        rig.Time.Advance(TimeSpan.FromSeconds(3));
+        await rig.Service.FollowThrough.WaitAsync(Bound);
+
+        Assert.Single(rig.Sent, c => c == "SESSION_START");
+        Assert.Equal("SESSION_STATUS", rig.Sent[^1]);
         Assert.False(rig.Service.IsSwitching);
     }
 
