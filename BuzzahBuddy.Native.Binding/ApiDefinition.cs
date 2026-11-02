@@ -18,19 +18,24 @@ interface VoiceCommandProvider
 {
 	/// <summary>
 	/// <paramref name="command"/> is start, pause, resume, stop, battery or profile;
-	/// <paramref name="profileId"/> 0 means none. Call <paramref name="completion"/> once with the reply.
-	/// Called off the main thread; <paramref name="completion"/> may be called from any thread.
+	/// <paramref name="profileId"/> 0 means none. Call <paramref name="completion"/> exactly once, on
+	/// every path, with a non-null reply: Siri waits for it. Called off the main thread;
+	/// <paramref name="completion"/> may be called from any thread.
 	/// </summary>
 	[Abstract, Export("run:profileId:completion:")]
 	void Run(string command, nint profileId, Action<NSString> completion);
 
 	/// <summary>
-	/// Complete with null to ask "End your session?", or with the reply to speak instead.
-	/// Called off the main thread; <paramref name="completion"/> may be called from any thread.
+	/// Call <paramref name="completion"/> exactly once: with null to ask "End your session?", or with
+	/// the reply to speak instead. Called off the main thread; <paramref name="completion"/> may be
+	/// called from any thread.
 	/// </summary>
 	[Abstract, Export("stopPrecheckWithCompletion:")]
-	void StopPrecheck(Action<NSString> completion);
+	void StopPrecheck(VoiceStopPrecheckCompletion completion);
 }
+
+/// <summary>Swift's <c>(String?) -> Void</c>: null means "ask for confirmation".</summary>
+delegate void VoiceStopPrecheckCompletion([NullAllowed] NSString reply);
 
 interface IVoiceCommandProvider { }
 

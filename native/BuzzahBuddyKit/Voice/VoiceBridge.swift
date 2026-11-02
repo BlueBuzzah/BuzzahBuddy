@@ -4,13 +4,13 @@ import Foundation
 /// AppDelegate.FinishedLaunching, so every intent's perform() runs C# in the app's process.
 @objc(BBVoiceCommandProvider) public protocol VoiceCommandProvider: AnyObject {
     /// `command` is one of start, pause, resume, stop, battery, profile; `profileId` 0 means none.
-    /// `completion` gets the sentence Siri speaks. Called off the main thread; `completion` may be
-    /// called from any thread.
+    /// `completion` gets the sentence Siri speaks and must be called exactly once, on every path,
+    /// with a non-null string. Called off the main thread; `completion` may be called from any thread.
     @objc(run:profileId:completion:)
     func run(_ command: String, profileId: Int, completion: @escaping (String) -> Void)
 
-    /// Nil means "ask for confirmation"; a string is the reply to speak instead. Called off the
-    /// main thread; `completion` may be called from any thread.
+    /// Call `completion` exactly once: nil means "ask for confirmation"; a string is the reply to
+    /// speak instead. Called off the main thread; `completion` may be called from any thread.
     @objc(stopPrecheckWithCompletion:)
     func stopPrecheck(completion: @escaping (String?) -> Void)
 }
