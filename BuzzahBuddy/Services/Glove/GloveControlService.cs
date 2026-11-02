@@ -49,6 +49,9 @@ public class GloveControlService : IGloveControlService
     public event EventHandler<SessionStatus>? SessionStateChanged;
 
     /// <inheritdoc />
+    public event EventHandler? SessionStopRequested;
+
+    /// <inheritdoc />
     public event EventHandler<int>? DeviceProfileChanged;
 
     /// <inheritdoc />
@@ -895,6 +898,10 @@ public class GloveControlService : IGloveControlService
         EnsureConnected();
         var response = await _bluetoothService.SendCommandAsync("SESSION_STOP");
         response.ThrowIfError();
+
+        // Only after the gloves accepted it, and synchronously before the IDLE below (no
+        // await between them), so observers mark the stop before they see the session end.
+        SessionStopRequested?.Invoke(this, EventArgs.Empty);
 
         // Update session state to IDLE
         UpdateSessionStatus(SessionStatus.CreateIdle());

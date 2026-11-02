@@ -164,6 +164,38 @@ public class GloveControlServiceTests
         Assert.Equal(40, service.CurrentSessionStatus.PausedSeconds);
     }
 
+    // Every caller's stop (a tap or Siri) is marked as asked for before the IDLE it produces,
+    // so the session closes as stopped, not ended early.
+    [Fact]
+    public async Task StopSessionAsync_SignalsTheStopBeforeTheIdleStatus()
+    {
+        var fake = new FakeBluetoothService();
+        fake.CannedResponses["SESSION_STOP"] = "CMD:SESSION_STOP\nSTATUS:STOPPED\n\x04";
+        var service = new GloveControlService(fake);
+        var events = new List<string>();
+        service.SessionStopRequested += (_, _) => events.Add("stop");
+        service.SessionStateChanged += (_, status) => events.Add(status.Status.ToString());
+
+        await service.StopSessionAsync();
+
+        Assert.Equal(new[] { "stop", nameof(SessionState.IDLE) }, events);
+    }
+
+    // A refused stop leaves the session running: a later natural end isn't a stop.
+    [Fact]
+    public async Task StopSessionAsync_Refused_DoesNotSignalAStop()
+    {
+        var fake = new FakeBluetoothService();
+        fake.CannedResponses["SESSION_STOP"] = "CMD:SESSION_STOP\nERROR:No active session\n\x04";
+        var service = new GloveControlService(fake);
+        var stops = 0;
+        service.SessionStopRequested += (_, _) => stops++;
+
+        await Assert.ThrowsAsync<BlueBuzzahCommandException>(() => service.StopSessionAsync());
+
+        Assert.Equal(0, stops);
+    }
+
     [Fact]
     public async Task StartSessionAsync_LegacyReplyWithoutTotal_FallsBackToTheProfileDuration()
     {

@@ -248,6 +248,8 @@ public partial class GloveControlViewModel : BaseViewModel
         // Session state from the service (fires on command success and every status
         // poll) — the UI must not depend on the first SESSION_STATUS poll succeeding
         _gloveControlService.SessionStateChanged += OnServiceSessionStateChanged;
+        // Any accepted stop, Siri's included, closes the session as stopped
+        _gloveControlService.SessionStopRequested += OnServiceSessionStopRequested;
 
         // Subscribe to centralized connection state changes
         ConnectionInfo.PropertyChanged += OnConnectionInfoPropertyChanged;
@@ -938,6 +940,17 @@ public partial class GloveControlViewModel : BaseViewModel
     /// button text, Stop button) updates even if the follow-up SESSION_STATUS poll
     /// fails or is slow while the gloves establish sync.
     /// </summary>
+    /// <summary>
+    /// A stop the gloves accepted, from the Stop button or Siri, so the IDLE that follows
+    /// closes the session as stopped, not ended early. The service raises this and then the
+    /// IDLE <see cref="OnServiceSessionStateChanged"/> on one thread with no await between, and
+    /// both dispatch the same way: on the main thread BeginInvokeOnMainThread runs each inline,
+    /// in order; off it (Siri), both queue to the main thread in order. Either way the flag is
+    /// set before TrackSession sees the IDLE.
+    /// </summary>
+    private void OnServiceSessionStopRequested(object? sender, EventArgs e) =>
+        MainThread.BeginInvokeOnMainThread(() => _userRequestedStop = true);
+
     private void OnServiceSessionStateChanged(object? sender, SessionStatus status)
     {
         MainThread.BeginInvokeOnMainThread(() =>
@@ -1298,6 +1311,7 @@ public partial class GloveControlViewModel : BaseViewModel
             _gloveControlService.DeviceProfileChanged -= OnDeviceProfileChanged;
             _gloveControlService.DeviceInfoReceived -= OnDeviceInfoReceived;
             _gloveControlService.SessionStateChanged -= OnServiceSessionStateChanged;
+            _gloveControlService.SessionStopRequested -= OnServiceSessionStopRequested;
             ConnectionInfo.PropertyChanged -= OnConnectionInfoPropertyChanged;
             _reconnectionService.ReconnectionStateChanged -= OnReconnectionStateChanged;
             _appLifecycle.Stopped -= OnAppStopped;

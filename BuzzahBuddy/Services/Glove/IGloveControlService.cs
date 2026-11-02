@@ -18,6 +18,14 @@ public interface IGloveControlService
     event EventHandler<SessionStatus>? SessionStateChanged;
 
     /// <summary>
+    /// Event fired when <see cref="StopSessionAsync"/> succeeds, whoever called it (the
+    /// Stop button or Siri), on the same thread and immediately before the IDLE
+    /// <see cref="SessionStateChanged"/> it produces. Lets the session record close as
+    /// stopped rather than ended early. Never fired for a stop the gloves refused.
+    /// </summary>
+    event EventHandler? SessionStopRequested;
+
+    /// <summary>
     /// Gets the current session status without querying the device.
     /// Returns the last known status, or an IDLE status if no session has been started.
     /// </summary>
