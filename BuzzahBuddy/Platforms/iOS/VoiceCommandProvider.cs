@@ -12,13 +12,26 @@ namespace BuzzahBuddy;
 /// </summary>
 sealed class VoiceCommandProvider : BuzzahBuddy.Native.Binding.VoiceCommandProvider
 {
-	// Resolved on first use: the provider is registered before base.FinishedLaunching builds the
-	// services. A race resolves the same singleton twice, which is harmless.
+	// The provider is registered before base.FinishedLaunching builds the services, and an intent can
+	// arrive on a background cold launch before then. Commands wait this long for ServicesReady, then
+	// give the failure reply.
+	static readonly TimeSpan ServicesWait = TimeSpan.FromSeconds(10);
+
+	readonly TaskCompletionSource _servicesReady = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+	// Resolved on first use, once the services exist. A race resolves the same singleton twice,
+	// which is harmless.
 	VoiceCommandService? _service;
 
-	VoiceCommandService Service => _service ??=
-		IPlatformApplication.Current?.Services.GetRequiredService<VoiceCommandService>()
-		?? throw new InvalidOperationException("The app's services aren't built yet");
+	/// <summary>Called by AppDelegate once base.FinishedLaunching has built the app's services.</summary>
+	public void ServicesReady() => _servicesReady.TrySetResult();
+
+	async Task<VoiceCommandService> GetServiceAsync()
+	{
+		await _servicesReady.Task.WaitAsync(ServicesWait); // TimeoutException past the wait
+		return _service ??= IPlatformApplication.Current?.Services.GetRequiredService<VoiceCommandService>()
+			?? throw new InvalidOperationException("The app's services aren't built");
+	}
 
 	public override void Run(string command, nint profileId, Action<NSString> completion) =>
 		Task.Run(() => RunAsync(command, profileId, completion)).SafeFireAndForget("[VOICE]");
@@ -35,7 +48,7 @@ sealed class VoiceCommandProvider : BuzzahBuddy.Native.Binding.VoiceCommandProvi
 			if (parsed is not { } voiceCommand)
 				throw new ArgumentException($"Unknown command \"{command}\"", nameof(command));
 			// Only the voice profiles (1-5) can be asked for; anything else is a plain Start.
-			reply = await Service.RunAsync(voiceCommand, profileId is >= 1 and <= 5 ? (int)profileId : 0);
+			reply = await (await GetServiceAsync()).RunAsync(voiceCommand, profileId is >= 1 and <= 5 ? (int)profileId : 0);
 		}
 		catch (Exception ex)
 		{
@@ -45,7 +58,9 @@ sealed class VoiceCommandProvider : BuzzahBuddy.Native.Binding.VoiceCommandProvi
 				VoiceCommand.Pause => VoiceReplies.PauseFailed,
 				VoiceCommand.Resume => VoiceReplies.ResumeFailed,
 				VoiceCommand.Stop => VoiceReplies.StopFailed,
-				_ => VoiceReplies.StartFailed,
+				// The same reply Swift gives when no provider is registered.
+				VoiceCommand.CheckBattery or VoiceCommand.CheckProfile => VoiceReplies.NotConnected,
+				_ => VoiceReplies.StartFailed, // Start, or an unknown command
 			};
 		}
 		// Outside the try: a throw from the completion must not lead to a second call.
@@ -57,7 +72,7 @@ sealed class VoiceCommandProvider : BuzzahBuddy.Native.Binding.VoiceCommandProvi
 		string? reply;
 		try
 		{
-			reply = await Service.StopPrecheckAsync();
+			reply = await (await GetServiceAsync()).StopPrecheckAsync();
 		}
 		catch (Exception ex)
 		{

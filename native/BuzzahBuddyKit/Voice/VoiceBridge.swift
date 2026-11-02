@@ -18,7 +18,9 @@ import Foundation
 @objc(BBVoice) public final class VoiceBridge: NSObject {
     @objc public static let shared = VoiceBridge()
 
-    /// Written once in AppDelegate.FinishedLaunching, before any intent can run, so it needs no lock.
+    /// Written once in AppDelegate.FinishedLaunching, before base.FinishedLaunching and before any
+    /// intent is delivered, so it needs no lock. An intent can still arrive before the app's services
+    /// exist; the C# provider waits for them itself.
     @objc public var provider: VoiceCommandProvider?
 
     private override init() {
