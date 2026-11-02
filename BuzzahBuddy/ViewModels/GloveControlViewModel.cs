@@ -65,9 +65,6 @@ public partial class GloveControlViewModel : BaseViewModel
     private const int PollFailureReconnectThreshold = 3;
     private const string ConnectionUnstableWarning = "Connection unstable — trying to recover…";
 
-    // Battery arrives with every INFO reply, including the service's post-connect
-    // one; a tab visit only asks for a new INFO when the service's is this stale.
-    private static readonly TimeSpan BatteryReadingFreshness = TimeSpan.FromSeconds(30);
     private bool _warnOnNextBatteryReading;
 
     /// <summary>Preset profiles, used to map the device's profile id to a display profile.</summary>
@@ -293,7 +290,7 @@ public partial class GloveControlViewModel : BaseViewModel
         // another. No low-battery alert on mere tab visits.
         if (ConnectionInfo.IsConnected)
         {
-            _gloveControlService.GetDeviceInfoAsync(BatteryReadingFreshness).SafeFireAndForget("[GLOVECONTROL]");
+            _gloveControlService.GetDeviceInfoAsync(BatteryReading.Freshness).SafeFireAndForget("[GLOVECONTROL]");
         }
     }
 

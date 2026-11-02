@@ -109,6 +109,19 @@ public static class MauiProgram
 			text => MainThread.BeginInvokeOnMainThread(() => SemanticScreenReader.Announce(text))));
 		builder.Services.AddSingleton<BuzzahBuddy.Services.ConnectionStateManagement.IConnectionStateService, BuzzahBuddy.Services.ConnectionStateManagement.ConnectionStateService>();
 		builder.Services.AddSingleton<IDataStorageService, PreferencesStorageService>();
+		// Siri: saves the profile it switches to the same way picking one on Gloves does.
+		builder.Services.AddSingleton(sp =>
+		{
+			var storage = sp.GetRequiredService<IDataStorageService>();
+			return new VoiceCommandService(
+				sp.GetRequiredService<IBluetoothService>(),
+				sp.GetRequiredService<IGloveControlService>(),
+				sp.GetRequiredService<IReconnectionService>(),
+				sp.GetRequiredService<AutoConnectService>(),
+				sp.GetRequiredService<SessionCommandLock>(),
+				storage.GetCustomProfileAsync,
+				storage.SaveLastProfileAsync);
+		});
 		builder.Services.AddSingleton(_ => new HistoryStore(
 			Path.Combine(FileSystem.AppDataDirectory, "history.json"),
 			() => Preferences.Default.Get(HistoryStore.LegacyPreferencesKey, (string?)null),
