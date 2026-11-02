@@ -62,7 +62,11 @@ public sealed class AutoConnectService
             _launchFinished.TrySetResult();
     }
 
-    /// <summary>App: the setting is off, or no usable glove is remembered, so no attempt will run.</summary>
+    /// <summary>
+    /// App: the setting is off, or no usable glove is remembered, so no attempt will run.
+    /// Completes <see cref="LaunchFinished"/> even if an attempt is in flight, so only call it
+    /// for launches that never start one.
+    /// </summary>
     public void SkipLaunch() => _launchFinished.TrySetResult();
 
     public void TryAgain() => TryStartAttempt();

@@ -338,7 +338,22 @@ public partial class GloveControlViewModel : BaseViewModel
         // What this tap meant to do, from the state it was tapped in.
         var wantsStart = !IsSessionActive;
         var wantsPause = IsSessionRunning;
+
+        // Prompts run before the lock: it is never held while waiting on the user.
+        if (wantsStart
+            && _gloveControlService.DeviceProfileId > 0
+            && SelectedProfile != null
+            && SelectedProfile.ProfileId != _gloveControlService.DeviceProfileId)
+        {
+            await Shell.Current.DisplayAlertAsync(
+                "Apply Your Profile First",
+                $"Your gloves are still using another profile. Go to Gloves and tap Apply Settings to use \u201c{SelectedProfile.Name}\u201d.",
+                "OK");
+            return;
+        }
+
         IsBusy = true;
+        UserError? failure = null;
 
         try
         {
@@ -351,17 +366,6 @@ public partial class GloveControlViewModel : BaseViewModel
 
             if (wantsStart)
             {
-                if (_gloveControlService.DeviceProfileId > 0 &&
-                    SelectedProfile != null &&
-                    SelectedProfile.ProfileId != _gloveControlService.DeviceProfileId)
-                {
-                    await Shell.Current.DisplayAlertAsync(
-                        "Apply Your Profile First",
-                        $"Your gloves are still using another profile. Go to Gloves and tap Apply Settings to use \u201c{SelectedProfile.Name}\u201d.",
-                        "OK");
-                    return;
-                }
-
                 // Start session. Its synthesized RUNNING status reaches TrackSession
                 // through the service event, which begins tracking.
                 await _gloveControlService.StartSessionAsync();
@@ -379,7 +383,7 @@ public partial class GloveControlViewModel : BaseViewModel
                 await UpdateSessionStatusAsync();
                 SemanticScreenReader.Announce("Session paused");
             }
-            else
+            else if (IsSessionPaused)
             {
                 // Resume session
                 await _gloveControlService.ResumeSessionAsync();
@@ -389,18 +393,20 @@ public partial class GloveControlViewModel : BaseViewModel
         }
         catch (BlueBuzzahCommandException ex)
         {
-            var error = ErrorMessageHelper.GetFriendlyError(ex.Message);
-            await Shell.Current.DisplayAlertAsync(error.Title, error.ForAlert, "OK");
+            failure = ErrorMessageHelper.GetFriendlyError(ex.Message);
         }
         catch (Exception ex)
         {
-            var error = ErrorMessageHelper.FromException(ex);
-            await Shell.Current.DisplayAlertAsync(error.Title, error.ForAlert, "OK");
+            failure = ErrorMessageHelper.FromException(ex);
         }
         finally
         {
             IsBusy = false;
         }
+
+        // The lock is released by now.
+        if (failure is { } error)
+            await Shell.Current.DisplayAlertAsync(error.Title, error.ForAlert, "OK");
     }
 
     [RelayCommand]
@@ -422,6 +428,7 @@ public partial class GloveControlViewModel : BaseViewModel
             return;
 
         IsBusy = true;
+        UserError? failure = null;
 
         try
         {
@@ -442,19 +449,21 @@ public partial class GloveControlViewModel : BaseViewModel
         {
             // The session carries on: a later natural end isn't a stop.
             _userRequestedStop = false;
-            var error = ErrorMessageHelper.GetFriendlyError(ex.Message);
-            await Shell.Current.DisplayAlertAsync(error.Title, error.ForAlert, "OK");
+            failure = ErrorMessageHelper.GetFriendlyError(ex.Message);
         }
         catch (Exception ex)
         {
             _userRequestedStop = false;
-            var error = ErrorMessageHelper.FromException(ex);
-            await Shell.Current.DisplayAlertAsync(error.Title, error.ForAlert, "OK");
+            failure = ErrorMessageHelper.FromException(ex);
         }
         finally
         {
             IsBusy = false;
         }
+
+        // The lock is released by now.
+        if (failure is { } error)
+            await Shell.Current.DisplayAlertAsync(error.Title, error.ForAlert, "OK");
     }
 
 
