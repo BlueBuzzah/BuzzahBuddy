@@ -149,11 +149,12 @@ public sealed class CalendarMonthView : ContentView
             cell.Fit(size);
     }
 
-    /// <summary>One day's slot: its well, fill, today ring and number, refilled for each month.</summary>
+    /// <summary>One day's slot: its well (or future well), fill, today ring and number, refilled for each month.</summary>
     private sealed class DayCell
     {
         private readonly Grid _top = [];
         private readonly Border _well;
+        private readonly Border _futureWell;
         private readonly ContentView _fill = new() { VerticalOptions = LayoutOptions.End };
         private readonly Border _ring;
         private readonly Label _number = new() { HorizontalTextAlignment = TextAlignment.Center, LineHeight = 1 };
@@ -166,9 +167,19 @@ public sealed class CalendarMonthView : ContentView
             // set on it has nothing to resolve against. Keep them in step with RadiusSm by hand.
             _well = new Border { StrokeShape = new RoundRectangle { CornerRadius = 8 }, Content = _fill };
             _well.SetDynamicResource(Border.StrokeThicknessProperty, "BorderHairline");
+            _well.SetDynamicResource(BackgroundColorProperty, "SurfaceSunken");
+            _well.SetDynamicResource(Border.StrokeProperty, "LineStrong");
             // A plain view's background, not a BoxView: iOS draws a BoxView once and doesn't redraw
             // it when it grows from zero, which left a day paged to with no fill drawn.
             _fill.SetDynamicResource(BackgroundColorProperty, "Brand");
+
+            // A future day swaps in this second, dashed well rather than dashing the well: MAUI
+            // 10.0.20 on iOS never clears a dash pattern, so a slot that once held a future day
+            // stayed dashed for every month after. SurfaceRaised is the card's own color.
+            _futureWell = new Border { StrokeShape = new RoundRectangle { CornerRadius = 8 }, StrokeDashArray = [4, 3] };
+            _futureWell.SetDynamicResource(Border.StrokeThicknessProperty, "BorderHairline");
+            _futureWell.SetDynamicResource(BackgroundColorProperty, "SurfaceRaised");
+            _futureWell.SetDynamicResource(Border.StrokeProperty, "Line");
 
             // Today's ring (2 stroke + 2 gap) takes no layout room: negative margins keep its
             // footprint the well's, so it spills into the row and column gaps and no other day
@@ -187,6 +198,7 @@ public sealed class CalendarMonthView : ContentView
             // The fixed-size slot holds the well and ring, so a fill that changes height stays inside it.
             _top.HorizontalOptions = LayoutOptions.Center;
             _top.Add(_well);
+            _top.Add(_futureWell);
             _top.Add(_ring);
             Fit(wellSize);
 
@@ -205,13 +217,9 @@ public sealed class CalendarMonthView : ContentView
             Root.Opacity = day is null ? 0 : 1;
             _number.Text = day?.Number;
 
-            // Both looks use resources: a value set directly outranks a later DynamicResource, so a
-            // future day's well set to Transparent would never take SurfaceSunken back once the
-            // slot shows a past day. SurfaceRaised is the card's own color.
             var future = day?.IsFuture != false;
-            _well.SetDynamicResource(BackgroundColorProperty, future ? "SurfaceRaised" : "SurfaceSunken");
-            _well.StrokeDashArray = future ? [4, 3] : null;
-            _well.SetDynamicResource(Border.StrokeProperty, future ? "Line" : "LineStrong");
+            _well.IsVisible = !future;
+            _futureWell.IsVisible = future;
             _fraction = day is { IsFuture: false, HasTime: true } ? day.Fraction : 0;
             SizeFill(wellSize);
 
