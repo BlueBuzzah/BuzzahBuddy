@@ -177,9 +177,13 @@ public partial class GloveControlViewModel : BaseViewModel
     /// <summary>The launch auto-connect is trying: the summary card shows scanning in place of Get Started and Scan for Gloves.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowGetStarted))]
+    [NotifyPropertyChangedFor(nameof(ShowGlovesScanning))]
     private bool _isAutoConnecting;
 
-    public bool ShowGetStarted => !ConnectionInfo.IsConnected && !IsAutoConnecting;
+    /// <summary>The launch auto-connect, or the reconnect after a dropped link, is trying.</summary>
+    public bool ShowGlovesScanning => IsAutoConnecting || ConnectionInfo.IsReconnecting;
+
+    public bool ShowGetStarted => !ConnectionInfo.IsConnected && !ShowGlovesScanning;
 
     // Null voltage = no reading available (missing key or firmware 0.00 sentinel)
     [ObservableProperty]
@@ -1274,6 +1278,11 @@ public partial class GloveControlViewModel : BaseViewModel
     {
         if (e.PropertyName == nameof(IConnectionStateService.IsConnected))
             OnPropertyChanged(nameof(ShowGetStarted));
+        if (e.PropertyName == nameof(IConnectionStateService.IsReconnecting))
+        {
+            OnPropertyChanged(nameof(ShowGlovesScanning));
+            OnPropertyChanged(nameof(ShowGetStarted));
+        }
 
         if (e.PropertyName is nameof(IConnectionStateService.IsReconnecting) or nameof(IConnectionStateService.ConnectionState))
         {

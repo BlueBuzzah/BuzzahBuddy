@@ -75,7 +75,7 @@ bounds link-up through subscribe — iOS never times out a connect itself.
 - **Launch auto-connect** (`AutoConnectService`; Settings switch, Preferences `AutoConnect`,
   default on): `App` makes one `ConnectToKnownDeviceAsync` attempt per launch for
   `last_device`. While it runs, Session's summary card and Gloves' scan view show
-  scanning (Gloves' Stop Scanning cancels it; Gloves shows the post-drop reconnect loop the same way); on failure both show a banner with Try Again. `_lastConnectedDeviceId` is set only on success: set earlier, a failed launch
+  scanning (Gloves' Stop Scanning cancels it; both show the post-drop reconnect loop the same way); on failure both show a banner with Try Again. `_lastConnectedDeviceId` is set only on success: set earlier, a failed launch
   connect starts `ReconnectionService`'s loop. Demo Mode never saves `last_device`.
 - `PROFILE_LOAD` and `RESTART` **reboot the glove**. `GloveControlService` sets
   `ExpectingReboot` (`ExpectingRebootTtl` 30 s) before sending and disconnects on
