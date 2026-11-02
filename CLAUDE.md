@@ -283,7 +283,8 @@ button's current `TextColor`.
   and commit the generated project), built and bound by `BuzzahBuddy.Native.Binding`. The app's
   `CopyAppIntentsMetadata` target copies `Metadata.appintents` into `$(AppBundleDir)/`; keep the
   trailing slash, or every intent fails silently. Siri's phrases are trained from the framework's
-  `Info.plist`, so its `INAlternativeAppNames` must match the app's. C#: `VoiceCommandService`
+  `Info.plist`, so its `INAlternativeAppNames` must match the app's. Siri phrases are trained for
+  English only (`CFBundleDevelopmentRegion` en). C#: `VoiceCommandService`
   (tested) behind `Platforms/iOS/VoiceCommandProvider`; voice and the Session buttons share
   `SessionCommandLock`. In the simulator, Shortcuts says "Unable to run App Shortcut" unless the
   build has a team ID: re-sign a copy with your Apple Development identity (`codesign -f -s` the
