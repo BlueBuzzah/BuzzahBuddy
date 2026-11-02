@@ -48,6 +48,13 @@ public static class VoiceReplies
         if (!s.Connected)
             return new(NotConnected, VoiceAction.None);
 
+        // 0.00 V is the firmware's "no reading"; never trust the caller to have mapped it.
+        s = s with
+        {
+            PrimaryVoltage = BatteryReading.FromRaw(s.PrimaryVoltage),
+            SecondaryVoltage = BatteryReading.FromRaw(s.SecondaryVoltage),
+        };
+
         return command switch
         {
             VoiceCommand.Start => DecideStart(requestedProfileId, s),
@@ -91,7 +98,8 @@ public static class VoiceReplies
             return None(NeedsCharging);
         if (s.SecondaryLinked == false)
             return None(NoSecondary);
-        if (requestedProfileId == 0 || requestedProfileId == s.DeviceProfileId)
+        // Only the voice profiles (1-5) can be requested; anything else is a plain Start.
+        if (requestedProfileId is < 1 or > 5 || requestedProfileId == s.DeviceProfileId)
             return new(Starting(name), VoiceAction.Start, s.DeviceProfileId);
         return new(Switching(NameOf(requestedProfileId) ?? "that profile"), VoiceAction.SwitchThenStart, requestedProfileId);
     }
@@ -123,7 +131,7 @@ public static class VoiceReplies
 
         var state = session.IsPaused ? "paused" : "running";
         var remaining = session.TotalTimeSeconds - session.ElapsedTimeSeconds;
-        var left = session.TotalTimeSeconds > 0 && remaining > 0 ? $", {DurationText.Spoken(remaining)} left" : "";
+        var left = session.TotalTimeSeconds > 0 && remaining > 0 ? $", {DurationText.Spoken(Math.Max(remaining, 30))} left" : "";
         return $"Your {Named(name)}session is {state}{left}.";
     }
 

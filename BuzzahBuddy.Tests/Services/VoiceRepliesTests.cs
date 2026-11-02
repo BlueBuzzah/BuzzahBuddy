@@ -329,4 +329,38 @@ public class VoiceRepliesTests
         Assert.Equal("Couldn't resume your session. Open BuzzahBuddy to try again.", VoiceReplies.ResumeFailed);
         Assert.Equal("Couldn't end your session. Open BuzzahBuddy to try again.", VoiceReplies.StopFailed);
     }
+
+    [Fact]
+    public void CheckProfile_UnderAMinuteLeft_ReadsOneMinute()
+    {
+        var d = VoiceReplies.Decide(VoiceCommand.CheckProfile, 0, Snap(session: Running(elapsed: 3105)));
+        Assert.Equal("Your Regular session is running, 1 minute left.", d.Reply);
+    }
+
+    [Fact]
+    public void CheckProfile_ElapsedPastTotal_UsesShortForm()
+    {
+        var d = VoiceReplies.Decide(VoiceCommand.CheckProfile, 0, Snap(session: Running(elapsed: 4000)));
+        Assert.Equal("Your Regular session is running.", d.Reply);
+    }
+
+    [Theory]
+    [InlineData(6)]
+    [InlineData(99)]
+    public void Start_RequestedProfileOutsideVoiceSet_IsPlainStart(int requested)
+    {
+        var d = VoiceReplies.Decide(VoiceCommand.Start, requested, Snap(profile: 1));
+        Assert.Equal("Starting your Regular session.", d.Reply);
+        Assert.Equal(VoiceAction.Start, d.Action);
+    }
+
+    [Fact]
+    public void ZeroVoltage_IsNoReading()
+    {
+        var battery = VoiceReplies.Decide(VoiceCommand.CheckBattery, 0, Snap(pv: 0.0));
+        Assert.Equal("Primary glove unavailable, secondary 80 percent.", battery.Reply);
+
+        var start = VoiceReplies.Decide(VoiceCommand.Start, 0, Snap(pv: 0.0, pLow: null));
+        Assert.Equal(VoiceAction.Start, start.Action);
+    }
 }
