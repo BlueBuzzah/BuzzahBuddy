@@ -24,9 +24,11 @@ public static class HistorySummary
     /// <summary>The study's daily dose, which is a full bar or calendar well in History: 2 h twice a day.</summary>
     public const int StudyDailySeconds = ResearchDefaults.SessionMinutes * ResearchDefaults.SessionsPerDay * 60;
 
-    /// <summary>Days with a session or a note, plus today, newest first.</summary>
-    public static IReadOnlyList<DaySummary> Days(IEnumerable<SessionRecord> sessions, IEnumerable<DayNote> notes, DateOnly today)
+    /// <summary>Days from <paramref name="from"/> to <paramref name="today"/> with a session or a note, plus today, newest first.</summary>
+    public static IReadOnlyList<DaySummary> Days(IEnumerable<SessionRecord> sessions, IEnumerable<DayNote> notes, DateOnly from, DateOnly today)
     {
+        sessions = sessions.Where(s => s.Day >= from && s.Day <= today);
+        notes = notes.Where(n => n.Day >= from && n.Day <= today);
         var byDay = sessions.GroupBy(s => s.Day).ToDictionary(g => g.Key, g => g.OrderBy(s => s.StartedAt).ToList());
         var noteByDay = new Dictionary<DateOnly, string>();
         foreach (var n in notes)

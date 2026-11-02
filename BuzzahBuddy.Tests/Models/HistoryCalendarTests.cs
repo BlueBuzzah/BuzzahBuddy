@@ -24,7 +24,7 @@ public class HistoryCalendarTests
     {
         var sessions = new[] { Rec("2026-10-01T09:00:00", 14400), Rec("2026-10-30T09:00:00", 7800) };
 
-        var month = HistoryCalendar.Build(sessions, new DateOnly(2026, 10, 12), Today, Inv);
+        var month = HistoryCalendar.Build(sessions, new DateOnly(2026, 10, 12), DateOnly.MinValue, Today, Inv);
 
         Assert.Equal("October 2026", month.Title);
         Assert.Equal("Sun", month.WeekdayNames[0]);
@@ -34,7 +34,7 @@ public class HistoryCalendarTests
         Assert.Equal(1, month.Days[0].Fraction);
         Assert.True(month.Days[29].IsToday);
         Assert.Equal("Friday, October 30, today, 2 hours 10 minutes", month.Days[29].Spoken);
-        Assert.True(month.Days[30].IsFuture);
+        Assert.True(month.Days[30].OutsidePeriod);
         Assert.Equal("Friday, October 2, no sessions", month.Days[1].Spoken);
         Assert.False(month.Days[1].HasTime);
     }
@@ -45,7 +45,7 @@ public class HistoryCalendarTests
         var culture = (CultureInfo)CultureInfo.InvariantCulture.Clone();
         culture.DateTimeFormat.FirstDayOfWeek = DayOfWeek.Monday;
 
-        var month = HistoryCalendar.Build(Array.Empty<SessionRecord>(), Today, Today, culture);
+        var month = HistoryCalendar.Build(Array.Empty<SessionRecord>(), Today, DateOnly.MinValue, Today, culture);
 
         Assert.Equal("Mon", month.WeekdayNames[0]);
         Assert.Equal("Sun", month.WeekdayNames[6]);
@@ -57,7 +57,7 @@ public class HistoryCalendarTests
     {
         var sessions = new[] { Rec("2026-10-05T09:00:00", 20000), Rec("2026-10-06T09:00:00", 300) };
 
-        var month = HistoryCalendar.Build(sessions, Today, Today, Inv);
+        var month = HistoryCalendar.Build(sessions, Today, DateOnly.MinValue, Today, Inv);
 
         Assert.Equal(1, month.Days[4].Fraction);
         Assert.True(month.Days[5].HasTime);
@@ -67,18 +67,24 @@ public class HistoryCalendarTests
     [Fact]
     public void Build_TodayWithoutSessions_SaysNoSessionsYet()
     {
-        var month = HistoryCalendar.Build(Array.Empty<SessionRecord>(), Today, Today, Inv);
+        var month = HistoryCalendar.Build(Array.Empty<SessionRecord>(), Today, DateOnly.MinValue, Today, Inv);
 
         Assert.Equal("Friday, October 30, today, no sessions yet", month.Days[29].Spoken);
     }
 
     [Fact]
-    public void FirstMonth_EarliestSessionOrToday()
+    public void Build_DaysBeforeThePeriod_AreOutsideIt()
     {
-        var sessions = new[] { Rec("2026-10-01T09:00:00", 600), Rec("2026-03-15T09:00:00", 600) };
+        var sessions = new[] { Rec("2026-10-01T09:00:00", 14400), Rec("2026-10-03T09:00:00", 3600) };
 
-        Assert.Equal(new DateOnly(2026, 3, 1), HistoryCalendar.FirstMonth(sessions, Today));
-        Assert.Equal(new DateOnly(2026, 10, 1), HistoryCalendar.FirstMonth(Array.Empty<SessionRecord>(), Today));
+        var month = HistoryCalendar.Build(sessions, Today, new DateOnly(2026, 10, 3), Today, Inv);
+
+        Assert.True(month.Days[0].OutsidePeriod);
+        Assert.True(month.Days[1].OutsidePeriod);
+        Assert.False(month.Days[2].OutsidePeriod);
+        Assert.True(month.Days[2].HasTime);
+        Assert.False(month.Days[29].OutsidePeriod);
+        Assert.True(month.Days[30].OutsidePeriod);
     }
 
     [Fact]

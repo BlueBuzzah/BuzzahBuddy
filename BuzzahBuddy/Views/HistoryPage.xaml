@@ -38,7 +38,7 @@
                         <Label Text="Overview" Style="{StaticResource TypeTitleL}" SemanticProperties.HeadingLevel="Level2" />
                         <Border Style="{StaticResource Card}">
                             <VerticalStackLayout Spacing="{StaticResource Space4}">
-                                <!-- One period for the overview, the averages and the shared report. -->
+                                <!-- One period for the whole page: overview, calendar, averages, report and days. -->
                                 <controls:SegmentedControl Label="Period"
                                                            Options="{Binding RangeOptions}"
                                                            SelectedValue="{Binding SelectedRange}"

@@ -8,7 +8,8 @@ namespace BuzzahBuddy.Views.Controls;
 /// The History calendar: the month's title over a 7-column grid of level cells. Each day is a
 /// <c>SurfaceSunken</c> well with a <c>Brand</c> fill rising to its time, a full well being
 /// 4 hours (as <see cref="MeterBar"/>), with the day number below. Today has an <c>Ink</c>
-/// ring; future days are a dashed outline left out of the accessibility tree. Each other
+/// ring; days outside the period (future days among them) are a dashed outline left out of
+/// the accessibility tree. Each other
 /// day reads as one element, its <see cref="CalendarDay.Spoken"/> text.
 /// </summary>
 /// <remarks>
@@ -173,8 +174,8 @@ public sealed class CalendarMonthView : ContentView
             // it when it grows from zero, which left a day paged to with no fill drawn.
             _fill.SetDynamicResource(BackgroundColorProperty, "Brand");
 
-            // A future day swaps in this second, dashed well rather than dashing the well: MAUI
-            // 10.0.20 on iOS never clears a dash pattern, so a slot that once held a future day
+            // A day outside the period swaps in this second, dashed well rather than dashing the well: MAUI
+            // 10.0.20 on iOS never clears a dash pattern, so a slot that once held such a day
             // stayed dashed for every month after. SurfaceRaised is the card's own color.
             _futureWell = new Border { StrokeShape = new RoundRectangle { CornerRadius = 8 }, StrokeDashArray = [4, 3] };
             _futureWell.SetDynamicResource(Border.StrokeThicknessProperty, "BorderHairline");
@@ -217,10 +218,10 @@ public sealed class CalendarMonthView : ContentView
             Root.Opacity = day is null ? 0 : 1;
             _number.Text = day?.Number;
 
-            var future = day?.IsFuture != false;
-            _well.IsVisible = !future;
-            _futureWell.IsVisible = future;
-            _fraction = day is { IsFuture: false, HasTime: true } ? day.Fraction : 0;
+            var outside = day?.OutsidePeriod != false;
+            _well.IsVisible = !outside;
+            _futureWell.IsVisible = outside;
+            _fraction = day is { OutsidePeriod: false, HasTime: true } ? day.Fraction : 0;
             SizeFill(wellSize);
 
             var today = day?.IsToday == true;
@@ -229,8 +230,8 @@ public sealed class CalendarMonthView : ContentView
             _number.SetDynamicResource(Label.TextColorProperty, today ? "Ink" : "InkMuted");
 
             // IsInAccessibleTree on a container leaves its children (the number) in the tree.
-            AutomationProperties.SetExcludedWithChildren(Root, day is null || day.IsFuture);
-            SemanticProperties.SetDescription(Root, day is { IsFuture: false } ? day.Spoken : null);
+            AutomationProperties.SetExcludedWithChildren(Root, day is null || day.OutsidePeriod);
+            SemanticProperties.SetDescription(Root, day is { OutsidePeriod: false } ? day.Spoken : null);
         }
 
         public void Fit(double wellSize)
