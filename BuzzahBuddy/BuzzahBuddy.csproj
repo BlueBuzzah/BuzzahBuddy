@@ -203,4 +203,12 @@
 		<Message Importance="high" Text="Trained Siri phrases for $(ApplicationId)" />
 	</Target>
 
+	<!-- The embedded framework keeps its own copy of the same intents and phrases under its own id.
+	     The app's copy above is the one Siri should use, so ship only that one. The SDK copies the
+	     framework into the bundle in _CopyDirectoriesToBundle, after the targets above. -->
+	<Target Name="RemoveFrameworkAppIntentsMetadata" AfterTargets="_CopyDirectoriesToBundle"
+		Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">
+		<RemoveDir Directories="$(AppBundleDir)/Frameworks/BuzzahBuddyKit.framework/Metadata.appintents" />
+	</Target>
+
 </Project>
