@@ -232,6 +232,19 @@ public class VoiceCommandServiceTests
         Assert.Equal(new[] { "SESSION_STATUS" }, rig.Sent);
     }
 
+    // Right after a cold-launch connect the post-connect INFO may not have landed yet.
+    [Fact]
+    public async Task CheckProfile_WithoutAPriorInfo_AsksForIt()
+    {
+        var rig = new Rig();
+        rig.Bluetooth.CannedResponses["INFO"] = Info(profile: 2);
+
+        var reply = await rig.Service.RunAsync(VoiceCommand.CheckProfile, 0).WaitAsync(Bound);
+
+        Assert.Equal("Your gloves are set to Noisy.", reply);
+        Assert.Equal(new[] { "INFO", "SESSION_STATUS" }, rig.Sent);
+    }
+
     // ===== Actions =====
 
     [Fact]

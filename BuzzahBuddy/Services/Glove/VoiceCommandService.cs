@@ -299,13 +299,15 @@ public sealed class VoiceCommandService(
         || autoConnect.State == AutoConnectState.Connecting;
 
     /// <summary>
-    /// Battery (INFO) for Start and Check Battery; a fresh SESSION_STATUS for the commands
-    /// that act on a running session and for Check Profile. A reading that fails stays null.
+    /// INFO (battery, and the loaded profile) for Start, Check Battery and Check Profile: right
+    /// after a connect, the post-connect INFO may not have set the profile yet. A fresh
+    /// SESSION_STATUS for the commands that act on a running session and for Check Profile.
+    /// A reading that fails stays null.
     /// </summary>
     private async Task<VoiceSnapshot> SnapshotAsync(VoiceCommand command)
     {
         GloveDeviceInfo? info = null;
-        if (command is VoiceCommand.Start or VoiceCommand.CheckBattery)
+        if (command is VoiceCommand.Start or VoiceCommand.CheckBattery or VoiceCommand.CheckProfile)
         {
             try
             {
