@@ -109,10 +109,15 @@ public static class VoiceReplies
         var message = error is BlueBuzzahCommandException ? error.Message : string.Empty;
         if (message.Contains("Battery too low", StringComparison.OrdinalIgnoreCase))
             return NeedsCharging;
-        if (message.Contains("Secondary not connected", StringComparison.OrdinalIgnoreCase))
+        if (IsSecondaryNotConnected(error))
             return NoSecondary;
         return StartFailed;
     }
+
+    /// <summary>The firmware refused SESSION_START because the secondary glove isn't linked to the primary.</summary>
+    public static bool IsSecondaryNotConnected(Exception error) =>
+        error is BlueBuzzahCommandException
+        && error.Message.Contains("Secondary not connected", StringComparison.OrdinalIgnoreCase);
 
     private static string Battery(VoiceSnapshot s) =>
         $"Primary glove {Glove(s.PrimaryVoltage, s.PrimaryLow)}, secondary {Glove(s.SecondaryVoltage, s.SecondaryLow)}.";

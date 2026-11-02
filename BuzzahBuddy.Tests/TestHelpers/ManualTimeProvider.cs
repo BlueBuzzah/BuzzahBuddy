@@ -8,6 +8,7 @@ public sealed class ManualTimeProvider : TimeProvider
 {
     private readonly object _lock = new();
     private readonly List<ManualTimer> _timers = new();
+    private readonly List<(int Count, TaskCompletionSource Done)> _timerWaiters = new();
     private DateTimeOffset _now = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
     public override DateTimeOffset GetUtcNow()
@@ -30,6 +31,22 @@ public sealed class ManualTimeProvider : TimeProvider
             timer.Fire();
     }
 
+    /// <summary>
+    /// Completes once at least <paramref name="count"/> timers are waiting to fire, so a test
+    /// advances the clock only after the code under test has started its wait.
+    /// </summary>
+    public Task WhenPendingTimers(int count)
+    {
+        lock (_lock)
+        {
+            if (_timers.Count >= count)
+                return Task.CompletedTask;
+            var done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            _timerWaiters.Add((count, done));
+            return done.Task;
+        }
+    }
+
     public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
     {
         var timer = new ManualTimer(this, callback, state);
@@ -46,6 +63,11 @@ public sealed class ManualTimeProvider : TimeProvider
             {
                 timer.DueAt = _now + dueTime;
                 _timers.Add(timer);
+                foreach (var waiter in _timerWaiters.Where(w => _timers.Count >= w.Count).ToList())
+                {
+                    _timerWaiters.Remove(waiter);
+                    waiter.Done.TrySetResult();
+                }
             }
         }
     }

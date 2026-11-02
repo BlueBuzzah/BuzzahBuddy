@@ -114,28 +114,47 @@ public sealed class VoiceCommandService(
     private async Task<string> SwitchAsync(int profileId)
     {
         _isSwitching = true;
+        // Started before PROFILE_LOAD goes out: the link often drops inside the send, and only
+        // a profile reported after that drop means the gloves have restarted.
+        var loaded = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        FollowThrough = FollowThroughAsync(profileId, loaded.Task);
         try
         {
             await glove.LoadProfileAsync(profileId);
         }
         catch (Exception ex)
         {
-            _isSwitching = false;
             System.Diagnostics.Debug.WriteLine($"[VOICE] PROFILE_LOAD:{profileId} failed: {ex.Message}");
+            loaded.SetResult(false);
+            // Only cleanup is left, and it never throws: wait so IsSwitching is clear on return.
+            await FollowThrough;
             return VoiceReplies.Result(VoiceAction.SwitchThenStart, profileId, ex);
         }
-        // Subscribes before this returns, so the gloves can't come back unseen.
-        FollowThrough = FollowThroughAsync(profileId);
+        loaded.SetResult(true);
         return VoiceReplies.Result(VoiceAction.SwitchThenStart, profileId, null);
     }
 
-    private async Task FollowThroughAsync(int profileId)
+    /// <summary>
+    /// Pauses between start attempts while the primary says the secondary hasn't rejoined it
+    /// after the restart; the last repeats until the switch's backstop.
+    /// </summary>
+    private static readonly TimeSpan[] SecondaryRetryDelays =
+        [TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10)];
+
+    private async Task FollowThroughAsync(int profileId, Task<bool> loaded)
     {
+        // An INFO answered on the old link (before the reboot drops it) doesn't count.
+        var dropped = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         // true: the gloves are back on the profile; false: the reconnect gave up
         var outcome = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        void OnLink(object? sender, ConnectionState state)
+        {
+            if (state != ConnectionState.Connected)
+                dropped.TrySetResult();
+        }
         void OnProfile(object? sender, int id)
         {
-            if (id == profileId)
+            if (id == profileId && dropped.Task.IsCompleted)
                 outcome.TrySetResult(true);
         }
         void OnReconnect(object? sender, ReconnectionStateEventArgs e)
@@ -145,13 +164,19 @@ public sealed class VoiceCommandService(
                 outcome.TrySetResult(false);
         }
 
+        bluetooth.ConnectionStateChanged += OnLink;
         glove.DeviceProfileChanged += OnProfile;
         reconnection.ReconnectionStateChanged += OnReconnect;
         using var backstopCts = new CancellationTokenSource();
         try
         {
             var backstop = Task.Delay(SwitchBackstop, _time, backstopCts.Token);
-            if (await Task.WhenAny(outcome.Task, backstop) != outcome.Task || !await outcome.Task)
+            if (!await loaded)
+                return;
+            await Task.WhenAny(outcome.Task, backstop);
+            // The outcome wins a tie: its continuations run asynchronously, so the backstop
+            // can finish the WhenAny first even when the gloves came back before it.
+            if (!outcome.Task.IsCompleted || !await outcome.Task)
             {
                 System.Diagnostics.Debug.WriteLine($"[VOICE] Gloves didn't come back on profile {profileId}; not starting");
                 return;
@@ -163,11 +188,33 @@ public sealed class VoiceCommandService(
                 await glove.SendSavedCustomProfileAsync(saved);
             await saveLastProfile(profileId);
 
-            using (await sessionLock.AcquireAsync())
+            // Siri promised the session. The secondary can rejoin the primary after the phone
+            // does, so that refusal is retried until the backstop; any other ends it.
+            for (var attempt = 0; ; attempt++)
             {
-                // A tap may have started one while the gloves came back.
-                if (!glove.CurrentSessionStatus.IsActive)
-                    await glove.StartSessionAsync();
+                using (await sessionLock.AcquireAsync())
+                {
+                    // A tap may have started one while the gloves came back.
+                    if (glove.CurrentSessionStatus.IsActive)
+                        return;
+                    try
+                    {
+                        await glove.StartSessionAsync();
+                        return;
+                    }
+                    catch (Exception ex) when (VoiceReplies.IsSecondaryNotConnected(ex))
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[VOICE] Secondary not back yet (start {attempt + 1}); retrying");
+                    }
+                }
+
+                var retry = Task.Delay(SecondaryRetryDelays[Math.Min(attempt, SecondaryRetryDelays.Length - 1)], _time, backstopCts.Token);
+                await Task.WhenAny(retry, backstop);
+                if (backstop.IsCompleted)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[VOICE] Secondary never rejoined after switching to profile {profileId}; not starting");
+                    return;
+                }
             }
         }
         catch (Exception ex)
@@ -176,6 +223,7 @@ public sealed class VoiceCommandService(
         }
         finally
         {
+            bluetooth.ConnectionStateChanged -= OnLink;
             glove.DeviceProfileChanged -= OnProfile;
             reconnection.ReconnectionStateChanged -= OnReconnect;
             backstopCts.Cancel();

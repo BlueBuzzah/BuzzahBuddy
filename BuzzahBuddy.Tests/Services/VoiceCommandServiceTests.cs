@@ -20,6 +20,7 @@ public class VoiceCommandServiceTests
 
     private const string Idle = "CMD:SESSION_STATUS\nSESSION_STATUS:IDLE\n\x04";
     private const string Running = "CMD:SESSION_STATUS\nSESSION_STATUS:RUNNING\nELAPSED:600\nTOTAL:3600\n\x04";
+    private const string StartAccepted = "CMD:SESSION_START\nSESSION_STATUS:RUNNING\nELAPSED:0\nTOTAL:3600\n\x04";
 
     private sealed class Rig
     {
@@ -43,7 +44,7 @@ public class VoiceCommandServiceTests
             }
             Bluetooth.CannedResponses["INFO"] = Info();
             Bluetooth.CannedResponses["SESSION_STATUS"] = Idle;
-            Bluetooth.CannedResponses["SESSION_START"] = "CMD:SESSION_START\nSESSION_STATUS:RUNNING\nELAPSED:0\nTOTAL:3600\n\x04";
+            Bluetooth.CannedResponses["SESSION_START"] = StartAccepted;
             Bluetooth.CannedResponses["SESSION_PAUSE"] = "CMD:SESSION_PAUSE\nSTATUS:PAUSED\n\x04";
             Bluetooth.CannedResponses["SESSION_STOP"] = "CMD:SESSION_STOP\nSTATUS:STOPPED\n\x04";
             Bluetooth.CannedResponses["PROFILE_LOAD"] = "CMD:PROFILE_LOAD\nSTATUS:REBOOTING\n\x04";
@@ -401,6 +402,111 @@ public class VoiceCommandServiceTests
         // The gloves turning up afterwards doesn't start anything
         await rig.RebootAndReconnectAsync(profile: 2);
         Assert.DoesNotContain("SESSION_START", rig.Sent);
+    }
+
+    // An INFO answered on the old link, before the reboot drops it, already names the new
+    // profile: that isn't the gloves coming back, so it must not start them. The reconnect
+    // then fails (raised in order on this thread, so the stale INFO had its chance first).
+    [Fact]
+    public async Task SwitchThenStart_ProfileReportedBeforeTheReboot_DoesNotStart()
+    {
+        var rig = new Rig();
+        await rig.Service.RunAsync(VoiceCommand.Start, 2).WaitAsync(Bound);
+
+        rig.Bluetooth.CannedResponses["INFO"] = Info(profile: 2);
+        await rig.Glove.GetDeviceInfoAsync();
+        rig.Reconnection.Raise(ReconnectionState.Failed);
+        await rig.Service.FollowThrough.WaitAsync(Bound);
+
+        Assert.DoesNotContain("SESSION_START", rig.Sent);
+        Assert.False(rig.Service.IsSwitching);
+    }
+
+    private const string SecondaryRefusal = "CMD:SESSION_START\nERROR:Secondary not connected\n\x04";
+
+    /// <summary>Switches to Noisy and brings the gloves back with every start refused for the secondary.</summary>
+    private static async Task<Rig> SwitchedWithSecondaryMissingAsync()
+    {
+        var rig = new Rig();
+        await rig.Service.RunAsync(VoiceCommand.Start, 2).WaitAsync(Bound);
+        rig.Bluetooth.CannedResponses["SESSION_START"] = SecondaryRefusal;
+        await rig.RebootAndReconnectAsync(profile: 2);
+        // The backstop plus the first retry's wait: the refused start is done
+        await rig.Time.WhenPendingTimers(2).WaitAsync(Bound);
+        Assert.Single(rig.Sent, c => c == "SESSION_START");
+        Assert.True(rig.Service.IsSwitching);
+        return rig;
+    }
+
+    [Fact]
+    public async Task SwitchThenStart_SecondaryNotBackYet_RetriesUntilAccepted()
+    {
+        var rig = await SwitchedWithSecondaryMissingAsync();
+        rig.Bluetooth.CannedResponses["SESSION_START"] = StartAccepted;
+
+        rig.Time.Advance(TimeSpan.FromSeconds(3));
+        await rig.Service.FollowThrough.WaitAsync(Bound);
+
+        Assert.Equal(2, rig.Sent.Count(c => c == "SESSION_START"));
+        Assert.True(rig.Glove.CurrentSessionStatus.IsRunning);
+        Assert.False(rig.Service.IsSwitching);
+    }
+
+    [Fact]
+    public async Task SwitchThenStart_SecondaryNeverBack_GivesUpAtTheBackstop()
+    {
+        var rig = await SwitchedWithSecondaryMissingAsync();
+
+        // Retries 3, 5, then every 10 s after the first refusal: at 3, 8, 18 ... 118 s
+        var elapsed = 0;
+        foreach (var delay in new[] { 3, 5 }.Concat(Enumerable.Repeat(10, 20)))
+        {
+            if (elapsed + delay >= 120)
+                break;
+            await rig.Time.WhenPendingTimers(2).WaitAsync(Bound);
+            rig.Time.Advance(TimeSpan.FromSeconds(delay));
+            elapsed += delay;
+        }
+        Assert.Equal(118, elapsed);
+        await rig.Time.WhenPendingTimers(2).WaitAsync(Bound);
+        Assert.False(rig.Service.FollowThrough.IsCompleted);
+
+        rig.Time.Advance(TimeSpan.FromSeconds(2));
+        await rig.Service.FollowThrough.WaitAsync(Bound);
+
+        Assert.Equal(14, rig.Sent.Count(c => c == "SESSION_START"));
+        Assert.False(rig.Service.IsSwitching);
+        rig.Time.Advance(TimeSpan.FromSeconds(30));
+        Assert.Equal(14, rig.Sent.Count(c => c == "SESSION_START"));
+    }
+
+    [Fact]
+    public async Task SwitchThenStart_SessionActiveWhenARetryFires_NoFurtherStart()
+    {
+        var rig = await SwitchedWithSecondaryMissingAsync();
+        // The person started it on screen meanwhile
+        rig.Bluetooth.CannedResponses["SESSION_STATUS"] = Running;
+        await rig.Glove.GetSessionStatusAsync();
+
+        rig.Time.Advance(TimeSpan.FromSeconds(3));
+        await rig.Service.FollowThrough.WaitAsync(Bound);
+
+        Assert.Single(rig.Sent, c => c == "SESSION_START");
+        Assert.False(rig.Service.IsSwitching);
+    }
+
+    [Fact]
+    public async Task SwitchThenStart_OtherRefusal_EndsAtOnce()
+    {
+        var rig = new Rig();
+        await rig.Service.RunAsync(VoiceCommand.Start, 2).WaitAsync(Bound);
+        rig.Bluetooth.CannedResponses["SESSION_START"] = "CMD:SESSION_START\nERROR:Battery too low\n\x04";
+
+        await rig.RebootAndReconnectAsync(profile: 2);
+        await rig.Service.FollowThrough.WaitAsync(Bound);
+
+        Assert.Single(rig.Sent, c => c == "SESSION_START");
+        Assert.False(rig.Service.IsSwitching);
     }
 
     [Fact]
