@@ -62,7 +62,7 @@ public class VoiceCommandServiceTests
                 Time);
         }
 
-        public List<string> Sent => Bluetooth.SentCommands;
+        public CommandLog Sent => Bluetooth.SentCommands;
 
         /// <summary>
         /// The gloves reboot and come back: the link drops, the reconnect loop runs, the link
@@ -249,6 +249,24 @@ public class VoiceCommandServiceTests
 
         Assert.Equal(VoiceReplies.Paused, await reply.WaitAsync(Bound));
         Assert.Single(rig.Sent, c => c == "SESSION_PAUSE");
+    }
+
+    // The on-screen Pause got the lock first: the voice Pause reads PAUSED once it holds it.
+    [Fact]
+    public async Task Pause_AfterATapPausedFirst_AlreadyPaused()
+    {
+        var rig = new Rig();
+        rig.Bluetooth.CannedResponses["SESSION_STATUS"] = Running;
+
+        var held = await rig.Lock.AcquireAsync();
+        var reply = rig.Service.RunAsync(VoiceCommand.Pause, 0);
+        Assert.Empty(rig.Sent);
+        rig.Bluetooth.CannedResponses["SESSION_STATUS"] =
+            "CMD:SESSION_STATUS\nSESSION_STATUS:PAUSED\nELAPSED:600\nTOTAL:3600\n\x04";
+        held.Dispose();
+
+        Assert.Equal(VoiceReplies.AlreadyPaused, await reply.WaitAsync(Bound));
+        Assert.DoesNotContain("SESSION_PAUSE", rig.Sent);
     }
 
     [Fact]
@@ -489,6 +507,42 @@ public class VoiceCommandServiceTests
         await rig.Glove.GetSessionStatusAsync();
 
         rig.Time.Advance(TimeSpan.FromSeconds(3));
+        await rig.Service.FollowThrough.WaitAsync(Bound);
+
+        Assert.Single(rig.Sent, c => c == "SESSION_START");
+        Assert.False(rig.Service.IsSwitching);
+    }
+
+    // The reconnect cleared ExpectingReboot, so only IsSwitching keeps a second Start from
+    // sending another PROFILE_LOAD or a SESSION_START of its own.
+    [Fact]
+    public async Task StartDuringTheSecondaryRetries_Restarting()
+    {
+        var rig = await SwitchedWithSecondaryMissingAsync();
+        Assert.False(rig.Glove.ExpectingReboot);
+
+        Assert.Equal(VoiceReplies.Restarting, await rig.Service.RunAsync(VoiceCommand.Start, 2).WaitAsync(Bound));
+        Assert.Equal(VoiceReplies.Restarting, await rig.Service.RunAsync(VoiceCommand.Start, 3).WaitAsync(Bound));
+        Assert.Single(rig.Sent, c => c.StartsWith("PROFILE_LOAD"));
+        Assert.Single(rig.Sent, c => c == "SESSION_START");
+
+        rig.Bluetooth.CannedResponses["SESSION_START"] = StartAccepted;
+        rig.Time.Advance(TimeSpan.FromSeconds(3));
+        await rig.Service.FollowThrough.WaitAsync(Bound);
+        Assert.Equal(2, rig.Sent.Count(c => c == "SESSION_START"));
+    }
+
+    // A tap holds the session lock across the 120 s mark: the retry waiting behind it gives up.
+    [Fact]
+    public async Task SwitchThenStart_RetryHeldPastTheBackstop_NoStart()
+    {
+        var rig = await SwitchedWithSecondaryMissingAsync();
+        rig.Bluetooth.CannedResponses["SESSION_START"] = StartAccepted;
+
+        var held = await rig.Lock.AcquireAsync();
+        rig.Time.Advance(TimeSpan.FromSeconds(3));
+        rig.Time.Advance(TimeSpan.FromSeconds(117));
+        held.Dispose();
         await rig.Service.FollowThrough.WaitAsync(Bound);
 
         Assert.Single(rig.Sent, c => c == "SESSION_START");

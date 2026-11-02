@@ -25,7 +25,11 @@ public class FakeBluetoothService : IBluetoothService
     /// </summary>
     public Dictionary<string, Exception> ThrowOnCommand { get; } = new();
 
-    public List<string> SentCommands { get; } = new();
+    /// <summary>
+    /// Every command sent, in order. Thread-safe: GloveControlService's post-connect sync
+    /// sends from the thread pool while a test's own commands go out.
+    /// </summary>
+    public CommandLog SentCommands { get; } = new();
 
     /// <summary>
     /// When set, every reply waits for this to complete - lets a test hold a command
@@ -115,4 +119,38 @@ public class FakeBluetoothService : IBluetoothService
     public Task SubscribeToNotificationsAsync() => Task.CompletedTask;
     public Task UnsubscribeFromNotificationsAsync() => Task.CompletedTask;
     public Task<bool> IsBluetoothEnabledAsync() => Task.FromResult(BluetoothEnabled);
+}
+
+/// <summary>A list of sent commands that is safe to add to from several threads; reads see a snapshot.</summary>
+public sealed class CommandLog : IList<string>, IReadOnlyList<string>
+{
+    private readonly List<string> _items = new();
+
+    public int Count { get { lock (_items) return _items.Count; } }
+    public bool IsReadOnly => false;
+
+    public string this[int index]
+    {
+        get { lock (_items) return _items[index]; }
+        set { lock (_items) _items[index] = value; }
+    }
+
+    public void Add(string item) { lock (_items) _items.Add(item); }
+    public void Clear() { lock (_items) _items.Clear(); }
+    public bool Contains(string item) { lock (_items) return _items.Contains(item); }
+    public int IndexOf(string item) { lock (_items) return _items.IndexOf(item); }
+    public void Insert(int index, string item) { lock (_items) _items.Insert(index, item); }
+    public bool Remove(string item) { lock (_items) return _items.Remove(item); }
+    public void RemoveAt(int index) { lock (_items) _items.RemoveAt(index); }
+    public void CopyTo(string[] array, int arrayIndex) { lock (_items) _items.CopyTo(array, arrayIndex); }
+
+    public IEnumerator<string> GetEnumerator()
+    {
+        List<string> snapshot;
+        lock (_items)
+            snapshot = new List<string>(_items);
+        return snapshot.GetEnumerator();
+    }
+
+    System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
 }

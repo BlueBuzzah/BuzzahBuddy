@@ -214,7 +214,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     public bool ShowDisconnectedView => !ConnectionInfo.IsConnected && !IsApplyingSettings;
 
     /// <summary>Backstop for the apply-reconnect watch, in case no terminal reconnection event arrives.</summary>
-    private const int ApplyReconnectBackstopMs = 120_000;
+    private const int ApplyReconnectBackstopMs = BlueBuzzahConstants.RebootReconnectBackstopSeconds * 1000;
 
     private CancellationTokenSource? _applyWatchCts;
 

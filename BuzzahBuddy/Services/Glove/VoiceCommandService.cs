@@ -19,7 +19,7 @@ public sealed class VoiceCommandService(
     private static readonly TimeSpan ConnectWait = TimeSpan.FromSeconds(BlueBuzzahConstants.ConnectionTimeoutSeconds);
 
     /// <summary>A profile switch gives up on the gloves coming back after this (the Gloves page's apply backstop).</summary>
-    private static readonly TimeSpan SwitchBackstop = TimeSpan.FromSeconds(120);
+    private static readonly TimeSpan SwitchBackstop = TimeSpan.FromSeconds(BlueBuzzahConstants.RebootReconnectBackstopSeconds);
 
     private readonly TimeProvider _time = time ?? TimeProvider.System;
     private volatile bool _isSwitching;
@@ -197,6 +197,12 @@ public sealed class VoiceCommandService(
                     // A tap may have started one while the gloves came back.
                     if (glove.CurrentSessionStatus.IsActive)
                         return;
+                    // A tap can hold the lock across the backstop: no retry goes out after it.
+                    if (attempt > 0 && backstop.IsCompleted)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[VOICE] Secondary never rejoined after switching to profile {profileId}; not starting");
+                        return;
+                    }
                     try
                     {
                         await glove.StartSessionAsync();
