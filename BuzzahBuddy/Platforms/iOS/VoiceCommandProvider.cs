@@ -2,6 +2,7 @@
 using BuzzahBuddy.Native.Binding;
 using BuzzahBuddy.Services.Glove;
 using Foundation;
+using UIKit;
 
 namespace BuzzahBuddy;
 
@@ -41,14 +42,22 @@ sealed class VoiceCommandProvider : BuzzahBuddy.Native.Binding.VoiceCommandProvi
 
 	async Task RunAsync(string command, nint profileId, Action<NSString> completion)
 	{
+		// Siri's reply ends the intent, and iOS may then suspend a background app. "Start Noisy"
+		// still has to wait for the gloves to restart and send SESSION_START, so hold a background
+		// task until that follow-through ends (it also covers the command's own connect wait).
+		// ponytail: iOS grants about 30 s, enough for a typical 5-15 s reboot; a slower one
+		// finishes when iOS next wakes the app (a glove reconnect does).
+		using var keepRunning = new BackgroundRun("BuzzahBuddy voice command");
 		var parsed = Parse(command);
 		string reply;
+		VoiceCommandService? service = null;
 		try
 		{
 			if (parsed is not { } voiceCommand)
 				throw new ArgumentException($"Unknown command \"{command}\"", nameof(command));
+			service = await GetServiceAsync();
 			// Only the voice profiles (1-5) can be asked for; anything else is a plain Start.
-			reply = await (await GetServiceAsync()).RunAsync(voiceCommand, profileId is >= 1 and <= 5 ? (int)profileId : 0);
+			reply = await service.RunAsync(voiceCommand, profileId is >= 1 and <= 5 ? (int)profileId : 0);
 		}
 		catch (Exception ex)
 		{
@@ -65,6 +74,8 @@ sealed class VoiceCommandProvider : BuzzahBuddy.Native.Binding.VoiceCommandProvi
 		}
 		// Outside the try: a throw from the completion must not lead to a second call.
 		completion(new NSString(reply));
+		if (service is not null)
+			await service.FollowThrough; // never throws: it logs and swallows its own errors
 	}
 
 	async Task StopPrecheckAsync(VoiceStopPrecheckCompletion completion)
@@ -80,6 +91,24 @@ sealed class VoiceCommandProvider : BuzzahBuddy.Native.Binding.VoiceCommandProvi
 			reply = VoiceReplies.StopFailed;
 		}
 		completion(reply is null ? null : new NSString(reply));
+	}
+
+	/// <summary>
+	/// A UIKit background task, ended exactly once: on Dispose, or by iOS's expiration handler.
+	/// </summary>
+	sealed class BackgroundRun : IDisposable
+	{
+		nint _id;
+
+		public BackgroundRun(string name) =>
+			_id = UIApplication.SharedApplication.BeginBackgroundTask(name, Dispose);
+
+		public void Dispose()
+		{
+			var id = Interlocked.Exchange(ref _id, UIApplication.BackgroundTaskInvalid);
+			if (id != UIApplication.BackgroundTaskInvalid)
+				UIApplication.SharedApplication.EndBackgroundTask(id);
+		}
 	}
 
 	// Swift sends "stop" only after the person said yes to "End your session?".
