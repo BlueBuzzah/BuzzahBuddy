@@ -86,6 +86,9 @@ public partial class HistoryViewModel : BaseViewModel
 	/// </summary>
 	private DateOnly _calendarFrom = Today;
 
+	/// <summary>The day of the last compute; every section's period is counted back from it.</summary>
+	private DateOnly _computedOn = Today;
+
 	/// <summary>The current month at the last compute, to tell when a new month has begun.</summary>
 	private DateOnly _currentMonth = FirstOfMonth(Today);
 
@@ -159,6 +162,7 @@ public partial class HistoryViewModel : BaseViewModel
 			return;
 
 		var today = Today;
+		_computedOn = today;
 		var culture = CultureInfo.CurrentCulture;
 		var range = (ReportRange)SelectedRange;
 		var (from, to) = HistoryReport.Range(range, today, data.Sessions);
@@ -234,8 +238,11 @@ public partial class HistoryViewModel : BaseViewModel
 		var today = Today;
 		// A month paged to after midnight on the 1st is the person's choice, not one to follow.
 		_currentMonth = FirstOfMonth(today);
+		// Past midnight the period moves on a day; the whole page moves with it, not just the calendar.
+		if (_computedOn != today)
+			Recompute();
 		_shownMonth = HistoryCalendar.Step(_shownMonth, months, FirstOfMonth(_calendarFrom), _currentMonth);
-		Calendar = HistoryCalendar.Build(data.Sessions, _shownMonth, _calendarFrom, today, CultureInfo.CurrentCulture);
+		Calendar = HistoryCalendar.Build(data.Sessions, _shownMonth, _calendarFrom, _computedOn, CultureInfo.CurrentCulture);
 		SemanticScreenReader.Announce(Calendar.Title);
 		PreviousMonthCommand.NotifyCanExecuteChanged();
 		NextMonthCommand.NotifyCanExecuteChanged();
