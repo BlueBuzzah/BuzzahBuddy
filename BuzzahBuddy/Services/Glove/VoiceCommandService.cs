@@ -55,7 +55,7 @@ public sealed class VoiceCommandService(
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[VOICE] {command} failed: {ex.GetType().Name}: {ex.Message}");
+            Console.WriteLine($"[VOICE] {command} failed: {ex.GetType().Name}: {ex.Message}");
             return command switch
             {
                 VoiceCommand.Start => VoiceReplies.StartFailed,
@@ -79,7 +79,7 @@ public sealed class VoiceCommandService(
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[VOICE] Stop precheck failed: {ex.GetType().Name}: {ex.Message}");
+            Console.WriteLine($"[VOICE] Stop precheck failed: {ex.GetType().Name}: {ex.Message}");
             return VoiceReplies.StopFailed;
         }
     }
@@ -101,7 +101,7 @@ public sealed class VoiceCommandService(
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[VOICE] {decision.Action} failed: {ex.Message}");
+            Console.WriteLine($"[VOICE] {decision.Action} failed: {ex.Message}");
             error = ex;
         }
         return VoiceReplies.Result(decision.Action, decision.ProfileId, error);
@@ -124,7 +124,7 @@ public sealed class VoiceCommandService(
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[VOICE] PROFILE_LOAD:{profileId} failed: {ex.Message}");
+            Console.WriteLine($"[VOICE] PROFILE_LOAD:{profileId} failed: {ex.Message}");
             loaded.SetResult(false);
             // Only cleanup is left, and it never throws: wait so IsSwitching is clear on return.
             await FollowThrough;
@@ -136,7 +136,8 @@ public sealed class VoiceCommandService(
 
     /// <summary>
     /// Pauses between start attempts while the primary says the secondary hasn't rejoined it
-    /// after the restart; the last repeats until the switch's backstop.
+    /// after the restart, or is too busy re-syncing it to answer; the last repeats until the
+    /// switch's backstop.
     /// </summary>
     private static readonly TimeSpan[] SecondaryRetryDelays =
         [TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10)];
@@ -178,7 +179,7 @@ public sealed class VoiceCommandService(
             // can finish the WhenAny first even when the gloves came back before it.
             if (!outcome.Task.IsCompleted || !await outcome.Task)
             {
-                System.Diagnostics.Debug.WriteLine($"[VOICE] Gloves didn't come back on profile {profileId}; not starting");
+                Console.WriteLine($"[VOICE] Gloves didn't come back on profile {profileId}; not starting");
                 return;
             }
 
@@ -189,28 +190,42 @@ public sealed class VoiceCommandService(
             await saveLastProfile(profileId);
 
             // Siri promised the session. The secondary can rejoin the primary after the phone
-            // does, so that refusal is retried until the backstop; any other ends it.
+            // does, and while the primary re-syncs it a start can time out, so those two are
+            // retried until the backstop; any other refusal ends it.
             for (var attempt = 0; ; attempt++)
             {
                 using (await sessionLock.AcquireAsync())
                 {
+                    if (attempt > 0)
+                    {
+                        // A tap can hold the lock across the backstop: no retry goes out after it.
+                        if (backstop.IsCompleted)
+                        {
+                            Console.WriteLine($"[VOICE] Gloves never took the start after switching to profile {profileId}; not starting");
+                            return;
+                        }
+                        // A start that timed out may have been accepted with its reply lost. Ask the
+                        // gloves; a reading that fails or says nothing leaves the cache as it was.
+                        try
+                        {
+                            await glove.GetSessionStatusAsync();
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"[VOICE] SESSION_STATUS before start {attempt + 1} failed: {ex.Message}");
+                        }
+                    }
                     // A tap may have started one while the gloves came back.
                     if (glove.CurrentSessionStatus.IsActive)
                         return;
-                    // A tap can hold the lock across the backstop: no retry goes out after it.
-                    if (attempt > 0 && backstop.IsCompleted)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[VOICE] Secondary never rejoined after switching to profile {profileId}; not starting");
-                        return;
-                    }
                     try
                     {
                         await glove.StartSessionAsync();
                         return;
                     }
-                    catch (Exception ex) when (VoiceReplies.IsSecondaryNotConnected(ex))
+                    catch (Exception ex) when (VoiceReplies.IsSecondaryNotConnected(ex) || ex is TimeoutException)
                     {
-                        System.Diagnostics.Debug.WriteLine($"[VOICE] Secondary not back yet (start {attempt + 1}); retrying");
+                        Console.WriteLine($"[VOICE] Start {attempt + 1} after the switch not taken ({ex.Message}); retrying");
                     }
                 }
 
@@ -218,14 +233,14 @@ public sealed class VoiceCommandService(
                 await Task.WhenAny(retry, backstop);
                 if (backstop.IsCompleted)
                 {
-                    System.Diagnostics.Debug.WriteLine($"[VOICE] Secondary never rejoined after switching to profile {profileId}; not starting");
+                    Console.WriteLine($"[VOICE] Gloves never took the start after switching to profile {profileId}; not starting");
                     return;
                 }
             }
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[VOICE] Start after switching to profile {profileId} failed: {ex.Message}");
+            Console.WriteLine($"[VOICE] Start after switching to profile {profileId} failed: {ex.Message}");
         }
         finally
         {
@@ -301,8 +316,9 @@ public sealed class VoiceCommandService(
     /// <summary>
     /// INFO (battery, and the loaded profile) for Start, Check Battery and Check Profile: right
     /// after a connect, the post-connect INFO may not have set the profile yet. A fresh
-    /// SESSION_STATUS for the commands that act on a running session and for Check Profile.
-    /// A reading that fails stays null.
+    /// SESSION_STATUS for every command but Check Battery: the cached status stops updating
+    /// while the app is in the background, which is when Siri runs. A reading that fails stays
+    /// null; a failed SESSION_STATUS falls back to the cache.
     /// </summary>
     private async Task<VoiceSnapshot> SnapshotAsync(VoiceCommand command)
     {
@@ -315,12 +331,12 @@ public sealed class VoiceCommandService(
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[VOICE] INFO failed: {ex.Message}");
+                Console.WriteLine($"[VOICE] INFO failed: {ex.Message}");
             }
         }
 
         var session = glove.CurrentSessionStatus;
-        if (command is VoiceCommand.CheckProfile or VoiceCommand.Pause or VoiceCommand.Resume or VoiceCommand.Stop)
+        if (command is VoiceCommand.Start or VoiceCommand.CheckProfile or VoiceCommand.Pause or VoiceCommand.Resume or VoiceCommand.Stop)
         {
             try
             {
@@ -331,7 +347,7 @@ public sealed class VoiceCommandService(
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[VOICE] SESSION_STATUS failed: {ex.Message}");
+                Console.WriteLine($"[VOICE] SESSION_STATUS failed: {ex.Message}");
             }
         }
 
