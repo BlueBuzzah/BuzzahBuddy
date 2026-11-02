@@ -29,17 +29,32 @@ public partial class App : Application
 		theme.Apply();
 		RequestedThemeChanged += (_, _) => theme.Apply();
 
-		// Once per launch (the App outlives its windows), when the Settings switch is on.
+		// Once per launch (the App outlives its windows), when the Settings switch is on. Every
+		// path ends in Start or SkipLaunch: voice commands wait on LaunchFinished.
 		if (Preferences.Default.Get(AutoConnectService.SettingKey, true))
 			StartAutoConnectAsync(autoConnect, storage).SafeFireAndForget("[APP]");
+		else
+			autoConnect.SkipLaunch();
 	}
 
 	private static async Task StartAutoConnectAsync(AutoConnectService autoConnect, IDataStorageService storage)
 	{
-		// Real glove IDs are GUIDs on both platforms; older builds saved Demo Mode's "MOCK-…" ID,
-		// which would fail every launch.
-		if (await storage.GetLastDeviceAsync() is { } gloves && Guid.TryParse(gloves.Id, out _))
-			autoConnect.Start(gloves.Id);
+		try
+		{
+			// Real glove IDs are GUIDs on both platforms; older builds saved Demo Mode's "MOCK-…" ID,
+			// which would fail every launch.
+			if (await storage.GetLastDeviceAsync() is { } gloves && Guid.TryParse(gloves.Id, out _))
+			{
+				autoConnect.Start(gloves.Id);
+				return;
+			}
+		}
+		catch
+		{
+			autoConnect.SkipLaunch();
+			throw; // SafeFireAndForget logs it
+		}
+		autoConnect.SkipLaunch();
 	}
 
 	protected override Window CreateWindow(IActivationState? activationState)

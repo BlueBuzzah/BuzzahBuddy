@@ -19,6 +19,7 @@ namespace BuzzahBuddy.ViewModels;
 public partial class GloveControlViewModel : BaseViewModel
 {
     private readonly IGloveControlService _gloveControlService;
+    private readonly SessionCommandLock _sessionLock;
     private readonly IBluetoothService _bluetoothService;
     private readonly IDataStorageService _storageService;
     private readonly IReconnectionService _reconnectionService;
@@ -220,8 +221,10 @@ public partial class GloveControlViewModel : BaseViewModel
         IAppLifecycleService appLifecycleService,
         IConfirmationService confirmation,
         HistoryStore history,
-        AutoConnectService autoConnect)
+        AutoConnectService autoConnect,
+        SessionCommandLock sessionLock)
     {
+        _sessionLock = sessionLock;
         _confirmation = confirmation;
         _autoConnect = autoConnect;
         _autoConnect.StateChanged += (_, _) => MainThread.BeginInvokeOnMainThread(OnAutoConnectStateChanged);
@@ -332,11 +335,21 @@ public partial class GloveControlViewModel : BaseViewModel
             return;
         }
 
+        // What this tap meant to do, from the state it was tapped in.
+        var wantsStart = !IsSessionActive;
+        var wantsPause = IsSessionRunning;
         IsBusy = true;
 
         try
         {
-            if (!IsSessionActive)
+            // Voice commands share this lock. A tap that waited behind one does nothing if
+            // that command already did what the tap meant (Pause then Pause must not Resume).
+            using var commandLock = await _sessionLock.AcquireAsync();
+            var current = _gloveControlService.CurrentSessionStatus;
+            if (wantsStart ? current.IsActive : wantsPause ? !current.IsRunning : !current.IsPaused)
+                return;
+
+            if (wantsStart)
             {
                 if (_gloveControlService.DeviceProfileId > 0 &&
                     SelectedProfile != null &&
@@ -359,14 +372,14 @@ public partial class GloveControlViewModel : BaseViewModel
                 await UpdateSessionStatusAsync();
                 SemanticScreenReader.Announce("Session started");
             }
-            else if (IsSessionRunning)
+            else if (wantsPause)
             {
                 // Pause session
                 await _gloveControlService.PauseSessionAsync();
                 await UpdateSessionStatusAsync();
                 SemanticScreenReader.Announce("Session paused");
             }
-            else if (IsSessionPaused)
+            else
             {
                 // Resume session
                 await _gloveControlService.ResumeSessionAsync();
@@ -414,6 +427,10 @@ public partial class GloveControlViewModel : BaseViewModel
         {
             // Stop session. The IDLE reading that follows closes the record as
             // stopped early (TrackSession), because this flag is set first.
+            using var commandLock = await _sessionLock.AcquireAsync();
+            if (!_gloveControlService.CurrentSessionStatus.IsActive)
+                return; // a voice Stop got there first
+
             _userRequestedStop = true;
             await _gloveControlService.StopSessionAsync();
 

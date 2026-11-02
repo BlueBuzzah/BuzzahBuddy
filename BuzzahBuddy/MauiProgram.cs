@@ -103,6 +103,7 @@ public static class MauiProgram
 
 		builder.Services.AddSingleton<IGloveControlService, GloveControlService>();
 		builder.Services.AddSingleton<IReconnectionService, ReconnectionService>();
+		builder.Services.AddSingleton<SessionCommandLock>();
 		builder.Services.AddSingleton(sp => new AutoConnectService(
 			sp.GetRequiredService<IBluetoothService>(),
 			text => MainThread.BeginInvokeOnMainThread(() => SemanticScreenReader.Announce(text))));
