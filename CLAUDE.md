@@ -197,6 +197,11 @@ and `MainThread.BeginInvokeOnMainThread` in service-event handlers.
   body; Android 14+ already scales large text less.
 - **Safe area:** every `ContentPage` sets `SafeAreaEdges="Container"` (.NET 10 defaults
   to `None`; Android 16 forces edge-to-edge, under the gesture bar). `SoftInput` unused.
+  In an iPadOS 26+ window the close/resize controls sit outside the safe area;
+  `Platforms/iOS/WindowControlsInset` pushes every page that hides its nav bar below them.
+- **Windowed iPad testing:** a build whose app manifest lists iPhone only runs as a scaled-up
+  iPhone app in the window (huge text, clipped tab labels), which looks like a layout bug.
+  Check the installed bundle's `UIDeviceFamily` before debugging the layout.
 
 - **Width model:** lay out by window size, never `DeviceIdiom` (only `DeviceWords`/`DeviceNoun`
   use it, for copy). `AdaptiveLayout.For(width, height, textScale)` gives a `PageLayout`; two panes
