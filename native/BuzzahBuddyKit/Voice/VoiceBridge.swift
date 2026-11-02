@@ -46,7 +46,8 @@ enum VoiceRouter {
     static let notConnected = "Your gloves aren't connected."
 
     /// How long an intent waits for AppDelegate to register the provider, then says notConnected.
-    private static let providerWaitNanoseconds: UInt64 = 10_000_000_000
+    /// Short: Siri gives up after about 10 s, and the app's own waits follow this one.
+    private static let providerWaitNanoseconds: UInt64 = 3_000_000_000
     private static let providerPollNanoseconds: UInt64 = 100_000_000
 
     /// The provider, waiting for it on a cold launch that delivered the intent first.

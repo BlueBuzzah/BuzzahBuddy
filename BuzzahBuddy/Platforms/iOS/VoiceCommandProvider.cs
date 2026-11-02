@@ -15,8 +15,8 @@ sealed class VoiceCommandProvider : BuzzahBuddy.Native.Binding.VoiceCommandProvi
 {
 	// The provider is registered before base.FinishedLaunching builds the services, and an intent can
 	// arrive on a background cold launch before then. Commands wait this long for ServicesReady, then
-	// give the failure reply.
-	static readonly TimeSpan ServicesWait = TimeSpan.FromSeconds(10);
+	// give the failure reply. Short: Siri gives up after about 10 s, and the connect wait follows.
+	static readonly TimeSpan ServicesWait = TimeSpan.FromSeconds(3);
 
 	readonly TaskCompletionSource _servicesReady = new(TaskCreationOptions.RunContinuationsAsynchronously);
 

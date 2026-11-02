@@ -16,7 +16,13 @@ public sealed class VoiceCommandService(
     Func<Task<TherapyProfile?>> loadSavedCustom, Func<int, Task> saveLastProfile,
     TimeProvider? time = null)
 {
-    private static readonly TimeSpan ConnectWait = TimeSpan.FromSeconds(BlueBuzzahConstants.ConnectionTimeoutSeconds);
+    /// <summary>
+    /// How long a command waits for a connect in progress (the launch auto-connect, a reconnect)
+    /// before replying not connected. Siri abandons an intent after about 10 s and says "Something
+    /// went wrong", and a reconnect with the gloves off can run for minutes, so this stays well
+    /// under that, leaving room for the command itself.
+    /// </summary>
+    internal static readonly TimeSpan ConnectWait = TimeSpan.FromSeconds(5);
 
     /// <summary>A profile switch gives up on the gloves coming back after this (the Gloves page's apply backstop).</summary>
     private static readonly TimeSpan SwitchBackstop = TimeSpan.FromSeconds(BlueBuzzahConstants.RebootReconnectBackstopSeconds);

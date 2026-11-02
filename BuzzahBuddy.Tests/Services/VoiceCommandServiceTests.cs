@@ -167,14 +167,16 @@ public class VoiceCommandServiceTests
     }
 
     [Fact]
-    public async Task ReconnectionRunning_WaitsUpTo15s()
+    public async Task ReconnectionRunning_RepliesWithinSirisLimit()
     {
+        // A reconnect with the gloves off runs for minutes; Siri gives up after about 10 s.
+        Assert.True(VoiceCommandService.ConnectWait <= TimeSpan.FromSeconds(5));
         var rig = new Rig(connected: false);
         rig.AutoConnect.SkipLaunch();
         rig.Reconnection.Raise(ReconnectionState.Reconnecting);
 
         var reply = rig.Service.RunAsync(VoiceCommand.Start, 0);
-        rig.Time.Advance(TimeSpan.FromSeconds(14));
+        rig.Time.Advance(VoiceCommandService.ConnectWait - TimeSpan.FromSeconds(1));
         Assert.False(reply.IsCompleted);
 
         rig.Time.Advance(TimeSpan.FromSeconds(1));

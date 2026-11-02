@@ -6,7 +6,7 @@ namespace BuzzahBuddy.Native.Binding;
 
 // Binds native/BuzzahBuddyKit/Voice/VoiceBridge.swift. Selectors and names must match its @objc
 // attributes exactly: a selector mismatch on the VoiceCommandProvider subclass crashes the app with
-// an unrecognized selector when an intent calls it. Only a provider still nil after Swift's 10 s wait
+// an unrecognized selector when an intent calls it. Only a provider still nil after Swift's 3 s wait
 // makes Siri say "Your gloves aren't connected." on its own.
 
 /// <summary>
@@ -47,7 +47,7 @@ interface VoiceBridge
 	VoiceBridge Shared { get; }
 
 	// Written once in AppDelegate.FinishedLaunching, before base.FinishedLaunching. Nothing orders a
-	// background cold launch's intent after that, so Swift locks it and waits up to 10 s for it. An
+	// background cold launch's intent after that, so Swift locks it and waits up to 3 s for it. An
 	// intent can also arrive before the app's services exist; the C# provider waits for them itself.
 	[NullAllowed, Export("provider", ArgumentSemantic.Strong)]
 	IVoiceCommandProvider Provider { get; set; }
