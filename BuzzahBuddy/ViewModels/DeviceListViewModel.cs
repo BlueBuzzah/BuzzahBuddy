@@ -10,6 +10,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 
 namespace BuzzahBuddy.ViewModels;
 
@@ -59,6 +60,17 @@ public partial class DeviceListViewModel : BaseViewModel, IQueryAttributable
     [NotifyPropertyChangedFor(nameof(ShowScanning))]
     [NotifyPropertyChangedFor(nameof(ScanningHint))]
     private bool _isAutoConnecting;
+
+    /// <summary>
+    /// The reconnect loop after a dropped link is trying (Session shows "Reconnecting"): this page
+    /// shows its scanning state for it too, and Stop Scanning cancels it.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowReadyState))]
+    [NotifyPropertyChangedFor(nameof(ShowNoResultsState))]
+    [NotifyPropertyChangedFor(nameof(ShowScanning))]
+    [NotifyPropertyChangedFor(nameof(ScanningHint))]
+    private bool _isReconnecting;
 
     [ObservableProperty]
     private bool _bluetoothEnabled = true;
@@ -124,6 +136,9 @@ public partial class DeviceListViewModel : BaseViewModel, IQueryAttributable
         _storageService = storageService;
         _reconnectionService = reconnectionService;
         ConnectionInfo = connectionStateService;
+        // Raised on the main thread by ConnectionStateService.
+        ConnectionInfo.PropertyChanged += OnConnectionInfoChanged;
+        _isReconnecting = ConnectionInfo.IsReconnecting;
         Settings = deviceSettingsViewModel;
 
         Title = "Gloves";
@@ -158,6 +173,14 @@ public partial class DeviceListViewModel : BaseViewModel, IQueryAttributable
         OnAutoConnectStateChanged();
     }
 
+    private void OnConnectionInfoChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(IConnectionStateService.IsReconnecting))
+            return;
+        IsReconnecting = ConnectionInfo.IsReconnecting;
+        UpdateScanButtonState();
+    }
+
     private void OnAutoConnectStateChanged()
     {
         IsAutoConnecting = _autoConnect.State == AutoConnectState.Connecting;
@@ -171,12 +194,14 @@ public partial class DeviceListViewModel : BaseViewModel, IQueryAttributable
         if (!_scanToggle.TryAcquire())
             return;
 
-        if (IsAutoConnecting || IsScanning)
+        if (IsAutoConnecting || IsScanning || IsReconnecting)
         {
-            // Stop Scanning stops both: a scan can run alongside the launch auto-connect
+            // Stop Scanning stops all of them: a scan can run alongside the launch auto-connect
             // (Session's Scan for Gloves, or Try Again during a scan).
             if (IsAutoConnecting)
                 await _autoConnect.CancelAsync();
+            if (IsReconnecting)
+                _reconnectionService.CancelReconnect();
             if (IsScanning)
                 await StopScanningAsync();
         }
@@ -213,11 +238,12 @@ public partial class DeviceListViewModel : BaseViewModel, IQueryAttributable
     /// <summary>Empty-state variant: a scan finished and found nothing.</summary>
     public bool ShowNoResultsState => HasCompletedScan && !ShowScanning;
 
-    /// <summary>Empty-state variant: a scan, or the launch auto-connect, is under way.</summary>
-    public bool ShowScanning => IsScanning || IsAutoConnecting;
+    /// <summary>Empty-state variant: a scan, the launch auto-connect, or a reconnect is under way.</summary>
+    public bool ShowScanning => IsScanning || IsAutoConnecting || IsReconnecting;
 
-    public string ScanningHint => IsAutoConnecting
-        ? "This can take up to 15 seconds."
+    public string ScanningHint =>
+        IsAutoConnecting ? "This can take up to 15 seconds."
+        : IsReconnecting && !IsScanning ? "Reconnecting to your primary glove."
         : "This can take up to 10 seconds.";
 
     /// <summary>Scan still running with devices already listed — the EmptyView scanning
@@ -391,7 +417,7 @@ public partial class DeviceListViewModel : BaseViewModel, IQueryAttributable
 
     private void UpdateScanButtonState()
     {
-        if (IsScanning || IsAutoConnecting)
+        if (IsScanning || IsAutoConnecting || IsReconnecting)
         {
             ScanButtonText = "Stop Scanning";
         }
@@ -571,6 +597,7 @@ public partial class DeviceListViewModel : BaseViewModel, IQueryAttributable
         {
             _bluetoothService.DeviceDiscovered -= OnDeviceDiscovered;
             _bluetoothService.ConnectionStateChanged -= OnConnectionStateChanged;
+            ConnectionInfo.PropertyChanged -= OnConnectionInfoChanged;
             WeakReferenceMessenger.Default.Unregister<DemoModeChangedMessage>(this);
             _scanCancellationTokenSource?.Cancel();
             _scanCancellationTokenSource?.Dispose();
