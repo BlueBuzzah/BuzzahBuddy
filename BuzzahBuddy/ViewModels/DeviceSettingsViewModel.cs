@@ -130,6 +130,10 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     [ObservableProperty]
     private double? _batterySecondaryVoltage;
 
+    // The gloves' own low verdicts (BATLP/BATLS); null on firmware that sends voltages only
+    private bool? _batteryPrimaryLow;
+    private bool? _batterySecondaryLow;
+
     [ObservableProperty]
     private GloveStatusInfo _primaryGlove = new(GloveRole.Primary, GloveLinkStatus.Disconnected, null);
 
@@ -508,8 +512,11 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         }
     }
 
-    private void ApplyBatteryReading(double? primaryVoltage, double? secondaryVoltage)
+    private void ApplyBatteryReading(double? primaryVoltage, double? secondaryVoltage,
+        bool? primaryLow = null, bool? secondaryLow = null)
     {
+        _batteryPrimaryLow = primaryLow;
+        _batterySecondaryLow = secondaryLow;
         BatteryPrimaryVoltage = primaryVoltage;
         BatterySecondaryVoltage = secondaryVoltage;
         UpdateGloves();
@@ -527,10 +534,12 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         if (link != GloveLinkStatus.Connected)
             _secondaryLinked = null;
         PrimaryGlove = new GloveStatusInfo(GloveRole.Primary, link, Percent(BatteryPrimaryVoltage),
-            BatteryReading.FormatVolts(BatteryPrimaryVoltage));
+            BatteryReading.FormatVolts(BatteryPrimaryVoltage),
+            BatteryReading.IsLow(BatteryPrimaryVoltage, _batteryPrimaryLow));
         var secondaryLink = GloveStatusText.SecondaryLink(link, _secondaryLinked, BatterySecondaryVoltage);
         SecondaryGlove = new GloveStatusInfo(GloveRole.Secondary, secondaryLink, Percent(BatterySecondaryVoltage),
-            Detail: BatteryReading.FormatVolts(BatterySecondaryVoltage));
+            Detail: BatteryReading.FormatVolts(BatterySecondaryVoltage),
+            BatteryLow: BatteryReading.IsLow(BatterySecondaryVoltage, _batterySecondaryLow));
     }
 
     /// <summary>Session-locked warning beats the last action's result, which beats outdated firmware.</summary>
@@ -602,7 +611,8 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         {
             FirmwareVersion = info.FirmwareVersion is { Length: > 0 } and not "0.0.0" ? info.FirmwareVersion : null;
             _secondaryLinked = info.SecondaryLinked;
-            ApplyBatteryReading(info.BatteryPrimaryVoltage, info.BatterySecondaryVoltage);
+            ApplyBatteryReading(info.BatteryPrimaryVoltage, info.BatterySecondaryVoltage,
+                info.BatteryPrimaryLow, info.BatterySecondaryLow);
         });
     }
 

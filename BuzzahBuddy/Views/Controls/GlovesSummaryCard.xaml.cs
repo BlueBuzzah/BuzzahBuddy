@@ -83,8 +83,9 @@ public partial class GlovesSummaryCard : ContentView
         BatteryGlyph.IsVisible = lowest is not null;
         if (lowest is { } percent)
         {
-            BatteryGlyph.Text = GloveStatusText.BatteryGlyph(percent);
-            BatteryGlyph.SetDynamicResource(Label.TextColorProperty, GloveStatusText.IsLow(percent) ? "Warning" : "InkMuted");
+            var low = primary.BatteryLow || secondary.BatteryLow;
+            BatteryGlyph.Text = GloveStatusText.BatteryGlyph(percent, low);
+            BatteryGlyph.SetDynamicResource(Label.TextColorProperty, low ? "Warning" : "InkMuted");
         }
         SemanticProperties.SetDescription(Root, $"{GloveStatusText.Describe(primary)}. {GloveStatusText.Describe(secondary)}");
     }
