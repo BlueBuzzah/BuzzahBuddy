@@ -176,7 +176,9 @@ with `new`, not routes:
 `HistoryViewModel` reloads from `HistoryStore` on `OnAppearing` and never subscribes to
 service events; in Demo Mode it shows `DemoHistory`'s 60-day sample instead (never stored),
 and the shared files are named "Sample" and marked as sample data. History's one period
-control (`SelectedRange`) drives both the overview and the shared report.
+control (`SelectedRange`) drives the whole page: overview, calendar, averages, shared report and day list. The
+calendar starts where the overview counts from (`ReportModel.AdherenceFrom`); earlier and
+future days are dashed and paging stops at that month.
 
 DI (`MauiProgram.cs`): tab pages/VMs are **singletons** (Shell caches them) and never
 disposed; Calibration/ProfileSettings are transient — a transient VM subscribing to
@@ -241,6 +243,8 @@ button's current `TextColor`.
   `Switch.System.Reflection.ForceInterpretedInvoke` (launch crash without it), `TrimMode`
   partial. Never set `IsAotCompatible` (implies `IsTrimmable`). CI builds Debug only —
   verify reflection-adjacent changes with `-c Release` on a device.
+- **Judge speed on Release.** A Debug build on a physical device runs the Mono interpreter, so
+  the first open of each tab stalls for seconds. That's not page code; Release (AOT) is quick.
 - **Every persisted type needs `[JsonSerializable]` in
   `Services/Storage/StorageJsonContext.cs`**; a missing entry throws at runtime on device.
 - **History storage:** `HistoryStore` writes `history.json` in `FileSystem.AppDataDirectory`

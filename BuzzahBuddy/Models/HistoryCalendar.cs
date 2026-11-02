@@ -2,8 +2,8 @@ using System.Globalization;
 
 namespace BuzzahBuddy.Models;
 
-/// <summary>One day cell of the history calendar.</summary>
-public sealed record CalendarDay(DateOnly Day, string Number, double Fraction, bool HasTime, bool IsToday, bool IsFuture, string Spoken);
+/// <summary>One day cell of the history calendar. <see cref="OutsidePeriod"/>: before the period's first day, or after today.</summary>
+public sealed record CalendarDay(DateOnly Day, string Number, double Fraction, bool HasTime, bool IsToday, bool OutsidePeriod, string Spoken);
 
 /// <summary>A month grid: weekday headers, blanks before the 1st, then every day.</summary>
 public sealed record CalendarMonth(DateOnly First, string Title, IReadOnlyList<string> WeekdayNames, int LeadingBlanks, IReadOnlyList<CalendarDay> Days);
@@ -11,8 +11,8 @@ public sealed record CalendarMonth(DateOnly First, string Title, IReadOnlyList<s
 /// <summary>Builds the month calendar and steps between months.</summary>
 public static class HistoryCalendar
 {
-    /// <summary>The month containing <paramref name="month"/>; any day in it will do.</summary>
-    public static CalendarMonth Build(IEnumerable<SessionRecord> sessions, DateOnly month, DateOnly today, CultureInfo culture)
+    /// <summary>The month containing <paramref name="month"/>; any day in it will do. Days before <paramref name="from"/>, where the period's calendar starts, are outside it.</summary>
+    public static CalendarMonth Build(IEnumerable<SessionRecord> sessions, DateOnly month, DateOnly from, DateOnly today, CultureInfo culture)
     {
         var first = new DateOnly(month.Year, month.Month, 1);
         var format = culture.DateTimeFormat;
@@ -24,7 +24,7 @@ public static class HistoryCalendar
 
         var weekdays = Enumerable.Range(0, 7).Select(i => format.AbbreviatedDayNames[(firstDay + i) % 7]).ToList();
         var days = Enumerable.Range(0, DateTime.DaysInMonth(first.Year, first.Month))
-            .Select(i => CalendarDayFor(first.AddDays(i), secondsByDay, today, culture))
+            .Select(i => CalendarDayFor(first.AddDays(i), secondsByDay, from, today, culture))
             .ToList();
 
         return new CalendarMonth(
@@ -35,16 +35,6 @@ public static class HistoryCalendar
             days);
     }
 
-    /// <summary>The first of the earliest session's month, or of today's month with no sessions.</summary>
-    public static DateOnly FirstMonth(IEnumerable<SessionRecord> sessions, DateOnly today)
-    {
-        var earliest = today;
-        foreach (var s in sessions)
-            if (s.Day < earliest)
-                earliest = s.Day;
-        return new DateOnly(earliest.Year, earliest.Month, 1);
-    }
-
     /// <summary>The first of the month <paramref name="months"/> from <paramref name="shown"/>, kept between <paramref name="first"/> and <paramref name="last"/>.</summary>
     public static DateOnly Step(DateOnly shown, int months, DateOnly first, DateOnly last)
     {
@@ -52,7 +42,7 @@ public static class HistoryCalendar
         return target < first ? first : target > last ? last : target;
     }
 
-    private static CalendarDay CalendarDayFor(DateOnly day, Dictionary<DateOnly, int> secondsByDay, DateOnly today, CultureInfo culture)
+    private static CalendarDay CalendarDayFor(DateOnly day, Dictionary<DateOnly, int> secondsByDay, DateOnly from, DateOnly today, CultureInfo culture)
     {
         var seconds = secondsByDay.GetValueOrDefault(day);
         var isToday = day == today;
@@ -68,7 +58,7 @@ public static class HistoryCalendar
             HistorySummary.BarFraction(seconds),
             hasTime,
             isToday,
-            day > today,
+            day < from || day > today,
             spoken);
     }
 }
