@@ -1,6 +1,7 @@
 using BuzzahBuddy.Helpers;
 using BuzzahBuddy.Models;
-using Microsoft.Maui.Controls.Shapes;
+using BuzzahBuddy.Messages;
+using CommunityToolkit.Mvvm.Messaging;
 
 namespace BuzzahBuddy.Views.Controls;
 
@@ -150,63 +151,43 @@ public sealed class CalendarMonthView : ContentView
             cell.Fit(size);
     }
 
-    /// <summary>One day's slot: its well (or future well), fill, today ring and number, refilled for each month.</summary>
-    private sealed class DayCell
+    /// <summary>One day's slot: its well, fill and today ring in one drawn view, and its number, refilled for each month.</summary>
+    /// <remarks>
+    /// ponytail: drawn, not built from Borders. Three Borders a day made the calendar about 300 native
+    /// views, nearly half the History tab's first-open time on iOS; a GraphicsView is one plain view.
+    /// </remarks>
+    private sealed class DayCell : IDrawable
     {
-        private readonly Grid _top = [];
-        private readonly Border _well;
-        private readonly Border _futureWell;
-        private readonly ContentView _fill = new() { VerticalOptions = LayoutOptions.End };
-        private readonly Border _ring;
+        // The well's corner is RadiusSm (8); today's ring rounds a little wider (10). Keep them in
+        // step with RadiusSm by hand.
+        private const float WellRadius = 8;
+        private const float RingRadius = 10;
+        private const float RingStroke = 2;
+
+        private readonly GraphicsView _canvas = new() { BackgroundColor = Colors.Transparent };
         private readonly Label _number = new() { HorizontalTextAlignment = TextAlignment.Center, LineHeight = 1 };
+        private double _wellSize;
         private double _fraction;
+        private bool _outside = true;
+        private bool _today;
 
         public DayCell(double wellSize)
         {
-            // The well's corner is RadiusSm (8), and today's ring below rounds a little wider (10).
-            // Both are written out: a StrokeShape never joins the visual tree, so a DynamicResource
-            // set on it has nothing to resolve against. Keep them in step with RadiusSm by hand.
-            _well = new Border { StrokeShape = new RoundRectangle { CornerRadius = 8 }, Content = _fill };
-            _well.SetDynamicResource(Border.StrokeThicknessProperty, "BorderHairline");
-            _well.SetDynamicResource(BackgroundColorProperty, "SurfaceSunken");
-            _well.SetDynamicResource(Border.StrokeProperty, "LineStrong");
-            // A plain view's background, not a BoxView: iOS draws a BoxView once and doesn't redraw
-            // it when it grows from zero, which left a day paged to with no fill drawn.
-            _fill.SetDynamicResource(BackgroundColorProperty, "Brand");
-
-            // A day outside the period swaps in this second, dashed well rather than dashing the well: MAUI
-            // 10.0.20 on iOS never clears a dash pattern, so a slot that once held such a day
-            // stayed dashed for every month after. SurfaceRaised is the card's own color.
-            _futureWell = new Border { StrokeShape = new RoundRectangle { CornerRadius = 8 }, StrokeDashArray = [4, 3] };
-            _futureWell.SetDynamicResource(Border.StrokeThicknessProperty, "BorderHairline");
-            _futureWell.SetDynamicResource(BackgroundColorProperty, "SurfaceRaised");
-            _futureWell.SetDynamicResource(Border.StrokeProperty, "Line");
-
-            // Today's ring (2 stroke + 2 gap) takes no layout room: negative margins keep its
-            // footprint the well's, so it spills into the row and column gaps and no other day
-            // needs space for it. It is hidden on every other day: a Border with no stroke set
-            // still draws one on iOS.
-            _ring = new Border
-            {
-                StrokeThickness = 2,
-                StrokeShape = new RoundRectangle { CornerRadius = 10 },
-                Margin = -RingInset,
-                InputTransparent = true,
-                IsVisible = false,
-            };
-            _ring.SetDynamicResource(Border.StrokeProperty, "Ink");
-
-            // The fixed-size slot holds the well and ring, so a fill that changes height stays inside it.
-            _top.HorizontalOptions = LayoutOptions.Center;
-            _top.Add(_well);
-            _top.Add(_futureWell);
-            _top.Add(_ring);
+            _canvas.Drawable = this;
+            // Today's ring (2 stroke + 2 gap) takes no layout room: the canvas reaches RingInset past
+            // the well on each side and negative margins keep its footprint the well's, so the ring
+            // spills into the row and column gaps and no other day needs space for it.
+            _canvas.Margin = -RingInset;
+            _canvas.HorizontalOptions = LayoutOptions.Center;
+            _canvas.InputTransparent = true;
             Fit(wellSize);
+            // Weak: needs no unregistering.
+            WeakReferenceMessenger.Default.Register<GraphicsView, ThemeChangedMessage>(_canvas, (canvas, _) => canvas.Invalidate());
 
             _number.SetDynamicResource(StyleProperty, "TypeCaption");
-            AutomationProperties.SetIsInAccessibleTree(_top, false);
+            AutomationProperties.SetIsInAccessibleTree(_canvas, false);
             AutomationProperties.SetIsInAccessibleTree(_number, false);
-            Root = new VerticalStackLayout { Spacing = NumberGap, Children = { _top, _number } };
+            Root = new VerticalStackLayout { Spacing = NumberGap, Children = { _canvas, _number } };
         }
 
         public View Root { get; }
@@ -218,35 +199,73 @@ public sealed class CalendarMonthView : ContentView
             Root.Opacity = day is null ? 0 : 1;
             _number.Text = day?.Number;
 
-            var outside = day?.OutsidePeriod != false;
-            _well.IsVisible = !outside;
-            _futureWell.IsVisible = outside;
+            _outside = day?.OutsidePeriod != false;
             _fraction = day is { OutsidePeriod: false, HasTime: true } ? day.Fraction : 0;
-            SizeFill(wellSize);
-
-            var today = day?.IsToday == true;
-            _ring.IsVisible = today;
-            _number.SetDynamicResource(Label.FontFamilyProperty, today ? "FontSans700" : "FontSans400");
-            _number.SetDynamicResource(Label.TextColorProperty, today ? "Ink" : "InkMuted");
+            _today = day?.IsToday == true;
+            _number.SetDynamicResource(Label.FontFamilyProperty, _today ? "FontSans700" : "FontSans400");
+            _number.SetDynamicResource(Label.TextColorProperty, _today ? "Ink" : "InkMuted");
 
             // IsInAccessibleTree on a container leaves its children (the number) in the tree.
             AutomationProperties.SetExcludedWithChildren(Root, day is null || day.OutsidePeriod);
             SemanticProperties.SetDescription(Root, day is { OutsidePeriod: false } ? day.Spoken : null);
+            Fit(wellSize);
         }
 
         public void Fit(double wellSize)
         {
-            _top.WidthRequest = wellSize;
-            _top.HeightRequest = wellSize;
-            SizeFill(wellSize);
+            _wellSize = wellSize;
+            _canvas.WidthRequest = wellSize + 2 * RingInset;
+            _canvas.HeightRequest = wellSize + 2 * RingInset;
+            _canvas.Invalidate();
         }
 
-        // The fill sits inside the well's hairline stroke, so a full day fills the inner well, not the
-        // outer size: scaled to the outer size, 3h 46min filled it.
-        private void SizeFill(double wellSize)
+        public void Draw(ICanvas canvas, RectF rect)
         {
-            var inner = wellSize - 2 * (double)Application.Current!.Resources["BorderHairline"];
-            _fill.HeightRequest = _fraction > 0 ? Math.Max(MinFill, _fraction * inner) : 0;
+            var hairline = (float)(double)Application.Current!.Resources["BorderHairline"];
+            var size = (float)_wellSize;
+            var well = new RectF((float)RingInset, (float)RingInset, size, size);
+            // Strokes are centred on their path, so each is drawn half its width inside its edge.
+            var edge = well.Inflate(-hairline / 2, -hairline / 2);
+            canvas.StrokeSize = hairline;
+
+            if (_outside)
+            {
+                // Outside the period: a dashed outline, no fill.
+                canvas.StrokeColor = ColorResources.Get("Line");
+                canvas.StrokeDashPattern = [4, 3];
+                canvas.DrawRoundedRectangle(edge, WellRadius - hairline / 2);
+                canvas.StrokeDashPattern = null;
+            }
+            else
+            {
+                canvas.FillColor = ColorResources.Get("SurfaceSunken");
+                canvas.FillRoundedRectangle(well, WellRadius);
+
+                // The fill sits inside the hairline stroke, so a full day fills the inner well, not
+                // the outer size: scaled to the outer size, 3h 46min filled it.
+                var inner = well.Inflate(-hairline, -hairline);
+                if (_fraction > 0)
+                {
+                    var height = (float)Math.Max(MinFill, _fraction * inner.Height);
+                    canvas.SaveState();
+                    var clip = new PathF();
+                    clip.AppendRoundedRectangle(inner, WellRadius - hairline);
+                    canvas.ClipPath(clip);
+                    canvas.FillColor = ColorResources.Get("Brand");
+                    canvas.FillRectangle(inner.X, inner.Bottom - height, inner.Width, height);
+                    canvas.RestoreState();
+                }
+
+                canvas.StrokeColor = ColorResources.Get("LineStrong");
+                canvas.DrawRoundedRectangle(edge, WellRadius - hairline / 2);
+            }
+
+            if (_today)
+            {
+                canvas.StrokeColor = ColorResources.Get("Ink");
+                canvas.StrokeSize = RingStroke;
+                canvas.DrawRoundedRectangle(rect.Inflate(-RingStroke / 2, -RingStroke / 2), RingRadius - RingStroke / 2);
+            }
         }
     }
 }
