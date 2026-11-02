@@ -23,7 +23,7 @@ public class HistorySummaryTests
         var sessions = new[] { Rec("2026-10-28T18:00:00+00:00", 6600), Rec("2026-10-28T08:00:00+00:00", 7200) };
         var notes = new[] { new DayNote { Day = new DateOnly(2026, 10, 26), Text = "Slept badly" } };
 
-        var days = HistorySummary.Days(sessions, notes, Today);
+        var days = HistorySummary.Days(sessions, notes, DateOnly.MinValue, Today);
 
         Assert.Equal(new[] { new DateOnly(2026, 10, 29), new DateOnly(2026, 10, 28), new DateOnly(2026, 10, 26) }, days.Select(d => d.Day));
         Assert.Equal(0, days[0].TherapySeconds);
@@ -37,7 +37,7 @@ public class HistorySummaryTests
     [Fact]
     public void Days_SessionCrossingMidnight_CountsOnStartDay()
     {
-        var days = HistorySummary.Days(new[] { Rec("2026-10-27T23:30:00+00:00", 7200) }, Array.Empty<DayNote>(), Today);
+        var days = HistorySummary.Days(new[] { Rec("2026-10-27T23:30:00+00:00", 7200) }, Array.Empty<DayNote>(), DateOnly.MinValue, Today);
 
         Assert.Equal(new DateOnly(2026, 10, 27), days.Single(d => d.Sessions.Count > 0).Day);
         Assert.Equal(2, days.Count);
@@ -48,11 +48,31 @@ public class HistorySummaryTests
     {
         var sessions = new[] { Rec("2026-11-01T00:30:00-07:00", 3600), Rec("2026-11-01T23:30:00-08:00", 3600) };
 
-        var days = HistorySummary.Days(sessions, Array.Empty<DayNote>(), new DateOnly(2026, 11, 1));
+        var days = HistorySummary.Days(sessions, Array.Empty<DayNote>(), DateOnly.MinValue, new DateOnly(2026, 11, 1));
 
         var day = Assert.Single(days);
         Assert.Equal(new DateOnly(2026, 11, 1), day.Day);
         Assert.Equal(2, day.Sessions.Count);
+    }
+
+    [Fact]
+    public void Days_OnlyThePeriod_TodayAlwaysIn()
+    {
+        var sessions = new[]
+        {
+            Rec("2026-09-29T08:00:00+00:00", 7200),
+            Rec("2026-10-03T08:00:00+00:00", 7200),
+            Rec("2026-11-02T08:00:00+00:00", 7200),
+        };
+        var notes = new[]
+        {
+            new DayNote { Day = new DateOnly(2026, 10, 1), Text = "Before" },
+            new DayNote { Day = new DateOnly(2026, 10, 5), Text = "Inside" },
+        };
+
+        var days = HistorySummary.Days(sessions, notes, new DateOnly(2026, 10, 3), Today);
+
+        Assert.Equal(new[] { Today, new DateOnly(2026, 10, 5), new DateOnly(2026, 10, 3) }, days.Select(d => d.Day));
     }
 
     [Fact]

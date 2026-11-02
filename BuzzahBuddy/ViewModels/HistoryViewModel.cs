@@ -14,8 +14,9 @@ namespace BuzzahBuddy.ViewModels;
 
 /// <summary>
 /// The History tab (buzzahbuddy.md History): the period overview, the month calendar, weekly or
-/// monthly averages, the shared report, and daily totals with notes. Reloads each time the page
-/// appears; never subscribes to service events. The period and month recompute from the loaded data.
+/// monthly averages, the shared report, and daily totals with notes, all for the one period.
+/// Reloads each time the page appears; never subscribes to service events. The period and month
+/// recompute from the loaded data.
 /// </summary>
 public partial class HistoryViewModel : BaseViewModel
 {
@@ -78,6 +79,16 @@ public partial class HistoryViewModel : BaseViewModel
 	/// <summary>The calendar's month (its first day); kept across refreshes while the app runs.</summary>
 	private DateOnly _shownMonth = FirstOfMonth(Today);
 
+	/// <summary>
+	/// Where the calendar starts at the last compute: the period's first day, or the first session
+	/// ever when that falls later, as the overview and averages count. Paging stops at its month and
+	/// days before it are dashed.
+	/// </summary>
+	private DateOnly _calendarFrom = Today;
+
+	/// <summary>The day of the last compute; every section's period is counted back from it.</summary>
+	private DateOnly _computedOn = Today;
+
 	/// <summary>The current month at the last compute, to tell when a new month has begun.</summary>
 	private DateOnly _currentMonth = FirstOfMonth(Today);
 
@@ -124,27 +135,6 @@ public partial class HistoryViewModel : BaseViewModel
 		}
 
 		IsDemoMode = demo;
-		var today = Today;
-		var culture = CultureInfo.CurrentCulture;
-		// An emptied note is "", which shows nothing, like no note.
-		var rows = HistoryText.DayRows(HistorySummary.Days(data.Sessions, data.Notes, today), today, culture)
-			.Select(r => string.IsNullOrEmpty(r.Note) ? r with { Note = null } : r)
-			.ToList();
-		// A new list scrolls the page back to the top, so after a note edit (or a tab switch)
-		// the same days are updated in place and the person keeps their place.
-		if (Days is ObservableCollection<DayRow> current && current.Select(r => r.Day).SequenceEqual(rows.Select(r => r.Day)))
-		{
-			for (var i = 0; i < rows.Count; i++)
-			{
-				if (!SameRow(current[i], rows[i]))
-					current[i] = rows[i];
-			}
-		}
-		else
-		{
-			Days = new ObservableCollection<DayRow>(rows);
-		}
-
 		HasSessions = data.Sessions.Count > 0;
 		_data = data;
 		Recompute();
@@ -165,17 +155,19 @@ public partial class HistoryViewModel : BaseViewModel
 		SemanticScreenReader.Announce(Tiles[0].Spoken);
 	}
 
-	/// <summary>The overview, averages and calendar from the loaded data, without rereading the file.</summary>
+	/// <summary>The overview, calendar, averages and day list from the loaded data, without rereading the file.</summary>
 	private void Recompute()
 	{
 		if (_data is not { } data)
 			return;
 
 		var today = Today;
+		_computedOn = today;
 		var culture = CultureInfo.CurrentCulture;
 		var range = (ReportRange)SelectedRange;
 		var (from, to) = HistoryReport.Range(range, today, data.Sessions);
 		var model = HistoryReport.Build(data, from, to, DateTimeOffset.Now, comparePrevious: false);
+		_calendarFrom = model.AdherenceFrom;
 		var weekly = HistoryText.IsWeekly(model);
 
 		HasPeriodSessions = model.Summary.Sessions > 0;
@@ -192,14 +184,36 @@ public partial class HistoryViewModel : BaseViewModel
 		ShareText = HistoryText.ShareText(range);
 		EmptyPeriodText = HasSessions && !HasPeriodSessions ? HistoryText.EmptyPeriodText(range) : null;
 
+		// All Time starts at the first session; a note written on a day before it still shows.
+		var listFrom = range == ReportRange.AllTime ? DateOnly.MinValue : from;
+		// An emptied note is "", which shows nothing, like no note.
+		var days = HistoryText.DayRows(HistorySummary.Days(data.Sessions, data.Notes, listFrom, today), today, culture)
+			.Select(r => string.IsNullOrEmpty(r.Note) ? r with { Note = null } : r)
+			.ToList();
+		// A new list scrolls the page back to the top, so after a note edit (or a tab switch)
+		// the same days are updated in place and the person keeps their place.
+		if (Days is ObservableCollection<DayRow> current && current.Select(r => r.Day).SequenceEqual(days.Select(r => r.Day)))
+		{
+			for (var i = 0; i < days.Count; i++)
+			{
+				if (!SameRow(current[i], days[i]))
+					current[i] = days[i];
+			}
+		}
+		else
+		{
+			Days = new ObservableCollection<DayRow>(days);
+		}
+
 		// Showing the current month follows it into the next one after midnight on the 1st;
 		// a month paged back to stays put.
 		var currentMonth = FirstOfMonth(today);
 		if (_shownMonth == _currentMonth)
 			_shownMonth = currentMonth;
 		_currentMonth = currentMonth;
-		_shownMonth = HistoryCalendar.Step(_shownMonth, 0, HistoryCalendar.FirstMonth(data.Sessions, today), currentMonth);
-		var month = HistoryCalendar.Build(data.Sessions, _shownMonth, today, culture);
+		// A month paged back to before the calendar's start moves up to it.
+		_shownMonth = HistoryCalendar.Step(_shownMonth, 0, FirstOfMonth(_calendarFrom), currentMonth);
+		var month = HistoryCalendar.Build(data.Sessions, _shownMonth, _calendarFrom, today, culture);
 		if (!SameMonth(Calendar, month))
 			Calendar = month;
 		PreviousMonthCommand.NotifyCanExecuteChanged();
@@ -207,7 +221,7 @@ public partial class HistoryViewModel : BaseViewModel
 	}
 
 	private bool CanShowPreviousMonth() =>
-		_data is not null && _shownMonth > HistoryCalendar.FirstMonth(_data.Sessions, Today);
+		_data is not null && _shownMonth > FirstOfMonth(_calendarFrom);
 
 	private bool CanShowNextMonth() => _shownMonth < FirstOfMonth(Today);
 
@@ -224,8 +238,11 @@ public partial class HistoryViewModel : BaseViewModel
 		var today = Today;
 		// A month paged to after midnight on the 1st is the person's choice, not one to follow.
 		_currentMonth = FirstOfMonth(today);
-		_shownMonth = HistoryCalendar.Step(_shownMonth, months, HistoryCalendar.FirstMonth(data.Sessions, today), _currentMonth);
-		Calendar = HistoryCalendar.Build(data.Sessions, _shownMonth, today, CultureInfo.CurrentCulture);
+		// Past midnight the period moves on a day; the whole page moves with it, not just the calendar.
+		if (_computedOn != today)
+			Recompute();
+		_shownMonth = HistoryCalendar.Step(_shownMonth, months, FirstOfMonth(_calendarFrom), _currentMonth);
+		Calendar = HistoryCalendar.Build(data.Sessions, _shownMonth, _calendarFrom, _computedOn, CultureInfo.CurrentCulture);
 		SemanticScreenReader.Announce(Calendar.Title);
 		PreviousMonthCommand.NotifyCanExecuteChanged();
 		NextMonthCommand.NotifyCanExecuteChanged();

@@ -107,7 +107,7 @@ bounds link-up through subscribe — iOS never times out a connect itself.
 | `GloveControlService` custom-profile limits | `include/menu_controller.h` `MAX_COMMAND_PARAMS` |
 | parameter validation / amplitude ordering | `src/profile_manager.cpp` `setParameter` |
 | `RxFrameAssembler.InternalMessagePrefixes` | `include/internal_messages.h` `INTERNAL_MESSAGES` |
-| `BatteryReading` curve, `LowVoltage` | `src/hardware.cpp` `VOLTAGE_CURVE`, `include/board_config.h` `BATTERY_LOW_VOLTAGE` |
+| `BatteryReading` curve, `LowVoltage`, `BATLP`/`BATLS` | `src/hardware.cpp` `VOLTAGE_CURVE`, `include/board_config.h` `BATTERY_LOW_VOLTAGE`, `MenuController::addBatteryLevelLine` |
 | `LastSessionSummary` (`LAST_*`), `SessionStatus.SessionId` / `PausedSeconds` | `src/menu_controller.cpp` `handleSessionStatus`, `SessionEndReason` in `include/therapy_engine.h` |
 
 ## Domain Models — `Models/`
@@ -135,10 +135,10 @@ bounds link-up through subscribe — iOS never times out a connect itself.
   matching session id continues a session however long the phone was away. Under 60 s
   (`MinimumSavedSeconds`) isn't saved.
 - `BatteryReading` — `≤ 0.0 V` is the firmware's "no reading" sentinel → unavailable, not
-  0%. Percent uses the firmware's discharge curve. `LowVoltage` (3.80 V, provisional) is the
-  one low line: GloveStatus "Low", the Session charge banner and the glove's orange LED, below
-  which firmware refuses `SESSION_START` (`ERROR:Battery too low`). Firmware holds low until
-  3.90 V; the app can't see that latch, so a glove just above 3.80 V may still refuse.
+  0%. Percent uses the firmware's discharge curve. Low (GloveStatus "Low", the Session charge
+  banner) is `IsLow(volts, gloveLow)`: the glove's own `BATLP`/`BATLS` level wins, because it
+  drives the orange LED and the `SESSION_START` refusal and latches low until 3.90 V. Firmware
+  without those keys falls back to `LowVoltage` (3.80 V, provisional).
 
 ## Testing
 
@@ -176,7 +176,9 @@ with `new`, not routes:
 `HistoryViewModel` reloads from `HistoryStore` on `OnAppearing` and never subscribes to
 service events; in Demo Mode it shows `DemoHistory`'s 60-day sample instead (never stored),
 and the shared files are named "Sample" and marked as sample data. History's one period
-control (`SelectedRange`) drives both the overview and the shared report.
+control (`SelectedRange`) drives the whole page: overview, calendar, averages, shared report and day list. The
+calendar starts where the overview counts from (`ReportModel.AdherenceFrom`); earlier and
+future days are dashed and paging stops at that month.
 
 DI (`MauiProgram.cs`): tab pages/VMs are **singletons** (Shell caches them) and never
 disposed; Calibration/ProfileSettings are transient — a transient VM subscribing to
@@ -241,6 +243,8 @@ button's current `TextColor`.
   `Switch.System.Reflection.ForceInterpretedInvoke` (launch crash without it), `TrimMode`
   partial. Never set `IsAotCompatible` (implies `IsTrimmable`). CI builds Debug only —
   verify reflection-adjacent changes with `-c Release` on a device.
+- **Judge speed on Release.** A Debug build on a physical device runs the Mono interpreter, so
+  the first open of each tab stalls for seconds. That's not page code; Release (AOT) is quick.
 - **Every persisted type needs `[JsonSerializable]` in
   `Services/Storage/StorageJsonContext.cs`**; a missing entry throws at runtime on device.
 - **History storage:** `HistoryStore` writes `history.json` in `FileSystem.AppDataDirectory`
@@ -270,6 +274,7 @@ button's current `TextColor`.
   the lowest-priority Gloves banner plus an "Outdated" badge. Skipped in Demo Mode, whose
   gloves report 2.0.0.
 - `tmp/` is gitignored scratch, not canonical. No `docs/` tree; don't add one.
+- **Worktrees go only in `.claude/worktrees/<name>`** inside this repo (gitignored), never beside it in the workspace's `projects/` or anywhere else.
 
 ## CI — `.github/workflows/`
 

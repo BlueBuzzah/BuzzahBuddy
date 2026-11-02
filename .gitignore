@@ -11,6 +11,7 @@ temp/
 
 # Claude Code
 .claude/settings.local.json
+.claude/worktrees/
 
 # Common node modules locations
 /node_modules

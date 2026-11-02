@@ -45,6 +45,13 @@ public class GloveDeviceInfo
     public bool? SecondaryLinked { get; set; }
 
     /// <summary>
+    /// Each glove's own low verdict (BATLP/BATLS), which drives its LED and start check;
+    /// null on firmware that sends voltages only. See <see cref="BatteryReading.IsLow(double?, bool?)"/>.
+    /// </summary>
+    public bool? BatteryPrimaryLow { get; set; }
+    public bool? BatterySecondaryLow { get; set; }
+
+    /// <summary>
     /// Current session status (IDLE, RUNNING, PAUSED).
     /// </summary>
     public string Status { get; set; } = "IDLE";
@@ -82,6 +89,8 @@ public class GloveDeviceInfo
             // Missing keys and the firmware's 0.00 sentinel both mean "no reading".
             BatteryPrimaryVoltage = BatteryReading.FromRaw(response.GetDouble("BATP")),
             BatterySecondaryVoltage = BatteryReading.FromRaw(response.GetDouble("BATS")),
+            BatteryPrimaryLow = BatteryReading.GloveLow(response.GetString("BATLP")),
+            BatterySecondaryLow = BatteryReading.GloveLow(response.GetString("BATLS")),
             Status = response.GetString("STATUS") ?? "IDLE",
             SecondaryLinked = response.GetInt("SECONDARY") is { } linked ? linked != 0 : null
         };

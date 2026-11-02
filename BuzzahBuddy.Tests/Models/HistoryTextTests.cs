@@ -48,7 +48,7 @@ public class HistoryTextTests
     {
         var sessions = new[] { Rec("2026-10-28T08:00:00+00:00", 7200), Rec("2026-10-28T18:00:00+00:00", 6600) };
         var notes = new[] { new DayNote { Day = new DateOnly(2026, 10, 28), Text = "Tremor felt lighter after lunch" } };
-        var days = HistorySummary.Days(sessions, notes, Today);
+        var days = HistorySummary.Days(sessions, notes, DateOnly.MinValue, Today);
 
         var row = HistoryText.DayRows(days, Today, Inv).Single(r => r.Day == new DateOnly(2026, 10, 28));
 
@@ -62,7 +62,7 @@ public class HistoryTextTests
     [Fact]
     public void DayRows_SingleSessionIsSingular()
     {
-        var days = HistorySummary.Days(new[] { Rec("2026-10-28T08:00:00+00:00", 7200) }, Array.Empty<DayNote>(), Today);
+        var days = HistorySummary.Days(new[] { Rec("2026-10-28T08:00:00+00:00", 7200) }, Array.Empty<DayNote>(), DateOnly.MinValue, Today);
 
         var row = HistoryText.DayRows(days, Today, Inv).Single(r => r.Day == new DateOnly(2026, 10, 28));
 
@@ -74,7 +74,7 @@ public class HistoryTextTests
     public void DayRows_EmptyDays()
     {
         var notes = new[] { new DayNote { Day = new DateOnly(2026, 10, 26), Text = "Slept badly" } };
-        var rows = HistoryText.DayRows(HistorySummary.Days(Array.Empty<SessionRecord>(), notes, Today), Today, Inv);
+        var rows = HistoryText.DayRows(HistorySummary.Days(Array.Empty<SessionRecord>(), notes, DateOnly.MinValue, Today), Today, Inv);
 
         var today = rows.Single(r => r.Day == Today);
         Assert.Equal(new[] { "No sessions yet" }, today.SessionLines);

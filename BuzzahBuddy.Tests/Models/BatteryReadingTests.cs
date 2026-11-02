@@ -52,8 +52,25 @@ public class BatteryReadingTests
     public void IsLow_BelowFirmwareLowLine(double? voltage, bool low) =>
         Assert.Equal(low, BatteryReading.IsLow(voltage));
 
-    [Fact]
-    public void LowPercent_IsFortyOnTheCurve() => Assert.Equal(40, BatteryReading.LowPercent);
+    // The glove's own level wins: low latches until 3.90 V, so 3.85 V can still be low.
+    // Firmware without BATLP/BATLS (null) falls back to the voltage.
+    [Theory]
+    [InlineData(3.85, true, true)]
+    [InlineData(3.79, false, false)]
+    [InlineData(3.79, null, true)]
+    [InlineData(3.80, null, false)]
+    [InlineData(null, true, false)]
+    public void IsLow_PrefersGloveLevel(double? voltage, bool? gloveLow, bool low) =>
+        Assert.Equal(low, BatteryReading.IsLow(voltage, gloveLow));
+
+    [Theory]
+    [InlineData("NORMAL", false)]
+    [InlineData("LOW", true)]
+    [InlineData("CRITICAL", true)]
+    [InlineData(null, null)]
+    [InlineData("SOMETHING", null)]
+    public void GloveLow_MapsFirmwareLevel(string? level, bool? low) =>
+        Assert.Equal(low, BatteryReading.GloveLow(level));
 
     [Fact]
     public void FromRaw_PlausibleVoltage_PassesThrough()

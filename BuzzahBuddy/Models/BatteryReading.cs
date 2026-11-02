@@ -27,11 +27,25 @@ public static class BatteryReading
     /// </summary>
     public const double LowVoltage = 3.80;
 
-    /// <summary><see cref="LowVoltage"/> as a percentage (40 on the curve).</summary>
-    public static readonly int LowPercent = ToPercentage(LowVoltage);
-
-    /// <summary>Below <see cref="LowVoltage"/>, like the firmware; null (no reading) is never low.</summary>
+    /// <summary>Below <see cref="LowVoltage"/>; null (no reading) is never low.</summary>
     public static bool IsLow(double? voltage) => voltage is < LowVoltage;
+
+    /// <summary>
+    /// Whether a glove is low. The glove's own level (BATLP/BATLS) wins: it latches low
+    /// until 3.90 V, so a pack resting just above <see cref="LowVoltage"/> can still be low
+    /// and refuse a start. Firmware without the level falls back to the voltage. No
+    /// reading is never low.
+    /// </summary>
+    public static bool IsLow(double? voltage, bool? gloveLow) =>
+        voltage is not null && (gloveLow ?? IsLow(voltage));
+
+    /// <summary>Maps a BATLP/BATLS level; null when missing or unknown.</summary>
+    public static bool? GloveLow(string? level) => level switch
+    {
+        "NORMAL" => false,
+        "LOW" or "CRITICAL" => true,
+        _ => null,
+    };
 
     /// <summary>
     /// Maps a raw protocol value to a usable reading: null for a missing,
