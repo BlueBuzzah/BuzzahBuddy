@@ -274,6 +274,7 @@ button's current `TextColor`.
   the lowest-priority Gloves banner plus an "Outdated" badge. Skipped in Demo Mode, whose
   gloves report 2.0.0.
 - `tmp/` is gitignored scratch, not canonical. No `docs/` tree; don't add one.
+- **Worktrees go only in `.claude/worktrees/<name>`** inside this repo (gitignored), never beside it in the workspace's `projects/` or anywhere else.
 
 ## CI — `.github/workflows/`
 
