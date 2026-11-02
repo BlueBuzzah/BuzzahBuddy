@@ -243,6 +243,8 @@ button's current `TextColor`.
   `Switch.System.Reflection.ForceInterpretedInvoke` (launch crash without it), `TrimMode`
   partial. Never set `IsAotCompatible` (implies `IsTrimmable`). CI builds Debug only —
   verify reflection-adjacent changes with `-c Release` on a device.
+- **Judge speed on Release.** A Debug build on a physical device runs the Mono interpreter, so
+  the first open of each tab stalls for seconds. That's not page code; Release (AOT) is quick.
 - **Every persisted type needs `[JsonSerializable]` in
   `Services/Storage/StorageJsonContext.cs`**; a missing entry throws at runtime on device.
 - **History storage:** `HistoryStore` writes `history.json` in `FileSystem.AppDataDirectory`
