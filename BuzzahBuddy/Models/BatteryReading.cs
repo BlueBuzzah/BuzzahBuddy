@@ -27,6 +27,12 @@ public static class BatteryReading
     /// </summary>
     public const double LowVoltage = 3.80;
 
+    /// <summary>
+    /// Battery arrives with every INFO reply, including the service's post-connect one. The
+    /// Session tab and Siri reuse a reading up to this old instead of sending another INFO.
+    /// </summary>
+    public static readonly TimeSpan Freshness = TimeSpan.FromSeconds(30);
+
     /// <summary>Below <see cref="LowVoltage"/>; null (no reading) is never low.</summary>
     public static bool IsLow(double? voltage) => voltage is < LowVoltage;
 

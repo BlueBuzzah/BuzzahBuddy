@@ -4,6 +4,10 @@
 <dict>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- Siri's phrase model is trained per development language: without it the build's
+	     TrainAppIntentsPhrases target produces no model and fails. -->
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
 	<!-- iPhone and iPad (1, 2). iPhone stays portrait for reach: the bottom-anchored
 	     controls are laid out for tremor-friendly one-handed use. iPad multitasking
 	     needs all four orientations and live resizing (App Store validation,
@@ -65,5 +69,26 @@
 	     ever ships its own crypto. -->
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<!-- Siri phrases say \(.applicationName); these let "Glove", "Gloves" or "BlueBuzzah"
+	     stand in for BuzzahBuddy ("Check Glove battery"). Three is iOS's limit per language.
+	     Keep identical to native/BuzzahBuddyKit/Info.plist: this copy is what runs, and the
+	     framework's copy only feeds Siri phrase training at build time. -->
+	<key>INAlternativeAppNames</key>
+	<array>
+		<dict>
+			<key>INAlternativeAppName</key>
+			<string>Glove</string>
+		</dict>
+		<dict>
+			<key>INAlternativeAppName</key>
+			<string>Gloves</string>
+		</dict>
+		<dict>
+			<key>INAlternativeAppName</key>
+			<string>BlueBuzzah</string>
+			<key>INAlternativeAppNamePronunciationHint</key>
+			<string>blue buzzah</string>
+		</dict>
+	</array>
 </dict>
 </plist>

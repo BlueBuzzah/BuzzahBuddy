@@ -362,7 +362,7 @@ public partial class DeviceListViewModel : BaseViewModel, IQueryAttributable
 
         if (showRationale)
         {
-            await Shell.Current.DisplayAlert(
+            await Shell.Current.DisplayAlertAsync(
                 "Allow Bluetooth",
                 "BuzzahBuddy needs Bluetooth to find and connect to your gloves.",
                 "OK");
@@ -375,7 +375,7 @@ public partial class DeviceListViewModel : BaseViewModel, IQueryAttributable
         if (status == PermissionStatus.Granted)
             return true;
 
-        var openSettings = await Shell.Current.DisplayAlert(
+        var openSettings = await Shell.Current.DisplayAlertAsync(
             "Bluetooth Isn't Allowed",
             $"Turn on Bluetooth for BuzzahBuddy in your {DeviceWords.This}'s settings, then scan again.",
             "Open Settings",
@@ -429,7 +429,7 @@ public partial class DeviceListViewModel : BaseViewModel, IQueryAttributable
         catch (Exception ex)
         {
             var error = ErrorMessageHelper.FromException(ex);
-            await Shell.Current.DisplayAlert(error.Title, error.ForAlert, "OK");
+            await Shell.Current.DisplayAlertAsync(error.Title, error.ForAlert, "OK");
         }
     }
 

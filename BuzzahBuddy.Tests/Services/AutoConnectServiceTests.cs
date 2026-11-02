@@ -81,4 +81,87 @@ public class AutoConnectServiceTests
         Assert.Equal(AutoConnectState.Idle, service.State);
         Assert.Equal(new[] { "Connected to BlueBuzzah v3" }, announced);
     }
+
+    [Fact]
+    public void LaunchFinished_PendingUntilDecided()
+    {
+        var service = new AutoConnectService(Disconnected(), _ => { });
+
+        Assert.False(service.LaunchFinished.IsCompleted);
+    }
+
+    [Fact]
+    public void LaunchFinished_CompletesOnSkip()
+    {
+        var service = new AutoConnectService(Disconnected(), _ => { });
+
+        service.SkipLaunch();
+
+        Assert.True(service.LaunchFinished.IsCompleted);
+    }
+
+    [Fact]
+    public void LaunchFinished_CompletesWhenAttemptFails()
+    {
+        var bluetooth = Disconnected();
+        bluetooth.ConnectToKnown = (_, _) => Task.FromResult(false);
+        var service = new AutoConnectService(bluetooth, _ => { });
+
+        service.Start("GLOVE-1");
+
+        Assert.True(service.LaunchFinished.IsCompleted);
+    }
+
+    [Fact]
+    public void LaunchFinished_CompletesWhenAttemptSucceeds()
+    {
+        var bluetooth = Disconnected();
+        bluetooth.ConnectToKnown = (_, _) => Task.FromResult(true);
+        var service = new AutoConnectService(bluetooth, _ => { });
+
+        service.Start("GLOVE-1");
+
+        Assert.True(service.LaunchFinished.IsCompleted);
+    }
+
+    [Fact]
+    public void LaunchFinished_PendingWhileAttemptRuns()
+    {
+        var bluetooth = Disconnected();
+        var release = new TaskCompletionSource<bool>();
+        bluetooth.ConnectToKnown = (_, _) => release.Task;
+        var service = new AutoConnectService(bluetooth, _ => { });
+
+        service.Start("GLOVE-1");
+        Assert.False(service.LaunchFinished.IsCompleted);
+
+        release.SetResult(false);
+        Assert.True(service.LaunchFinished.IsCompleted);
+    }
+
+    [Fact]
+    public void LaunchFinished_CompletesWhenAlreadyConnected()
+    {
+        var bluetooth = Disconnected();
+        bluetooth.CurrentConnectionState = ConnectionState.Connected;
+        var service = new AutoConnectService(bluetooth, _ => { });
+
+        service.Start("GLOVE-1");
+
+        Assert.True(service.LaunchFinished.IsCompleted);
+    }
+
+    [Fact]
+    public void LaunchFinished_TryAgainDoesNotReopen()
+    {
+        var bluetooth = Disconnected();
+        bluetooth.ConnectToKnown = (_, _) => Task.FromResult(false);
+        var service = new AutoConnectService(bluetooth, _ => { });
+        service.Start("GLOVE-1");
+
+        service.TryAgain();
+        service.SkipLaunch();
+
+        Assert.True(service.LaunchFinished.IsCompleted);
+    }
 }

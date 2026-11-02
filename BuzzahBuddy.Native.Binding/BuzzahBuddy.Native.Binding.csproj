@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net10.0-ios</TargetFramework>
+		<SupportedOSPlatformVersion>15.0</SupportedOSPlatformVersion>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>true</ImplicitUsings>
+		<IsBindingProject>true</IsBindingProject>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<ObjcBindingApiDefinition Include="ApiDefinition.cs" />
+	</ItemGroup>
+
+	<!-- The iOS SDK's Native Library Interop builds the Swift framework (App Intents) into an
+	     xcframework during dotnet build. Edit native/BuzzahBuddyKit/project.yml, not the
+	     generated .xcodeproj, then run `xcodegen generate`. -->
+	<ItemGroup>
+		<XcodeProject Include="../native/BuzzahBuddyKit/BuzzahBuddyKit.xcodeproj">
+			<SchemeName>BuzzahBuddyKit</SchemeName>
+			<ForceLoad>true</ForceLoad>
+			<SmartLink>false</SmartLink>
+		</XcodeProject>
+	</ItemGroup>
+
+	<!-- iOS finds App Intents only in the app bundle's Metadata.appintents. The device and
+	     simulator archives each carry their own (the Siri phrase model nlu.lzfse differs), so
+	     both are taken out here, from the current XcodeProject output folder only (older
+	     BuzzahBuddyKit-<hash> folders may hold stale metadata). The app's CopyAppIntentsMetadata
+	     target copies the one matching its build into the bundle. -->
+	<Target Name="ExtractAppIntentsMetadata" AfterTargets="_BuildXcodeProjects">
+		<PropertyGroup>
+			<_AppIntentsMetadataRoot>$(IntermediateOutputPath)xcode/AppIntentsMetadata</_AppIntentsMetadataRoot>
+		</PropertyGroup>
+		<ItemGroup>
+			<_AppIntentsArchiveMetadata Include="@(XcodeProject->'%(OutputPath)archives/%(SchemeName)$(TargetPlatformIdentifier).xcarchive/Products/Library/Frameworks/%(SchemeName).framework/Metadata.appintents')" Variant="device" />
+			<_AppIntentsArchiveMetadata Include="@(XcodeProject->'%(OutputPath)archives/%(SchemeName)$(TargetPlatformIdentifier)Simulator.xcarchive/Products/Library/Frameworks/%(SchemeName).framework/Metadata.appintents')" Variant="simulator" />
+		</ItemGroup>
+		<Error Text="Metadata.appintents not found at %(_AppIntentsArchiveMetadata.Identity)" Condition="!Exists('%(_AppIntentsArchiveMetadata.Identity)')" />
+		<RemoveDir Directories="$(_AppIntentsMetadataRoot)" />
+		<Exec Command="ditto &quot;%(_AppIntentsArchiveMetadata.Identity)&quot; &quot;$(_AppIntentsMetadataRoot)/%(_AppIntentsArchiveMetadata.Variant)/Metadata.appintents&quot;" />
+	</Target>
+
+</Project>

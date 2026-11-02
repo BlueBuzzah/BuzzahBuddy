@@ -19,6 +19,7 @@ namespace BuzzahBuddy.ViewModels;
 public partial class GloveControlViewModel : BaseViewModel
 {
     private readonly IGloveControlService _gloveControlService;
+    private readonly SessionCommandLock _sessionLock;
     private readonly IBluetoothService _bluetoothService;
     private readonly IDataStorageService _storageService;
     private readonly IReconnectionService _reconnectionService;
@@ -64,9 +65,6 @@ public partial class GloveControlViewModel : BaseViewModel
     private const int PollFailureReconnectThreshold = 3;
     private const string ConnectionUnstableWarning = "Connection unstable — trying to recover…";
 
-    // Battery arrives with every INFO reply, including the service's post-connect
-    // one; a tab visit only asks for a new INFO when the service's is this stale.
-    private static readonly TimeSpan BatteryReadingFreshness = TimeSpan.FromSeconds(30);
     private bool _warnOnNextBatteryReading;
 
     /// <summary>Preset profiles, used to map the device's profile id to a display profile.</summary>
@@ -220,8 +218,10 @@ public partial class GloveControlViewModel : BaseViewModel
         IAppLifecycleService appLifecycleService,
         IConfirmationService confirmation,
         HistoryStore history,
-        AutoConnectService autoConnect)
+        AutoConnectService autoConnect,
+        SessionCommandLock sessionLock)
     {
+        _sessionLock = sessionLock;
         _confirmation = confirmation;
         _autoConnect = autoConnect;
         _autoConnect.StateChanged += (_, _) => MainThread.BeginInvokeOnMainThread(OnAutoConnectStateChanged);
@@ -248,6 +248,8 @@ public partial class GloveControlViewModel : BaseViewModel
         // Session state from the service (fires on command success and every status
         // poll) — the UI must not depend on the first SESSION_STATUS poll succeeding
         _gloveControlService.SessionStateChanged += OnServiceSessionStateChanged;
+        // Any accepted stop, Siri's included, closes the session as stopped
+        _gloveControlService.SessionStopRequested += OnServiceSessionStopRequested;
 
         // Subscribe to centralized connection state changes
         ConnectionInfo.PropertyChanged += OnConnectionInfoPropertyChanged;
@@ -290,7 +292,7 @@ public partial class GloveControlViewModel : BaseViewModel
         // another. No low-battery alert on mere tab visits.
         if (ConnectionInfo.IsConnected)
         {
-            _gloveControlService.GetDeviceInfoAsync(BatteryReadingFreshness).SafeFireAndForget("[GLOVECONTROL]");
+            _gloveControlService.GetDeviceInfoAsync(BatteryReading.Freshness).SafeFireAndForget("[GLOVECONTROL]");
         }
     }
 
@@ -316,7 +318,7 @@ public partial class GloveControlViewModel : BaseViewModel
     {
         if (!ConnectionInfo.IsConnected)
         {
-            await Shell.Current.DisplayAlert(
+            await Shell.Current.DisplayAlertAsync(
                 "Connection Lost",
                 "Connect again on the Gloves tab, then try again.",
                 "OK");
@@ -325,30 +327,44 @@ public partial class GloveControlViewModel : BaseViewModel
 
         if (!IsSessionActive && SelectedProfile == null)
         {
-            await Shell.Current.DisplayAlert(
+            await Shell.Current.DisplayAlertAsync(
                 "Choose a Profile First",
                 "Go to Gloves, pick a therapy profile, then tap Apply Settings.",
                 "OK");
             return;
         }
 
+        // What this tap meant to do, from the state it was tapped in.
+        var wantsStart = !IsSessionActive;
+        var wantsPause = IsSessionRunning;
+
+        // Prompts run before the lock: it is never held while waiting on the user.
+        if (wantsStart
+            && _gloveControlService.DeviceProfileId > 0
+            && SelectedProfile != null
+            && SelectedProfile.ProfileId != _gloveControlService.DeviceProfileId)
+        {
+            await Shell.Current.DisplayAlertAsync(
+                "Apply Your Profile First",
+                $"Your gloves are still using another profile. Go to Gloves and tap Apply Settings to use \u201c{SelectedProfile.Name}\u201d.",
+                "OK");
+            return;
+        }
+
         IsBusy = true;
+        UserError? failure = null;
 
         try
         {
-            if (!IsSessionActive)
-            {
-                if (_gloveControlService.DeviceProfileId > 0 &&
-                    SelectedProfile != null &&
-                    SelectedProfile.ProfileId != _gloveControlService.DeviceProfileId)
-                {
-                    await Shell.Current.DisplayAlert(
-                        "Apply Your Profile First",
-                        $"Your gloves are still using another profile. Go to Gloves and tap Apply Settings to use \u201c{SelectedProfile.Name}\u201d.",
-                        "OK");
-                    return;
-                }
+            // Voice commands share this lock. A tap that waited behind one does nothing if
+            // that command already did what the tap meant (Pause then Pause must not Resume).
+            using var commandLock = await _sessionLock.AcquireAsync();
+            var current = _gloveControlService.CurrentSessionStatus;
+            if (wantsStart ? current.IsActive : wantsPause ? !current.IsRunning : !current.IsPaused)
+                return;
 
+            if (wantsStart)
+            {
                 // Start session. Its synthesized RUNNING status reaches TrackSession
                 // through the service event, which begins tracking.
                 await _gloveControlService.StartSessionAsync();
@@ -359,7 +375,7 @@ public partial class GloveControlViewModel : BaseViewModel
                 await UpdateSessionStatusAsync();
                 SemanticScreenReader.Announce("Session started");
             }
-            else if (IsSessionRunning)
+            else if (wantsPause)
             {
                 // Pause session
                 await _gloveControlService.PauseSessionAsync();
@@ -376,18 +392,20 @@ public partial class GloveControlViewModel : BaseViewModel
         }
         catch (BlueBuzzahCommandException ex)
         {
-            var error = ErrorMessageHelper.GetFriendlyError(ex.Message);
-            await Shell.Current.DisplayAlert(error.Title, error.ForAlert, "OK");
+            failure = ErrorMessageHelper.GetFriendlyError(ex.Message);
         }
         catch (Exception ex)
         {
-            var error = ErrorMessageHelper.FromException(ex);
-            await Shell.Current.DisplayAlert(error.Title, error.ForAlert, "OK");
+            failure = ErrorMessageHelper.FromException(ex);
         }
         finally
         {
             IsBusy = false;
         }
+
+        // The lock is released by now.
+        if (failure is { } error)
+            await Shell.Current.DisplayAlertAsync(error.Title, error.ForAlert, "OK");
     }
 
     [RelayCommand]
@@ -409,11 +427,16 @@ public partial class GloveControlViewModel : BaseViewModel
             return;
 
         IsBusy = true;
+        UserError? failure = null;
 
         try
         {
             // Stop session. The IDLE reading that follows closes the record as
             // stopped early (TrackSession), because this flag is set first.
+            using var commandLock = await _sessionLock.AcquireAsync();
+            if (!_gloveControlService.CurrentSessionStatus.IsActive)
+                return; // a voice Stop got there first
+
             _userRequestedStop = true;
             await _gloveControlService.StopSessionAsync();
 
@@ -425,19 +448,21 @@ public partial class GloveControlViewModel : BaseViewModel
         {
             // The session carries on: a later natural end isn't a stop.
             _userRequestedStop = false;
-            var error = ErrorMessageHelper.GetFriendlyError(ex.Message);
-            await Shell.Current.DisplayAlert(error.Title, error.ForAlert, "OK");
+            failure = ErrorMessageHelper.GetFriendlyError(ex.Message);
         }
         catch (Exception ex)
         {
             _userRequestedStop = false;
-            var error = ErrorMessageHelper.FromException(ex);
-            await Shell.Current.DisplayAlert(error.Title, error.ForAlert, "OK");
+            failure = ErrorMessageHelper.FromException(ex);
         }
         finally
         {
             IsBusy = false;
         }
+
+        // The lock is released by now.
+        if (failure is { } error)
+            await Shell.Current.DisplayAlertAsync(error.Title, error.ForAlert, "OK");
     }
 
 
@@ -915,6 +940,17 @@ public partial class GloveControlViewModel : BaseViewModel
     /// button text, Stop button) updates even if the follow-up SESSION_STATUS poll
     /// fails or is slow while the gloves establish sync.
     /// </summary>
+    /// <summary>
+    /// A stop the gloves accepted, from the Stop button or Siri, so the IDLE that follows
+    /// closes the session as stopped, not ended early. The service raises this and then the
+    /// IDLE <see cref="OnServiceSessionStateChanged"/> on one thread with no await between, and
+    /// both dispatch the same way: on the main thread BeginInvokeOnMainThread runs each inline,
+    /// in order; off it (Siri), both queue to the main thread in order. Either way the flag is
+    /// set before TrackSession sees the IDLE.
+    /// </summary>
+    private void OnServiceSessionStopRequested(object? sender, EventArgs e) =>
+        MainThread.BeginInvokeOnMainThread(() => _userRequestedStop = true);
+
     private void OnServiceSessionStateChanged(object? sender, SessionStatus status)
     {
         MainThread.BeginInvokeOnMainThread(() =>
@@ -1275,6 +1311,7 @@ public partial class GloveControlViewModel : BaseViewModel
             _gloveControlService.DeviceProfileChanged -= OnDeviceProfileChanged;
             _gloveControlService.DeviceInfoReceived -= OnDeviceInfoReceived;
             _gloveControlService.SessionStateChanged -= OnServiceSessionStateChanged;
+            _gloveControlService.SessionStopRequested -= OnServiceSessionStopRequested;
             ConnectionInfo.PropertyChanged -= OnConnectionInfoPropertyChanged;
             _reconnectionService.ReconnectionStateChanged -= OnReconnectionStateChanged;
             _appLifecycle.Stopped -= OnAppStopped;

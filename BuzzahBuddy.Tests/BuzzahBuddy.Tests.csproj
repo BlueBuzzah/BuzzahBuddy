@@ -51,6 +51,7 @@
     <Compile Include="../BuzzahBuddy/Services/Bluetooth/MockBluetoothService.cs" LinkBase="AppServicesBluetooth" />
     <Compile Include="../BuzzahBuddy/Services/Bluetooth/SwitchableBluetoothService.cs" LinkBase="AppServicesBluetooth" />
     <Compile Include="../BuzzahBuddy/Services/Bluetooth/AutoConnectService.cs" LinkBase="AppServicesBluetooth" />
+    <Compile Include="../BuzzahBuddy/Services/Bluetooth/IReconnectionService.cs" LinkBase="AppServicesBluetooth" />
     <Compile Include="../BuzzahBuddy/Services/Glove/**/*.cs" LinkBase="AppServicesGlove" />
     <Compile Include="../BuzzahBuddy/Services/Storage/HistoryStore.cs" LinkBase="AppServicesStorage" />
     <Compile Include="../BuzzahBuddy/Services/Storage/StorageJsonContext.cs" LinkBase="AppServicesStorage" />
@@ -64,5 +65,10 @@
     <None Include="../BuzzahBuddy/Resources/Fonts/AtkinsonHyperlegibleNext-Regular.ttf" Link="ReportAssets/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../BuzzahBuddy/Resources/Fonts/AtkinsonHyperlegibleNext-Bold.ttf" Link="ReportAssets/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../BuzzahBuddy/Resources/Brand/bluebuzzah-mark.png" Link="ReportAssets/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <!-- Both Siri Info.plists, so a test checks their alternative app names match -->
+  <ItemGroup>
+    <None Include="../BuzzahBuddy/Platforms/iOS/Info.plist" Link="Plists/App.Info.plist" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../native/BuzzahBuddyKit/Info.plist" Link="Plists/BuzzahBuddyKit.Info.plist" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

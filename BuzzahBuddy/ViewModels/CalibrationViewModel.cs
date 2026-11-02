@@ -233,12 +233,12 @@ public partial class CalibrationViewModel : BaseViewModel
         catch (BlueBuzzahCommandException ex)
         {
             var error = GetFriendlyError(ex.Message);
-            await Shell.Current.DisplayAlert(error.Title, error.ForAlert, "OK");
+            await Shell.Current.DisplayAlertAsync(error.Title, error.ForAlert, "OK");
         }
         catch (Exception ex)
         {
             var error = FromException(ex);
-            await Shell.Current.DisplayAlert(error.Title, error.ForAlert, "OK");
+            await Shell.Current.DisplayAlertAsync(error.Title, error.ForAlert, "OK");
         }
         finally
         {
@@ -304,7 +304,7 @@ public partial class CalibrationViewModel : BaseViewModel
         var finger = PrimaryFingers.Concat(SecondaryFingers).FirstOrDefault(f => f.Index == fingerIndex);
         if (finger is null)
         {
-            await Shell.Current.DisplayAlert(
+            await Shell.Current.DisplayAlertAsync(
                 "That Finger Isn't Available",
                 "Pick one of the finger buttons on this screen.",
                 "OK");
@@ -329,12 +329,12 @@ public partial class CalibrationViewModel : BaseViewModel
         catch (BlueBuzzahCommandException ex)
         {
             var error = GetFriendlyError(ex.Message);
-            await Shell.Current.DisplayAlert(error.Title, error.ForAlert, "OK");
+            await Shell.Current.DisplayAlertAsync(error.Title, error.ForAlert, "OK");
         }
         catch (Exception ex)
         {
             var error = FromException(ex);
-            await Shell.Current.DisplayAlert(error.Title, error.ForAlert, "OK");
+            await Shell.Current.DisplayAlertAsync(error.Title, error.ForAlert, "OK");
         }
         finally
         {

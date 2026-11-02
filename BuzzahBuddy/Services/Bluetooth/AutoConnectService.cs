@@ -22,8 +22,15 @@ public sealed class AutoConnectService
     private CancellationTokenSource? _cts;
     private Task _attempt = Task.CompletedTask;
     private bool _bluetoothOff;
+    private readonly TaskCompletionSource _launchFinished = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public AutoConnectState State { get; private set; }
+
+    /// <summary>
+    /// Completes once this launch's attempt ends, or at <see cref="SkipLaunch"/>, or when the
+    /// launch needed no attempt (already connected). Never reopens; Try Again doesn't affect it.
+    /// </summary>
+    public Task LaunchFinished => _launchFinished.Task;
 
     /// <summary>Raised on any thread; handlers dispatch to the main thread.</summary>
     public event EventHandler? StateChanged;
@@ -51,15 +58,26 @@ public sealed class AutoConnectService
     public void Start(string deviceId)
     {
         _deviceId = deviceId;
-        TryAgain();
+        if (!TryStartAttempt())
+            _launchFinished.TrySetResult();
     }
 
-    public void TryAgain()
+    /// <summary>
+    /// App: the setting is off, or no usable glove is remembered, so no attempt will run.
+    /// Completes <see cref="LaunchFinished"/> even if an attempt is in flight, so only call it
+    /// for launches that never start one.
+    /// </summary>
+    public void SkipLaunch() => _launchFinished.TrySetResult();
+
+    public void TryAgain() => TryStartAttempt();
+
+    private bool TryStartAttempt()
     {
         if (_deviceId is null || State == AutoConnectState.Connecting
             || _bluetooth.CurrentConnectionState == ConnectionState.Connected)
-            return;
+            return false;
         _attempt = RunAsync(_deviceId);
+        return true;
     }
 
     /// <summary>
@@ -74,6 +92,18 @@ public sealed class AutoConnectService
     }
 
     private async Task RunAsync(string deviceId)
+    {
+        try
+        {
+            await AttemptAsync(deviceId);
+        }
+        finally
+        {
+            _launchFinished.TrySetResult();
+        }
+    }
+
+    private async Task AttemptAsync(string deviceId)
     {
         using var cts = new CancellationTokenSource();
         _cts = cts;

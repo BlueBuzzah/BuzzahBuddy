@@ -214,7 +214,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     public bool ShowDisconnectedView => !ConnectionInfo.IsConnected && !IsApplyingSettings;
 
     /// <summary>Backstop for the apply-reconnect watch, in case no terminal reconnection event arrives.</summary>
-    private const int ApplyReconnectBackstopMs = 120_000;
+    private const int ApplyReconnectBackstopMs = BlueBuzzahConstants.RebootReconnectBackstopSeconds * 1000;
 
     private CancellationTokenSource? _applyWatchCts;
 
@@ -342,7 +342,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
 
         if (IsSessionActive)
         {
-            await Shell.Current.DisplayAlert(
+            await Shell.Current.DisplayAlertAsync(
                 "Stop Your Session First",
                 "Settings can't change while a session runs.",
                 "OK");
@@ -413,14 +413,14 @@ public partial class DeviceSettingsViewModel : BaseViewModel
         {
             AbortApplyReconnectWatch();
             var error = ErrorMessageHelper.GetFriendlyError(ex.Message);
-            await Shell.Current.DisplayAlert(error.Title, error.ForAlert, "OK");
+            await Shell.Current.DisplayAlertAsync(error.Title, error.ForAlert, "OK");
             await ResyncTherapyLedAsync();
         }
         catch (Exception ex)
         {
             AbortApplyReconnectWatch();
             var error = FromException(ex);
-            await Shell.Current.DisplayAlert(error.Title, error.ForAlert, "OK");
+            await Shell.Current.DisplayAlertAsync(error.Title, error.ForAlert, "OK");
             await ResyncTherapyLedAsync();
         }
         finally

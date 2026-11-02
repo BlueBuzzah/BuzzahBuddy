@@ -1,4 +1,5 @@
-﻿using CoreSpotlight;
+﻿using BuzzahBuddy.Native.Binding;
+using CoreSpotlight;
 using Foundation;
 using UIKit;
 using UniformTypeIdentifiers;
@@ -12,8 +13,16 @@ public class AppDelegate : MauiUIApplicationDelegate
 
 	public override bool FinishedLaunching(UIApplication application, NSDictionary? launchOptions)
 	{
+		// Before base.FinishedLaunching, so an intent that launched the app finds the provider. Its
+		// commands wait for ServicesReady: the services (and App, which builds the glove services on
+		// this thread) only exist once base.FinishedLaunching returns.
+		VoiceCommandProvider? voice = null;
+		if (OperatingSystem.IsIOSVersionAtLeast(16))
+			VoiceBridge.Shared.Provider = voice = new VoiceCommandProvider();
 		IndexForSpotlight();
-		return base.FinishedLaunching(application, launchOptions);
+		var launched = base.FinishedLaunching(application, launchOptions);
+		voice?.ServicesReady();
+		return launched;
 	}
 
 	// Spotlight matches only the app's name, so this item is what makes searching "BlueBuzzah"

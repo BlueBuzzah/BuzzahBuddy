@@ -55,6 +55,12 @@ public static class BlueBuzzahConstants
     public const int ConnectionTimeoutSeconds = 15;
 
     /// <summary>
+    /// How long a profile change waits for the rebooted gloves to come back: the Gloves
+    /// page's Apply backstop, and a Siri profile switch's start.
+    /// </summary>
+    public const int RebootReconnectBackstopSeconds = 120;
+
+    /// <summary>
     /// Pause after a reply that carries no CMD echo (older firmware) before the next
     /// command can go out; absorbs a stray frame that would otherwise complete it.
     /// </summary>

@@ -278,6 +278,17 @@ button's current `TextColor`.
   `DeviceSettingsViewModel` compares it with INFO's `FW` (`Models/FirmwareRelease`) and shows
   the lowest-priority Gloves banner plus an "Outdated" badge. Skipped in Demo Mode, whose
   gloves report 2.0.0.
+- **Siri voice control (iOS):** the App Intents live in the Swift framework
+  `native/BuzzahBuddyKit/` (XcodeGen: run `xcodegen generate` there after editing `project.yml`
+  and commit the generated project), built and bound by `BuzzahBuddy.Native.Binding`. The app's
+  `CopyAppIntentsMetadata` target copies `Metadata.appintents` into `$(AppBundleDir)/`; keep the
+  trailing slash, or every intent fails silently. Siri's phrases are trained from the framework's
+  `Info.plist`, so its `INAlternativeAppNames` must match the app's. C#: `VoiceCommandService`
+  (tested) behind `Platforms/iOS/VoiceCommandProvider`; voice and the Session buttons share
+  `SessionCommandLock`. In the simulator, Shortcuts says "Unable to run App Shortcut" unless the
+  build has a team ID: re-sign a copy with your Apple Development identity (`codesign -f -s` the
+  framework, each root dylib, then the app with `--preserve-metadata=entitlements`);
+  `EnableCodeSigning=true` doesn't. The Live Activity is meant to extend this framework.
 - `tmp/` is gitignored scratch, not canonical. No `docs/` tree; don't add one.
 - **Worktrees go only in `.claude/worktrees/<name>`** inside this repo (gitignored), never beside it in the workspace's `projects/` or anywhere else.
 

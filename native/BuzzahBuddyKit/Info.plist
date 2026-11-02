@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- The build trains the Siri phrase model (Metadata.appintents/nlu) from this framework's
+	     names, not the app's. These keys give it the app's display name and alternative names.
+	     Keep CFBundleDisplayName and INAlternativeAppNames identical to
+	     BuzzahBuddy/Platforms/iOS/Info.plist: the app's copy is what runs on the phone, and this
+	     copy only feeds phrase training. Xcode fills in the identifier and versions
+	     (GENERATE_INFOPLIST_FILE, MARKETING_VERSION in project.yml). -->
+	<key>CFBundleDisplayName</key>
+	<string>BuzzahBuddy</string>
+	<key>INAlternativeAppNames</key>
+	<array>
+		<dict>
+			<key>INAlternativeAppName</key>
+			<string>Glove</string>
+		</dict>
+		<dict>
+			<key>INAlternativeAppName</key>
+			<string>Gloves</string>
+		</dict>
+		<dict>
+			<key>INAlternativeAppName</key>
+			<string>BlueBuzzah</string>
+			<key>INAlternativeAppNamePronunciationHint</key>
+			<string>blue buzzah</string>
+		</dict>
+	</array>
+</dict>
+</plist>
