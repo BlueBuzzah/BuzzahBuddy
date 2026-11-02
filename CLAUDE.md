@@ -209,8 +209,8 @@ and `MainThread.BeginInvokeOnMainThread` in service-event handlers.
   centered column, the gloves' finger sections side by side in step 3. Forms stay one column.
 - **iPad share sheets** need an anchor: pass `ShareAnchor.Bounds`, or the popover has no source.
 - **Orientation:** `Info.plist` is iPhone portrait only, iPad all four; `UIApplicationSupportsMultipleScenes`
-  stays false. Incremental iOS builds may not re-copy an edited `Info.plist`: delete
-  `obj/Debug/net10.0-ios/iossimulator-arm64/AppManifest.plist` and `_CompileAppManifest.inputs`.
+  stays false. The iOS SDK doesn't rebuild the app manifest when only `Info.plist` changes;
+  the csproj's `AddInfoPlistToAppManifestInputs` target makes it, so don't delete `obj/` files by hand.
 - **AOT label trap:** `{Binding Source={x:Static ...}, StringFormat=...}` labels did not render under
   iOS Release AOT. Use `x:Static` strings.
 
