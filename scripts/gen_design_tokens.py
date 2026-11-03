@@ -89,7 +89,8 @@ def theme_colors(tokens):
     out = {tid: {} for tid, _ in THEMES}
     by_name = {t["name"]: t for t in tokens}
     for t in tokens:
-        if t["name"].startswith("buzz-"):
+        # light-* is the website's GloveLight; LightBlue etc. would clash with .NET's named colors
+        if t["name"].startswith(("buzz-", "light-")):
             continue
         value = t["value"]
         if isinstance(value, str) and value.startswith("{"):
