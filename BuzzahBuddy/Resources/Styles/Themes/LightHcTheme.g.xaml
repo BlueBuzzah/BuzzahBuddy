@@ -24,6 +24,7 @@
     <Color x:Key="Abyss">#011F5F</Color>
     <Color x:Key="OnAbyss">#FFFFFF</Color>
     <Color x:Key="IconGround">#080C1B</Color>
+    <Color x:Key="MediaGround">#011F5F</Color>
     <Color x:Key="Focus">#000000</Color>
     <Color x:Key="Success">#005A43</Color>
     <Color x:Key="SuccessSoft">#DCF5EC</Color>
