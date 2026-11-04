@@ -38,6 +38,12 @@ public static class TherapyParameterBounds
     /// </summary>
     public const double MinInterBurstGapMs = 5;
 
+    /// <summary>
+    /// Extra millisecond the firmware's onset-jitter cap keeps clear of the gap
+    /// floor so the excursion can round up (<c>ONSET_ROUNDING_RESERVE_MS</c>).
+    /// </summary>
+    public const double OnsetRoundingReserveMs = 1;
+
     public static bool IsTimeOnValid(double v) => v >= TimeOnMsMin && v <= TimeOnMsMax;
     public static bool IsTimeOffValid(double v) => v >= TimeOffMsMin && v <= TimeOffMsMax;
     public static bool IsJitterValid(double v) => v >= JitterMin && v <= JitterMax;
@@ -57,8 +63,10 @@ public static class TherapyParameterBounds
     /// raising Jitter changes nothing.
     /// </summary>
     /// <remarks>
-    /// Firmware: <c>jitterAmount = (on + off) * (jitter/100) / 2</c>, clamped to
-    /// <c>off - MinInterBurstGapMs</c>. Solving for jitter gives the cap below.
+    /// Firmware <c>onsetJitterLimitMs</c> (<c>therapy_engine.cpp</c>): the excursion
+    /// <c>A = (on + off) * (jitter/100) / 2</c> is capped at
+    /// <c>(off - MinInterBurstGapMs - OnsetRoundingReserveMs) / 2</c> and floored at 0.
+    /// Solving for jitter gives the cap below.
     /// </remarks>
     public static double EffectiveJitterCap(double onMs, double offMs)
     {
@@ -66,7 +74,7 @@ public static class TherapyParameterBounds
         if (cycleMs <= 0)
             return 0;
 
-        var headroomMs = Math.Max(0, offMs - MinInterBurstGapMs);
-        return Math.Min(200.0 * headroomMs / cycleMs, JitterMax);
+        var headroomMs = Math.Max(0, offMs - MinInterBurstGapMs - OnsetRoundingReserveMs);
+        return Math.Min(100.0 * headroomMs / cycleMs, JitterMax);
     }
 }

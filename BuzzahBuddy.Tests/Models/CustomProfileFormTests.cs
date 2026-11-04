@@ -174,7 +174,7 @@ public class CustomProfileFormTests
         var text = form.EffectiveJitterCapText;
 
         Assert.NotNull(text);
-        Assert.Contains("21.7%", text);   // 200 * (30 - 5) / 230
+        Assert.Contains("10.4%", text);   // 100 * (30 - 6) / 230
     }
 
     [Fact]
