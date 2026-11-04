@@ -27,7 +27,7 @@ public static class ResearchDefaults
     /// <summary>
     /// Fingertips the study stimulated — it deliberately excluded the thumb. This is
     /// the reference for timing comparisons, NOT what a device runs: firmware sets
-    /// its finger count to every motor present (5 on PentaBuzzer), and the user
+    /// its finger count to every motor present (5 on v3), and the user
     /// cannot change it. See <see cref="For"/>.
     /// </summary>
     public const int Fingers = 4;

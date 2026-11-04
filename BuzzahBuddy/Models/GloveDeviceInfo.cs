@@ -57,7 +57,7 @@ public class GloveDeviceInfo
     public string Status { get; set; } = "IDLE";
 
     /// <summary>
-    /// Motors per glove: 4 (BlueBuzzah) or 5 (PentaBuzzer). Firmware ≥2.1 reports
+    /// Motors per glove: 4 (v2) or 5 (v3). Firmware ≥2.1 reports
     /// MOTORS in INFO; older firmware defaults to 4.
     /// </summary>
     public int Motors { get; set; } = 4;
