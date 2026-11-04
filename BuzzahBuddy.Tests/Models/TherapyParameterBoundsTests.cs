@@ -64,21 +64,23 @@ public class TherapyParameterBoundsTests
         => Assert.Equal(expected, TherapyParameterBounds.IsFingersValid(value, motorCount));
 
     [Fact]
-    public void EffectiveJitterCap_AtResearchDefaults_IsTheStaticCap()
+    public void EffectiveJitterCap_AtResearchDefaults_LeavesTheResearchValueWithinTheCap()
     {
-        // 100/67 ms leaves far more headroom than 50% jitter consumes.
-        Assert.Equal(TherapyParameterBounds.JitterMax,
-            TherapyParameterBounds.EffectiveJitterCap(100, 67));
+        // 100/67 ms: onset limit (67 - 6) / 2 ms of a 167 ms slot.
+        var cap = TherapyParameterBounds.EffectiveJitterCap(100, 67);
+
+        Assert.Equal(100.0 * 61 / 167, cap, precision: 6);
+        Assert.True(cap > 23.5);
     }
 
     [Fact]
     public void EffectiveJitterCap_AtShortGap_FallsBelowTheStaticCap()
     {
-        // 200/30 ms: excursion is capped at (30 - 5) ms of a 230 ms cycle.
+        // 200/30 ms: onset limit (30 - 6) / 2 ms of a 230 ms slot.
         var cap = TherapyParameterBounds.EffectiveJitterCap(200, 30);
 
         Assert.True(cap < TherapyParameterBounds.JitterMax);
-        Assert.Equal(200.0 * 25 / 230, cap, precision: 6);
+        Assert.Equal(100.0 * 24 / 230, cap, precision: 6);
     }
 
     [Fact]
