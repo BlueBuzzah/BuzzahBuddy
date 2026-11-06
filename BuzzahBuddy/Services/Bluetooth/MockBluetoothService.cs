@@ -8,7 +8,7 @@ namespace BuzzahBuddy.Services.Bluetooth;
 /// Mock Bluetooth service for testing without hardware.
 /// Implements every command the firmware's HELP reports, with realistic responses.
 /// Per BLE protocol v2.0.0.
-/// This mock simulates a 4-motor BlueBuzzah primary board; 5-motor (PentaBuzzer) ranges
+/// This mock simulates a 4-motor v2 primary board; 5-motor (v3) ranges
 /// are only testable on hardware.
 /// </summary>
 public class MockBluetoothService : IBluetoothService
@@ -616,7 +616,7 @@ public class MockBluetoothService : IBluetoothService
             int.TryParse(parts[2], out var intensity) &&
             int.TryParse(parts[3], out var duration))
         {
-            // Mock simulates a 4-motor BlueBuzzah primary; firmware's finger range is 0-7 for it.
+            // Mock simulates a 4-motor v2 primary; firmware's finger range is 0-7 for it.
             if (finger < 0 || finger > 7) return "ERROR:Invalid finger index (0-7)\n\x04";
             if (intensity < 0 || intensity > 100) return "ERROR:Intensity out of range (0-100)\n\x04";
             if (duration < 50 || duration > 2000) return "ERROR:Duration out of range (50-2000ms)\n\x04";

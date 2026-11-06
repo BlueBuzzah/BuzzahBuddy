@@ -16,7 +16,7 @@ public class CalibrationSettings
     public int FingerIndex { get; set; }
 
     /// <summary>
-    /// Motors per glove: 4 (BlueBuzzah) or 5 (PentaBuzzer).
+    /// Motors per glove: 4 (v2) or 5 (v3).
     /// </summary>
     public int ActuatorsPerGlove { get; set; } = 4;
 
