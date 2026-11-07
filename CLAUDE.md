@@ -168,7 +168,7 @@ Tabs in `AppShell.xaml`: `//control` (Session), `//devices` (Gloves), `//history
 (History), `//settings`; pushed routes `calibration` (Test Motors) and `profilesettings`
 (Custom Profile) in `AppShell.xaml.cs`; strings in `Helpers/Routes.cs`. Modals created
 with `new`, not routes:
-`ApplyingSettingsPage` (while gloves reboot), `WelcomePage` (first-run safety notices),
+`ApplyingSettingsPage` (while gloves reboot), `WelcomePage` (Terms acceptance gate; Preferences `TermsAcceptedDate` vs `LegalNotices.TermsEffectiveDate`),
 `ConfirmSheetPage` (every confirmation, via `IConfirmationService`).
 `ApplyingSettingsPage.OnBackButtonPressed` only works on Android because
 `AndroidManifest.xml` sets `enableOnBackInvokedCallback="false"`.
