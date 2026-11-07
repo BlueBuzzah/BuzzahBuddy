@@ -46,7 +46,7 @@ public static class ResearchDefaults
     {
         ProfileId = TherapyProfile.CustomProfileId,
         Name = "Custom",
-        Description = "User-defined therapy parameters",
+        Description = "Your own timing and strength",
         TimeOn = TimeOnSeconds,
         TimeOff = TimeOffSeconds,
         Jitter = Jitter,

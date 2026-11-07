@@ -96,8 +96,8 @@ public partial class GloveControlViewModel : BaseViewModel
 
     /// <summary>The profile card as one screen-reader element.</summary>
     public string ProfileCardSpoken => SelectedProfile is null
-        ? $"Therapy profile. {SelectedProfileName}"
-        : $"Therapy profile, {SelectedProfileName}, {ProfileSummarySpoken}";
+        ? $"Session profile. {SelectedProfileName}"
+        : $"Session profile, {SelectedProfileName}, {ProfileSummarySpoken}";
 
     /// <summary>The profile card's hint: what a tap does, or why it does nothing.</summary>
     public string ProfileCardHint => CanChangeProfile ? "Opens the Gloves tab to change it" : "Stop your session to change it";
@@ -333,7 +333,7 @@ public partial class GloveControlViewModel : BaseViewModel
         {
             await Shell.Current.DisplayAlertAsync(
                 "Choose a Profile First",
-                "Go to Gloves, pick a therapy profile, then tap Apply Settings.",
+                "Go to Gloves, pick a profile, then tap Apply Settings.",
                 "OK");
             return;
         }
