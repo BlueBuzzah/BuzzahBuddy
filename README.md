@@ -80,7 +80,7 @@ This app is designed with accessibility as a core requirement, following the Blu
 - **High contrast ratios** (4.5:1 for text, 7:1 in high-contrast themes)
 - **Text scaling** to the largest iOS Dynamic Type and Android font sizes
 - **Semantic properties** for screen readers (VoiceOver, TalkBack)
-- **Tremor-friendly UI** optimized for Parkinson's patients
+- **Tremor-friendly UI** designed for people with Parkinson's
 
 ## License
 

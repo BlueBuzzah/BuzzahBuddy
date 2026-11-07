@@ -112,7 +112,7 @@
                               RowSpacing="{StaticResource Space3}"
                               AutomationProperties.ExcludedWithChildren="True">
                             <VerticalStackLayout Spacing="2" VerticalOptions="Center">
-                                <Label Text="Therapy Profile"
+                                <Label Text="Session Profile"
                                        Style="{StaticResource TypeBodyS}"
                                        TextColor="{DynamicResource InkMuted}" />
                                 <Label Text="{Binding SelectedProfileName}" Style="{StaticResource TypeTitleM}" />
