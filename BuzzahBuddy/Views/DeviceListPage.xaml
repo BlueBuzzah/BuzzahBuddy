@@ -80,7 +80,7 @@
 
                 <!-- Therapy profile: a single-choice list (plan choice PC27) -->
                 <VerticalStackLayout x:Name="ProfileSection" Spacing="{StaticResource Space3}">
-                    <Label Text="Therapy Profile" Style="{StaticResource TypeTitleL}" SemanticProperties.HeadingLevel="Level2" />
+                    <Label Text="Session Profile" Style="{StaticResource TypeTitleL}" SemanticProperties.HeadingLevel="Level2" />
                     <Label Text="Pick a profile, then tap Apply Settings. Your gloves restart to use it."
                            Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
                     <VerticalStackLayout BindableLayout.ItemsSource="{Binding Settings.AvailableProfiles}" Spacing="{StaticResource Space3}">
