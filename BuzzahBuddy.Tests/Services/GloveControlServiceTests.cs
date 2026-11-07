@@ -302,7 +302,8 @@ public class GloveControlServiceTests
     [Fact]
     public async Task OnConnect_ReportsSyncRunningUntilItFinishes()
     {
-        var fake = new FakeBluetoothService();
+        // Replies are held so the sync can't finish before the first assertion, whatever the runner's speed.
+        var fake = new FakeBluetoothService { HoldReplies = new TaskCompletionSource() };
         fake.CannedResponses["INFO"] = "CMD:INFO\nROLE:PRIMARY\nPROFILE:2:noisy_vcr\nBATP:3.72\nBATS:3.68\n\x04";
         fake.CannedResponses["SESSION_STATUS"] = "CMD:SESSION_STATUS\nSESSION_STATUS:IDLE\n\x04";
         fake.CannedResponses["THERAPY_LED_OFF"] = "CMD:THERAPY_LED_OFF\nTHERAPY_LED_OFF:false\n\x04";
@@ -313,6 +314,7 @@ public class GloveControlServiceTests
 
         // Visible as soon as Connected is raised, before the sync's first reply
         Assert.True(service.IsPostConnectSyncRunning);
+        fake.HoldReplies.SetResult();
         var deadline = DateTime.UtcNow.AddSeconds(5);
         while (service.IsPostConnectSyncRunning && DateTime.UtcNow < deadline)
             await Task.Delay(10);
