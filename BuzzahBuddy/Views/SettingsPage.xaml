@@ -1,6 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <!-- Settings (buzzahbuddy.md Settings): auto-connect, appearance override (design system
-     README "Color"), data, and About with the safety notices verbatim. -->
+     README "Color"), data, and About with the safety notices verbatim and the Terms and
+     privacy links. -->
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:BuzzahBuddy.ViewModels"
@@ -93,6 +94,18 @@
                                 </FormattedString>
                             </controls:Banner.FormattedMessage>
                         </controls:Banner>
+                        <Button Text="Terms and Safety"
+                                Style="{StaticResource ButtonSecondary}"
+                                Clicked="OnTermsClicked"
+                                SemanticProperties.Description="Terms and Safety"
+                                SemanticProperties.Hint="Opens in your browser"
+                                AutomationId="SettingsTermsButton" />
+                        <Button Text="Privacy Policy"
+                                Style="{StaticResource ButtonSecondary}"
+                                Clicked="OnPrivacyClicked"
+                                SemanticProperties.Description="Privacy Policy"
+                                SemanticProperties.Hint="Opens in your browser"
+                                AutomationId="SettingsPrivacyButton" />
                     </VerticalStackLayout>
                 </Border>
             </VerticalStackLayout>
