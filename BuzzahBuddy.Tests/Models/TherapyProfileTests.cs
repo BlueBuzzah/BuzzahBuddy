@@ -44,7 +44,8 @@ public class TherapyProfileTests
         Assert.Equal(noisy.Fingers, copy.Fingers);
     }
 
-    // Rows mirror firmware ProfileManager::initBuiltInProfiles (src/profile_manager.cpp).
+    // Rows are a hand-kept copy of firmware ProfileManager::initBuiltInProfiles
+    // (src/profile_manager.cpp); update them with it.
     // Firmware's rndp/sequential are the app's RNDP/SEQ. Fingers isn't pinned: firmware
     // runs every motor present (4 on v2, 5 on v3).
     [Theory]
