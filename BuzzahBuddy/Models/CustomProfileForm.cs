@@ -35,11 +35,21 @@ public class CustomProfileForm
     public void PopulateFrom(TherapyProfile profile)
     {
         var inv = CultureInfo.InvariantCulture;
+        PopulateStudyFieldsFrom(profile);
+        AmplitudeMinText = profile.AmplitudeMin.ToString(inv);
+        AmplitudeMaxText = profile.AmplitudeMax.ToString(inv);
+    }
+
+    /// <summary>
+    /// Fills only the fields the study set (timing, jitter, mirroring and session
+    /// length) from a profile. Strength and <see cref="Fingers"/> stay as they are.
+    /// </summary>
+    public void PopulateStudyFieldsFrom(TherapyProfile profile)
+    {
+        var inv = CultureInfo.InvariantCulture;
         TimeOnMsText = (profile.TimeOn * 1000.0).ToString("0.#", inv);
         TimeOffMsText = (profile.TimeOff * 1000.0).ToString("0.#", inv);
         SessionMinutesText = profile.TimeSession.ToString(inv);
-        AmplitudeMinText = profile.AmplitudeMin.ToString(inv);
-        AmplitudeMaxText = profile.AmplitudeMax.ToString(inv);
         JitterText = profile.Jitter.ToString("0.#", inv);
         Mirror = profile.Mirror;
     }

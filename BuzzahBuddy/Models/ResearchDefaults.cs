@@ -28,6 +28,13 @@ public static class ResearchDefaults
     public const bool Mirror = false;
 
     /// <summary>
+    /// Jitter (%) and mirroring of the study's noisy vCR arm. Its timing and session
+    /// match the regular arm, so <see cref="DeviatingFields"/> accepts either arm.
+    /// </summary>
+    public const double NoisyJitter = 23.5;
+    public const bool NoisyMirror = true;
+
+    /// <summary>
     /// Fingertips the study stimulated — it deliberately excluded the thumb. This is
     /// the reference for timing comparisons, NOT what a device runs: firmware sets
     /// its finger count to every motor present (5 on v3), and the user
@@ -66,15 +73,29 @@ public static class ResearchDefaults
 
     /// <summary>
     /// Names of the fields in <paramref name="current"/> that depart from the study's
-    /// settings, so the editor can mark them. An empty set means every field the
-    /// study set matches it.
+    /// settings, so the editor can show the banner. An empty set means every field the
+    /// study set matches its regular or noisy vCR arm; otherwise the names are the
+    /// fields that depart from the regular arm.
     /// </summary>
     /// <remarks>
     /// Names match the editor's field identifiers, not protocol keys.
     /// </remarks>
     public static IReadOnlySet<string> DeviatingFields(TherapyProfile current, int motorCount)
     {
-        var reference = For(motorCount);
+        var deviating = Deviations(current, For(motorCount));
+        if (deviating.Count == 0)
+            return deviating;
+
+        var noisy = For(motorCount);
+        noisy.Jitter = NoisyJitter;
+        noisy.Mirror = NoisyMirror;
+        return Deviations(current, noisy).Count == 0
+            ? new HashSet<string>(StringComparer.Ordinal)
+            : deviating;
+    }
+
+    private static HashSet<string> Deviations(TherapyProfile current, TherapyProfile reference)
+    {
         var deviating = new HashSet<string>(StringComparer.Ordinal);
 
         // Compare in protocol units (ms / whole percent) so float representation of

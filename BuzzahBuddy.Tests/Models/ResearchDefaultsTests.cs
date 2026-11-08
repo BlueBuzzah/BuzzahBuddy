@@ -98,6 +98,43 @@ public class ResearchDefaultsTests
             ResearchDefaults.DeviatingFields(profile, 4));
     }
 
+    // The study's noisy vCR arm: the regular arm's timing and session with 23.5%
+    // jitter, mirrored. It was studied too, so it raises no banner.
+    [Fact]
+    public void DeviatingFields_ForTheNoisyArm_IsEmpty()
+    {
+        var profile = ResearchDefaults.For(4);
+        profile.Jitter = ResearchDefaults.NoisyJitter;
+        profile.Mirror = ResearchDefaults.NoisyMirror;
+
+        Assert.Equal(23.5, ResearchDefaults.NoisyJitter);
+        Assert.True(ResearchDefaults.NoisyMirror);
+        Assert.Empty(ResearchDefaults.DeviatingFields(profile, 4));
+    }
+
+    [Fact]
+    public void DeviatingFields_NoisyJitterWithoutMirror_NamesJitter()
+    {
+        // Hybrid's mix of the two arms; neither arm ran it.
+        var profile = ResearchDefaults.For(4);
+        profile.Jitter = 23.5;
+        profile.Mirror = false;
+
+        Assert.Equal(new[] { nameof(TherapyProfile.Jitter) },
+            ResearchDefaults.DeviatingFields(profile, 4));
+    }
+
+    [Fact]
+    public void DeviatingFields_NoisyArmWithAnotherSession_IsNotEmpty()
+    {
+        var profile = ResearchDefaults.For(4);
+        profile.Jitter = ResearchDefaults.NoisyJitter;
+        profile.Mirror = ResearchDefaults.NoisyMirror;
+        profile.TimeSession = 30;
+
+        Assert.NotEmpty(ResearchDefaults.DeviatingFields(profile, 4));
+    }
+
     [Fact]
     public void DeviatingFields_IgnoresFingers()
     {

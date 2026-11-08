@@ -153,8 +153,8 @@ public partial class ProfileSettingsViewModel : BaseViewModel
     }
 
     /// <summary>
-    /// Populates the form with the default settings: the study's timing and the
-    /// gloves' full strength. Nothing is kept until Save.
+    /// Fills the form with the study's timing, keeping the strength the form has now.
+    /// Nothing is kept until Save.
     /// </summary>
     [RelayCommand]
     private async Task ResetToDefaultsAsync()
@@ -164,11 +164,15 @@ public partial class ProfileSettingsViewModel : BaseViewModel
         // for tremor-prone users, and there is no undo once the fields are replaced.
         var confirmed = await _confirmation.ConfirmAsync(new ConfirmRequest(
             "Use the Study Settings?",
-            "This fills the form with the timing from the published study. Strength is set to the gloves' full default. Nothing is kept until you tap Save.",
+            "This fills the form with the timing from the published study. Strength stays as it is. Nothing is kept until you tap Save.",
             "Use Study Settings"));
 
         if (confirmed)
-            PopulateFrom(ResearchDefaults.For(MotorCount));
+        {
+            var form = CurrentForm();
+            form.PopulateStudyFieldsFrom(ResearchDefaults.For(MotorCount));
+            Show(form);
+        }
     }
 
     /// <summary>
@@ -204,7 +208,11 @@ public partial class ProfileSettingsViewModel : BaseViewModel
     {
         var form = new CustomProfileForm();
         form.PopulateFrom(profile);
+        Show(form);
+    }
 
+    private void Show(CustomProfileForm form)
+    {
         TimeOnMsText = form.TimeOnMsText;
         TimeOffMsText = form.TimeOffMsText;
         SessionMinutesText = form.SessionMinutesText;

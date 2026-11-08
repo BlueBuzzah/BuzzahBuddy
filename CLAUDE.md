@@ -109,6 +109,7 @@ bounds link-up through subscribe — iOS never times out a connect itself.
 | `RxFrameAssembler.InternalMessagePrefixes` | `include/internal_messages.h` `INTERNAL_MESSAGES` |
 | `BatteryReading` curve, `LowVoltage`, `BATLP`/`BATLS` | `src/hardware.cpp` `VOLTAGE_CURVE`, `include/board_config.h` `BATTERY_LOW_VOLTAGE`, `MenuController::addBatteryLevelLine` |
 | `LastSessionSummary` (`LAST_*`), `SessionStatus.SessionId` / `PausedSeconds` | `src/menu_controller.cpp` `handleSessionStatus`, `SessionEndReason` in `include/therapy_engine.h` |
+| `Models/ResearchDefaults.cs` (+ Custom preset in `Models/TherapyProfile.cs`) | `src/profile_manager.cpp` `custom_vcr` / `regular_vcr` |
 
 ## Domain Models — `Models/`
 
@@ -116,7 +117,8 @@ bounds link-up through subscribe — iOS never times out a connect itself.
   firmware's jitter clamp so the UI warns before silent capping.
 - `ResearchDefaults` — Pfeifer et al. 2021's regular vCR arm (= firmware
   `regular_vcr`/`custom_vcr`); amplitude is a firmware value, not studied. **A permitted
-  value is not a studied one**; UI copy says so.
+  value is not a studied one**; UI copy says so. The "differs" banner also accepts the
+  study's noisy arm (`NoisyJitter`, `NoisyMirror`); Use Study Settings keeps strength.
 - `SessionClock` — interpolates between `SESSION_STATUS` anchors; device time wins;
   backward drift ≤ `SnapThresholdSeconds` (3) is absorbed.
 - `TherapyProfile` — presets 1–6; `CustomProfileId = 4` is the only editable slot. Custom
