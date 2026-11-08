@@ -64,9 +64,9 @@ public class TherapyParameterBoundsTests
         => Assert.Equal(expected, TherapyParameterBounds.IsFingersValid(value, motorCount));
 
     [Fact]
-    public void EffectiveJitterCap_AtResearchDefaults_LeavesTheResearchValueWithinTheCap()
+    public void EffectiveJitterCap_At100By67Timing_LeavesNoisysJitterWithinTheCap()
     {
-        // 100/67 ms: onset limit (67 - 6) / 2 ms of a 167 ms slot.
+        // 100/67 ms: onset limit (67 - 6) / 2 ms of a 167 ms slot. Noisy runs 23.5%.
         var cap = TherapyParameterBounds.EffectiveJitterCap(100, 67);
 
         Assert.Equal(100.0 * 61 / 167, cap, precision: 6);

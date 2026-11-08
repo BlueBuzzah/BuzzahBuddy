@@ -60,7 +60,7 @@ public partial class ProfileSettingsViewModel : BaseViewModel
     [ObservableProperty] private string? _amplitudeMaxError;
     [ObservableProperty] private string? _jitterError;
 
-    /// <summary>Shown when the settings differ from the study's.</summary>
+    /// <summary>Shown when a setting the study used differs from the study's.</summary>
     [ObservableProperty]
     private bool _deviatesBannerVisible;
 
@@ -100,7 +100,7 @@ public partial class ProfileSettingsViewModel : BaseViewModel
     /// </summary>
     public string? EffectiveJitterCapText => CurrentForm().EffectiveJitterCapText;
 
-    /// <summary>Whether any field departs from the validated research configuration.</summary>
+    /// <summary>Whether any field departs from the study's settings.</summary>
     public bool DeviatesFromResearchDefaults => CurrentForm().DeviatingFields(MotorCount).Count > 0;
 
     /// <summary>
@@ -139,7 +139,7 @@ public partial class ProfileSettingsViewModel : BaseViewModel
     // ========== Commands ==========
 
     /// <summary>
-    /// Fills the form with the saved settings, or the study's until the user saves any.
+    /// Fills the form with the saved settings, or the default settings until the user saves any.
     /// Called once, from the page's OnAppearing.
     /// </summary>
     [RelayCommand]
@@ -153,8 +153,8 @@ public partial class ProfileSettingsViewModel : BaseViewModel
     }
 
     /// <summary>
-    /// Populates the form with the validated research configuration. Nothing is
-    /// kept until Save.
+    /// Populates the form with the default settings: the study's timing and the
+    /// gloves' full strength. Nothing is kept until Save.
     /// </summary>
     [RelayCommand]
     private async Task ResetToDefaultsAsync()
@@ -164,7 +164,7 @@ public partial class ProfileSettingsViewModel : BaseViewModel
         // for tremor-prone users, and there is no undo once the fields are replaced.
         var confirmed = await _confirmation.ConfirmAsync(new ConfirmRequest(
             "Use the Study Settings?",
-            "This fills the form with the settings from the published study. Nothing is kept until you tap Save.",
+            "This fills the form with the timing from the published study. Strength is set to the gloves' full default. Nothing is kept until you tap Save.",
             "Use Study Settings"));
 
         if (confirmed)

@@ -1,21 +1,24 @@
 namespace BuzzahBuddy.Models;
 
 /// <summary>
-/// The single vibrotactile coordinated-reset parameter set validated by
-/// Pfeifer et al. 2021 (Front. Physiol. 12:624317).
+/// The regular vibrotactile coordinated-reset (vCR) arm of Pfeifer et al. 2021
+/// (Front. Physiol. 12:624317), the same settings as firmware's built-in
+/// <c>regular_vcr</c> and <c>custom_vcr</c> profiles.
 /// <para>
-/// The study validated exactly this configuration: 100 ms bursts at 1.5 Hz f_CR
-/// across four fingertips with 23.5% jitter, two hours twice daily. Everything
-/// inside <see cref="TherapyParameterBounds"/> is an engineering envelope around
-/// this one point — a permitted value is not a validated one.
+/// The timing, pattern and frequency match the study's regular vCR: 100 ms bursts
+/// at 1.5 Hz f_CR across four fingertips, no jitter, non-mirrored, random finger
+/// order at 250 Hz, two hours twice daily. Amplitude is the firmware's full default,
+/// not a study value: the study reported displacement in mm, which has no
+/// percent equivalent. Everything inside <see cref="TherapyParameterBounds"/> is an
+/// engineering envelope around these settings — a permitted value is not a studied one.
 /// </para>
 /// </summary>
 public static class ResearchDefaults
 {
     public const double TimeOnSeconds = 0.100;
     public const double TimeOffSeconds = 0.067;
-    public const double Jitter = 23.5;
-    public const int AmplitudeMin = 70;
+    public const double Jitter = 0;
+    public const int AmplitudeMin = 100;
     public const int AmplitudeMax = 100;
     public const int SessionMinutes = 120;
 
@@ -33,7 +36,7 @@ public static class ResearchDefaults
     public const int Fingers = 4;
 
     /// <summary>
-    /// Builds the research-default Custom profile for a device with
+    /// Builds the Custom profile with these settings for a device with
     /// <paramref name="motorCount"/> motors per glove.
     /// </summary>
     /// <remarks>
@@ -62,9 +65,9 @@ public static class ResearchDefaults
     };
 
     /// <summary>
-    /// Names of the fields in <paramref name="current"/> that depart from the
-    /// validated configuration, so the editor can mark them. An empty set means the
-    /// profile is the studied one.
+    /// Names of the fields in <paramref name="current"/> that depart from the study's
+    /// settings, so the editor can mark them. An empty set means every field the
+    /// study set matches it.
     /// </summary>
     /// <remarks>
     /// Names match the editor's field identifiers, not protocol keys.
@@ -82,10 +85,8 @@ public static class ResearchDefaults
             deviating.Add(nameof(TherapyProfile.TimeOff));
         if (Math.Round(current.Jitter, 1) != Math.Round(reference.Jitter, 1))
             deviating.Add(nameof(TherapyProfile.Jitter));
-        if (current.AmplitudeMin != reference.AmplitudeMin)
-            deviating.Add(nameof(TherapyProfile.AmplitudeMin));
-        if (current.AmplitudeMax != reference.AmplitudeMax)
-            deviating.Add(nameof(TherapyProfile.AmplitudeMax));
+        // Amplitude is deliberately not compared. The study reported displacement in mm,
+        // so a firmware percent has no study equivalent and can't depart from it.
         if (current.TimeSession != reference.TimeSession)
             deviating.Add(nameof(TherapyProfile.TimeSession));
         // Fingers is deliberately not compared. It is a compile-time board constant

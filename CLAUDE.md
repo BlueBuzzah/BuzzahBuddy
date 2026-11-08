@@ -114,8 +114,9 @@ bounds link-up through subscribe — iOS never times out a connect itself.
 
 - `TherapyParameterBounds` — firmware envelope; `EffectiveJitterCap()` mirrors the
   firmware's jitter clamp so the UI warns before silent capping.
-- `ResearchDefaults` — the one clinically validated set (Pfeifer et al. 2021). **A
-  permitted value is not a validated one**; UI copy says so.
+- `ResearchDefaults` — Pfeifer et al. 2021's regular vCR arm (= firmware
+  `regular_vcr`/`custom_vcr`); amplitude is a firmware value, not studied. **A permitted
+  value is not a studied one**; UI copy says so.
 - `SessionClock` — interpolates between `SESSION_STATUS` anchors; device time wins;
   backward drift ≤ `SnapThresholdSeconds` (3) is absorbed.
 - `TherapyProfile` — presets 1–6; `CustomProfileId = 4` is the only editable slot. Custom

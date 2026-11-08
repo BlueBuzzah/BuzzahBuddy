@@ -163,7 +163,7 @@ public class CustomProfileForm
     }
 
     /// <summary>
-    /// Fields departing from the validated research configuration. Empty while any
+    /// Fields departing from the study's settings. Empty while any
     /// field is unparseable — a half-typed number is not a deviation to report.
     /// </summary>
     public IReadOnlySet<string> DeviatingFields(int motorCount) =>

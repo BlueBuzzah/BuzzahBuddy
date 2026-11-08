@@ -14,9 +14,9 @@ public class CustomProfileFormTests
         TimeOnMsText = "100",
         TimeOffMsText = "67",
         SessionMinutesText = "120",
-        AmplitudeMinText = "70",
+        AmplitudeMinText = "100",
         AmplitudeMaxText = "100",
-        JitterText = "23.5",
+        JitterText = "0",
         Mirror = false,
         Fingers = 4,
     };
@@ -86,7 +86,7 @@ public class CustomProfileFormTests
     [Fact]
     public void PopulateFrom_LeavesTheFingerCountAlone()
     {
-        // Only a device read may change Fingers. If "Use Research Defaults" could
+        // Only a device read may change Fingers. If "Use Study Settings" could
         // move it, a five-motor glove would silently drop to four active fingers
         // with no field on screen to show it.
         var form = ValidForm();
@@ -119,7 +119,7 @@ public class CustomProfileFormTests
     public void DeviatingFields_NamesTheChangedField()
     {
         var form = ValidForm();
-        form.JitterText = "0";
+        form.JitterText = "23.5";
 
         Assert.Equal(new[] { nameof(TherapyProfile.Jitter) }, form.DeviatingFields(4));
     }
@@ -128,6 +128,7 @@ public class CustomProfileFormTests
     public void DeviatingFields_WhileHalfTyped_ReportsNothingRatherThanGuessing()
     {
         var form = ValidForm();
+        form.JitterText = "23.5";     // a real deviation, hidden while a field is blank
         form.AmplitudeMinText = "";   // user cleared the field to retype it
 
         Assert.Empty(form.DeviatingFields(4));
@@ -160,7 +161,10 @@ public class CustomProfileFormTests
     public void EffectiveJitterCapText_WithinTheCap_IsNull()
     {
         // Null, not empty string — the page binds IsVisible through IsNotNullConverter.
-        Assert.Null(ValidForm().EffectiveJitterCapText);
+        var form = ValidForm();
+        form.JitterText = "23.5";
+
+        Assert.Null(form.EffectiveJitterCapText);
     }
 
     [Fact]
