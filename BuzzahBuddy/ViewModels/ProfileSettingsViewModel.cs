@@ -159,7 +159,7 @@ public partial class ProfileSettingsViewModel : BaseViewModel
     [RelayCommand]
     private async Task ResetToDefaultsAsync()
     {
-        // Discards whatever the user has tuned. Destructive actions require a
+        // Replaces the timing, jitter, mirroring and session the user tuned. Destructive actions require a
         // confirmation (BlueBuzzah design system, accessibility.md) because an accidental tap is a real hazard
         // for tremor-prone users, and there is no undo once the fields are replaced.
         var confirmed = await _confirmation.ConfirmAsync(new ConfirmRequest(

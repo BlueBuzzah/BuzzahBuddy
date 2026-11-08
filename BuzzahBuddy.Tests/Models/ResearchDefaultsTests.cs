@@ -125,14 +125,16 @@ public class ResearchDefaultsTests
     }
 
     [Fact]
-    public void DeviatingFields_NoisyArmWithAnotherSession_IsNotEmpty()
+    public void DeviatingFields_NoisyArmWithAnotherSession_NamesTheRegularArmDeviations()
     {
         var profile = ResearchDefaults.For(4);
         profile.Jitter = ResearchDefaults.NoisyJitter;
         profile.Mirror = ResearchDefaults.NoisyMirror;
         profile.TimeSession = 30;
 
-        Assert.NotEmpty(ResearchDefaults.DeviatingFields(profile, 4));
+        Assert.Equal(
+            new HashSet<string> { nameof(TherapyProfile.Jitter), nameof(TherapyProfile.Mirror), nameof(TherapyProfile.TimeSession) },
+            ResearchDefaults.DeviatingFields(profile, 4));
     }
 
     [Fact]

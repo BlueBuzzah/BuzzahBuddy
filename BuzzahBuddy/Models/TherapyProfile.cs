@@ -141,8 +141,8 @@ public class TherapyProfile
                 TimeSession = 120,
                 AmplitudeMin = 100,
                 AmplitudeMax = 100,
-                Jitter = 23.5,
-                Mirror = true,
+                Jitter = ResearchDefaults.NoisyJitter,
+                Mirror = ResearchDefaults.NoisyMirror,
                 PatternType = "RNDP",
                 Fingers = 4
             },
