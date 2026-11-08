@@ -8,8 +8,8 @@ namespace BuzzahBuddy.Models;
 /// firmware rejects, or blocks values it would have accepted.
 /// </para>
 /// <para>
-/// The bounds are engineering envelopes around the single parameter set validated
-/// by Pfeifer et al. 2021 — not a validated efficacy range. See
+/// The bounds are engineering envelopes around the study's settings — what the
+/// firmware accepts, not a range any study tested. See
 /// <see cref="ResearchDefaults"/>.
 /// </para>
 /// </summary>
