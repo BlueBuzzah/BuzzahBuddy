@@ -635,13 +635,13 @@ public partial class GloveControlViewModel : BaseViewModel
                 : await _storageService.GetLastProfileAsync();
 
             SelectedProfile = _profiles.FirstOrDefault(p => p.ProfileId == profileId)
-                           ?? _profiles.FirstOrDefault(p => p.ProfileId == 2)
+                           ?? _profiles.FirstOrDefault(p => p.ProfileId == TherapyProfile.DefaultProfileId)
                            ?? _profiles.FirstOrDefault();
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[PROFILES] Load selected profile error: {ex.Message}");
-            SelectedProfile = _profiles.FirstOrDefault(p => p.ProfileId == 2) ?? _profiles.FirstOrDefault();
+            SelectedProfile = _profiles.FirstOrDefault(p => p.ProfileId == TherapyProfile.DefaultProfileId) ?? _profiles.FirstOrDefault();
         }
     }
 

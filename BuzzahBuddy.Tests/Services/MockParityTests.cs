@@ -52,7 +52,7 @@ public class MockParityTests
         var mock = await ConnectedMock();
         var response = await mock.SendCommandAsync("INFO");
         Assert.Equal(4, response.GetInt("MOTORS"));
-        Assert.StartsWith("2:", response.GetString("PROFILE"));
+        Assert.StartsWith("1:", response.GetString("PROFILE"));
     }
 
     [Fact]

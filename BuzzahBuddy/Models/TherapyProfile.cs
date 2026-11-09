@@ -13,9 +13,15 @@ public class TherapyProfile
     public const int CustomProfileId = 4;
 
     /// <summary>
+    /// Profile ID the app selects when nothing is saved and the gloves haven't reported one.
+    /// Regular (regular_vcr), matching the firmware's default.
+    /// </summary>
+    public const int DefaultProfileId = 1;
+
+    /// <summary>
     /// Profile ID (1-6 for preset profiles).
     /// Per BLE protocol v2.0.0:
-    /// 1 = regular_vcr, 2 = noisy_vcr (default), 3 = hybrid_vcr,
+    /// 1 = regular_vcr (default), 2 = noisy_vcr, 3 = hybrid_vcr,
     /// 4 = custom_vcr, 5 = gentle, 6 = quick_test
     /// </summary>
     public int ProfileId { get; set; }
@@ -107,7 +113,7 @@ public class TherapyProfile
     {
         return new List<TherapyProfile>
         {
-            // Profile 1: Regular
+            // Profile 1: Regular (Default)
             new TherapyProfile
             {
                 ProfileId = 1,
@@ -127,7 +133,7 @@ public class TherapyProfile
                 Fingers = 4
             },
 
-            // Profile 2: Noisy (Default)
+            // Profile 2: Noisy
             new TherapyProfile
             {
                 ProfileId = 2,

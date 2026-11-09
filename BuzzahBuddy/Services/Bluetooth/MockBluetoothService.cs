@@ -24,7 +24,7 @@ public class MockBluetoothService : IBluetoothService
     private TimeSpan _mockPausedTime = TimeSpan.Zero; // completed pauses; see MockPausedSoFar
     private int _mockSessionId = 184467;
     private string _mockLastSession = ""; // firmware LAST_* lines, kept until the next session ends
-    private int _mockCurrentProfile = 2; // Default: Noisy VCR
+    private int _mockCurrentProfile = TherapyProfile.DefaultProfileId; // Default: Regular VCR
     private bool _isInCalibrationMode;
     private bool _therapyLedOff;
     private bool _debugMode;

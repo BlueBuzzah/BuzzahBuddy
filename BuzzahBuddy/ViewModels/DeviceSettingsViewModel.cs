@@ -86,7 +86,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
 
     /// <summary>
     /// True from the user's own profile tap until the gloves report that profile. Until then the
-    /// selection is the page's fallback (saved profile, or Noisy), which the glove's report replaces.
+    /// selection is the page's fallback (saved profile, or Regular), which the glove's report replaces.
     /// </summary>
     private bool _profilePicked;
 
@@ -697,7 +697,7 @@ public partial class DeviceSettingsViewModel : BaseViewModel
 
         // The glove's own profile once it has reported one (this page can be built after the
         // connect, e.g. launch auto-connect, when DeviceProfileChanged has already fired);
-        // otherwise the last used profile, or Noisy (profile 2).
+        // otherwise the last used profile, or Regular (profile 1).
         int lastProfileId = _gloveControlService.DeviceProfileId;
         if (lastProfileId <= 0)
         {
@@ -707,12 +707,12 @@ public partial class DeviceSettingsViewModel : BaseViewModel
             }
             catch
             {
-                lastProfileId = 2;
+                lastProfileId = TherapyProfile.DefaultProfileId;
             }
         }
 
         var selectedItem = AvailableProfiles.FirstOrDefault(p => p.ProfileId == lastProfileId)
-                        ?? AvailableProfiles.FirstOrDefault(p => p.ProfileId == 2)
+                        ?? AvailableProfiles.FirstOrDefault(p => p.ProfileId == TherapyProfile.DefaultProfileId)
                         ?? AvailableProfiles.FirstOrDefault();
 
         if (selectedItem != null)
