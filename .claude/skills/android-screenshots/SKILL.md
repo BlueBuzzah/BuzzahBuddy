@@ -70,7 +70,9 @@ come from the screen size; History scrolls are per device in `capture.sh`.
 - **Use the SDK's adb.** `emu.sh` calls `$ANDROID_HOME/platform-tools/adb`. Another adb version on PATH
   (`/usr/local/bin/adb`) kills the shared server, VS Code's .NET MAUI extension restarts it, and every
   adb call fails with "protocol fault" until the other version stops. Anything else driving emulators
-  on the machine must use the same adb.
+  on the machine must use the same adb. If VS Code's C# Dev Kit keeps killing and restarting the server anyway
+  (`adb` calls fail with "protocol fault"), run the whole pass with `ANDROID_ADB_SERVER_PORT=5038`: a private server
+  that owns the emulator it launches.
 - **Find emulators by AVD name, not serial;** serials shift as emulators start and stop.
 - **The UI dump lists only views on screen,** so `tap` scrolls down until it finds the AutomationId
   (MAUI sets it as the view's `resource-id`).
