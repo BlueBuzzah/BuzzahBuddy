@@ -16,9 +16,10 @@ public partial class SettingsPage : ContentPage
         this.TrackLayout(layout => Column.ApplyColumn(layout));
     }
 
-    private async void OnTermsClicked(object? sender, EventArgs e) =>
-        await Browser.Default.OpenAsync(LegalNotices.TermsUrl, BrowserLaunchMode.SystemPreferred);
+    // SafeFireAndForget: Android throws when no browser is installed, which would crash an async void handler.
+    private void OnTermsClicked(object? sender, EventArgs e) =>
+        Browser.Default.OpenAsync(LegalNotices.TermsUrl, BrowserLaunchMode.SystemPreferred).SafeFireAndForget("[SETTINGS]");
 
-    private async void OnPrivacyClicked(object? sender, EventArgs e) =>
-        await Browser.Default.OpenAsync(LegalNotices.PrivacyUrl, BrowserLaunchMode.SystemPreferred);
+    private void OnPrivacyClicked(object? sender, EventArgs e) =>
+        Browser.Default.OpenAsync(LegalNotices.PrivacyUrl, BrowserLaunchMode.SystemPreferred).SafeFireAndForget("[SETTINGS]");
 }
