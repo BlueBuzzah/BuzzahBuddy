@@ -111,6 +111,7 @@ bounds link-up through subscribe — iOS never times out a connect itself.
 | `LastSessionSummary` (`LAST_*`), `SessionStatus.SessionId` / `PausedSeconds` | `src/menu_controller.cpp` `handleSessionStatus`, `SessionEndReason` in `include/therapy_engine.h` |
 | `Models/ResearchDefaults.cs` (+ Custom preset in `Models/TherapyProfile.cs`) | `src/profile_manager.cpp` `custom_vcr` / `regular_vcr` / `noisy_vcr` |
 | `TherapyProfile.GetPresetProfiles` (all six; pinned by `TherapyProfileTests.Preset_MatchesFirmware`) | `src/profile_manager.cpp` `initBuiltInProfiles` |
+| `TherapyProfile.DefaultProfileId` (fallback profile, "(recommended)" label, Demo Mode start profile) | `src/profile_manager.cpp` `ProfileManager::begin` `loadProfile(1)` |
 
 ## Domain Models — `Models/`
 

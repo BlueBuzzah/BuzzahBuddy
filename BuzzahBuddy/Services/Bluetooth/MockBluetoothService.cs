@@ -24,7 +24,7 @@ public class MockBluetoothService : IBluetoothService
     private TimeSpan _mockPausedTime = TimeSpan.Zero; // completed pauses; see MockPausedSoFar
     private int _mockSessionId = 184467;
     private string _mockLastSession = ""; // firmware LAST_* lines, kept until the next session ends
-    private int _mockCurrentProfile = 2; // Default: Noisy VCR
+    private int _mockCurrentProfile = TherapyProfile.DefaultProfileId; // Default: Regular VCR
     private bool _isInCalibrationMode;
     private bool _therapyLedOff;
     private bool _debugMode;
@@ -381,18 +381,14 @@ public class MockBluetoothService : IBluetoothService
     {
         // Per BLE protocol v2.0.0: Use shorthand keys
         // ON/OFF are in milliseconds
-        return "TYPE:LRA\n" +
-               "FREQ:250\n" +
-               "ON:100.0\n" +
-               "OFF:67.0\n" +
-               "SESSION:120\n" +
-               "AMPMIN:100\n" +
-               "AMPMAX:100\n" +
-               "PATTERN:rndp\n" +
-               "MIRROR:1\n" +
-               "JITTER:23.5\n" +
-               "FINGERS:4\n" +
-               "\x04";
+        // The loaded profile's preset values; the mock keeps no Custom edits, so Custom
+        // reports its preset. Firmware's patterns are rndp/sequential (app RNDP/SEQ).
+        var p = TherapyProfile.GetPresetProfiles().Single(x => x.ProfileId == _mockCurrentProfile);
+        var pattern = p.PatternType == "SEQ" ? "sequential" : p.PatternType.ToLowerInvariant();
+        return string.Create(CultureInfo.InvariantCulture,
+            $"TYPE:LRA\nFREQ:{p.ActuatorFrequency}\nON:{p.TimeOn * 1000:F1}\nOFF:{p.TimeOff * 1000:F1}\n" +
+            $"SESSION:{p.TimeSession}\nAMPMIN:{p.AmplitudeMin}\nAMPMAX:{p.AmplitudeMax}\n" +
+            $"PATTERN:{pattern}\nMIRROR:{(p.Mirror ? 1 : 0)}\nJITTER:{p.Jitter:F1}\nFINGERS:4\n\x04");
     }
 
     private string HandleParamSet(string command)

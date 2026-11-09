@@ -9,6 +9,11 @@ public class TherapyProfileTests
     public void CustomProfileId_MatchesTheFirmwareProfileTable()
         => Assert.Equal(4, TherapyProfile.CustomProfileId);
 
+    // Firmware src/profile_manager.cpp ProfileManager::begin → loadProfile(1).
+    [Fact]
+    public void DefaultProfileId_MatchesTheFirmwareDefault()
+        => Assert.Equal(1, TherapyProfile.DefaultProfileId);
+
     [Fact]
     public void IsCustom_IsTrueForExactlyOnePresetProfile()
     {

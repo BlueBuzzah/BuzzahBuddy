@@ -8,8 +8,8 @@ namespace BuzzahBuddy.ViewModels;
 /// </summary>
 public partial class ProfileItemViewModel : ObservableObject
 {
-    // Primary profiles shown by default (Noisy, Regular, Quick Test)
-    private static readonly int[] PrimaryProfileIds = { 2, 1, 6 };
+    // Primary profiles shown by default (Regular, Noisy, Quick Test)
+    private static readonly int[] PrimaryProfileIds = { 1, 2, 6 };
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(AccessibleText))]
@@ -31,9 +31,9 @@ public partial class ProfileItemViewModel : ObservableObject
     public string Description => Profile.Description;
 
     /// <summary>
-    /// Whether this profile is recommended (Noisy is the default recommended profile).
+    /// Whether this profile is recommended (Regular, the default profile, matching the firmware).
     /// </summary>
-    public bool IsRecommended => ProfileId == 2;
+    public bool IsRecommended => ProfileId == TherapyProfile.DefaultProfileId;
 
     /// <summary>
     /// Display name including "(recommended)" suffix if applicable.
@@ -42,7 +42,7 @@ public partial class ProfileItemViewModel : ObservableObject
 
     /// <summary>
     /// Whether this is a primary profile (shown by default).
-    /// Primary: Noisy, Regular, Quick Test
+    /// Primary: Regular, Noisy, Quick Test
     /// </summary>
     public bool IsPrimaryProfile => PrimaryProfileIds.Contains(ProfileId);
 

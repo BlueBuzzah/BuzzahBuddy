@@ -26,8 +26,8 @@ public class PreferencesStorageService : IDataStorageService
 
     public async Task<int> GetLastProfileAsync()
     {
-        // Default to profile 2 (Noisy VCR) if not set
-        var profileId = Preferences.Default.Get(LastProfileKey, 2);
+        // Default to Regular (TherapyProfile.DefaultProfileId) if not set
+        var profileId = Preferences.Default.Get(LastProfileKey, TherapyProfile.DefaultProfileId);
         return await Task.FromResult(profileId);
     }
 

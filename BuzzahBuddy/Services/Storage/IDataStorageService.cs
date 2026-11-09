@@ -16,7 +16,7 @@ public interface IDataStorageService
     /// <summary>
     /// Gets the last used therapy profile ID.
     /// </summary>
-    /// <returns>The last used profile ID, or 2 (Noisy VCR) as default.</returns>
+    /// <returns>The last used profile ID, or 1 (Regular VCR) as default.</returns>
     Task<int> GetLastProfileAsync();
 
     /// <summary>
