@@ -28,11 +28,12 @@ public partial class WelcomePage : ContentPage
 
     protected override bool OnBackButtonPressed() => true;
 
-    private async void OnTermsClicked(object? sender, EventArgs e) =>
-        await Browser.Default.OpenAsync(LegalNotices.TermsUrl, BrowserLaunchMode.SystemPreferred);
+    // SafeFireAndForget: Android throws when no browser is installed, which would crash an async void handler.
+    private void OnTermsClicked(object? sender, EventArgs e) =>
+        Browser.Default.OpenAsync(LegalNotices.TermsUrl, BrowserLaunchMode.SystemPreferred).SafeFireAndForget("[WELCOME]");
 
-    private async void OnPrivacyClicked(object? sender, EventArgs e) =>
-        await Browser.Default.OpenAsync(LegalNotices.PrivacyUrl, BrowserLaunchMode.SystemPreferred);
+    private void OnPrivacyClicked(object? sender, EventArgs e) =>
+        Browser.Default.OpenAsync(LegalNotices.PrivacyUrl, BrowserLaunchMode.SystemPreferred).SafeFireAndForget("[WELCOME]");
 
     private async void OnAgreeClicked(object? sender, EventArgs e)
     {
