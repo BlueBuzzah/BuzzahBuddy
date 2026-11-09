@@ -79,7 +79,7 @@ To reach Welcome, relaunch without the flag. Relaunch with it to get past Welcom
 ```bash
 udid=$(bash .claude/skills/ios-screenshots/scripts/sim.sh udid); app=com.rbonestell.buzzahbuddy
 xcrun simctl terminate $udid $app
-xcrun simctl launch $udid $app -demo_mode YES -ThemePreference 0   # add -WelcomeNoticesAccepted YES to skip Welcome
+xcrun simctl launch $udid $app -demo_mode YES -ThemePreference 0   # add -TermsAcceptedDate <LegalNotices.TermsEffectiveDate> to skip Welcome
 ```
 
 ## Out of Reach

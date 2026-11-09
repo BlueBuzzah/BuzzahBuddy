@@ -81,8 +81,9 @@ prepare)
 	adb -s "$serial" uninstall "$pkg" >/dev/null 2>&1 || true
 	adb -s "$serial" install -g "$apk" >/dev/null 2>&1 # -g: grant Bluetooth permissions, no prompt
 	# MAUI Preferences are SharedPreferences; a debug build lets run-as seed them before first launch:
-	# skip the first-run notices, start in Demo Mode, theme follows the OS (System = 0).
-	echo '<?xml version="1.0" encoding="utf-8" standalone="yes" ?><map><boolean name="WelcomeNoticesAccepted" value="true" /><boolean name="demo_mode" value="true" /><int name="ThemePreference" value="0" /></map>' |
+	# the current Terms already accepted (skips Welcome), start in Demo Mode, theme follows the OS (System = 0).
+	terms="$(sed -n 's/.*TermsEffectiveDate = "\(.*\)".*/\1/p' "$repo/BuzzahBuddy/Models/LegalNotices.cs")"
+	echo '<?xml version="1.0" encoding="utf-8" standalone="yes" ?><map><string name="TermsAcceptedDate">'"$terms"'</string><boolean name="demo_mode" value="true" /><int name="ThemePreference" value="0" /></map>' |
 		ash "run-as $pkg sh -c 'mkdir -p shared_prefs && cat > shared_prefs/${pkg}_preferences.xml'"
 	ash monkey --pct-syskeys 0 -p "$pkg" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
 	echo "$serial"

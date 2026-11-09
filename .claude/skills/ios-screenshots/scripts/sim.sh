@@ -52,8 +52,9 @@ prepare)
 	xcrun simctl terminate "$udid" com.apple.Preferences 2>/dev/null || true # or the status bar shows "◀ Settings"
 	xcrun simctl install "$udid" "$app"
 	# MAUI Preferences are NSUserDefaults, which reads "-key value" launch arguments first:
-	# skip the first-run notices, start in Demo Mode, theme follows the OS (System = 0).
-	xcrun simctl launch "$udid" "$bundle" -WelcomeNoticesAccepted YES -demo_mode YES -ThemePreference 0 >/dev/null
+	# the current Terms already accepted (skips Welcome), start in Demo Mode, theme follows the OS (System = 0).
+	terms="$(sed -n 's/.*TermsEffectiveDate = "\(.*\)".*/\1/p' "$repo/BuzzahBuddy/Models/LegalNotices.cs")"
+	xcrun simctl launch "$udid" "$bundle" -TermsAcceptedDate "$terms" -demo_mode YES -ThemePreference 0 >/dev/null
 	echo "$udid"
 	;;
 shot)
