@@ -15,7 +15,7 @@
 		<!-- Pinned: unset, it follows the installed workload, so the iOS release (workload 10.0.401,
 		     MAUI 10.0.20) and local builds ran different MAUI and the simulator hid an iOS bug.
 		     Bump it by hand; it is independent of the workload/Xcode pins in .github/workflows. -->
-		<MauiVersion>10.0.110</MauiVersion>
+		<MauiVersion>10.0.120</MauiVersion>
 		<SingleProject>true</SingleProject>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
@@ -131,8 +131,9 @@
 	<ItemGroup>
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
 		<PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
-		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.10" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.14" />
 		<PackageReference Include="Plugin.BLE" Version="3.2.1" />
+		<!-- Stay on 6.2.x: 6.5.0+ is AGPL-3.0 with a runtime license check (MIT through 6.2.4). -->
 		<PackageReference Include="PDFsharp" Version="6.2.4" />
 		<!-- PDFsharp pulls Pkcs 8.0.1, which has known advisories (NU1902/NU1903); this overrides it. -->
 		<PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.14" />
