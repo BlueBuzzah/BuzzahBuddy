@@ -20,7 +20,8 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[4]
 SIM = REPO / ".claude/skills/ios-screenshots/scripts/sim.sh"
-TOKENS = REPO / "../../.claude/skills/bluebuzzah-design-system/tokens.json"
+TOKENS = next(p / ".claude/skills/bluebuzzah-design-system/tokens.json" for p in REPO.parents
+              if (p / ".claude/skills/bluebuzzah-design-system/tokens.json").exists())  # the workspace, also from a worktree
 FONT = REPO / "BuzzahBuddy/Resources/Fonts/Lexend-Medium.ttf"
 OUT = REPO / "tmp/user-guide/images"
 

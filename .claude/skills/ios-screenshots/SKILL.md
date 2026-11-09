@@ -14,7 +14,8 @@ now. Run everything from the repo root.
 | `Duo` | "iPhone Duo", unfolded | 2007×2853 portrait, inner display |
 | `iPad` | "iPad Pro 13-inch Screenshots", created on first run | 2752×2064 landscape (App Store 13") |
 
-The iPhone and iPad get their own simulators so other agents' runs don't collide with them.
+The iPhone and iPad get their own simulators so other agents' runs don't collide with them. To shoot on an
+existing simulator of the same model instead (no new simulator), set `SIMULATOR="<its name>"`.
 
 ## Needs
 

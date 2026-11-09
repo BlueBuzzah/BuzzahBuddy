@@ -22,6 +22,7 @@ Duo | duo) DEVICE=Duo model="iPhone Duo" sim="iPhone Duo" w=669 h=951 sx=334 px=
 iPad | ipad) DEVICE=iPad model="iPad Pro 13-inch (M5)" sim="iPad Pro 13-inch Screenshots" w=1376 h=1032 sx=344 px=2752 display= ;;
 *) echo "DEVICE must be iPhone, Duo or iPad, not $DEVICE" >&2; exit 1 ;;
 esac
+sim="${SIMULATOR:-$sim}" # SIMULATOR=<name> shoots on an existing simulator of that model instead
 
 # Booted simulator with that name if there is one, else the one on the newest iOS runtime, else a new one.
 udid="$(xcrun simctl list devices available -j | python3 -c '
