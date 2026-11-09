@@ -55,6 +55,29 @@ public class MockParityTests
         Assert.StartsWith("1:", response.GetString("PROFILE"));
     }
 
+    // Firmware handleProfileGet: ON/OFF and JITTER with one decimal, lowercase pattern,
+    // FINGERS last. Values are the loaded profile's.
+    [Fact]
+    public async Task ProfileGet_FreshMock_ReportsRegular_LikeInfo()
+    {
+        var mock = await ConnectedMock();
+        Assert.Contains("\nPROFILE:1:regular_vcr\n", await mock.GetRawResponseAsync("INFO"));
+        Assert.Equal("CMD:PROFILE_GET\nTYPE:LRA\nFREQ:250\nON:100.0\nOFF:67.0\nSESSION:120\n" +
+                     "AMPMIN:100\nAMPMAX:100\nPATTERN:rndp\nMIRROR:0\nJITTER:0.0\nFINGERS:4\n\x04",
+            await mock.GetRawResponseAsync("PROFILE_GET"));
+    }
+
+    [Theory]
+    [InlineData(2, "ON:100.0\nOFF:67.0\nSESSION:120\nAMPMIN:100\nAMPMAX:100\nPATTERN:rndp\nMIRROR:1\nJITTER:23.5\n")]
+    [InlineData(5, "ON:80.0\nOFF:87.0\nSESSION:60\nAMPMIN:30\nAMPMAX:70\nPATTERN:sequential\nMIRROR:1\nJITTER:15.0\n")]
+    public async Task ProfileGet_AfterProfileLoad_ReportsTheLoadedProfile(int profileId, string values)
+    {
+        var mock = await ConnectedMock();
+        await mock.GetRawResponseAsync($"PROFILE_LOAD:{profileId}");
+        Assert.Equal($"CMD:PROFILE_GET\nTYPE:LRA\nFREQ:250\n{values}FINGERS:4\n\x04",
+            await mock.GetRawResponseAsync("PROFILE_GET"));
+    }
+
     [Fact]
     public async Task ProfileLoad_DuringSession_IsRejected()
     {
