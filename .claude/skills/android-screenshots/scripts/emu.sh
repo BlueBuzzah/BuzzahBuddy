@@ -12,9 +12,9 @@ set -euo pipefail
 
 repo="$(cd "$(dirname "$0")/../../../.." && pwd)"
 pkg="com.rbonestell.buzzahbuddy"
-# The tablet gets its own AVD so other agents' runs don't collide with it, and is shot in landscape.
+# Each device gets its own AVD so other agents' runs don't collide with it. The tablet is shot in landscape.
 case "${DEVICE:=Phone}" in
-Phone | phone) DEVICE=Phone avd=Pixel_9_Pro rotation=0 ;;
+Phone | phone) DEVICE=Phone avd=Phone_Screenshots rotation=0 ;;
 Tablet | tablet) DEVICE=Tablet avd=Tablet_Screenshots rotation=1 ;;
 *) echo "DEVICE must be Phone or Tablet, not $DEVICE" >&2; exit 1 ;;
 esac

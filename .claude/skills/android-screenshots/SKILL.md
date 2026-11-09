@@ -10,15 +10,19 @@ now. Run everything from the repo root.
 
 | Device | AVD | Shots |
 |--------|-----|-------|
-| `Phone` (default) | `Pixel_9_Pro` | 1280×2856 portrait |
-| `Tablet` | `Tablet_Screenshots`, used only by this skill | 2560×1600 landscape (Play 10" tablet) |
+| `Phone` (default) | `Phone_Screenshots`, a Pixel 9 Pro | 1280×2856 portrait |
+| `Tablet` | `Tablet_Screenshots` | 2560×1600 landscape (Play 10" tablet) |
+
+Both AVDs are used only by this skill, so other agents' runs don't collide with them and their storage stays free.
 
 ## Needs
 
 The .NET Android workload, the Android SDK (`ANDROID_HOME`, default `~/Library/Android/sdk`), and the
 AVDs:
 
-- `Pixel_9_Pro`: Android Studio > Device Manager > Pixel 9 Pro.
+- `Phone_Screenshots`: a copy of the `Pixel_9_Pro` AVD's definition without its data (`avdmanager` doesn't know the
+  Pixel 9 Pro). Make `~/.android/avd/Phone_Screenshots.avd/` holding only that AVD's `config.ini` with `AvdId` and
+  `avd.ini.displayname` renamed, and a `Phone_Screenshots.ini` beside it pointing at the folder.
 - `Tablet_Screenshots`: `avdmanager create avd -n Tablet_Screenshots -d medium_tablet -k "system-images;android-36;google_apis_playstore;arm64-v8a"`.
   The android-37 16 KB-page image hangs at boot headless on this Mac; use android-36.
 - **Tablet build:** the tablet pass is only worth running on a build with tablet layouts. Pass its APK
@@ -80,4 +84,8 @@ come from the screen size; History scrolls are per device in `capture.sh`.
 - **Fast swipes fling.** `emu.sh scroll` drags slowly so a position repeats run to run; a distance
   taller than the screen becomes several drags.
 - Pushed pages (Test Motors) show a bright blue status bar.
+- **A new AVD's first run shows the real clock and first-boot notification icons** in the status bar. Run the
+  capture again once it has booted.
+- **A full emulator fails the install silently** (`emu.sh` hides adb's output) and the first tap then finds nothing.
+  A debug APK needs about 700 MB free on `/data`.
 - Battery levels, firmware and History are Demo Mode sample data, the same every run.
