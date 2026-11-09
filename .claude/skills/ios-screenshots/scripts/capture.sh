@@ -41,7 +41,7 @@ sim tab History # 60 days of sample history in Demo Mode
 sleep 2
 sim tap PreviousMonthButton # last month is full of sample days; this month may have only a few
 sleep 1
-read -r overview calendar <<<"$([ "$DEVICE" = iPad ] && echo 170 470 || echo 190 510)" # the iPad's History starts higher
+case "$DEVICE" in iPad) overview=170 calendar=470 ;; Duo) overview=190 calendar=450 ;; *) overview=190 calendar=510 ;; esac # the iPad's History starts higher; a 510 drag flings on the Duo
 sim scroll "$overview" # Overview heading at the top, past the Demo Mode banner
 sim shot 03-history-overview
 sim scroll "$calendar"

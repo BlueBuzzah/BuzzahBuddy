@@ -14,14 +14,16 @@ now. Run everything from the repo root.
 | `Duo` | "iPhone Duo", unfolded | 2007×2853 portrait, inner display |
 | `iPad` | "iPad Pro 13-inch Screenshots", created on first run | 2752×2064 landscape (App Store 13") |
 
-The iPhone and iPad get their own simulators so other agents' runs don't collide with them.
+The iPhone and iPad get their own simulators so other agents' runs don't collide with them. To shoot on an
+existing simulator of the same model instead (no new simulator), set `SIMULATOR="<its name>"`.
 
 ## Needs
 
 Xcode (plus an iPhone Duo simulator for `Duo`), `idb` and `idb_companion` on PATH, and
 the .NET iOS workload. The scripts check these and stop with a pointer here:
 
-- **Duo:** unfold it first.
+- **Duo:** unfold it first (by hand; nothing on the command line does it), then turn it to portrait with the iOS
+  Simulator control tool if it comes up landscape.
 - **iPad, once per simulator:** turn it to landscape with the iOS Simulator control tool (`rotate`;
   simctl can't rotate), and set Settings > Multitasking & Gestures > **Full Screen Apps** (the default,
   Windowed Apps, adds a resize corner and the app's name to the status bar). Both settings stick.

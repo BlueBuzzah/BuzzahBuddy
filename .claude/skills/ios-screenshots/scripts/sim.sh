@@ -17,11 +17,12 @@ bundle="com.rbonestell.buzzahbuddy"
 # with them. The Duo is shot unfolded, on its inner display; the iPad in landscape. sx is where `scroll`
 # drags: mid-screen, or the iPad's scrolling left column.
 case "${DEVICE:=iPhone}" in
-iPhone | iphone) DEVICE=iPhone model="iPhone 17 Pro" sim="iPhone 17 Pro Screenshots" w=402 h=874 sx=201 display= ;;
-Duo | duo) DEVICE=Duo model="iPhone Duo" sim="iPhone Duo" w=669 h=951 sx=334 display=--display=primary-1 ;;
-iPad | ipad) DEVICE=iPad model="iPad Pro 13-inch (M5)" sim="iPad Pro 13-inch Screenshots" w=1376 h=1032 sx=344 display= ;;
+iPhone | iphone) DEVICE=iPhone model="iPhone 17 Pro" sim="iPhone 17 Pro Screenshots" w=402 h=874 sx=201 px=1206 display= ;;
+Duo | duo) DEVICE=Duo model="iPhone Duo" sim="iPhone Duo" w=669 h=951 sx=334 px=2007 display=--display=primary-1 ;;
+iPad | ipad) DEVICE=iPad model="iPad Pro 13-inch (M5)" sim="iPad Pro 13-inch Screenshots" w=1376 h=1032 sx=344 px=2752 display= ;;
 *) echo "DEVICE must be iPhone, Duo or iPad, not $DEVICE" >&2; exit 1 ;;
 esac
+sim="${SIMULATOR:-$sim}" # SIMULATOR=<name> shoots on an existing simulator of that model instead
 
 # Booted simulator with that name if there is one, else the one on the newest iOS runtime, else a new one.
 udid="$(xcrun simctl list devices available -j | python3 -c '
@@ -38,9 +39,11 @@ prepare)
 	[ -d "$app" ] || { echo "No app at $app. Build first (see SKILL.md)." >&2; exit 1; }
 	xcrun simctl boot "$udid" 2>/dev/null || true
 	xcrun simctl bootstatus "$udid" -b >/dev/null
-	# simctl can't rotate; the frontmost window's frame shows the orientation.
-	[ "$(idb ui describe-all --udid "$udid" --json | python3 -c 'import json, sys; print(round(json.load(sys.stdin)[0]["frame"]["width"]))')" = "$w" ] ||
-		{ echo "$model ($udid) isn't in the orientation this pass needs ($w points wide). Rotate it (see SKILL.md)." >&2; exit 1; }
+	# simctl can't rotate; a screenshot's pixel width shows the orientation (idb sees only the Duo's dark outer screen).
+	shot="$(mktemp).png"
+	xcrun simctl io "$udid" screenshot --type=png $display "$shot" >/dev/null 2>&1
+	got="$(sips -g pixelWidth "$shot" | awk '/pixelWidth/ {print $2}')"; rm -f "$shot"
+	[ "$got" = "$px" ] || { echo "$model ($udid) isn't in the orientation this pass needs ($px px wide, got $got). Rotate it (see SKILL.md)." >&2; exit 1; }
 	# Windowed Apps (the iPad default) adds a resize corner and the app's name to the status bar.
 	[ "$DEVICE" != iPad ] || [ "$(xcrun simctl spawn "$udid" defaults read com.apple.springboard SBMedusaMultitaskingEnabled 2>/dev/null)" = 0 ] ||
 		{ echo "Set the iPad to Settings > Multitasking & Gestures > Full Screen Apps (see SKILL.md)." >&2; exit 1; }
@@ -52,8 +55,9 @@ prepare)
 	xcrun simctl terminate "$udid" com.apple.Preferences 2>/dev/null || true # or the status bar shows "◀ Settings"
 	xcrun simctl install "$udid" "$app"
 	# MAUI Preferences are NSUserDefaults, which reads "-key value" launch arguments first:
-	# skip the first-run notices, start in Demo Mode, theme follows the OS (System = 0).
-	xcrun simctl launch "$udid" "$bundle" -WelcomeNoticesAccepted YES -demo_mode YES -ThemePreference 0 >/dev/null
+	# the current Terms already accepted (skips Welcome), start in Demo Mode, theme follows the OS (System = 0).
+	terms="$(sed -n 's/.*TermsEffectiveDate = "\(.*\)".*/\1/p' "$repo/BuzzahBuddy/Models/LegalNotices.cs")"
+	xcrun simctl launch "$udid" "$bundle" -TermsAcceptedDate "$terms" -demo_mode YES -ThemePreference 0 >/dev/null
 	echo "$udid"
 	;;
 shot)
