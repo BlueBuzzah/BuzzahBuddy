@@ -10,6 +10,8 @@ BlueBuzzah devices are not FDA cleared or approved medical devices and not inten
 
 Important: People with implanted electrodes from deep brain stimulation (DBS), heart pacemakers, or other internal electronic devices should take special precautions around all electronic devices, including BlueBuzzah. Consult your physician before use.
 
+Read the [terms and safety](https://bluebuzzah.com/terms) page before you build or wear a pair.
+
 **Mission:** Create a highly accessible, intuitive mobile app optimized for users with Parkinson's disease, featuring tremor-friendly UI and comprehensive assistive technology support.
 
 ## Related Resources
