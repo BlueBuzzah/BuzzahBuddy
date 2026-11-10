@@ -86,6 +86,10 @@ This app is designed with accessibility as a core requirement, following the Blu
 
 BuzzahBuddy is [MIT licensed](./LICENSE).
 
+Fonts and Lucide icons in `BuzzahBuddy/Resources/Fonts/` keep their own licenses (`licenses/` there).
+
+The BlueBuzzah and BuzzahBuddy names and logos are not covered by these licenses. See [Licenses and the BlueBuzzah name](https://bluebuzzah.com/terms#licenses).
+
 ## Contributing
 
 1. Fork it!
