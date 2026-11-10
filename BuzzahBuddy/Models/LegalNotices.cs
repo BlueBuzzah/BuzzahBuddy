@@ -7,7 +7,7 @@ public static class LegalNotices
     /// Effective date shown on the Terms and Safety page. Bump it together with the page: the
     /// apps re-prompt when the date a person accepted differs from this one.
     /// </summary>
-    public const string TermsEffectiveDate = "2026-11-07";
+    public const string TermsEffectiveDate = "2026-11-10";
 
     public const string TermsUrl = "https://bluebuzzah.com/terms.html";
     public const string PrivacyUrl = "https://bluebuzzah.com/privacy.html";
