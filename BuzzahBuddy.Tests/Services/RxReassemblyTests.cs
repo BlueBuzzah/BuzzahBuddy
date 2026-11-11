@@ -71,12 +71,26 @@ public class RxReassemblyTests
         var assembler = new RxFrameAssembler();
 
         // Glove↔glove sync traffic (no EOT) must not be glued onto the next frame
-        Assert.Empty(assembler.Append("EXECUTE_BUZZ:1:80:500"));
-        Assert.Empty(assembler.Append("SYNC_ADJ:12345"));
+        Assert.Empty(assembler.Append("BUZZ:1:80:500"));
+        Assert.Empty(assembler.Append("ACK_SYNC_ADJ:12345"));
 
         var frames = assembler.Append("PONG:\n\x04");
         Assert.Single(frames);
         Assert.Equal("PONG:\n\x04", frames[0]);
+    }
+
+    [Fact]
+    public void RemovedInternalPrefix_NoEot_IsBufferedNotDropped()
+    {
+        var assembler = new RxFrameAssembler();
+
+        // "SYNC_" is no longer in firmware INTERNAL_MESSAGES, so a frame-initial
+        // "SYNC_ADJ" packet is an ordinary partial frame and must be kept.
+        Assert.Empty(assembler.Append("SYNC_ADJ:12345"));
+        var frames = assembler.Append("\n" + "\x04");
+
+        Assert.Single(frames);
+        Assert.Equal("SYNC_ADJ:12345" + "\n" + "\x04", frames[0]);
     }
 
     [Fact]
