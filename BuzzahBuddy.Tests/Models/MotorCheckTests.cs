@@ -137,15 +137,15 @@ public class MotorCheckTests
 
     [Theory]
     [InlineData("OK,OK,OPEN,OK,OPEN",
-        "Ring motor didn't respond when it turned on. " + OpenLine)]
+        "Ring motor didn't respond when the glove turned on. " + OpenLine)]
     [InlineData("OK,OK,OPEN,OPEN,OPEN",
-        "Ring and little motors didn't respond when it turned on. " + OpenLine)]
+        "Ring and little motors didn't respond when the glove turned on. " + OpenLine)]
     [InlineData("OK,OK,OK,OK,NODRIVER",
         "Thumb driver didn't start. Charge the glove, then restart it.")]
     [InlineData("NODRIVER,NODRIVER,OK,OK",
         "Index and middle drivers didn't start. Charge the glove, then restart it.")]
     [InlineData("OK,OPEN,UNKNOWN,OK,NODRIVER",
-        "Middle motor didn't respond when it turned on. " + OpenLine + " Thumb driver didn't start. Charge the glove, then restart it.")]
+        "Middle motor didn't respond when the glove turned on. " + OpenLine + " Thumb driver didn't start. Charge the glove, then restart it.")]
     public void GloveLine_NamesMarkedFingersAndNextStep(string checks, string expected)
     {
         Assert.Equal(expected, MotorChecks.GloveLine(MotorChecks.Parse(checks)));

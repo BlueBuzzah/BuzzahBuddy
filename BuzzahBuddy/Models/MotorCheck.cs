@@ -107,7 +107,7 @@ public static class MotorChecks
         var (open, noDriver) = Split(checks);
         var parts = new List<string>();
         if (open.Count > 0)
-            parts.Add($"{Capitalize(OpenProblem(open))}. "
+            parts.Add($"{Capitalize(OpenProblem(open, "the glove"))}. "
                 + "Tap a finger to test it. If it doesn't buzz, check its connection, then restart the glove.");
         if (noDriver.Count > 0)
             parts.Add($"{Capitalize(NoDriverProblem(noDriver))}. Charge the glove, then restart it.");
@@ -121,8 +121,9 @@ public static class MotorChecks
             fingers.Where(f => checks![f] == MotorCheck.NoDriver).ToArray());
     }
 
-    private static string OpenProblem(IReadOnlyList<int> fingers) =>
-        $"{JoinFingers(fingers)} {(fingers.Count == 1 ? "motor" : "motors")} didn't respond when it turned on";
+    // The banner's sentence names the glove, so "it"; the Test Motors line doesn't, so "the glove".
+    private static string OpenProblem(IReadOnlyList<int> fingers, string glove = "it") =>
+        $"{JoinFingers(fingers)} {(fingers.Count == 1 ? "motor" : "motors")} didn't respond when {glove} turned on";
 
     private static string NoDriverProblem(IReadOnlyList<int> fingers) =>
         $"{JoinFingers(fingers)} {(fingers.Count == 1 ? "driver" : "drivers")} didn't start";
