@@ -237,25 +237,25 @@ public class MockParityTests
     public async Task Info_MotorChecks_FollowMotors_LikeFirmware()
     {
         var mock = await ConnectedMock();
-        mock.MockPrimaryMotorChecks = "OK,OK,OPEN,OPEN,OPEN";
-        mock.MockSecondaryMotorChecks = "OK,OK,OK,OK,OPEN";
+        mock.MockPrimaryMotorChecks = "OK,OK,OPEN,OPEN";
+        mock.MockSecondaryMotorChecks = "OK,OK,OK,OK";
 
         var raw = await mock.GetRawResponseAsync("INFO");
 
-        Assert.Contains("\nMOTORS:4\nMOTP:OK,OK,OPEN,OPEN,OPEN\nMOTS:OK,OK,OK,OK,OPEN\nPROFILE:", raw);
+        Assert.Contains("\nMOTORS:4\nMOTP:OK,OK,OPEN,OPEN\nMOTS:OK,OK,OK,OK\nPROFILE:", raw);
     }
 
     [Fact]
     public async Task Info_SecondaryOff_SendsNoMots_LikeFirmware()
     {
         var mock = await ConnectedMock();
-        mock.MockPrimaryMotorChecks = "OK,OK,OK,OK,OPEN";
-        mock.MockSecondaryMotorChecks = "OK,OK,OK,OK,OPEN";
+        mock.MockPrimaryMotorChecks = "OK,OK,OK,OK";
+        mock.MockSecondaryMotorChecks = "OK,OK,OK,OK";
         mock.MockSecondaryLinked = false;
 
         var raw = await mock.GetRawResponseAsync("INFO");
 
-        Assert.Contains("\nMOTORS:4\nMOTP:OK,OK,OK,OK,OPEN\nPROFILE:", raw);
+        Assert.Contains("\nMOTORS:4\nMOTP:OK,OK,OK,OK\nPROFILE:", raw);
         Assert.DoesNotContain("MOTS:", raw);
     }
 }

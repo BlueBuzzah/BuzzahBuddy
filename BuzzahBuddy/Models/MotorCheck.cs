@@ -2,8 +2,9 @@ namespace BuzzahBuddy.Models;
 
 /// <summary>
 /// One finger's boot motor check, from INFO's MOTP (primary) and MOTS (secondary) keys.
-/// Mirrors firmware include/motor_check.h: OK, OPEN (no motor seen), NODRIVER (driver
-/// init failed), UNKNOWN (probe timeout, bus busy or a supply dip).
+/// Mirrors firmware include/motor_check.h: OK (motor present), OPEN (no motor seen),
+/// NODRIVER (the port's driver never started), UNKNOWN (not checked, probe timeout, mux
+/// select failure, or a pass voided by a supply dip; a busy bus leaves the previous result).
 /// </summary>
 public enum MotorCheck { Ok, Open, NoDriver, Unknown }
 
@@ -19,14 +20,17 @@ public static class MotorChecks
 
     /// <summary>
     /// Comma-separated tokens in finger order (index, middle, ring, little, thumb). Null when
-    /// the key is missing or empty (v2, or firmware before the check); an unknown token is
-    /// <see cref="MotorCheck.Unknown"/>.
+    /// the key is missing or malformed (v2, firmware before the check, or an empty token); an
+    /// unknown token is <see cref="MotorCheck.Unknown"/>.
     /// </summary>
     public static IReadOnlyList<MotorCheck>? Parse(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
             return null;
-        return value.Split(',').Select(token => token.Trim() switch
+        var tokens = value.Split(',').Select(token => token.Trim()).ToArray();
+        if (tokens.Any(token => token.Length == 0))
+            return null;
+        return tokens.Select(token => token switch
         {
             "OK" => MotorCheck.Ok,
             "OPEN" => MotorCheck.Open,
@@ -35,27 +39,26 @@ public static class MotorChecks
         }).ToArray();
     }
 
-    /// <summary>Index to little fingers that didn't check OK. The thumb is never one.</summary>
-    public static IReadOnlyList<int> ProblemFingers(IReadOnlyList<MotorCheck>? checks) =>
-        checks is null ? []
-        : Enumerable.Range(0, Math.Min(RequiredFingers, checks.Count)).Where(f => checks[f] != MotorCheck.Ok).ToArray();
-
     /// <summary>
-    /// Whether Test Motors marks a finger: index to little when not OK, the thumb only on a
-    /// driver fault (an empty thumb port is normal). Null means no report.
+    /// The one problem rule, shared with the firmware's boot warning: index to little when OPEN
+    /// or NODRIVER, the thumb only when NODRIVER (an empty thumb port is normal). UNKNOWN never
+    /// is. Null means no report.
     /// </summary>
     public static bool IsMarked(int finger, MotorCheck? check) =>
-        check is { } c && (finger < RequiredFingers ? c != MotorCheck.Ok : finger == Thumb && c == MotorCheck.NoDriver);
+        finger < RequiredFingers ? check is MotorCheck.Open or MotorCheck.NoDriver
+        : finger == Thumb && check == MotorCheck.NoDriver;
 
     /// <summary>The fingers <see cref="IsMarked"/> marks, in finger order.</summary>
-    public static IReadOnlyList<int> MarkedFingers(IReadOnlyList<MotorCheck>? checks) =>
+    public static IReadOnlyList<int> ProblemFingers(IReadOnlyList<MotorCheck>? checks) =>
         checks is null ? [] : Enumerable.Range(0, checks.Count).Where(f => IsMarked(f, checks[f])).ToArray();
 
-    /// <summary>What a marked finger button adds for screen readers; null when it isn't marked.</summary>
+    /// <summary>
+    /// What a marked finger button adds for screen readers; null when it isn't marked.
+    /// </summary>
     public static string? AccessibleSuffix(int finger, MotorCheck? check) =>
         !IsMarked(finger, check) ? null
-        : check == MotorCheck.NoDriver ? ", driver fault"
-        : ", didn't respond at startup";
+        : check == MotorCheck.NoDriver ? ", driver didn't start"
+        : ", didn't respond when it turned on";
 
     /// <summary>Lowercase finger names: "ring", "ring and little", "middle, ring and little".</summary>
     public static string JoinFingers(IReadOnlyList<int> fingers)
@@ -67,40 +70,62 @@ public static class MotorChecks
     }
 
     /// <summary>
-    /// The Gloves banner message naming each glove's problem fingers; null when neither glove
-    /// has one. "Your primary glove's ring and little motors didn't respond when it turned on.
-    /// Sessions still run. Test them to check."
+    /// The Gloves banner message: one sentence per kind of problem on each glove, then what to
+    /// do. Null when neither glove has a problem. "Your primary glove's ring and little motors
+    /// didn't respond when it turned on. Sessions still run. Tap Test Motors to check them."
     /// </summary>
     public static string? BannerMessage(IReadOnlyList<MotorCheck>? primary, IReadOnlyList<MotorCheck>? secondary)
     {
-        var p = ProblemFingers(primary);
-        var s = ProblemFingers(secondary);
-        if (p.Count == 0 && s.Count == 0)
+        var sentences = GloveSentences("primary", primary).Concat(GloveSentences("secondary", secondary)).ToList();
+        if (sentences.Count == 0)
             return null;
+        var them = ProblemFingers(primary).Count + ProblemFingers(secondary).Count > 1 ? "them" : "it";
+        return $"{string.Join(" ", sentences)} Sessions still run. Tap Test Motors to check {them}.";
+    }
 
-        string Part(string glove, IReadOnlyList<int> fingers) =>
-            $"{glove} glove's {JoinFingers(fingers)} {Motors(fingers)}";
-        var both = p.Count > 0 && s.Count > 0;
-        var subject = both ? $"{Part("primary", p)} and your {Part("secondary", s)}"
-            : p.Count > 0 ? Part("primary", p)
-            : Part("secondary", s);
-        var them = p.Count + s.Count > 1 ? "them" : "it";
-        return $"Your {subject} didn't respond when {(both ? "they" : "it")} turned on. Sessions still run. Test {them} to check.";
+    // "Your primary glove's ring motor didn't respond when it turned on." then "Its thumb driver
+    // didn't start." (or "Your primary glove's thumb driver didn't start." on its own).
+    private static IEnumerable<string> GloveSentences(string glove, IReadOnlyList<MotorCheck>? checks)
+    {
+        var (open, noDriver) = Split(checks);
+        var owner = $"Your {glove} glove's";
+        if (open.Count > 0)
+        {
+            yield return $"{owner} {OpenProblem(open)}.";
+            owner = "Its";
+        }
+        if (noDriver.Count > 0)
+            yield return $"{owner} {NoDriverProblem(noDriver)}.";
     }
 
     /// <summary>
-    /// The line under a glove's heading in Test Motors, naming the fingers its buttons mark;
-    /// null when none are marked.
+    /// The line under a glove's heading in Test Motors: what failed and the next step for each
+    /// kind of problem. Null when no finger is marked.
     /// </summary>
     public static string? GloveLine(IReadOnlyList<MotorCheck>? checks)
     {
-        var fingers = MarkedFingers(checks);
-        if (fingers.Count == 0)
-            return null;
-        var names = JoinFingers(fingers);
-        return $"{char.ToUpperInvariant(names[0])}{names[1..]} {Motors(fingers)} didn't respond at startup. "
-            + "Tap a finger to test it. If it doesn't buzz, check its connection, then restart the glove.";
+        var (open, noDriver) = Split(checks);
+        var parts = new List<string>();
+        if (open.Count > 0)
+            parts.Add($"{Capitalize(OpenProblem(open))}. "
+                + "Tap a finger to test it. If it doesn't buzz, check its connection, then restart the glove.");
+        if (noDriver.Count > 0)
+            parts.Add($"{Capitalize(NoDriverProblem(noDriver))}. Charge the glove, then restart it.");
+        return parts.Count == 0 ? null : string.Join(" ", parts);
     }
 
-    private static string Motors(IReadOnlyList<int> fingers) => fingers.Count == 1 ? "motor" : "motors";
+    private static (IReadOnlyList<int> Open, IReadOnlyList<int> NoDriver) Split(IReadOnlyList<MotorCheck>? checks)
+    {
+        var fingers = ProblemFingers(checks);
+        return (fingers.Where(f => checks![f] == MotorCheck.Open).ToArray(),
+            fingers.Where(f => checks![f] == MotorCheck.NoDriver).ToArray());
+    }
+
+    private static string OpenProblem(IReadOnlyList<int> fingers) =>
+        $"{JoinFingers(fingers)} {(fingers.Count == 1 ? "motor" : "motors")} didn't respond when it turned on";
+
+    private static string NoDriverProblem(IReadOnlyList<int> fingers) =>
+        $"{JoinFingers(fingers)} {(fingers.Count == 1 ? "driver" : "drivers")} didn't start";
+
+    private static string Capitalize(string text) => $"{char.ToUpperInvariant(text[0])}{text[1..]}";
 }

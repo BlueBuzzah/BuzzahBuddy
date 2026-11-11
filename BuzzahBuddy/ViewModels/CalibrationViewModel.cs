@@ -49,10 +49,13 @@ public partial class FingerButtonItem : ObservableObject
     /// <summary>A failed boot check shows Lucide's triangle-alert on the button (bound in XAML).</summary>
     public bool HasStartupProblem => MotorChecks.IsMarked(Finger, StartupCheck);
 
-    /// <summary>"Primary glove index, tested" or "…, buzzing", plus any failed boot check.</summary>
+    /// <summary>
+    /// "Primary glove index, tested" or "…, buzzing"; otherwise any failed boot check, which
+    /// matches the glyph (vibrate and check replace the alert).
+    /// </summary>
     public string AccessibleText =>
-        $"{Glove} {Label.ToLowerInvariant()}{(IsBuzzing ? ", buzzing" : IsTested ? ", tested" : "")}"
-        + MotorChecks.AccessibleSuffix(Finger, StartupCheck);
+        $"{Glove} {Label.ToLowerInvariant()}"
+        + (IsBuzzing ? ", buzzing" : IsTested ? ", tested" : MotorChecks.AccessibleSuffix(Finger, StartupCheck));
 
     /// <summary>Finger on its own glove (0 = index … 4 = thumb), the order of MOTP/MOTS.</summary>
     public int Finger { get; }
@@ -181,6 +184,7 @@ public partial class CalibrationViewModel : BaseViewModel
 
         // Subscribe to connection events
         _bluetoothService.ConnectionStateChanged += OnConnectionStateChanged;
+        _gloveControlService.DeviceInfoReceived += OnDeviceInfoReceived;
 
         // Build the finger-test button collections from the current actuator count
         RebuildFingerButtons();
@@ -240,6 +244,26 @@ public partial class CalibrationViewModel : BaseViewModel
     }
 
     /// <summary>
+    /// Takes the boot motor checks from an INFO reply (on the main thread). A different motor
+    /// count rebuilds the buttons, which re-applies the checks.
+    /// </summary>
+    private void ApplyDeviceInfo(GloveDeviceInfo info)
+    {
+        if (!ConnectionInfo.IsConnected)
+            return;
+        _primaryMotorChecks = info.PrimaryMotorChecks;
+        _secondaryMotorChecks = info.SecondaryMotorChecks;
+        if (info.Motors != PrimaryFingers.Count)
+            RebuildFingerButtons();
+        else
+            ApplyMotorChecks();
+    }
+
+    // Any INFO (post-connect sync, the secondary battery re-ask) may carry new checks.
+    private void OnDeviceInfoReceived(object? sender, GloveDeviceInfo info) =>
+        MainThread.BeginInvokeOnMainThread(() => ApplyDeviceInfo(info));
+
+    /// <summary>
     /// Reads the boot motor checks from INFO. The post-connect INFO is usually fresh enough, and
     /// a cached reply raises no DeviceInfoReceived, so this uses the value returned.
     /// </summary>
@@ -248,14 +272,7 @@ public partial class CalibrationViewModel : BaseViewModel
         try
         {
             var info = await _gloveControlService.GetDeviceInfoAsync(BatteryReading.Freshness);
-            MainThread.BeginInvokeOnMainThread(() =>
-            {
-                if (!ConnectionInfo.IsConnected)
-                    return;
-                _primaryMotorChecks = info.PrimaryMotorChecks;
-                _secondaryMotorChecks = info.SecondaryMotorChecks;
-                ApplyMotorChecks();
-            });
+            MainThread.BeginInvokeOnMainThread(() => ApplyDeviceInfo(info));
         }
         catch (Exception ex)
         {
@@ -265,12 +282,14 @@ public partial class CalibrationViewModel : BaseViewModel
     }
 
     /// <summary>Called from the page's OnAppearing: starts test mode.</summary>
-    public async Task OpenAsync()
+    public Task OpenAsync()
     {
         _isOpen = true;
-        await EnterCalibrationModeAsync();
-        if (_isOpen && ConnectionInfo.IsConnected)
-            await LoadMotorChecksAsync();
+        var entering = EnterCalibrationModeAsync();
+        // Not behind test mode or its failure alert: the warnings show either way.
+        if (ConnectionInfo.IsConnected)
+            LoadMotorChecksAsync().SafeFireAndForget("[CALIBRATION]");
+        return entering;
     }
 
     /// <summary>Called from the page's OnDisappearing: ends test mode.</summary>
@@ -485,6 +504,7 @@ public partial class CalibrationViewModel : BaseViewModel
         if (disposing)
         {
             _bluetoothService.ConnectionStateChanged -= OnConnectionStateChanged;
+            _gloveControlService.DeviceInfoReceived -= OnDeviceInfoReceived;
         }
         base.Dispose(disposing);
     }
