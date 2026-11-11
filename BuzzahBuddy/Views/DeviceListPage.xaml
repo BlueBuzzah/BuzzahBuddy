@@ -30,7 +30,7 @@
                                  Title="{Binding Settings.BannerTitle}"
                                  Message="{Binding Settings.BannerMessage}"
                                  ActionText="{Binding Settings.BannerActionText}"
-                                 ActionCommand="{Binding Settings.ShowFirmwareUpdateCommand}"
+                                 ActionCommand="{Binding Settings.BannerActionCommand}"
                                  Announce="True" />
 
                 <VerticalStackLayout Spacing="{StaticResource Space3}">

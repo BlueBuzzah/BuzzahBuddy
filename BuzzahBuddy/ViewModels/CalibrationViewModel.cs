@@ -38,13 +38,29 @@ public partial class FingerButtonItem : ObservableObject
     [NotifyPropertyChangedFor(nameof(AccessibleText))]
     private bool _isBuzzing;
 
-    /// <summary>"Primary glove index, tested" or "…, buzzing".</summary>
-    public string AccessibleText =>
-        $"{Glove} {Label.ToLowerInvariant()}{(IsBuzzing ? ", buzzing" : IsTested ? ", tested" : "")}";
+    /// <summary>
+    /// This finger's boot motor check (INFO MOTP/MOTS); null when the glove didn't report one.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AccessibleText))]
+    [NotifyPropertyChangedFor(nameof(HasStartupProblem))]
+    private MotorCheck? _startupCheck;
 
-    public FingerButtonItem(int index, string label, string automationId, string glove)
+    /// <summary>A failed boot check shows Lucide's triangle-alert on the button (bound in XAML).</summary>
+    public bool HasStartupProblem => MotorChecks.IsMarked(Finger, StartupCheck);
+
+    /// <summary>"Primary glove index, tested" or "…, buzzing", plus any failed boot check.</summary>
+    public string AccessibleText =>
+        $"{Glove} {Label.ToLowerInvariant()}{(IsBuzzing ? ", buzzing" : IsTested ? ", tested" : "")}"
+        + MotorChecks.AccessibleSuffix(Finger, StartupCheck);
+
+    /// <summary>Finger on its own glove (0 = index … 4 = thumb), the order of MOTP/MOTS.</summary>
+    public int Finger { get; }
+
+    public FingerButtonItem(int index, int finger, string label, string automationId, string glove)
     {
         Index = index;
+        Finger = finger;
         Label = label;
         AutomationId = automationId;
         Glove = glove;
@@ -139,6 +155,18 @@ public partial class CalibrationViewModel : BaseViewModel
     /// </summary>
     public ObservableCollection<FingerButtonItem> SecondaryFingers { get; } = new();
 
+    // INFO's MOTP/MOTS boot motor checks for this link; null when not reported
+    private IReadOnlyList<MotorCheck>? _primaryMotorChecks;
+    private IReadOnlyList<MotorCheck>? _secondaryMotorChecks;
+
+    /// <summary>The primary glove's failed boot checks and what to do; null hides the line.</summary>
+    [ObservableProperty]
+    private string? _primaryMotorProblems;
+
+    /// <summary>The secondary glove's failed boot checks and what to do; null hides the line.</summary>
+    [ObservableProperty]
+    private string? _secondaryMotorProblems;
+
     public CalibrationViewModel(
         IGloveControlService gloveControlService,
         IBluetoothService bluetoothService,
@@ -182,7 +210,7 @@ public partial class CalibrationViewModel : BaseViewModel
                 ? fullLabel[(spaceIndex + 1)..]
                 : fullLabel;
 
-            var item = new FingerButtonItem(i, shortLabel, fullLabel.Replace(" ", "") + "Button",
+            var item = new FingerButtonItem(i, i % count, shortLabel, fullLabel.Replace(" ", "") + "Button",
                 i < count ? "Primary Glove" : "Secondary Glove");
 
             if (i < count)
@@ -190,13 +218,59 @@ public partial class CalibrationViewModel : BaseViewModel
             else
                 SecondaryFingers.Add(item);
         }
+
+        ApplyMotorChecks();
+    }
+
+    /// <summary>
+    /// Marks each finger from the gloves' boot motor checks and sets the line under each
+    /// glove's heading. A glove that didn't report (v2, older firmware, no MOTS) shows nothing.
+    /// </summary>
+    private void ApplyMotorChecks()
+    {
+        static MotorCheck? At(IReadOnlyList<MotorCheck>? checks, int finger) =>
+            checks is not null && finger < checks.Count ? checks[finger] : null;
+
+        foreach (var item in PrimaryFingers)
+            item.StartupCheck = At(_primaryMotorChecks, item.Finger);
+        foreach (var item in SecondaryFingers)
+            item.StartupCheck = At(_secondaryMotorChecks, item.Finger);
+        PrimaryMotorProblems = MotorChecks.GloveLine(_primaryMotorChecks);
+        SecondaryMotorProblems = MotorChecks.GloveLine(_secondaryMotorChecks);
+    }
+
+    /// <summary>
+    /// Reads the boot motor checks from INFO. The post-connect INFO is usually fresh enough, and
+    /// a cached reply raises no DeviceInfoReceived, so this uses the value returned.
+    /// </summary>
+    private async Task LoadMotorChecksAsync()
+    {
+        try
+        {
+            var info = await _gloveControlService.GetDeviceInfoAsync(BatteryReading.Freshness);
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                if (!ConnectionInfo.IsConnected)
+                    return;
+                _primaryMotorChecks = info.PrimaryMotorChecks;
+                _secondaryMotorChecks = info.SecondaryMotorChecks;
+                ApplyMotorChecks();
+            });
+        }
+        catch (Exception ex)
+        {
+            // The warnings are extra; testing works without them.
+            System.Diagnostics.Debug.WriteLine($"[CALIBRATION] Motor check read failed: {ex.Message}");
+        }
     }
 
     /// <summary>Called from the page's OnAppearing: starts test mode.</summary>
-    public Task OpenAsync()
+    public async Task OpenAsync()
     {
         _isOpen = true;
-        return EnterCalibrationModeAsync();
+        await EnterCalibrationModeAsync();
+        if (_isOpen && ConnectionInfo.IsConnected)
+            await LoadMotorChecksAsync();
     }
 
     /// <summary>Called from the page's OnDisappearing: ends test mode.</summary>
@@ -390,7 +464,17 @@ public partial class CalibrationViewModel : BaseViewModel
                 RebuildFingerButtons();
                 // Back on this page after a disconnect: test mode picks up again by itself.
                 if (_isOpen)
+                {
                     EnterCalibrationModeAsync().SafeFireAndForget("[CALIBRATION]");
+                    LoadMotorChecksAsync().SafeFireAndForget("[CALIBRATION]");
+                }
+            }
+            else
+            {
+                // The old link's checks say nothing about the next glove.
+                _primaryMotorChecks = null;
+                _secondaryMotorChecks = null;
+                ApplyMotorChecks();
             }
         });
     }
