@@ -108,6 +108,7 @@ bounds link-up through subscribe — iOS never times out a connect itself.
 | parameter validation / amplitude ordering | `src/profile_manager.cpp` `setParameter` |
 | `RxFrameAssembler.InternalMessagePrefixes` | `include/internal_messages.h` `INTERNAL_MESSAGES` |
 | `BatteryReading` curve, `LowVoltage`, `BATLP`/`BATLS` | `src/hardware.cpp` `VOLTAGE_CURVE`, `include/board_config.h` `BATTERY_LOW_VOLTAGE`, `MenuController::addBatteryLevelLine` |
+| `Models/MotorCheck.cs` tokens, `GloveDeviceInfo` `MOTP`/`MOTS` | `include/motor_check.h`, `MenuController::handleInfo` |
 | `LastSessionSummary` (`LAST_*`), `SessionStatus.SessionId` / `PausedSeconds` | `src/menu_controller.cpp` `handleSessionStatus`, `SessionEndReason` in `include/therapy_engine.h` |
 | `Models/ResearchDefaults.cs` (+ Custom preset in `Models/TherapyProfile.cs`) | `src/profile_manager.cpp` `custom_vcr` / `regular_vcr` / `noisy_vcr` |
 | `TherapyProfile.GetPresetProfiles` (all six; pinned by `TherapyProfileTests.Preset_MatchesFirmware`) | `src/profile_manager.cpp` `initBuiltInProfiles` |

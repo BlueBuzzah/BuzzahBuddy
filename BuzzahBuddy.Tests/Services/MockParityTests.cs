@@ -222,4 +222,40 @@ public class MockParityTests
         Assert.Contains("\nLAST_ELAPSED:7200\n", raw);
         Assert.Contains("\nLAST_REASON:COMPLETED\n", raw);
     }
+
+    // Firmware handleInfo: MOTP (and MOTS when linked) right after MOTORS; v2 sends neither.
+    [Fact]
+    public async Task Info_NoMotorChecks_ByDefault_LikeV2()
+    {
+        var mock = await ConnectedMock();
+        var raw = await mock.GetRawResponseAsync("INFO");
+        Assert.DoesNotContain("MOTP:", raw);
+        Assert.DoesNotContain("MOTS:", raw);
+    }
+
+    [Fact]
+    public async Task Info_MotorChecks_FollowMotors_LikeFirmware()
+    {
+        var mock = await ConnectedMock();
+        mock.MockPrimaryMotorChecks = "OK,OK,OPEN,OPEN";
+        mock.MockSecondaryMotorChecks = "OK,OK,OK,OK";
+
+        var raw = await mock.GetRawResponseAsync("INFO");
+
+        Assert.Contains("\nMOTORS:4\nMOTP:OK,OK,OPEN,OPEN\nMOTS:OK,OK,OK,OK\nPROFILE:", raw);
+    }
+
+    [Fact]
+    public async Task Info_SecondaryOff_SendsNoMots_LikeFirmware()
+    {
+        var mock = await ConnectedMock();
+        mock.MockPrimaryMotorChecks = "OK,OK,OK,OK";
+        mock.MockSecondaryMotorChecks = "OK,OK,OK,OK";
+        mock.MockSecondaryLinked = false;
+
+        var raw = await mock.GetRawResponseAsync("INFO");
+
+        Assert.Contains("\nMOTORS:4\nMOTP:OK,OK,OK,OK\nPROFILE:", raw);
+        Assert.DoesNotContain("MOTS:", raw);
+    }
 }

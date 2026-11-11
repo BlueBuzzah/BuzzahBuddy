@@ -60,6 +60,11 @@ public class CalibrationSettings
     }
 
     /// <summary>
+    /// Finger-only name for a per-glove finger index (0 = "Index" … 4 = "Thumb").
+    /// </summary>
+    public static string GetFingerName(int finger) => FingerNames[finger];
+
+    /// <summary>
     /// Creates calibration settings for every finger on both gloves.
     /// </summary>
     public static List<CalibrationSettings> CreateAll(int actuatorsPerGlove = 4)

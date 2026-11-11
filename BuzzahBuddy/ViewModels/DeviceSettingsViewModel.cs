@@ -159,7 +159,14 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     [ObservableProperty]
     private string? _bannerActionText;
 
+    [ObservableProperty]
+    private System.Windows.Input.ICommand? _bannerActionCommand;
+
     private (StatusTone Tone, string Title, string Message)? _resultBanner;
+
+    // INFO's MOTP/MOTS boot motor checks; null on v2, older firmware or no report
+    private IReadOnlyList<MotorCheck>? _primaryMotorChecks;
+    private IReadOnlyList<MotorCheck>? _secondaryMotorChecks;
 
     /// <summary>
     /// True after an apply whose gloves never reconnected; the Gloves scan view shows a
@@ -542,21 +549,28 @@ public partial class DeviceSettingsViewModel : BaseViewModel
             BatteryLow: BatteryReading.IsLow(BatterySecondaryVoltage, _batterySecondaryLow));
     }
 
-    /// <summary>Session-locked warning beats the last action's result, which beats outdated firmware.</summary>
+    /// <summary>
+    /// Session-locked warning beats the last action's result, which beats a failed boot motor
+    /// check, which beats outdated firmware.
+    /// </summary>
     private void ResolveBanner()
     {
-        (StatusTone Tone, string Title, string Message)? banner =
+        (StatusTone Tone, string Title, string Message, string? Action, System.Windows.Input.ICommand? Command)? banner =
             IsSessionActive && ConnectionInfo.IsConnected
-                ? (StatusTone.Warning, "Stop Your Session to Change Settings", "Glove settings are locked while a session runs.")
-                : _resultBanner;
-        var showUpdate = banner is null && FirmwareOutdated;
-        if (showUpdate)
-            banner = (StatusTone.Warning, "Firmware Update Available",
-                $"Your primary glove has v{FirmwareVersion} and the latest is {_latestFirmwareTag}. Update both gloves with the BlueBuzzah Updater on a computer.");
+                ? (StatusTone.Warning, "Stop Your Session to Change Settings", "Glove settings are locked while a session runs.", null, null)
+            : _resultBanner is { } r ? (r.Tone, r.Title, r.Message, null, null)
+            : MotorChecks.BannerMessage(_primaryMotorChecks, _secondaryMotorChecks) is { } motors
+                ? (StatusTone.Warning, "Check Your Motors", motors, "Test Motors", NavigateToCalibrationCommand)
+            : FirmwareOutdated
+                ? (StatusTone.Warning, "Firmware Update Available",
+                    $"Your primary glove has v{FirmwareVersion} and the latest is {_latestFirmwareTag}. Update both gloves with the BlueBuzzah Updater on a computer.",
+                    "How to Update", ShowFirmwareUpdateCommand)
+            : null;
         BannerVisible = banner is not null;
-        BannerActionText = showUpdate ? "How to Update" : null;
+        BannerActionText = banner?.Action;
+        BannerActionCommand = banner?.Command;
         if (banner is { } b)
-            (BannerTone, BannerTitle, BannerMessage) = b;
+            (BannerTone, BannerTitle, BannerMessage) = (b.Tone, b.Title, b.Message);
     }
 
     /// <summary>Flags firmware older than the newest release. Demo gloves never are.</summary>
@@ -609,10 +623,13 @@ public partial class DeviceSettingsViewModel : BaseViewModel
     {
         MainThread.BeginInvokeOnMainThread(() =>
         {
+            _primaryMotorChecks = info.PrimaryMotorChecks;
+            _secondaryMotorChecks = info.SecondaryMotorChecks;
             FirmwareVersion = info.FirmwareVersion is { Length: > 0 } and not "0.0.0" ? info.FirmwareVersion : null;
             _secondaryLinked = info.SecondaryLinked;
             ApplyBatteryReading(info.BatteryPrimaryVoltage, info.BatterySecondaryVoltage,
                 info.BatteryPrimaryLow, info.BatterySecondaryLow);
+            ResolveBanner();
         });
     }
 
@@ -939,6 +956,8 @@ public partial class DeviceSettingsViewModel : BaseViewModel
             {
                 TherapyLedLoaded = false;
                 _resultBanner = null;
+                _primaryMotorChecks = null;
+                _secondaryMotorChecks = null;
                 FirmwareVersion = null;
                 // Readings from the old link say nothing about the next one
                 ApplyBatteryReading(null, null);

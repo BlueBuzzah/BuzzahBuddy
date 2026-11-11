@@ -54,6 +54,14 @@
                         <Grid x:Name="FingerGrid" RowDefinitions="Auto,Auto" RowSpacing="{StaticResource Space3}" IsVisible="{Binding IsStep3}">
                         <VerticalStackLayout x:Name="PrimarySection" Spacing="{StaticResource Space3}">
                         <Label Text="Primary Glove" Style="{StaticResource TypeTitleS}" SemanticProperties.HeadingLevel="Level3" />
+                        <!-- Failed boot motor check: which fingers, and what to do. Wraps at large text. -->
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="{StaticResource Space2}"
+                              IsVisible="{Binding PrimaryMotorProblems, Converter={StaticResource IsNotNullConverter}}">
+                            <Label Style="{StaticResource IconLabel}" FontSize="20" VerticalOptions="Start"
+                                   Text="{x:Static helpers:LucideIcons.TriangleAlert}" TextColor="{DynamicResource Warning}" />
+                            <Label Grid.Column="1" Text="{Binding PrimaryMotorProblems}" Style="{StaticResource TypeBodyS}"
+                                   TextColor="{DynamicResource Warning}" AutomationId="PrimaryMotorProblems" />
+                        </Grid>
                         <FlexLayout Wrap="Wrap" Margin="-6,0" BindableLayout.ItemsSource="{Binding PrimaryFingers}">
                             <BindableLayout.ItemTemplate>
                                 <DataTemplate x:DataType="vm:FingerButtonItem">
@@ -66,8 +74,14 @@
                                                 SemanticProperties.Description="{Binding AccessibleText}"
                                                 AutomationId="{Binding AutomationId}"
                                                 IsEnabled="{Binding Source={RelativeSource AncestorType={x:Type vm:CalibrationViewModel}}, Path=CanBuzzFingers}">
-                                            <!-- Vibrate while this finger buzzes, then a check if the test worked. -->
+                                            <!-- Alert for a failed boot check; vibrate while this finger buzzes, then a check if
+                                                 the test worked. Later triggers win, so the alert stays first. -->
                                             <Button.Triggers>
+                                                <DataTrigger TargetType="Button" Binding="{Binding HasStartupProblem}" Value="True">
+                                                    <Setter Property="ImageSource">
+                                                        <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.TriangleAlert}" Size="20" Color="{DynamicResource Brand}" />
+                                                    </Setter>
+                                                </DataTrigger>
                                                 <DataTrigger TargetType="Button" Binding="{Binding IsBuzzing}" Value="True">
                                                     <Setter Property="ImageSource">
                                                         <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Vibrate}" Size="20" Color="{DynamicResource Brand}" />
@@ -87,6 +101,14 @@
                         </VerticalStackLayout>
                         <VerticalStackLayout x:Name="SecondarySection" Grid.Row="1" Spacing="{StaticResource Space3}">
                         <Label Text="Secondary Glove" Style="{StaticResource TypeTitleS}" SemanticProperties.HeadingLevel="Level3" />
+                        <!-- Failed boot motor check: which fingers, and what to do. Wraps at large text. -->
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="{StaticResource Space2}"
+                              IsVisible="{Binding SecondaryMotorProblems, Converter={StaticResource IsNotNullConverter}}">
+                            <Label Style="{StaticResource IconLabel}" FontSize="20" VerticalOptions="Start"
+                                   Text="{x:Static helpers:LucideIcons.TriangleAlert}" TextColor="{DynamicResource Warning}" />
+                            <Label Grid.Column="1" Text="{Binding SecondaryMotorProblems}" Style="{StaticResource TypeBodyS}"
+                                   TextColor="{DynamicResource Warning}" AutomationId="SecondaryMotorProblems" />
+                        </Grid>
                         <FlexLayout Wrap="Wrap" Margin="-6,0" BindableLayout.ItemsSource="{Binding SecondaryFingers}">
                             <BindableLayout.ItemTemplate>
                                 <DataTemplate x:DataType="vm:FingerButtonItem">
@@ -99,8 +121,14 @@
                                                 SemanticProperties.Description="{Binding AccessibleText}"
                                                 AutomationId="{Binding AutomationId}"
                                                 IsEnabled="{Binding Source={RelativeSource AncestorType={x:Type vm:CalibrationViewModel}}, Path=CanBuzzFingers}">
-                                            <!-- Vibrate while this finger buzzes, then a check if the test worked. -->
+                                            <!-- Alert for a failed boot check; vibrate while this finger buzzes, then a check if
+                                                 the test worked. Later triggers win, so the alert stays first. -->
                                             <Button.Triggers>
+                                                <DataTrigger TargetType="Button" Binding="{Binding HasStartupProblem}" Value="True">
+                                                    <Setter Property="ImageSource">
+                                                        <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.TriangleAlert}" Size="20" Color="{DynamicResource Brand}" />
+                                                    </Setter>
+                                                </DataTrigger>
                                                 <DataTrigger TargetType="Button" Binding="{Binding IsBuzzing}" Value="True">
                                                     <Setter Property="ImageSource">
                                                         <FontImageSource FontFamily="Lucide" Glyph="{x:Static helpers:LucideIcons.Vibrate}" Size="20" Color="{DynamicResource Brand}" />
