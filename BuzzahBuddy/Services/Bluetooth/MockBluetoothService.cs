@@ -43,6 +43,10 @@ public class MockBluetoothService : IBluetoothService
     internal bool MockPrimaryFault { get; set; }
     internal bool MockSecondaryFault { get; set; }
 
+    /// <summary>INFO MOTP/MOTS motor-check tokens; settable so tests can report a v3 check. Null sends no key.</summary>
+    internal string? MockPrimaryMotorChecks { get; set; }
+    internal string? MockSecondaryMotorChecks { get; set; }
+
     public ConnectionState CurrentConnectionState { get; private set; } = ConnectionState.Disconnected;
     public GloveDevice? ConnectedDevice => _connectedDevice;
     public string? LastConnectedDeviceId => _lastConnectedDeviceId;
@@ -300,6 +304,9 @@ public class MockBluetoothService : IBluetoothService
                "FW:2.0.0\n" +
                "HW:v2\n" +
                "MOTORS:4\n" +
+               // Firmware sends MOTS only while the secondary is linked and has reported.
+               (MockPrimaryMotorChecks is { } motp ? $"MOTP:{motp}\n" : "") +
+               (MockSecondaryLinked && MockSecondaryMotorChecks is { } mots ? $"MOTS:{mots}\n" : "") +
                $"PROFILE:{_mockCurrentProfile}:{ProfileNameFor(_mockCurrentProfile)}\n" +
                MockBatteryLines(withLink: true) +
                $"STATUS:{_mockSessionState}\n" +

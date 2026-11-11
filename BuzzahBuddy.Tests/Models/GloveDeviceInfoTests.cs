@@ -77,4 +77,41 @@ public class GloveDeviceInfoTests
 
         Assert.Equal(linked, GloveDeviceInfo.FromCommandResponse(response).SecondaryLinked);
     }
+
+    [Fact]
+    public void FromCommandResponse_MotorChecks_ParsesBothGloves()
+    {
+        var response = CommandResponse.Parse(
+            "ROLE:PRIMARY\nFW:2.3.0\nMOTORS:5\nMOTP:OK,OK,OPEN,OPEN,OPEN\nMOTS:OK,NODRIVER,OK,OK,UNKNOWN\nSTATUS:IDLE\n\x04");
+
+        var info = GloveDeviceInfo.FromCommandResponse(response);
+
+        Assert.Equal(new[] { MotorCheck.Ok, MotorCheck.Ok, MotorCheck.Open, MotorCheck.Open, MotorCheck.Open },
+            info.PrimaryMotorChecks);
+        Assert.Equal(new[] { MotorCheck.Ok, MotorCheck.NoDriver, MotorCheck.Ok, MotorCheck.Ok, MotorCheck.Unknown },
+            info.SecondaryMotorChecks);
+    }
+
+    [Fact]
+    public void FromCommandResponse_MotorChecksMissing_AreNull()
+    {
+        // v2, firmware before the check, or a secondary that hasn't reported
+        var response = CommandResponse.Parse("ROLE:PRIMARY\nFW:2.1.0\nMOTORS:4\nSTATUS:IDLE\n\x04");
+
+        var info = GloveDeviceInfo.FromCommandResponse(response);
+
+        Assert.Null(info.PrimaryMotorChecks);
+        Assert.Null(info.SecondaryMotorChecks);
+    }
+
+    [Fact]
+    public void FromCommandResponse_MotorChecksMalformed_EmptyIsNull_UnknownTokenIsUnknown()
+    {
+        var response = CommandResponse.Parse("ROLE:PRIMARY\nMOTP:\nMOTS:OK,BOGUS\nSTATUS:IDLE\n\x04");
+
+        var info = GloveDeviceInfo.FromCommandResponse(response);
+
+        Assert.Null(info.PrimaryMotorChecks);
+        Assert.Equal(new[] { MotorCheck.Ok, MotorCheck.Unknown }, info.SecondaryMotorChecks);
+    }
 }

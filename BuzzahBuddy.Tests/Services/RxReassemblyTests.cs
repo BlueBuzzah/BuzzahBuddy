@@ -73,6 +73,7 @@ public class RxReassemblyTests
         // Glove↔glove sync traffic (no EOT) must not be glued onto the next frame
         Assert.Empty(assembler.Append("BUZZ:1:80:500"));
         Assert.Empty(assembler.Append("ACK_SYNC_ADJ:12345"));
+        Assert.Empty(assembler.Append("MOTOR_STATUS:OK,OK,OPEN,OPEN,OPEN"));
 
         var frames = assembler.Append("PONG:\n\x04");
         Assert.Single(frames);

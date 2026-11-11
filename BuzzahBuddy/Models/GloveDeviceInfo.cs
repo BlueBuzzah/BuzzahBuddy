@@ -63,6 +63,13 @@ public class GloveDeviceInfo
     public int Motors { get; set; } = 4;
 
     /// <summary>
+    /// Each glove's boot motor check per finger (MOTP/MOTS); null when the key is missing:
+    /// v2, firmware before the check, or (MOTS) a secondary that isn't linked or hasn't reported.
+    /// </summary>
+    public IReadOnlyList<MotorCheck>? PrimaryMotorChecks { get; set; }
+    public IReadOnlyList<MotorCheck>? SecondaryMotorChecks { get; set; }
+
+    /// <summary>
     /// Active profile ID (1-6), 0 if the firmware didn't report one.
     /// </summary>
     public int ProfileId { get; set; }
@@ -92,7 +99,9 @@ public class GloveDeviceInfo
             BatteryPrimaryLow = BatteryReading.GloveLow(response.GetString("BATLP")),
             BatterySecondaryLow = BatteryReading.GloveLow(response.GetString("BATLS")),
             Status = response.GetString("STATUS") ?? "IDLE",
-            SecondaryLinked = response.GetInt("SECONDARY") is { } linked ? linked != 0 : null
+            SecondaryLinked = response.GetInt("SECONDARY") is { } linked ? linked != 0 : null,
+            PrimaryMotorChecks = MotorChecks.Parse(response.GetString("MOTP")),
+            SecondaryMotorChecks = MotorChecks.Parse(response.GetString("MOTS"))
         };
 
         info.Motors = response.GetInt("MOTORS") ?? 4;
