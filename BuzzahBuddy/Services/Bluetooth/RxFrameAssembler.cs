@@ -12,22 +12,21 @@ public class RxFrameAssembler
     private const int MaxPartialFrameLength = 4096;
     private readonly StringBuilder _buffer = new();
 
-    // Firmware-internal glove↔glove message prefixes (firmware menu_controller.cpp
-    // INTERNAL_MESSAGES). Current firmware writes per connection handle, so a
-    // PHONE-typed connection never receives these; older firmware notified every
-    // subscriber, and one of these landing here would be glued onto the front of
-    // the next real frame. Internal messages carry no EOT and fit one packet, so a
-    // packet is dropped only when it starts a new frame, has no EOT, and starts
-    // with a known internal prefix. Only response key sharing a prefix is "PONG:",
-    // which always arrives EOT-terminated in a single packet, so it is never dropped.
+    // Firmware-internal glove↔glove message prefixes. Mirrors firmware
+    // include/internal_messages.h INTERNAL_MESSAGES exactly. Current firmware writes
+    // per connection handle, so a PHONE-typed connection never receives these; older
+    // firmware notified every subscriber, and one of these landing here would be
+    // glued onto the front of the next real frame. Internal messages carry no EOT and
+    // fit one packet, so a packet is dropped only when it starts a new frame, has no
+    // EOT, and starts with a known internal prefix. Only response key sharing a prefix
+    // is "PONG:", which always arrives EOT-terminated in a single packet, so it is
+    // never dropped.
     private static readonly string[] InternalMessagePrefixes =
     {
-        "BUZZ", "PING", "PONG", "PARAM_UPDATE", "SEED", "GET_BATTERY",
-        "BATRESPONSE", "GLOVE_ERROR", "ACK_PARAM_UPDATE", "SYNC_", "FIRST_SYNC", "ACK_SYNC",
-        "START_SESSION", "PAUSE_SESSION", "RESUME_SESSION", "STOP_SESSION",
-        "IDENTIFY:", "LED_OFF_SYNC", "DEBUG_FLASH", "DEBUG_SYNC", "MC:", "MC_ACK:",
-        "CALIB_BUZZ:", "CALIB_STOP",
-        "EXECUTE_BUZZ"   // legacy firmware sync message, not in current INTERNAL_MESSAGES
+        "BUZZ", "PING", "PONG", "GET_BATTERY", "BATRESPONSE", "GLOVE_ERROR",
+        "FIRST_SYNC", "ACK_SYNC", "START_SESSION", "PAUSE_SESSION", "RESUME_SESSION",
+        "STOP_SESSION", "IDENTIFY:", "LED_OFF_SYNC", "DEBUG_FLASH", "DEBUG_SYNC",
+        "MC:", "MC_ACK:", "CALIB_BUZZ:", "CALIB_STOP"
     };
 
     /// <summary>
