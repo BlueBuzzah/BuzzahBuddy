@@ -144,7 +144,7 @@
                                         </Button.ImageSource>
                                     </Button>
                                 </Grid>
-                                <Label Text="A full square is 4 hours, the daily time early studies used."
+                                <Label Text="A full square is 4 hours."
                                        Style="{StaticResource TypeBodyS}" TextColor="{DynamicResource InkMuted}" />
                             </VerticalStackLayout>
                         </Border>
