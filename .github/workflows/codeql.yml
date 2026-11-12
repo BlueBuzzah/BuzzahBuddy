@@ -1,0 +1,31 @@
+name: CodeQL 🔍
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "17 6 * * 1"
+
+# C# only. Swift (native/), Python (scripts/) and Ruby (fastlane/) are build
+# tooling or a thin Siri bridge; scanning them failed runs without adding coverage.
+# This replaces GitHub's default setup, which must stay off: with it on, the
+# results this workflow uploads are rejected.
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      # build-mode none: C# is extracted from source, so no MAUI workloads needed
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: csharp
+          build-mode: none
+      - uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:csharp"
