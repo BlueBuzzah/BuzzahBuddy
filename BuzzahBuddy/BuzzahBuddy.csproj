@@ -80,6 +80,18 @@
 		<AndroidUseAapt2>true</AndroidUseAapt2>
 	</PropertyGroup>
 
+	<!-- Google Play flags DEX obfuscation under 25%. Unset, AndroidLinkTool runs d8 only, so
+	     no Java code was shrunk or renamed. The SDK generates keep rules for every class
+	     managed code reaches over JNI. private-members is the only obfuscating value
+	     AndroidR8ObfuscationMode accepts (the other is disabled). The mapping file goes into the AAB's
+	     BUNDLE-METADATA, so Play deobfuscates crash reports without an upload step.
+	     AndroidR8ObfuscationMode needs Android pack 36.1.118+; older packs ignore it. -->
+	<PropertyGroup
+		Condition="'$(TargetFramework)' == 'net10.0-android' and '$(Configuration)' == 'Release'">
+		<AndroidLinkTool>r8</AndroidLinkTool>
+		<AndroidR8ObfuscationMode>private-members</AndroidR8ObfuscationMode>
+	</PropertyGroup>
+
 	<!-- Release Configuration: Trimming and optimization -->
 	<PropertyGroup Condition="'$(Configuration)' == 'Release'">
 		<PublishTrimmed>true</PublishTrimmed>
