@@ -1,0 +1,55 @@
+# Submits a build that release.yml already uploaded for App Review.
+# Run by the workflow's ios-submit job on a full (non-pre-release) release.
+
+APP_IDENTIFIER = "com.rbonestell.buzzahbuddy"
+
+default_platform(:ios)
+
+platform :ios do
+  lane :submit do
+    version = ENV.fetch("APP_VERSION")
+    build_number = ENV.fetch("BUILD_NUMBER")
+    key = app_store_connect_api_key(
+      key_id: ENV.fetch("ASC_KEY_ID"),
+      issuer_id: ENV.fetch("ASC_ISSUER_ID"),
+      key_content: ENV.fetch("ASC_PRIVATE_KEY")
+    )
+
+    # deliver doesn't wait for a build chosen by number, and its "latest" could
+    # pick the pre-release's build of the same version, so wait here.
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(**key)
+    app = Spaceship::ConnectAPI::App.find(APP_IDENTIFIER)
+    UI.user_error!("No App Store Connect app for #{APP_IDENTIFIER}") unless app
+
+    # The first App Store version needs listing work only a person can do.
+    unless app.get_live_app_store_version
+      UI.important("#{APP_IDENTIFIER} has no live App Store version yet. Build #{version} (#{build_number}) is in TestFlight; submit the first version by hand.")
+      next
+    end
+
+    build = nil
+    120.times do # 60 minutes
+      build = Spaceship::ConnectAPI::Build.all(app_id: app.id, version: version, build_number: build_number).first
+      break if build&.processed?
+      UI.message("Waiting for build #{version} (#{build_number}) to finish processing...")
+      sleep(30)
+    end
+    unless build&.processing_state == "VALID"
+      UI.user_error!("Build #{version} (#{build_number}) is #{build ? build.processing_state : 'not on App Store Connect'}")
+    end
+
+    upload_to_app_store(
+      api_key: key,
+      app_identifier: APP_IDENTIFIER,
+      app_version: version,
+      build_number: build_number,
+      release_notes: { "en-US" => ENV.fetch("RELEASE_NOTES").delete("\r").strip },
+      skip_binary_upload: true,
+      skip_screenshots: true,
+      force: true, # no HTML preview prompt
+      run_precheck_before_submit: false,
+      submit_for_review: true,
+      automatic_release: true
+    )
+  end
+end

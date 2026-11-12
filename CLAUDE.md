@@ -306,8 +306,19 @@ workload, Android build + `net10.0` compile check, iOS build on macOS — all De
 workflows pin `xcode-select` and the iOS workload version together (each workload binds
 one Xcode; unpinned → MT0180); bump them in lockstep.
 
-`release.yml` (GitHub Release **published**): tag must be `vX[.Y[.Z]]` (App Store Connect
+`release.yml` (GitHub Release **published**, or a pre-release changed to a release): tag must be `vX[.Y[.Z]]` (App Store Connect
 rejects anything else). Version comes from the tag; csproj `ApplicationDisplayVersion` is
 ignored. Build number = `github.run_number + BUILD_OFFSET` (2); **raise `BUILD_OFFSET`
 after any manual store upload** — both stores reject a build number ≤ one already
-accepted. Ships to TestFlight and Play internal.
+accepted.
+
+- **A pre-release ships to testers** (TestFlight, Play internal). **A full release ships to
+  the public**: Play production, and App Review with release on approval (`ios-submit` job,
+  `fastlane/Fastfile`). Unticking "pre-release" on a release ships it live too, rebuilt from
+  the same tag under a new build number.
+- **The release notes are the stores' "What's New" text**: at most 500 characters (Play's
+  limit; the App Store allows 4000) and plain text, since neither store renders Markdown.
+  "- " bullets are fine; no headings, links or bold. The workflow fails before building if
+  they're empty or too long; fix the notes on the release and re-run.
+- The App Store Connect key needs the App Manager role to submit. The first App Store
+  version is submitted by hand: until one is live, `ios-submit` warns and does nothing.

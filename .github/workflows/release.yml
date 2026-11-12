@@ -1,8 +1,15 @@
 name: Release 🚀
 
+# A pre-release ships to testers (TestFlight, Play internal). A full release
+# ships to the public stores (App Review then the App Store, Play production),
+# and so does a pre-release edited into a full release, which rebuilds from the
+# same tag under a new build number.
 on:
   release:
-    types: [published]
+    # `released` also fires when a pre-release is changed to a release, which
+    # `published` does not. A full release fires both, so the `version` job
+    # skips its `published` run and everything downstream skips with it.
+    types: [published, released]
 
 # Default to no permissions - grant only what's needed per job
 permissions: {}
@@ -31,10 +38,38 @@ jobs:
   version:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    if: github.event.action == 'released' || github.event.release.prerelease
+    permissions:
+      contents: read # read the release notes; inherited {} works only while the repo is public
     outputs:
       version: ${{ steps.derive.outputs.version }}
       build: ${{ steps.derive.outputs.build }}
+      # 'true' only for an explicit full release; anything else stays on the
+      # tester tracks.
+      live: ${{ github.event.action == 'released' && github.event.release.prerelease == false }}
     steps:
+      # The release notes are the stores' "What's New" text. Play allows 500
+      # characters per language (the App Store 4000), and neither renders
+      # Markdown. Checked on pre-releases too, since one is promoted by an edit.
+      #
+      # Read from the release, not the event payload, here and below: a re-run
+      # replays the original payload, so edited notes would never arrive.
+      - name: Check release notes fit the stores
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json body -q .body > notes.txt
+          python3 - <<'PY'
+          import sys
+          notes = open("notes.txt", encoding="utf-8").read().replace("\r", "").strip()
+          if not notes:
+              sys.exit("::error::The release has no notes. They are the stores' What's New text.")
+          if len(notes) > 500:
+              sys.exit(f"::error::Release notes are {len(notes)} characters. Google Play allows 500. Shorten them on the release, then re-run this workflow.")
+          print(f"Release notes: {len(notes)} of 500 characters")
+          PY
       - name: Derive version from release tag
         id: derive
         env:
@@ -56,6 +91,7 @@ jobs:
           echo "Releasing $VERSION (build $BUILD)"
 
   test:
+    needs: version # skipped with it on a full release's `published` run
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -201,13 +237,28 @@ jobs:
       # SHA-pinned, not @v1: this action receives the Play service account
       # credential, and upstream force-moves the v1 tag (it currently points at
       # v1.1.5). Bump deliberately after reviewing the diff.
-      - name: Upload to Play Console (internal track)
+      - name: Write store release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/whatsnew"
+          # Normalised exactly as the version job counted it
+          gh release view "$RELEASE_TAG" --json body -q .body \
+            | python3 -c 'import sys; sys.stdout.write(sys.stdin.read().replace("\r", "").strip())' \
+            > "$RUNNER_TEMP/whatsnew/whatsnew-en-US"
+
+      # status: completed on production is a full rollout once Google's review
+      # passes.
+      - name: Upload to Play Console (internal or production track)
         uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
         with:
           serviceAccountJson: ${{ runner.temp }}/play-service-account.json
           packageName: ${{ secrets.ANDROID_PACKAGE_NAME }}
           releaseFiles: ${{ steps.aab.outputs.path }}
-          track: internal
+          track: ${{ needs.version.outputs.live == 'true' && 'production' || 'internal' }}
+          whatsNewDirectory: ${{ runner.temp }}/whatsnew
           status: completed
 
       - name: Attach AAB to GitHub Release
@@ -356,3 +407,43 @@ jobs:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
           IPA_PATH: ${{ steps.ipa.outputs.path }}
         run: gh release upload "$RELEASE_TAG" "$IPA_PATH" --clobber
+
+  # Full releases only. altool can only put a build in TestFlight; this waits
+  # for it to finish processing, then submits it for App Review, released
+  # automatically on approval (fastlane/Fastfile).
+  #
+  # A separate job so a failed submission can be re-run on its own: re-running
+  # `ios` would re-upload the same build number, which Apple rejects. On ubuntu
+  # because it mostly waits.
+  #
+  # The API key needs the App Manager role; a Developer key can upload but not
+  # submit. The app's first App Store version has to be submitted by hand:
+  # until one is live, the lane warns and does nothing.
+  ios-submit:
+    needs: [version, ios]
+    if: needs.version.outputs.live == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read # checkout; inherited {} works only while the repo is public
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install fastlane
+        run: sudo gem install fastlane -v 2.241.2 --no-document
+
+      - name: Submit for App Review
+        env:
+          ASC_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.APPSTORE_PRIVATE_KEY }}
+          APP_VERSION: ${{ needs.version.outputs.version }}
+          BUILD_NUMBER: ${{ needs.version.outputs.build }}
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          FASTLANE_SKIP_UPDATE_CHECK: "1"
+        run: |
+          set -euo pipefail
+          RELEASE_NOTES="$(gh release view "$RELEASE_TAG" --json body -q .body)"
+          export RELEASE_NOTES
+          fastlane ios submit
