@@ -316,7 +316,7 @@ ignored. Build number = `github.run_number + BUILD_OFFSET` (2); **raise `BUILD_O
 after any manual store upload** — both stores reject a build number ≤ one already
 accepted.
 
-- **A pre-release ships to testers** (TestFlight, Play internal). **A full release ships to
+- **A pre-release ships to testers** (TestFlight, Play open testing, after Google's review). **A full release ships to
   the public**: Play production, and App Review with release on approval (`ios-submit` job,
   `fastlane/Fastfile`). Unticking "pre-release" on a release ships it live too, rebuilt from
   the same tag under a new build number.

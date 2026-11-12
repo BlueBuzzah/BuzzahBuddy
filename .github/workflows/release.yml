@@ -1,6 +1,6 @@
 name: Release 🚀
 
-# A pre-release ships to testers (TestFlight, Play internal). A full release
+# A pre-release ships to testers (TestFlight, Play open testing). A full release
 # ships to the public stores (App Review then the App Store, Play production),
 # and so does a pre-release edited into a full release, which rebuilds from the
 # same tag under a new build number.
@@ -249,15 +249,16 @@ jobs:
             | python3 -c 'import sys; sys.stdout.write(sys.stdin.read().replace("\r", "").strip())' \
             > "$RUNNER_TEMP/whatsnew/whatsnew-en-US"
 
-      # status: completed on production is a full rollout once Google's review
-      # passes.
-      - name: Upload to Play Console (internal or production track)
+      # status: completed is a full rollout once Google's review passes. `beta`
+      # is the API's name for Open testing. Release notes come from whatsnew.
+      - name: Upload to Play Console (open testing or production track)
         uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
         with:
           serviceAccountJson: ${{ runner.temp }}/play-service-account.json
           packageName: ${{ secrets.ANDROID_PACKAGE_NAME }}
           releaseFiles: ${{ steps.aab.outputs.path }}
-          track: ${{ needs.version.outputs.live == 'true' && 'production' || 'internal' }}
+          track: ${{ needs.version.outputs.live == 'true' && 'production' || 'beta' }}
+          releaseName: v${{ needs.version.outputs.version }}
           whatsNewDirectory: ${{ runner.temp }}/whatsnew
           status: completed
 
