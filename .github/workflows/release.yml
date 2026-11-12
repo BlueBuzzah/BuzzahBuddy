@@ -422,6 +422,11 @@ jobs:
   ios-submit:
     needs: [version, ios]
     if: needs.version.outputs.live == 'true'
+    # One at a time across tags: the app has a single editable App Store
+    # version, and two submissions would overwrite each other's version and notes.
+    concurrency:
+      group: ios-submit
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 90
     permissions:

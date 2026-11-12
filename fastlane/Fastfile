@@ -38,18 +38,30 @@ platform :ios do
       UI.user_error!("Build #{version} (#{build_number}) is #{build ? build.processing_state : 'not on App Store Connect'}")
     end
 
+    # Set the version, release type and notes here and keep deliver's metadata
+    # upload off: it also deletes any App Review attachment added by hand.
+    ios = Spaceship::ConnectAPI::Platform::IOS
+    notes = ENV.fetch("RELEASE_NOTES").delete("\r").strip
+    app.ensure_version!(version, platform: ios)
+    edit = app.get_edit_app_store_version(platform: ios)
+    UI.user_error!("No editable App Store version for #{version}") unless edit
+    sleep(2) # a new version briefly refuses a release type (fastlane#16911)
+    edit.update(attributes: { "releaseType" => Spaceship::ConnectAPI::AppStoreVersion::ReleaseType::AFTER_APPROVAL })
+    edit.get_app_store_version_localizations.each do |localization|
+      localization.update(attributes: { "whatsNew" => notes })
+    end
+
     upload_to_app_store(
       api_key: key,
       app_identifier: APP_IDENTIFIER,
       app_version: version,
       build_number: build_number,
-      release_notes: { "en-US" => ENV.fetch("RELEASE_NOTES").delete("\r").strip },
       skip_binary_upload: true,
+      skip_metadata: true,
       skip_screenshots: true,
       force: true, # no HTML preview prompt
       run_precheck_before_submit: false,
-      submit_for_review: true,
-      automatic_release: true
+      submit_for_review: true
     )
   end
 end
