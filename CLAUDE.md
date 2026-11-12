@@ -258,6 +258,9 @@ button's current `TextColor`.
   `Switch.System.Reflection.ForceInterpretedInvoke` (launch crash without it), `TrimMode`
   partial. Never set `IsAotCompatible` (implies `IsTrimmable`). CI builds Debug only —
   verify reflection-adjacent changes with `-c Release` on a device.
+- **Android Release runs R8** (`AndroidLinkTool` r8, `AndroidR8ObfuscationMode` private-members)
+  for Play's DEX obfuscation check. A Java class reached only by reflection, not JNI or the
+  manifest, needs a keep rule in a `ProguardConfiguration` item. Debug skips R8.
 - **Judge speed on Release.** A Debug build on a physical device runs the Mono interpreter, so
   the first open of each tab stalls for seconds. That's not page code; Release (AOT) is quick.
 - **Every persisted type needs `[JsonSerializable]` in
