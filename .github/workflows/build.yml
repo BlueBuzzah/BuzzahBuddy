@@ -11,6 +11,11 @@ on:
       - "BuzzahBuddy.Native.Binding/**"
       - "native/**"
       - ".github/workflows/build.yml"
+
+# Every job only checks out and builds
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
