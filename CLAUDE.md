@@ -1,9 +1,13 @@
 # BuzzahBuddy
 
-.NET MAUI companion app (iOS + Android) for the BlueBuzzah vibrotactile therapy gloves
+.NET MAUI companion app (iOS + Android) for the BlueBuzzah DIY vibrotactile stimulation gloves
 (Parkinson's). Talks BLE to the gloves to run sessions, tune parameters, and test motors.
 **Tremor-friendly accessibility outranks visual preference in every design call.**
 The BLE contract lives in `../BlueBuzzah-Firmware`.
+
+## Not a medical device
+
+BlueBuzzah is a volunteer-driven, open-source DIY project, not a medical or therapeutic device. Nothing written here (UI copy, store listings, release notes, docs, comments people read) may say or imply that it is a medical device, or that it is cleared, approved or authorized by the FDA or any other regulator. Regulatory status appears only in the verbatim legal disclaimer. Code identifiers, firmware commands, protocol fields, serial markers and file names are not copy and stay as they are. Full rule: "Not a medical device" in the workspace `CLAUDE.md` (`../../CLAUDE.md`).
 
 ## Design System — required for every UI/UX change
 
